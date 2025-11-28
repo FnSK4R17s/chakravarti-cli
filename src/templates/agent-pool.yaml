@@ -1,0 +1,42 @@
+version: 1.0
+project:
+  name: "{{PROJECT_NAME}}"
+  description: "{{PROJECT_DESCRIPTION}}"
+  base_branch: "ckrv/feature/001-initial-setup"
+
+agents:
+  planner:
+    role: planner
+    provider: gemini
+    model: gemini-2.0-flash-exp
+    mode: interactive
+    responsibilities:
+      - "Collaborate with user to spec requirements"
+      - "Create sprint plans with story points"
+      - "Assign tasks to executors"
+      - "Mediate tester feedback"
+      - "Resolve merge conflicts"
+  
+  executors:
+    - name: executor-1
+      role: executor
+      provider: claude
+      model: claude-sonnet-4
+      branch_prefix: "ckrv/exec-1"
+    - name: executor-2
+      role: executor
+      provider: codex
+      model: gpt-4
+      branch_prefix: "ckrv/exec-2"
+  
+  tester:
+    role: tester
+    provider: opencode
+    responsibilities:
+      - "Write comprehensive tests"
+      - "Verify implementations"
+      - "Report issues to planner"
+
+communication:
+  type: message_queue
+  backend: in-memory
