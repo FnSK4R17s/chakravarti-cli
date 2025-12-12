@@ -278,7 +278,8 @@ export const setupCommand = async (projectPath: string = process.cwd()): Promise
     console.log(chalk.cyan(`  Tester:    ${responses.tester.provider} (${responses.tester.model})`));
 
     console.log(chalk.dim('\nNext steps:'));
-    console.log(chalk.dim('  1. Review agent-pool.yaml'));
-    console.log(chalk.dim('  2. Define tasks in .chakravarti/sprints/sprint-001.md'));
-    console.log(chalk.dim('  3. Run ckrv run to start orchestration'));
+    console.log(chalk.dim('  1. Review agent-pool.yaml (optional)'));
+    console.log(chalk.dim('  2. Run `ckrv up` to start the environment'));
+    console.log(chalk.dim('  3. Define tasks in .chakravarti/sprints/sprint-001.md'));
+    console.log(chalk.dim('  4. Run `ckrv run` to start working'));
 };

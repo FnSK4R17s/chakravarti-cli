@@ -26,8 +26,10 @@ export const showHelp = (): void => {
     const commands = [
         `${chalk.cyan('init')}          Initialize a new Chakravarti project.`,
         `${chalk.cyan('setup')}         Interactively configure agent pool.`,
+        `${chalk.cyan('run')}           Run an agent with a prompt.`,
+        `${chalk.cyan('chat')}          Start interactive chat with an agent.`,
         `${chalk.cyan('check')}         Check for installed tools.`,
-        `${chalk.cyan('run')}           Run agent orchestration (coming soon).`,
+        `${chalk.cyan('sprint')}        Start a new sprint with automated spec planning.`,
     ].join('\n');
 
     console.log(boxen(commands, {

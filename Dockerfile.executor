@@ -1,0 +1,59 @@
+FROM node:20-alpine
+
+# Install git, build tools, and other dependencies
+RUN apk add --no-cache \
+    git \
+    build-base \
+    python3 \
+    curl \
+    bash \
+    openssh-client \
+    netcat-openbsd
+
+# Set up workspace
+WORKDIR /workspace
+
+# Set git config
+RUN git config --global user.name "Chakravarti Executor" && \
+    git config --global user.email "executor@chakravarti.local" && \
+    git config --global init.defaultBranch main
+
+# Create non-root user (use node user which already exists in node:alpine)
+RUN chown -R node:node /workspace
+
+# Set up npm global for non-root user
+ENV NPM_CONFIG_PREFIX=/home/node/.npm-global
+ENV PATH=$PATH:/home/node/.npm-global/bin
+
+# Copy and set up entrypoint
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+USER node
+
+# Create npm global directory
+RUN mkdir -p /home/node/.npm-global
+
+# Install CLI tools as node user
+RUN npm install -g typescript ts-node nodemon 2>/dev/null || true
+
+# Install Gemini CLI (official package from Google)
+RUN npm install -g @google/gemini-cli || echo "Gemini CLI install failed"
+
+# Install Claude CLI
+RUN npm install -g @anthropic-ai/claude-code 2>/dev/null || \
+    echo "Claude CLI not available via npm"
+
+# Install ioredis for queue communication
+RUN npm install -g ioredis
+
+# Copy and install ckrv CLI (from host)
+COPY --chown=node:node . /tmp/chakravarti-cli
+RUN cd /tmp/chakravarti-cli && npm install && npm run build && npm link
+
+# Environment variables
+ENV REDIS_HOST=chakravarti-redis
+ENV REDIS_PORT=6379
+
+# Default command - start worker or keep running
+CMD ["/entrypoint.sh"]

@@ -1,0 +1,56 @@
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    container_name: chakravarti-gitlab
+    hostname: gitlab.local
+    restart: unless-stopped
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:8080'
+        nginx['listen_port'] = 80
+        gitlab_rails['initial_root_password'] = 'chakravarti123'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2222
+        # Disable monitoring features we don't need for local dev
+        prometheus_monitoring['enable'] = false
+    ports:
+      - "8080:80"
+      - "8443:443"
+      - "2222:22"
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - gitlab-data:/var/opt/gitlab
+    shm_size: '256m'
+    networks:
+      - chakravarti-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: chakravarti-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - chakravarti-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  gitlab-config:
+    name: chakravarti-gitlab-config
+  gitlab-logs:
+    name: chakravarti-gitlab-logs
+  gitlab-data:
+    name: chakravarti-gitlab-data
+  redis-data:
+    name: chakravarti-redis-data
+
+networks:
+  chakravarti-network:
+    name: chakravarti-network

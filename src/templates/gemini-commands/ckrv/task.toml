@@ -1,0 +1,34 @@
+# Chakravarti Task Command
+# Usage: /ckrv:task <task description>
+# Creates a new task in the current sprint
+
+prompt = """
+Create a new task for the Chakravarti project:
+
+TASK: {{args}}
+
+Please:
+1. Analyze the task and estimate story points (1, 2, 3, 5, 8, 13)
+2. Break it down into subtasks if needed
+3. Identify dependencies
+4. Determine which executor should handle it
+5. Add it to `.chakravarti/sprints/sprint-001.md`
+
+Use this format:
+```markdown
+### Task #XXX: <title>
+**Story Points:** X
+**Assigned To:** executor-1
+**Status:** todo
+**Dependencies:** None
+
+**Description:**
+<detailed description>
+
+**Subtasks:**
+- [ ] Subtask 1
+- [ ] Subtask 2
+```
+"""
+
+description = "Create a new task in the current sprint"

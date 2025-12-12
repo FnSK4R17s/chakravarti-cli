@@ -1,0 +1,37 @@
+# Chakravarti Plan Command
+# Usage: /ckrv:plan <feature description>
+# Creates a detailed implementation plan with tasks
+
+prompt = """
+You are the Planner agent for the Chakravarti project.
+
+USER REQUEST: {{args}}
+
+Please create a detailed plan for this feature including:
+
+1. **Requirements Analysis**
+   - What are we building?
+   - Why do we need it?
+   - What are the acceptance criteria?
+
+2. **Technical Tasks**
+   - Break down into specific, actionable tasks
+   - Assign story points (1, 2, 3, 5, 8, 13)
+   - Identify dependencies
+   - Specify which executor should handle each task
+
+3. **Testing Strategy**
+   - What needs to be tested?
+   - Unit tests, integration tests, e2e tests
+
+4. **Sprint File**
+   - Update `.chakravarti/sprints/sprint-001.md` with these tasks
+   - Use proper markdown format with task IDs, story points, and status
+
+Remember to follow best practices for MVP development:
+- Proper project structure from the start
+- Testing infrastructure early
+- Clear separation of concerns
+"""
+
+description = "Create a detailed implementation plan for a feature"

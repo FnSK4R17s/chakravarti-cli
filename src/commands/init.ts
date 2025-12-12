@@ -33,63 +33,92 @@ export const initCommand = async (projectPath: string = process.cwd()): Promise<
         spinner.succeed('Created .chakravarti directory structure');
 
         // 3. Generate agent-pool.yaml
-        spinner.start('Generating agent-pool.yaml...');
-        const templatePath = path.join(__dirname, '../templates/agent-pool.yaml');
-        const targetPath = path.join(projectPath, 'agent-pool.yaml');
-
-        if (fs.existsSync(targetPath)) {
-            spinner.warn('agent-pool.yaml already exists, skipping...');
-        } else {
-            let template = fs.readFileSync(templatePath, 'utf-8');
-
-            // Get project name from directory
-            const projectName = path.basename(projectPath);
-            template = template.replace('{{PROJECT_NAME}}', projectName);
-            template = template.replace('{{PROJECT_DESCRIPTION}}', `AI-powered development for ${projectName}`);
-
-            fs.writeFileSync(targetPath, template);
-            spinner.succeed('Generated agent-pool.yaml');
-        }
+        // 3. (Skipped) agent-pool.yaml is created by ckrv setup
+        // spinner.start('Generating agent-pool.yaml...');
 
         // 4. Create initial sprint template
-        spinner.start('Creating initial sprint template...');
-        const sprintTemplatePath = path.join(__dirname, '../templates/sprint.md');
-        const sprintPath = path.join(sprintsDir, 'sprint-001.md');
+        // (Skipped) Sprints are now managed by `ckrv sprint` command
+        // const sprintTemplatePath = path.join(__dirname, '../templates/sprint.md');
 
-        if (!fs.existsSync(sprintPath)) {
-            let sprintTemplate = fs.readFileSync(sprintTemplatePath, 'utf-8');
-            const now = new Date();
-            const endDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000); // 2 weeks
+        // 5. Generate prompt templates
+        spinner.start('Generating prompt templates...');
+        const promptsDir = path.join(chakravartiDir, 'prompts');
+        fs.mkdirSync(promptsDir, { recursive: true });
 
-            sprintTemplate = sprintTemplate.replace(/{{SPRINT_ID}}/g, '001');
-            sprintTemplate = sprintTemplate.replace(/{{SPRINT_NAME}}/g, 'Initial Setup');
-            sprintTemplate = sprintTemplate.replace('{{START_DATE}}', now.toISOString().split('T')[0]);
-            sprintTemplate = sprintTemplate.replace('{{END_DATE}}', endDate.toISOString().split('T')[0]);
+        const promptTemplates = ['planner', 'executor', 'tester'];
+        for (const role of promptTemplates) {
+            const templatePath = path.join(__dirname, `../templates/prompt-${role}.md`);
+            const targetPath = path.join(promptsDir, `${role}.md`);
 
-            fs.writeFileSync(sprintPath, sprintTemplate);
-            spinner.succeed('Created initial sprint template');
+            if (fs.existsSync(templatePath)) {
+                const template = fs.readFileSync(templatePath, 'utf8');
+                fs.writeFileSync(targetPath, template);
+            }
+        }
+        spinner.succeed('Created prompt templates');
+
+        // 6. Copy Gemini CLI custom commands
+        spinner.start('Installing Gemini CLI custom commands...');
+        const geminiCommandsDir = path.join(projectPath, '.gemini', 'commands');
+        fs.mkdirSync(geminiCommandsDir, { recursive: true });
+
+        const ckrvCommandsDir = path.join(geminiCommandsDir, 'ckrv');
+        fs.mkdirSync(ckrvCommandsDir, { recursive: true });
+
+        const commandFiles = ['plan.toml', 'status.toml', 'task.toml', 'review.toml'];
+        commandFiles.forEach(file => {
+            const src = path.join(__dirname, '../templates/gemini-commands/ckrv', file);
+            const dest = path.join(ckrvCommandsDir, file);
+            if (fs.existsSync(src)) {
+                fs.copyFileSync(src, dest);
+            }
+        });
+        spinner.succeed('Installed Gemini CLI custom commands');
+
+        // 7. Copy Makefile
+        spinner.start('Creating Makefile...');
+        const makefileSrc = path.join(__dirname, '../templates/Makefile');
+        const makefileDest = path.join(projectPath, 'Makefile');
+        if (!fs.existsSync(makefileDest) && fs.existsSync(makefileSrc)) {
+            fs.copyFileSync(makefileSrc, makefileDest);
+            spinner.succeed('Created Makefile');
+        } else if (fs.existsSync(makefileDest)) {
+            spinner.info('Makefile already exists');
         } else {
-            spinner.info('Sprint template already exists');
+            spinner.warn('Makefile template not found');
         }
 
-        // 5. Create .gitignore entry for logs
+        // 8. Add entries to .gitignore
         const gitignorePath = path.join(projectPath, '.gitignore');
-        const gitignoreEntry = '\n# Chakravarti\n.chakravarti/logs/\n';
+        const gitignoreEntries = [
+            '.chakravarti/logs/',
+            '.chakravarti/worktrees/',
+            'GEMINI.md  # Auto-generated by ckrv chat',
+        ];
 
         if (fs.existsSync(gitignorePath)) {
-            const gitignoreContent = fs.readFileSync(gitignorePath, 'utf-8');
-            if (!gitignoreContent.includes('.chakravarti/logs/')) {
-                fs.appendFileSync(gitignorePath, gitignoreEntry);
+            const gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+            const entriesToAdd = gitignoreEntries.filter(entry =>
+                !gitignoreContent.includes(entry.split('#')[0].trim())
+            );
+            if (entriesToAdd.length > 0) {
+                fs.appendFileSync(gitignorePath, `\n# Chakravarti\n${entriesToAdd.join('\n')}\n`);
             }
         } else {
-            fs.writeFileSync(gitignorePath, gitignoreEntry);
+            fs.writeFileSync(gitignorePath, `# Chakravarti\n${gitignoreEntries.join('\n')}\n`);
         }
 
-        console.log('\n' + chalk.green('✓ Chakravarti project initialized successfully!'));
-        console.log(chalk.dim('\nNext steps:'));
-        console.log(chalk.cyan('  1. Review and customize agent-pool.yaml'));
-        console.log(chalk.cyan('  2. Edit .chakravarti/sprints/sprint-001.md to define your first tasks'));
-        console.log(chalk.cyan('  3. Run ckrv run to start the orchestration'));
+        // 9. Setup GitLab Project (if reachable)
+        const { setupGitLabProject } = await import('../utils/gitlab');
+        await setupGitLabProject(projectPath);
+
+        console.log(chalk.green('\n✓ Chakravarti project initialized successfully!\n'));
+        console.log(chalk.bold('Next steps:'));
+        console.log(chalk.dim('  1. Run `ckrv setup` to configure your agent pool'));
+        console.log(chalk.dim('  2. Customize .chakravarti/prompts/*.md to tailor agent instructions'));
+        console.log(chalk.dim('  3. Edit .chakravarti/sprints/sprint-001.md to define your first tasks'));
+        console.log(chalk.dim('  4. Run `ckrv up` to start the environment'));
+        console.log(chalk.dim('  5. Run `ckrv run "your prompt"` to start working\n'));
 
     } catch (error) {
         spinner.fail('Failed to initialize project');
