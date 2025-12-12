@@ -1,0 +1,18 @@
+# Chakravarti Status Command
+# Usage: /ckrv:status
+# Shows current project status
+
+prompt = """
+Please run the following command and explain the project status:
+
+!{ckrv status}
+
+Summarize:
+- What agents are configured
+- GitLab status
+- Active worktrees
+- Current sprint
+- Any issues or warnings
+"""
+
+description = "Show current Chakravarti project status"

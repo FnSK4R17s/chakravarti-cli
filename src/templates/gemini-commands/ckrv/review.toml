@@ -1,0 +1,26 @@
+# Chakravarti Review Sprint Command
+# Usage: /ckrv:review
+# Reviews the current sprint and provides suggestions
+
+prompt = """
+Please review the current sprint file at `.chakravarti/sprints/sprint-001.md`
+
+Provide:
+1. **Sprint Summary**
+   - Total tasks
+   - Story points distribution
+   - Task status (todo, in-progress, done)
+
+2. **Recommendations**
+   - Are tasks well-defined?
+   - Do story points seem reasonable?
+   - Are dependencies clear?
+   - Any blockers or risks?
+
+3. **Suggested Improvements**
+   - Tasks that could be broken down further
+   - Missing test coverage
+   - Areas needing clarification
+"""
+
+description = "Review current sprint and suggest improvements"
