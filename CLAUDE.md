@@ -112,3 +112,7 @@ CKRV_MODEL_ENDPOINT     # Custom endpoint URL
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
+
+## Active Technologies
+- Rust 1.75+ + `clap` (CLI), `indicatif` (Spinners), `termimad` (Markdown), `tabled` (Tables), `console` (Styling) (002-rich-cli-ui)
+- N/A (Presentation layer only) (002-rich-cli-ui)

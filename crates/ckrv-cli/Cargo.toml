@@ -29,6 +29,11 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 dotenvy = { workspace = true }
+indicatif = "0.18.3"
+termimad = "0.34.1"
+tabled = "0.20.0"
+console = "0.16.2"
+dialoguer = "0.12.0"
 
 [dev-dependencies]
 tempfile = { workspace = true }

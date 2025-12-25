@@ -12,6 +12,8 @@ use ckrv_git::{DefaultWorktreeManager, WorktreeManager, DefaultDiffGenerator, Di
 use ckrv_metrics::{DefaultMetricsCollector, MetricsCollector, FileMetricsStorage, MetricsStorage};
 use ckrv_sandbox::{DockerSandbox, Sandbox, ExecuteConfig};
 
+use crate::ui::UiContext;
+
 /// Arguments for the run command
 #[derive(Args)]
 pub struct RunArgs {
@@ -280,7 +282,7 @@ fn extract_path(line: &str) -> Option<String> {
 }
 
 /// Execute the run command
-pub fn execute(args: RunArgs, json: bool) -> anyhow::Result<()> {
+pub fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let start_time = std::time::Instant::now();
 
@@ -595,6 +597,7 @@ Output each file change with a clear "File Path:" header followed by a code bloc
     let user_prompt = "Please implement the changes. Output each file with 'File Path:' followed by a code block with the complete file contents.";
 
     // Select model based on optimization mode
+    // Select model based on optimization mode
     let context = ckrv_model::RoutingContext {
         optimize: OptimizeMode::from(args.optimize),
         task_type: ckrv_model::TaskType::Execution,
@@ -602,12 +605,6 @@ Output each file change with a clear "File Path:" header followed by a code bloc
         model_override: args.executor_model.clone(),
     };
     let model = router.select_model(&context);
-
-    if !json {
-        println!("  Using model: {model}");
-        println!("  Generating implementation...");
-        println!();
-    }
 
     // Make the API call
     let request = ckrv_model::CompletionRequest {
@@ -625,6 +622,13 @@ Output each file change with a clear "File Path:" header followed by a code bloc
         max_tokens: Some(4096),
         temperature: Some(0.7),
     };
+    
+    // Create spinner for generation
+    let spinner = if !json {
+        Some(ui.spinner(format!("Generating implementation with {}...", model)))
+    } else {
+        None
+    };
 
     // Use tokio runtime for async call
     let rt = tokio::runtime::Runtime::new()?;
@@ -632,7 +636,19 @@ Output each file change with a clear "File Path:" header followed by a code bloc
 
     match response {
         Ok(completion) => {
-            if !json {
+            if let Some(s) = spinner {
+                s.success("Generation complete!");
+                if !json {
+                    let stats = format!(
+                        "**Model**: {}\n**Tokens**: {} prompt + {} completion = {} total",
+                        completion.model,
+                        completion.usage.prompt_tokens,
+                        completion.usage.completion_tokens,
+                        completion.usage.total_tokens
+                    );
+                    ui.print(crate::ui::components::Panel::new("Generation Stats", stats).success());
+                }
+            } else if !json {
                 println!("✓ Generation complete!");
                 println!();
                 println!("Model: {}", completion.model);

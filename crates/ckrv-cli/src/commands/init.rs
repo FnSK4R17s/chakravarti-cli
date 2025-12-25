@@ -43,8 +43,10 @@ const ENV_EXAMPLE_TEMPLATE: &str = r#"# Chakravarti API Keys
 # CKRV_MODEL_API_KEY=...
 "#;
 
+use crate::ui::UiContext;
+
 /// Execute the init command
-pub fn execute(args: InitArgs, json: bool) -> anyhow::Result<()> {
+pub fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
     // Check if in a git repository
@@ -57,8 +59,7 @@ pub fn execute(args: InitArgs, json: bool) -> anyhow::Result<()> {
             });
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            eprintln!("Error: Not a git repository. Chakravarti requires a git repository.");
-            eprintln!("Run `git init` first, then try again.");
+            ui.error("Initialization Failed", "Current directory is not a git repository.\nRun `git init` first, then try again.");
         }
         std::process::exit(1);
     }
@@ -87,7 +88,7 @@ pub fn execute(args: InitArgs, json: bool) -> anyhow::Result<()> {
             };
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            println!("Already initialized. Use --force to reinitialize.");
+            ui.success("Already Initialized", "Chakravarti is already set up in this repository.\nUse `--force` to reinitialize.");
         }
         return Ok(());
     }
@@ -136,26 +137,25 @@ pub fn execute(args: InitArgs, json: bool) -> anyhow::Result<()> {
         };
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
-        println!("Initialized Chakravarti in {}", repo_root.display());
-        println!("  Created: {}", specs_dir.display());
-        println!("  Created: {}", chakravarti_dir.display());
-        println!("  Created: {}", secrets_dir.display());
-        println!("  Created: {}", config_file.display());
-        println!();
-        println!("API Key Setup:");
-        println!(
-            "  1. Copy: cp {} {}",
-            env_example_file.display(),
-            secrets_dir.join(".env").display()
-        );
-        println!(
-            "  2. Edit {} and add your API keys",
-            secrets_dir.join(".env").display()
-        );
-        println!();
-        println!("Next steps:");
-        println!("  1. Create a spec: ckrv spec new <name>");
-        println!("  2. Run the spec:  ckrv run .specs/<name>.yaml");
+        ui.success("Chakravarti Initialized", &format!("Ready in {}", repo_root.display()));
+        
+        // Relative paths make output cleaner if inside
+        let make_relative = |p: &PathBuf| p.strip_prefix(&repo_root).unwrap_or(p).display().to_string();
+
+        let mut content = String::new();
+        content.push_str(&format!("* **Specs**: `{}`\n", make_relative(&specs_dir)));
+        content.push_str(&format!("* **Data**: `{}`\n", make_relative(&chakravarti_dir)));
+        content.push_str(&format!("* **Config**: `{}`\n", make_relative(&config_file)));
+        ui.markdown(&content);
+
+        let mut help = String::from("### API Key Setup\n");
+        help.push_str(&format!("1. Copy template: `cp {} {}`\n", make_relative(&env_example_file), make_relative(&secrets_dir.join(".env"))));
+        help.push_str(&format!("2. Add keys to `{}`\n", make_relative(&secrets_dir.join(".env"))));
+        help.push_str("\n### Next Steps\n");
+        help.push_str("1. Create a spec: `ckrv spec new <name>`\n");
+        help.push_str("2. Run the spec:  `ckrv run .specs/<name>.yaml`\n");
+        
+        ui.markdown(&help);
     }
 
     Ok(())
