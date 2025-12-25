@@ -25,8 +25,10 @@ struct StatusOutput {
     success: Option<bool>,
 }
 
+use crate::ui::UiContext;
+
 /// Execute the status command
-pub fn execute(args: StatusArgs, json: bool) -> anyhow::Result<()> {
+pub fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
     // Try to find repo root
@@ -56,25 +58,25 @@ pub fn execute(args: StatusArgs, json: bool) -> anyhow::Result<()> {
                     };
                     println!("{}", serde_json::to_string_pretty(&output)?);
                 } else {
-                    println!("Job: {}", metrics.job_id);
-                    println!("Spec: {}", metrics.spec_id);
-                    println!(
-                        "Status: {}",
-                        if metrics.success {
-                            "Succeeded ✓"
-                        } else {
-                            "Failed ✗"
-                        }
-                    );
-                    println!();
-                    println!("Metrics:");
-                    println!("  Duration: {:.2}s", metrics.total_time_ms as f64 / 1000.0);
-                    println!("  Tokens: {}", metrics.total_tokens());
-                    println!("  Est. Cost: ${:.4}", metrics.cost.total_usd);
-                    println!("  Steps: {}", metrics.step_metrics.len());
-                    if metrics.retry_count > 0 {
-                        println!("  Retries: {}", metrics.retry_count);
+                    // Rich UI Output
+                    let title = if metrics.success { "Job Succeeded" } else { "Job Failed" };
+                    let msg = format!("Job ID: {}\nSpec: {}", metrics.job_id, metrics.spec_id);
+                    
+                    if metrics.success {
+                        ui.success(title, &msg);
+                    } else {
+                        ui.error(title, &msg);
                     }
+
+                    let mut content = String::from("\n### Metrics\n");
+                    content.push_str(&format!("* **Duration**: {:.2}s\n", metrics.total_time_ms as f64 / 1000.0));
+                    content.push_str(&format!("* **Tokens**: {}\n", metrics.total_tokens()));
+                    content.push_str(&format!("* **Cost**: ${:.4}\n", metrics.cost.total_usd));
+                    content.push_str(&format!("* **Steps**: {}\n", metrics.step_metrics.len()));
+                    if metrics.retry_count > 0 {
+                        content.push_str(&format!("* **Retries**: {}\n", metrics.retry_count));
+                    }
+                    ui.markdown(&content);
                 }
             }
             Err(e) => {
@@ -90,7 +92,7 @@ pub fn execute(args: StatusArgs, json: bool) -> anyhow::Result<()> {
                     };
                     println!("{}", serde_json::to_string_pretty(&output)?);
                 } else {
-                    eprintln!("Error loading job metrics: {e}");
+                    ui.error("Error", &format!("Loading job metrics failed: {e}"));
                 }
                 std::process::exit(1);
             }
@@ -112,10 +114,8 @@ pub fn execute(args: StatusArgs, json: bool) -> anyhow::Result<()> {
                 };
                 println!("{}", serde_json::to_string_pretty(&output)?);
             } else {
-                println!("Job: {}", args.job_id);
-                println!("Status: Completed (metrics not available)");
-                println!();
-                println!("Run directory: {}", runs_dir.display());
+                ui.success("Job Completed", &format!("Job ID: {}\n(Metrics not available)", args.job_id));
+                ui.markdown(&format!("**Run Directory**: `{}`", runs_dir.display()));
             }
         } else {
             if json {
@@ -130,11 +130,8 @@ pub fn execute(args: StatusArgs, json: bool) -> anyhow::Result<()> {
                 };
                 println!("{}", serde_json::to_string_pretty(&output)?);
             } else {
-                println!("Job: {}", args.job_id);
-                println!("Status: Not found");
-                println!();
-                println!("No job with this ID was found.");
-                println!("Run `ckrv run <spec>` to create a new job.");
+                ui.error("Job Not Found", &format!("No job with ID '{}' was found.", args.job_id));
+                ui.markdown("Run `ckrv run <spec>` to create a new job.");
             }
         }
     }

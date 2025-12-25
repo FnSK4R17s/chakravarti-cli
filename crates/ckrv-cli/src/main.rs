@@ -5,6 +5,10 @@
 use clap::{Parser, Subcommand};
 
 mod commands;
+pub mod ui;
+
+use ui::{UiContext, Renderable};
+use ui::components::Banner;
 
 /// Chakravarti CLI - Spec-driven agent orchestration engine
 #[derive(Parser)]
@@ -24,7 +28,7 @@ pub struct Cli {
     verbose: bool,
 
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -68,13 +72,28 @@ fn main() -> anyhow::Result<()> {
         .with_writer(std::io::stderr)
         .init();
 
+    // Initialize UI Context
+    let ui = UiContext::new(cli.json);
+
     match cli.command {
-        Commands::Init(args) => commands::init::execute(args, cli.json),
-        Commands::Spec(args) => commands::spec::execute(args, cli.json),
-        Commands::Run(args) => commands::run::execute(args, cli.json),
-        Commands::Status(args) => commands::status::execute(args, cli.json),
-        Commands::Diff(args) => commands::diff::execute(args, cli.json),
-        Commands::Report(args) => commands::report::execute(args, cli.json),
-        Commands::Promote(args) => commands::promote::execute(args, cli.json),
+        Some(Commands::Init(args)) => commands::init::execute(args, cli.json, &ui),
+        Some(Commands::Spec(args)) => commands::spec::execute(args, cli.json),
+        Some(Commands::Run(args)) => commands::run::execute(args, cli.json, &ui),
+        Some(Commands::Status(args)) => commands::status::execute(args, cli.json, &ui),
+        Some(Commands::Diff(args)) => commands::diff::execute(args, cli.json),
+        Some(Commands::Report(args)) => commands::report::execute(args, cli.json),
+        Some(Commands::Promote(args)) => commands::promote::execute(args, cli.json),
+        None => {
+            // No command provided: Print Branding + Help
+            let banner = Banner::new("CHAKRAVARTI")
+                .subtitle("Spec-driven Agent Orchestration");
+            
+            ui.print(banner);
+            
+            // Print Help using clap's built-in mechanism
+            use clap::CommandFactory;
+            Cli::command().print_help()?;
+            Ok(())
+        }
     }
 }
