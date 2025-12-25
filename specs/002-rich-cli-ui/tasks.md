@@ -48,8 +48,8 @@
 ## Final Phase: Polish
 **Goal**: Consistency check and Cleanup.
 
-- [ ] T019 Audit all `eprintln!` and `println!` usage in `ckrv-cli` for consistency
-- [ ] T020 Verify `NO_COLOR` and `--json` behavior across all modified commands (CI/CD check)
+- [x] T019 Audit all `println!` / `eprintln!` calls to ensure they respect `UiContext::silent` (or use `ui` methods)
+- [x] T020 Verify `NO_COLOR` and `CLICOLOR_FORCE` behaviors manually or with integration test script
 
 ## Dependencies
 

@@ -2,7 +2,7 @@
 //!
 //! This binary provides the `ckrv` command-line interface.
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, CommandFactory, FromArgMatches};
 
 mod commands;
 pub mod ui;
@@ -56,7 +56,27 @@ enum Commands {
 }
 
 fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+    // We want the banner to show up on --help and --version too.
+    // To do this, we must build the command, inject the banner, and then parse.
+    
+    // We need a temporary UI context to render the banner string first
+    // Note: We don't know if json/silent is requested yet, but for Help, visual is priority.
+    // We'll optimistically assume standard terminal mode for the banner generation.
+    let temp_ui = UiContext::new(false);
+    let banner_struct = Banner::new("CHAKRAVARTI").subtitle("Spec-driven Agent Orchestration");
+    // Render the banner to a string
+    // We use a helper from Renderable or just call render directly if we made it public?
+    // Renderable::render(banner, theme)
+    let banner_str = banner_struct.render(&temp_ui.theme);
+    
+    // Build the clap command manually to inject the banner
+    let command = Cli::command();
+    let command = command.before_help(banner_str);
+    
+    // Parse matches
+    let matches = command.get_matches();
+    // Convert back to Cli struct
+    let cli = Cli::from_arg_matches(&matches)?;
 
     // Initialize tracing based on verbosity
     let filter = if cli.verbose {
@@ -84,15 +104,19 @@ fn main() -> anyhow::Result<()> {
         Some(Commands::Report(args)) => commands::report::execute(args, cli.json),
         Some(Commands::Promote(args)) => commands::promote::execute(args, cli.json),
         None => {
-            // No command provided: Print Branding + Help
-            let banner = Banner::new("CHAKRAVARTI")
-                .subtitle("Spec-driven Agent Orchestration");
+            // No command provided: Print Help (includes banner now)
+            // We use the same command builder to ensure consistency?
+            // Actually Cli::command().print_help() might NOT include the dynamic modifications?
+            // Yes, calling Cli::command() creates a NEW command builder.
+            // We need to print help using the 'command' variable we created earlier?
+            // But we consumed it with get_matches().
             
-            ui.print(banner);
-            
-            // Print Help using clap's built-in mechanism
+            // Re-inject banner for this specific case or just rely on clap
             use clap::CommandFactory;
-            Cli::command().print_help()?;
+            let mut cmd = Cli::command();
+            let banner = Banner::new("CHAKRAVARTI").subtitle("Spec-driven Agent Orchestration");
+            cmd = cmd.before_help(banner.render(&ui.theme));
+            cmd.print_help()?;
             Ok(())
         }
     }
