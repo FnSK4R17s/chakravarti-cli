@@ -1,0 +1,23 @@
+[package]
+name = "ckrv-verify"
+description = "Verification pipeline for Chakravarti CLI"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ckrv-core = { workspace = true }
+ckrv-sandbox = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
