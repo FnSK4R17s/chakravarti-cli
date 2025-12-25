@@ -25,24 +25,46 @@ impl Renderable for Banner {
     fn render(&self, theme: &Theme) -> String {
         // Hardcoded ASCII art for 'CHAKRAVARTI'
         // Using a slant or block font style
+        // ANSI Shadow font for "CKRV"
         let art = r#"
-   _____ _           _                          _   _ 
-  / ____| |         | |                        | | (_)
- | |    | |__   __ _| | ___ __ __ ___   ____ _ | |_ _ 
- | |    | '_ \ / _` | |/ / '__/ _` \ \ / / _` || __| |
- | |____| | | | (_| |   <| | | (_| |\ V / (_| || |_| |
-  \_____|_| |_|\__,_|_|\_\_|  \__,_| \_/ \__,_| \__|_|
-"#;
+ ██████╗██╗  ██╗██████╗ ██╗   ██╗
+██╔════╝██║ ██╔╝██╔══██╗██║   ██║
+██║     █████╔╝ ██████╔╝██║   ██║
+██║     ██╔═██╗ ██╔══██╗╚██╗ ██╔╝
+╚██████╗██║  ██╗██║  ██║ ╚████╔╝ 
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝  ╚═══╝  "#;
         
-        let style = Style::new().fg(theme.primary_color).bold();
-        let colored_art = style.apply_to(art);
+        // Royal Gold -> Orange -> Red Gradient
+        // We Use trim_matches('\n') to remove the first/last newlines from the raw string
+        // while PRESERVING the leading space on the first line of the art!
+        let lines: Vec<&str> = art.trim_matches('\n').lines().collect();
+        let center_pad = "  "; // simple padding
+        
+        let mut colored_art = String::new();
+        
+        let steps = lines.len();
+        for (i, line) in lines.iter().enumerate() {
+             // Option 2 (Pale Gold): Wheat -> Gold -> Orange
+             // Creates a lighter, more royal gold appearance at the top
+             let color_code = match i {
+                 0 => 229, // Wheat1
+                 1 => 228, // Khaki1
+                 2 => 220, // Gold1
+                 3 => 214, // Orange1
+                 _ => 208, // DarkOrange
+             };
+             
+             let style = Style::new().fg(console::Color::Color256(color_code)).bold();
+             colored_art.push_str(&format!("{}{}\n", center_pad, style.apply_to(line)));
+        }
 
         match &self.subtitle {
             Some(s) => {
-                let sub_style = Style::new().fg(theme.secondary_color).italic();
+                // Gold subtitle
+                let sub_style = Style::new().fg(console::Color::Color256(220)).italic();
                 format!("{}\n    {}", colored_art, sub_style.apply_to(s))
             },
-            None => colored_art.to_string(),
+            None => colored_art,
         }
     }
 }
