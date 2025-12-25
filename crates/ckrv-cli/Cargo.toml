@@ -1,0 +1,37 @@
+[package]
+name = "ckrv-cli"
+description = "Command-line interface for Chakravarti"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "ckrv"
+path = "src/main.rs"
+
+[dependencies]
+ckrv-core = { workspace = true }
+ckrv-spec = { workspace = true }
+ckrv-git = { workspace = true }
+ckrv-sandbox = { workspace = true }
+ckrv-model = { workspace = true }
+ckrv-verify = { workspace = true }
+ckrv-metrics = { workspace = true }
+
+clap = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+dotenvy = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

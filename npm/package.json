@@ -1,0 +1,47 @@
+{
+  "name": "@chakravarti/cli",
+  "version": "0.1.0",
+  "description": "AI-powered code generation CLI with spec-driven development",
+  "keywords": [
+    "ai",
+    "code-generation",
+    "cli",
+    "llm",
+    "openai",
+    "anthropic",
+    "developer-tools"
+  ],
+  "author": "Chakravarti Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chakravarti/cli.git"
+  },
+  "homepage": "https://github.com/chakravarti/cli#readme",
+  "bugs": {
+    "url": "https://github.com/chakravarti/cli/issues"
+  },
+  "bin": {
+    "ckrv": "./bin/ckrv"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "bin/",
+    "install.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}

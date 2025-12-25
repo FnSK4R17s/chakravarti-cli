@@ -1,0 +1,55 @@
+stages:
+  - check
+  - test
+  - build
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  RUST_BACKTRACE: "1"
+
+cache:
+  key: $CI_COMMIT_REF_SLUG
+  paths:
+    - .cargo/
+    - target/
+
+check:
+  stage: check
+  image: rust:latest
+  script:
+    - rustup component add rustfmt clippy
+    - cargo fmt --all -- --check
+    - cargo clippy --workspace -- -D warnings
+    - cargo build --workspace
+
+test:
+  stage: test
+  image: rust:latest
+  needs: [check]
+  script:
+    - cargo test --workspace
+
+test-integration:
+  stage: test
+  image: rust:latest
+  needs: [test]
+  only:
+    - main
+  script:
+    - cargo test --workspace -- --ignored
+  allow_failure: true
+  when: manual
+
+build-release:
+  stage: build
+  image: rust:latest
+  needs: [test]
+  only:
+    - main
+    - tags
+  script:
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/ckrv
+    expire_in: 1 week
