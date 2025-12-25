@@ -1,0 +1,29 @@
+[package]
+name = "ckrv-integrations"
+description = "GitLab/GitHub integrations for Chakravarti CLI"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+gitlab = ["reqwest"]
+github = ["reqwest"]
+
+[dependencies]
+ckrv-core = { workspace = true }
+ckrv-git = { workspace = true }
+reqwest = { workspace = true, optional = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

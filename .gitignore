@@ -1,0 +1,49 @@
+# Rust/Cargo
+target/
+debug/
+release/
+*.rs.bk
+*.rlib
+*.rmeta
+*.d
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Coverage
+*.profraw
+*.profdata
+tarpaulin-report.html
+coverage/
+
+# Build artifacts
+*.so
+*.dylib
+*.dll
+
+# Chakravarti runtime directories
+.worktrees/
+.chakravarti/runs/
+
+# Node (for any tooling)
+node_modules/
