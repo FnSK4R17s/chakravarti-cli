@@ -1,58 +1,61 @@
-//! Run command - execute spec-driven code changes.
+//! Run command - execute a job based on a specification.
+//!
+//! This command generates an execution plan and orchestrates
+//! multiple agent tasks to implement a feature.
 
 use std::path::{Path, PathBuf};
-use std::fs;
-use std::time::Duration;
 
 use clap::{Args, ValueEnum};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-use ckrv_core::OptimizeMode;
-use ckrv_git::{DefaultWorktreeManager, WorktreeManager, DefaultDiffGenerator, DiffGenerator};
-use ckrv_metrics::{DefaultMetricsCollector, MetricsCollector, FileMetricsStorage, MetricsStorage};
-use ckrv_sandbox::{DockerSandbox, Sandbox, ExecuteConfig};
+use futures::future::join_all;
+use tokio::process::Command as AsyncCommand;
+use std::sync::Arc;
+
+use ckrv_core::{
+    AgentTask, Workflow, WorkflowStep, OptimizeMode,
+    runner::{RunnerConfig, WorkflowRunner, WorkflowRunResult},
+};
+use ckrv_git::{DefaultDiffGenerator, DefaultWorktreeManager, DiffGenerator, WorktreeManager};
+use ckrv_metrics::{DefaultMetricsCollector, FileMetricsStorage, MetricsCollector, MetricsStorage};
 
 use crate::ui::UiContext;
+use crate::ui::Renderable;
+use crate::ui::components::{Banner, RichTable, Panel};
+use tabled::{
+    builder::Builder,
+    settings::{object::{Columns, Rows}, Modify, Width, Alignment},
+};
 
-/// Arguments for the run command
+/// Arguments for the run command.
 #[derive(Args)]
 pub struct RunArgs {
-    /// Path to the specification file
-    pub spec: PathBuf,
+    /// Path to the specification file. If not provided, will detect from branch name.
+    #[arg()]
+    pub spec: Option<PathBuf>,
 
-    /// Optimization mode for model selection
-    #[arg(long, value_enum, default_value = "balanced")]
+    /// Optimization strategy.
+    #[arg(short, long, value_enum, default_value = "balanced")]
     pub optimize: OptimizeModeArg,
 
-    /// Maximum retry attempts
-    #[arg(long, default_value = "3")]
-    pub max_attempts: u32,
-
-    /// Override planner model
-    #[arg(long)]
-    pub planner_model: Option<String>,
-
-    /// Override executor model
-    #[arg(long)]
+    /// Override the AI model/agent to use for execution.
+    #[arg(short, long)]
     pub executor_model: Option<String>,
 
-    /// Show plan without executing
+    /// Show the execution plan without running tasks.
     #[arg(long)]
     pub dry_run: bool,
-
-    /// Skip file modifications (generate only)
-    #[arg(long)]
-    pub generate_only: bool,
 }
 
-/// CLI-compatible optimize mode
-#[derive(Clone, Copy, ValueEnum)]
+/// Optimization strategy for CLI argument.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum OptimizeModeArg {
-    /// Prefer cheaper models
+    /// Minimize API costs.
     Cost,
-    /// Prefer faster models
+    /// Minimize execution time.
     Time,
-    /// Balance cost and time
+    /// Balanced approach.
     Balanced,
 }
 
@@ -66,277 +69,143 @@ impl From<OptimizeModeArg> for OptimizeMode {
     }
 }
 
-/// JSON output for run events
-#[derive(Serialize)]
-#[serde(tag = "event", rename_all = "snake_case")]
-#[allow(dead_code)]
-enum RunEvent {
-    Started {
-        job_id: String,
-        spec_id: String,
-    },
-    Planning {
-        spec_id: String,
-    },
-    PlanReady {
-        plan_id: String,
-        step_count: usize,
-    },
-    WorktreeCreated {
-        path: String,
-    },
-    DryRunComplete {
-        plan_id: String,
-        steps: Vec<PlanStep>,
-    },
-    StepStarted {
-        step_id: String,
-        step_name: String,
-    },
-    StepCompleted {
-        step_id: String,
-        duration_ms: u64,
-    },
-    FileModified {
-        path: String,
-        lines_added: usize,
-        lines_removed: usize,
-    },
-    Verifying {
-        attempt: u32,
-        image: String,
-    },
-    VerificationPassed {
-        command: String,
-        duration_ms: u64,
-    },
-    VerificationFailed {
-        command: String,
-        exit_code: i32,
-        stderr: String,
-    },
-    Succeeded {
-        job_id: String,
-        attempt: u32,
-        diff_lines: usize,
-        files_changed: usize,
-    },
-    Failed {
-        job_id: String,
-        attempts: u32,
-        error: String,
-    },
-    Error {
-        code: String,
-        message: String,
-    },
+/// Task file structure.
+#[derive(Serialize, Deserialize)]
+struct TaskFile {
+    tasks: Vec<SpecTask>,
 }
 
-#[derive(Serialize)]
-struct PlanStep {
+/// Task structure in tasks.yaml.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct SpecTask {
+    pub id: String,
+    pub phase: String,
+    pub title: String,
+    pub description: String,
+    pub file: Option<String>,
+    pub status: String,
+    pub user_story: Option<String>,
+    pub parallel: bool,
+}
+
+/// Execution plan structure.
+#[derive(Serialize, Deserialize, Debug)]
+struct ExecutionPlan {
+    batches: Vec<ExecutionBatch>,
+}
+
+/// A batch of tasks to be executed together.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ExecutionBatch {
     id: String,
     name: String,
-    step_type: String,
+    task_ids: Vec<String>,
+    #[serde(default)]
+    depends_on: Vec<String>,
+    reasoning: String,
 }
 
-/// Parsed file change from AI response
-#[derive(Debug, Clone)]
-struct FileChange {
-    path: String,
-    content: String,
-}
-
-fn emit_event(event: &RunEvent, json: bool) {
-    if json {
-        if let Ok(s) = serde_json::to_string(event) {
-            println!("{s}");
+/// Helper to always serialize depends_on
+fn serialize_plan_with_depends_on(plan: &ExecutionPlan) -> String {
+    let mut output = String::from("batches:\n");
+    for batch in &plan.batches {
+        output.push_str(&format!("  - id: \"{}\"\n", batch.id));
+        output.push_str(&format!("    name: \"{}\"\n", batch.name));
+        output.push_str("    task_ids:\n");
+        for tid in &batch.task_ids {
+            output.push_str(&format!("      - \"{}\"\n", tid));
         }
-    }
-}
-
-/// Parse code blocks from AI response
-fn parse_file_changes(content: &str) -> Vec<FileChange> {
-    let mut changes = Vec::new();
-    let mut current_path: Option<String> = None;
-    let mut current_content = String::new();
-    let mut in_code_block = false;
-
-    for line in content.lines() {
-        // Check for file path indicators
-        if line.starts_with("#### File Path:") || line.starts_with("File Path:") || line.starts_with("**File:**") {
-            // Extract path from the line
-            if let Some(path) = extract_path(line) {
-                if in_code_block && current_path.is_some() {
-                    // Save previous block
-                    changes.push(FileChange {
-                        path: current_path.take().unwrap(),
-                        content: current_content.trim().to_string(),
-                    });
-                    current_content.clear();
-                }
-                current_path = Some(path);
+        if batch.depends_on.is_empty() {
+            output.push_str("    depends_on: []\n");
+        } else {
+            output.push_str("    depends_on:\n");
+            for dep in &batch.depends_on {
+                output.push_str(&format!("      - \"{}\"\n", dep));
             }
         }
-        // Check for code fence start
-        else if line.starts_with("```") {
-            if in_code_block {
-                // End of code block
-                in_code_block = false;
-                if let Some(ref path) = current_path {
-                    if !current_content.trim().is_empty() {
-                        changes.push(FileChange {
-                            path: path.clone(),
-                            content: current_content.trim().to_string(),
-                        });
-                        current_content.clear();
-                        current_path = None;
-                    }
-                }
-            } else {
-                // Start of code block
-                in_code_block = true;
-                // Check if there's a path in the fence
-                let rest = line.trim_start_matches("```").trim();
-                if rest.contains('/') || rest.ends_with(".rs") || rest.ends_with(".py") || rest.ends_with(".js") || rest.ends_with(".ts") {
-                    current_path = Some(rest.to_string());
-                }
-            }
-        }
-        // Collect content if in code block
-        else if in_code_block {
-            current_content.push_str(line);
-            current_content.push('\n');
-        }
-        // Check inline path patterns
-        else if line.contains("src/") && (line.contains(".rs") || line.contains(".py") || line.contains(".js")) {
-            if let Some(path) = extract_path(line) {
-                current_path = Some(path);
-            }
-        }
+        output.push_str(&format!("    reasoning: \"{}\"\n\n", batch.reasoning.replace('"', "\\\"")));
     }
-
-    // Handle any remaining content
-    if let Some(path) = current_path {
-        if !current_content.trim().is_empty() {
-            changes.push(FileChange {
-                path,
-                content: current_content.trim().to_string(),
-            });
-        }
-    }
-
-    // If no structured changes found, try to extract from common patterns
-    if changes.is_empty() {
-        // Look for "// filename.rs" comments followed by code
-        let mut lines: Vec<&str> = content.lines().collect();
-        let mut i = 0;
-        while i < lines.len() {
-            let line = lines[i];
-            if line.starts_with("// src/") || line.starts_with("// ./") {
-                let path = line.trim_start_matches("// ").trim().to_string();
-                let mut code = String::new();
-                i += 1;
-                while i < lines.len() && !lines[i].starts_with("// src/") && !lines[i].starts_with("// ./") {
-                    if !lines[i].starts_with("```") {
-                        code.push_str(lines[i]);
-                        code.push('\n');
-                    }
-                    i += 1;
-                }
-                if !code.trim().is_empty() {
-                    changes.push(FileChange { path, content: code.trim().to_string() });
-                }
-                continue;
-            }
-            i += 1;
-        }
-    }
-
-    changes
+    output
 }
 
-fn extract_path(line: &str) -> Option<String> {
-    // Try to find a file path in the line
-    let cleaned = line
-        .replace("#### File Path:", "")
-        .replace("File Path:", "")
-        .replace("**File:**", "")
-        .replace("```", "")
-        .replace('`', "")
-        .trim()
-        .to_string();
-
-    // Extract just the path part
-    for word in cleaned.split_whitespace() {
-        let word = word.trim_matches(|c| c == ':' || c == ',' || c == '"' || c == '\'' || c == '`');
-        if word.contains('/') || word.ends_with(".rs") || word.ends_with(".py") || word.ends_with(".js") || word.ends_with(".ts") {
-            return Some(word.to_string());
-        }
-    }
-    
-    if cleaned.contains('/') || cleaned.ends_with(".rs") {
-        return Some(cleaned);
-    }
-    
-    None
+/// JSON output for validation errors.
+#[derive(Serialize)]
+struct ValidationErrorOutput {
+    field: String,
+    message: String,
 }
 
-/// Execute the run command
-pub fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
+/// Execute the run command.
+pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    let start_time = std::time::Instant::now();
-
-    // Try to load secrets from .chakravarti/secrets/.env
-    load_secrets(&cwd);
-
-    // Resolve spec path
-    let spec_path = if args.spec.is_absolute() {
-        args.spec.clone()
+    
+    // Determine spec path: use provided arg, or detect from branch name
+    let spec_path = if let Some(ref spec) = args.spec {
+        if spec.is_absolute() {
+            spec.clone()
+        } else {
+            cwd.join(spec)
+        }
     } else {
-        cwd.join(&args.spec)
+        // Auto-detect from branch name
+        let branch_output = std::process::Command::new("git")
+            .args(["branch", "--show-current"])
+            .current_dir(&cwd)
+            .output()
+            .map_err(|e| anyhow::anyhow!("Failed to get current branch: {}", e))?;
+        
+        let branch_name = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+        
+        if branch_name.is_empty() {
+            return Err(anyhow::anyhow!("No spec provided and could not detect branch name. Run with a spec path or checkout a spec branch."));
+        }
+        
+        // Look for spec in .specs/ directory matching branch name
+        let specs_dir = cwd.join(".specs");
+        let spec_dir = specs_dir.join(&branch_name);
+        let spec_file = spec_dir.join("spec.yaml");
+        
+        if !spec_file.exists() {
+            return Err(anyhow::anyhow!(
+                "No spec provided and could not find .specs/{}/spec.yaml\nEither provide a spec path or checkout a branch matching a spec directory.",
+                branch_name
+            ));
+        }
+        
+        if !json {
+            println!("Auto-detected spec from branch '{}': {}", branch_name, spec_file.display());
+        }
+        
+        spec_file
     };
 
-    // Get repo root
-    let repo_root = ckrv_git::repo_root(&cwd).unwrap_or_else(|_| cwd.clone());
-    let chakravarti_dir = repo_root.join(".chakravarti");
+    if !spec_path.exists() {
+        return Err(anyhow::anyhow!("Spec file not found: {}", spec_path.display()));
+    }
 
-    // Initialize metrics collector
-    let metrics = DefaultMetricsCollector::new();
+    if !json {
+        println!("{}", Banner::new("CKRV RUN").subtitle(spec_path.display().to_string()).render(&ui.theme));
+    }
 
     // Load and validate spec
     let loader = ckrv_spec::loader::YamlSpecLoader;
-    let spec = match ckrv_spec::loader::SpecLoader::load(&loader, &spec_path) {
-        Ok(s) => s,
-        Err(e) => {
-            if json {
-                emit_event(
-                    &RunEvent::Error {
-                        code: "SPEC_LOAD_FAILED".to_string(),
-                        message: e.to_string(),
-                    },
-                    json,
-                );
-            } else {
-                eprintln!("Error: Failed to load spec: {e}");
-            }
-            std::process::exit(1);
-        }
-    };
+    let spec = ckrv_spec::loader::SpecLoader::load(&loader, &spec_path)
+        .map_err(|e| anyhow::anyhow!("Failed to load spec: {}", e))?;
 
-    // Validate spec
     let validation = ckrv_spec::validator::validate(&spec);
     if !validation.valid {
         if json {
-            emit_event(
-                &RunEvent::Error {
-                    code: "SPEC_INVALID".to_string(),
-                    message: validation
+            crate::commands::emit_json(
+                serde_json::json!({
+                    "success": false,
+                    "error": "Validation failed",
+                    "message": validation
                         .errors
                         .iter()
                         .map(|e| format!("{}: {}", e.field, e.message))
                         .collect::<Vec<_>>()
                         .join("; "),
-                },
+                }),
                 json,
             );
         } else {
@@ -348,695 +217,435 @@ pub fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> 
         std::process::exit(1);
     }
 
-    // Generate job ID
-    let job_id = uuid::Uuid::new_v4().to_string();
-
-    if json {
-        emit_event(
-            &RunEvent::Started {
-                job_id: job_id.clone(),
-                spec_id: spec.id.clone(),
-            },
-            json,
-        );
-    } else {
-        println!("Starting job: {job_id}");
-        println!("Spec: {} ({})", spec.id, spec_path.display());
-        println!();
-    }
-
-    // Planning phase
-    if json {
-        emit_event(
-            &RunEvent::Planning {
-                spec_id: spec.id.clone(),
-            },
-            json,
-        );
-    } else {
-        println!("Phase: Planning");
-        println!("  Goal: {}", spec.goal);
-    }
-
-    // Generate a simple plan
-    let plan_id = uuid::Uuid::new_v4().to_string();
-    let steps = vec![
-        PlanStep {
-            id: "analyze".to_string(),
-            name: "Analyze codebase".to_string(),
-            step_type: "analyze".to_string(),
-        },
-        PlanStep {
-            id: "generate".to_string(),
-            name: "Generate changes".to_string(),
-            step_type: "generate".to_string(),
-        },
-        PlanStep {
-            id: "apply".to_string(),
-            name: "Apply changes".to_string(),
-            step_type: "execute".to_string(),
-        },
-        PlanStep {
-            id: "verify".to_string(),
-            name: "Verify changes".to_string(),
-            step_type: "verify".to_string(),
-        },
-    ];
-
-    if json {
-        emit_event(
-            &RunEvent::PlanReady {
-                plan_id: plan_id.clone(),
-                step_count: steps.len(),
-            },
-            json,
-        );
-    } else {
-        println!("  Plan generated: {plan_id}");
-        println!("  Steps: {}", steps.len());
-        for step in &steps {
-            println!("    • {} ({})", step.name, step.step_type);
-        }
-        println!();
-    }
-
-    // Handle dry-run mode
-    if args.dry_run {
-        if json {
-            emit_event(&RunEvent::DryRunComplete { plan_id, steps }, json);
-        } else {
-            println!("Dry run complete. No changes made.");
-            println!();
-            println!("To execute, run without --dry-run:");
-            println!("  ckrv run {}", spec_path.display());
+    // Orchestration Logic: Run tasks from tasks.yaml
+    let tasks_path = spec_path.parent().unwrap_or(&cwd).join("tasks.yaml");
+    
+    if !tasks_path.exists() {
+        if !json {
+            eprintln!("No tasks.yaml found at {}", tasks_path.display());
+            eprintln!("Run `ckrv spec tasks` to generate tasks first.");
         }
         return Ok(());
     }
 
-    // Check for API key (required for actual execution)
-    let has_openai_key = std::env::var("OPENAI_API_KEY").is_ok();
-    let has_anthropic_key = std::env::var("ANTHROPIC_API_KEY").is_ok();
-    let has_custom_key = std::env::var("CKRV_MODEL_API_KEY").is_ok();
-
-    if !has_openai_key && !has_anthropic_key && !has_custom_key {
-        if json {
-            emit_event(
-                &RunEvent::Error {
-                    code: "NO_API_KEY".to_string(),
-                    message: "No model API key configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or CKRV_MODEL_API_KEY.".to_string(),
-                },
-                json,
-            );
-        } else {
-            eprintln!("Error: No model API key configured.");
-            eprintln!();
-            eprintln!("Set one of the following environment variables:");
-            eprintln!("  OPENAI_API_KEY      - For OpenAI models");
-            eprintln!("  ANTHROPIC_API_KEY   - For Anthropic models");
-            eprintln!("  CKRV_MODEL_API_KEY  - For custom endpoint");
-            eprintln!();
-            eprintln!("Or use --dry-run to see the plan without executing.");
-        }
-        std::process::exit(1);
-    }
-
-    // Create worktree for isolated execution
-    let worktree = match DefaultWorktreeManager::new(&repo_root) {
-        Ok(worktree_manager) => match worktree_manager.create(&job_id, "attempt-1") {
-            Ok(wt) => {
-                if json {
-                    emit_event(
-                        &RunEvent::WorktreeCreated {
-                            path: wt.path.display().to_string(),
-                        },
-                        json,
-                    );
-                } else {
-                    println!("Phase: Setup");
-                    println!("  Created worktree: {}", wt.path.display());
-                    println!();
-                }
-                wt
-            }
-            Err(e) => {
-                if json {
-                    emit_event(
-                        &RunEvent::Error {
-                            code: "WORKTREE_FAILED".to_string(),
-                            message: format!("Could not create worktree: {}", e),
-                        },
-                        json,
-                    );
-                } else {
-                    eprintln!("Error: Could not create worktree: {e}");
-                    eprintln!();
-                    eprintln!("Worktree is required for isolated execution.");
-                    eprintln!("Make sure you have at least one commit in the repository:");
-                    eprintln!("  git add -A && git commit -m 'Initial commit'");
-                }
-                std::process::exit(1);
-            }
-        },
-        Err(e) => {
-            if json {
-                emit_event(
-                    &RunEvent::Error {
-                        code: "WORKTREE_INIT_FAILED".to_string(),
-                        message: format!("Could not initialize worktree manager: {}", e),
-                    },
-                    json,
-                );
-            } else {
-                eprintln!("Error: Could not initialize worktree manager: {e}");
-                eprintln!();
-                eprintln!("Make sure you are in a git repository:");
-                eprintln!("  git init && git add -A && git commit -m 'Initial commit'");
-            }
-            std::process::exit(1);
-        }
-    };
-
-    // Working directory for changes (always the worktree)
-    let work_dir = worktree.path.clone();
-
-    // Execute with model API
     if !json {
-        println!("Phase: Execution");
-        println!("  Optimize: {:?}", OptimizeMode::from(args.optimize));
-        println!("  Max attempts: {}", args.max_attempts);
-        if let Some(ref model) = args.planner_model {
-            println!("  Planner model: {model}");
-        }
-        if let Some(ref model) = args.executor_model {
-            println!("  Executor model: {model}");
-        }
-        println!();
+        println!("Loading tasks from {}", tasks_path.display());
     }
-
-    // Create model router
-    let router = match ckrv_model::ModelRouter::new() {
-        Ok(r) => r,
-        Err(e) => {
-            if json {
-                emit_event(
-                    &RunEvent::Error {
-                        code: "ROUTER_INIT_FAILED".to_string(),
-                        message: e.to_string(),
-                    },
-                    json,
-                );
-            } else {
-                eprintln!("Error: Failed to initialize model router: {e}");
-            }
-            std::process::exit(1);
-        }
-    };
-
-    if !json {
-        println!("  Model providers: {}", router.provider_names().join(", "));
-        println!();
-    }
-
-    // Build the prompt for code generation
-    let system_prompt = format!(
-        r#"You are an expert software engineer. Your task is to implement code changes based on a specification.
-
-SPECIFICATION:
-Goal: {}
-
-Constraints:
-{}
-
-Acceptance Criteria:
-{}
-
-IMPORTANT: Output your changes in the following format:
-
-For EACH file you want to modify or create, output:
-
-File Path: path/to/file.ext
-```language
-<complete file contents>
-```
-
-Include the COMPLETE file contents, not just the changes.
-Output each file change with a clear "File Path:" header followed by a code block."#,
-        spec.goal,
-        spec.constraints
-            .iter()
-            .map(|c| format!("- {c}"))
-            .collect::<Vec<_>>()
-            .join("\n"),
-        spec.acceptance
-            .iter()
-            .map(|a| format!("- {a}"))
-            .collect::<Vec<_>>()
-            .join("\n"),
-    );
-
-    let user_prompt = "Please implement the changes. Output each file with 'File Path:' followed by a code block with the complete file contents.";
-
-    // Select model based on optimization mode
-    // Select model based on optimization mode
-    let context = ckrv_model::RoutingContext {
-        optimize: OptimizeMode::from(args.optimize),
-        task_type: ckrv_model::TaskType::Execution,
-        estimated_tokens: None,
-        model_override: args.executor_model.clone(),
-    };
-    let model = router.select_model(&context);
-
-    // Make the API call
-    let request = ckrv_model::CompletionRequest {
-        model: model.clone(),
-        messages: vec![
-            ckrv_model::Message {
-                role: "system".to_string(),
-                content: system_prompt,
-            },
-            ckrv_model::Message {
-                role: "user".to_string(),
-                content: user_prompt.to_string(),
-            },
-        ],
-        max_tokens: Some(4096),
-        temperature: Some(0.7),
-    };
     
-    // Create spinner for generation
-    let spinner = if !json {
-        Some(ui.spinner(format!("Generating implementation with {}...", model)))
-    } else {
-        None
-    };
+    let content = std::fs::read_to_string(&tasks_path)?;
+    let file: TaskFile = serde_yaml::from_str(&content)
+        .map_err(|e| anyhow::anyhow!("Failed to parse tasks.yaml: {}", e))?;
+    
+    let pending_tasks: Vec<_> = file.tasks.into_iter().filter(|t| t.status != "completed").collect();
+    
+    if pending_tasks.is_empty() {
+         if !json { println!("All tasks are already completed."); }
+         return Ok(());
+    }
+    
+    if !json {
+        println!("Found {} pending tasks.", pending_tasks.len());
+        println!();
+    }
+    
+    // Check for existing state/worktrees first
+    let manager = DefaultWorktreeManager::new(&cwd).map_err(|e| anyhow::anyhow!("Init WT manager failed: {}", e))?;
+    let existing_wts = manager.list()?;
+    let batch_wts: Vec<_> = existing_wts.iter().filter(|wt| wt.job_id.starts_with("batch-")).collect();
 
-    // Use tokio runtime for async call
-    let rt = tokio::runtime::Runtime::new()?;
-    let response = rt.block_on(async { router.complete(request).await });
+    let plan_yaml_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
 
-    match response {
-        Ok(completion) => {
-            if let Some(s) = spinner {
-                s.success("Generation complete!");
-                if !json {
-                    let stats = format!(
-                        "**Model**: {}\n**Tokens**: {} prompt + {} completion = {} total",
-                        completion.model,
-                        completion.usage.prompt_tokens,
-                        completion.usage.completion_tokens,
-                        completion.usage.total_tokens
-                    );
-                    ui.print(crate::ui::components::Panel::new("Generation Stats", stats).success());
+    if !batch_wts.is_empty() {
+        if !json {
+            println!("Detected existing batch worktrees. Execution may already be in progress.");
+            if plan_yaml_path.exists() {
+                let content = std::fs::read_to_string(&plan_yaml_path)?;
+                let plan: ExecutionPlan = serde_yaml::from_str(&content)?;
+                
+                println!("Current Execution Plan:");
+                let mut builder = Builder::default();
+                builder.push_record(["Batch", "Tasks", "Reasoning"]);
+                for batch in &plan.batches {
+                    builder.push_record([
+                        batch.name.as_str(),
+                        batch.task_ids.join(", ").as_str(),
+                        batch.reasoning.as_str(),
+                    ]);
                 }
-            } else if !json {
-                println!("✓ Generation complete!");
-                println!();
-                println!("Model: {}", completion.model);
-                println!(
-                    "Tokens: {} prompt + {} completion = {} total",
-                    completion.usage.prompt_tokens,
-                    completion.usage.completion_tokens,
-                    completion.usage.total_tokens
-                );
-                println!();
+                let mut table = builder.build();
+                let rich = RichTable::new(table);
+                ui.print(rich);
             }
+            println!("\nPlease clean up existing worktrees or finish the current run before starting a new one.");
+        }
+        return Ok(());
+    }
 
-            // Parse file changes from response
-            let changes = parse_file_changes(&completion.content);
-            
-            if changes.is_empty() {
-                if !json {
-                    println!("─────────────────────────────────────────────");
-                    println!("GENERATED IMPLEMENTATION:");
-                    println!("─────────────────────────────────────────────");
-                    println!();
-                    println!("{}", completion.content);
-                    println!();
-                    println!("─────────────────────────────────────────────");
-                    println!();
-                    println!("Note: Could not parse structured file changes.");
-                    println!("      Please review and apply changes manually.");
-                }
-            } else if args.generate_only {
-                if !json {
-                    println!("Parsed {} file change(s):", changes.len());
-                    for change in &changes {
-                        println!("  • {}", change.path);
-                    }
-                    println!();
-                    println!("--generate-only mode: Not applying changes.");
-                }
-            } else {
-                // Apply changes to worktree
-                if !json {
-                    println!("Phase: Apply Changes");
-                    println!("  Target: {}", work_dir.display());
-                    println!();
-                }
+    let plan: ExecutionPlan = if plan_yaml_path.exists() {
+         if !json { println!("Found existing orchestration plan at {}", plan_yaml_path.display()); }
+         let content = std::fs::read_to_string(&plan_yaml_path)?;
+         serde_yaml::from_str(&content).map_err(|e| anyhow::anyhow!("Failed to parse plan at {}: {}", plan_yaml_path.display(), e))?
+    } else {
+        if !json {
+            println!("Generating execution plan with Claude...");
+        }
 
-                let mut files_modified = 0;
-                for change in &changes {
-                    let file_path = work_dir.join(&change.path);
-                    
-                    // Create parent directories if needed
-                    if let Some(parent) = file_path.parent() {
-                        if !std::path::Path::new(parent).exists() {
-                            fs::create_dir_all(parent)?;
-                        }
-                    }
+        let tasks_json = serde_json::to_string_pretty(&pending_tasks)?;
+        let prompt_base = format!(r#"### ARCHITECTURAL PLANNER
+Analyze these tasks and group them into logical execution batches.
 
-                    // Write the file
-                    match fs::write(&file_path, &change.content) {
-                        Ok(_) => {
-                            files_modified += 1;
-                            if json {
-                                emit_event(
-                                    &RunEvent::FileModified {
-                                        path: change.path.clone(),
-                                        lines_added: change.content.lines().count(),
-                                        lines_removed: 0,
-                                    },
-                                    json,
-                                );
-                            } else {
-                                println!("  ✓ Modified: {}", change.path);
-                            }
-                        }
-                        Err(e) => {
-                            if !json {
-                                eprintln!("  ✗ Failed to write {}: {}", change.path, e);
-                            }
-                        }
-                    }
-                }
+DEPENDENCY MAPPING RULES:
+1. Every batch MUST have 'id', 'name', 'task_ids', 'reasoning', and 'depends_on' fields.
+2. 'depends_on' is a list of batch IDs this batch depends on.
+3. If Batch B needs code created in Batch A, Batch B MUST have `depends_on: ["batch-a-id"]`.
+4. For batches with no prerequisites, use `depends_on: []`.
 
-                if !json && files_modified > 0 {
-                    println!();
-                    println!("Applied {} file change(s)", files_modified);
-                    println!();
-                }
+Tasks:
+{}
 
-                // Run verification if configured
-                if let Some(ref verify_config) = spec.verify {
-                    if !verify_config.commands.is_empty() {
-                        // Determine Docker image
-                        let image = verify_config.image.clone()
-                            .unwrap_or_else(|| detect_docker_image(&repo_root));
+OUTPUT ONLY VALID YAML:
+batches:
+  - id: "foundation"
+    name: "Core Infrastructure"
+    task_ids: ["T001", "T002"]
+    depends_on: []
+    reasoning: "Standard setup."
+  - id: "ui-components"
+    name: "Component Development"
+    task_ids: ["T003"]
+    depends_on: ["foundation"]
+    reasoning: "Depends on foundation."
+"#, tasks_json);
 
-                        if !json {
-                            println!("Phase: Verify");
-                            println!("  Image: {}", image);
-                            println!("  Commands: {}", verify_config.commands.len());
-                            println!();
-                        } else {
-                            emit_event(
-                                &RunEvent::Verifying {
-                                    attempt: 1,
-                                    image: image.clone(),
-                                },
-                                json,
-                            );
-                        }
+        let plan_workflow = Workflow {
+            version: "1.0".to_string(),
+            name: "orchestrator-plan".to_string(),
+            description: None,
+            defaults: None,
+            steps: vec![
+                 WorkflowStep {
+                     id: "plan".to_string(),
+                     name: "Plan Execution".to_string(),
+                     step_type: "agent".to_string(),
+                     agent: None,
+                     prompt: format!("{}\n\nIMPORTANT: Save the response as 'plan.yaml'. Include the depends_on field for EVERY batch.", prompt_base),
+                     outputs: vec![
+                         ckrv_core::StepOutput {
+                             name: "plan_file".to_string(),
+                             output_type: ckrv_core::OutputType::File,
+                             description: Some("The generated plan yaml".to_string()),
+                             filename: Some("plan.yaml".to_string()),
+                         }
+                     ],
+                 }
+            ],
+        };
 
-                        // Run verification in Docker
-                        let verification_passed = rt.block_on(async {
-                            run_verification(&work_dir, &verify_config.commands, &image, json).await
-                        });
+        let plan_id = format!("PLAN-{}", uuid::Uuid::new_v4().to_string().chars().take(8).collect::<String>());
+        let plan_worktree = cwd.join(".ckrv").join("planning").join(&plan_id);
+        std::fs::create_dir_all(&plan_worktree)?;
 
-                        match verification_passed {
-                            Ok(true) => {
-                                if !json {
-                                    println!("  All verification checks passed!");
-                                    println!();
-                                }
-                            }
-                            Ok(false) => {
-                                if json {
-                                    emit_event(
-                                        &RunEvent::Failed {
-                                            job_id: job_id.clone(),
-                                            attempts: 1,
-                                            error: "Verification failed".to_string(),
-                                        },
-                                        json,
-                                    );
-                                } else {
-                                    eprintln!();
-                                    eprintln!("Error: Verification failed");
-                                    eprintln!("Changes have been applied but verification did not pass.");
-                                }
-                                std::process::exit(1);
-                            }
-                            Err(e) => {
-                                if !json {
-                                    eprintln!("Warning: Verification error: {}", e);
-                                }
-                            }
-                        }
-                    }
-                }
+        let mut task = AgentTask::new(&plan_id, "Planning execution batches", "orchestrator-plan", plan_worktree.clone());
+        task.save(&cwd)?;
 
-                // Stage changes in worktree so they appear in diff
-                {
-                    use std::process::Command;
-                    let _ = Command::new("git")
-                        .args(["add", "-A"])
-                        .current_dir(&work_dir)
-                        .output();
-                }
+        let config = RunnerConfig {
+            agent_binary: "claude".to_string(),
+            use_sandbox: !args.dry_run,
+            keep_container: false,
+            ..Default::default()
+        };
 
-                // Generate diff
-                {
-                    let diff_gen = DefaultDiffGenerator::new();
-                    if let Ok(diff) = diff_gen.diff_path(&work_dir) {
-                        // Save diff to runs directory
-                        let runs_dir = chakravarti_dir.join("runs").join(&job_id);
-                        fs::create_dir_all(&runs_dir)?;
-                        
-                        if !diff.content.is_empty() {
-                            fs::write(runs_dir.join("diff.patch"), &diff.content)?;
+        let mut task = AgentTask::new(
+            "PLANNER",
+            "Orchestration planning",
+            "orchestrator-plan",
+            plan_worktree.clone(),
+        );
 
-                            if !json {
-                                println!("Phase: Diff");
-                                println!("  Files changed: {}", diff.files.len());
-                                let insertions: usize = diff.files.iter().map(|f| f.additions).sum();
-                                let deletions: usize = diff.files.iter().map(|f| f.deletions).sum();
-                                println!("  Insertions: {}", insertions);
-                                println!("  Deletions: {}", deletions);
-                                println!();
-                            }
-                        }
-                    }
-                }
+        let runner = WorkflowRunner::new(config);
+        let result = runner.run(&plan_workflow, &mut task, &plan_worktree).await?;
+        
+        if !result.success {
+             return Err(anyhow::anyhow!("Planning workflow failed."));
+        }
+        
+        let plan_yaml_file = plan_worktree.join("plan.yaml");
+        if !plan_yaml_file.exists() {
+            return Err(anyhow::anyhow!("Agent failed to create plan.yaml"));
+        }
+        
+        let content = std::fs::read_to_string(&plan_yaml_file)?;
+        let mut plan: ExecutionPlan = serde_yaml::from_str(&content)
+            .map_err(|e| anyhow::anyhow!("AI failed to generate valid YAML: {}\nContent: {}", e, content))?;
 
-                // Save metrics
-                let duration = start_time.elapsed();
-                metrics.start_job(&job_id, &spec.id);
-                metrics.record_tokens(
-                    &completion.model,
-                    completion.usage.prompt_tokens.into(),
-                    completion.usage.completion_tokens.into(),
-                );
-                let final_metrics = metrics.finish_job(true);
-
-                let storage = FileMetricsStorage::new(&chakravarti_dir);
-                if storage.save(&final_metrics).is_ok() && !json {
-                    println!("Metrics saved to .chakravarti/runs/{}/metrics.json", job_id);
-                    println!();
-                }
-
-                // Success output
-                if json {
-                    emit_event(
-                        &RunEvent::Succeeded {
-                            job_id: job_id.clone(),
-                            attempt: 1,
-                            diff_lines: completion.content.lines().count(),
-                            files_changed: files_modified,
-                        },
-                        json,
-                    );
-                } else {
-                    println!("═══════════════════════════════════════════════");
-                    println!("✓ Job completed successfully!");
-                    println!("═══════════════════════════════════════════════");
-                    println!();
-                    println!("Job ID: {}", job_id);
-                    println!("Files modified: {}", files_modified);
-                    println!("Duration: {:.2}s", duration.as_secs_f64());
-                    println!("Est. cost: ${:.4}", final_metrics.cost.total_usd);
-                    println!();
-                    
-                    println!("Changes are in worktree: {}", work_dir.display());
-                    println!();
-                    println!("Next steps:");
-                    println!("  ckrv diff {}              # View changes", job_id);
-                    println!("  ckrv promote {} --branch feature/x  # Promote to branch", job_id);
-                }
+        // Auto-assign sequential dependencies if the AI didn't provide them
+        // This guarantees that batches execute in order even if the AI forgets the field
+        let batch_ids: Vec<String> = plan.batches.iter().map(|b| b.id.clone()).collect();
+        for i in 1..plan.batches.len() {
+            if plan.batches[i].depends_on.is_empty() {
+                // Depend on the previous batch by default
+                plan.batches[i].depends_on = vec![batch_ids[i - 1].clone()];
             }
         }
-        Err(e) => {
-            if json {
-                emit_event(
-                    &RunEvent::Error {
-                        code: "MODEL_ERROR".to_string(),
-                        message: e.to_string(),
-                    },
-                    json,
-                );
-            } else {
-                eprintln!("Error: Model API call failed: {e}");
+
+        // Debug: show computed dependencies
+        if !json {
+            println!("Computed Dependencies:");
+            for batch in &plan.batches {
+                let deps = if batch.depends_on.is_empty() { "[]".to_string() } else { batch.depends_on.join(", ") };
+                println!("  {} -> {}", batch.id, deps);
             }
-            std::process::exit(1);
+        }
+
+        if let Some(parent) = tasks_path.parent() {
+             let user_plan_path = parent.join("plan.yaml");
+             let yaml = serialize_plan_with_depends_on(&plan);
+             std::fs::write(&user_plan_path, &yaml).ok();
+             if !json {
+                 println!("Saved orchestration plan to {}", user_plan_path.display());
+             }
+        }
+        plan
+    };
+
+    if !json {
+        let parallel_count = plan.batches.iter().filter(|b| b.depends_on.is_empty()).count();
+        println!("Execution Plan Ready: {} batches ({} parallelizable foundation batches)", plan.batches.len(), parallel_count);
+        
+        let mut builder = Builder::default();
+        builder.push_record(["Batch", "Tasks", "Depends On", "Reasoning"]);
+        for batch in &plan.batches {
+            let deps = if batch.depends_on.is_empty() { "none".to_string() } else { batch.depends_on.join(", ") };
+            builder.push_record([
+                batch.name.clone(),
+                batch.task_ids.join(", "),
+                deps,
+                batch.reasoning.clone(),
+            ]);
+        }
+        let mut table = builder.build();
+        table.with(Modify::new(Rows::first()).with(Alignment::center()));
+        table.with(Modify::new(Columns::new(1..2)).with(Width::wrap(20))); // Tasks
+        table.with(Modify::new(Columns::new(2..3)).with(Width::wrap(20))); // Depends On
+        table.with(Modify::new(Columns::new(3..4)).with(Width::wrap(40))); // Reasoning
+        let rich = RichTable::new(table);
+        ui.print(rich);
+        println!();
+    }
+    
+    // Execute Plan with Dependency Awareness
+    let exe = std::env::current_exe()?;
+    
+    // Map of batch_id -> task data
+    let task_map: std::collections::HashMap<String, SpecTask> = pending_tasks.into_iter().map(|t| (t.id.clone(), t)).collect();
+
+    // Map of batch_id -> task_ids (for updating status later)
+    let batch_task_map: std::collections::HashMap<String, Vec<String>> = plan.batches.iter()
+        .map(|b| (b.id.clone(), b.task_ids.clone()))
+        .collect();
+
+    let mut completed_batches = std::collections::HashSet::<String>::new();
+    let mut pending_batches: std::collections::VecDeque<_> = plan.batches.into();
+    let mut running_futures = futures::stream::FuturesUnordered::new();
+
+    let exe_arc = std::sync::Arc::new(exe);
+    let manager_arc = std::sync::Arc::new(manager);
+
+    while !pending_batches.is_empty() || !running_futures.is_empty() {
+        // 1. Identify and spawn unblocked batches
+        let mut still_pending = std::collections::VecDeque::new();
+        let mut spawned_any = false;
+
+        while let Some(batch) = pending_batches.pop_front() {
+            let unblocked = batch.depends_on.iter().all(|dep_id| completed_batches.contains(dep_id));
+            
+            if unblocked {
+                let prefix = if args.dry_run { "[Simulated]" } else { "[Orchestrator]" };
+                println!("{} Spawning batch: {}", prefix, batch.name);
+                
+                spawned_any = true;
+                let exe = exe_arc.clone();
+                let manager = manager_arc.clone();
+                let args_executor_model = args.executor_model.clone();
+                let args_dry_run = args.dry_run;
+                let batch_name = batch.name.clone();
+                let batch_id = batch.id.clone();
+                let task_ids = batch.task_ids.clone();
+                let reasoning = batch.reasoning.clone();
+
+                // Build combined description
+                let mut combined_desc = format!("MISSION: {}\nREASONING: {}\n\nTASKS:\n", batch_name, reasoning);
+                for id in &task_ids {
+                    if let Some(t) = task_map.get(id) {
+                        combined_desc.push_str(&format!("- [{}]: {} ({})\n", t.id, t.title, t.description));
+                    }
+                }
+
+                let handle = tokio::spawn(async move {
+                    let mut worktree_path: Option<PathBuf> = None;
+                    let mut worktree_branch = String::new();
+
+                    if args_dry_run {
+                        println!("[Batch: {}] WOULD execute mission in a new worktree.", batch_name);
+                    } else {
+                        let suffix: String = uuid::Uuid::new_v4().to_string().chars().take(6).collect();
+                        let wt_job_id = format!("batch-{}-{}", batch_id, suffix); 
+                        
+                        let worktree = match manager.create(&wt_job_id, "1") {
+                            Ok(wt) => wt,
+                            Err(e) => {
+                                eprintln!("[Batch: {}] Failed to create worktree: {}", batch_name, e);
+                                return (batch_id, batch_name.clone(), None, Err(anyhow::anyhow!("Worktree for {} failed", batch_name)));
+                            }
+                        };
+                        println!("[Batch: {}] EXECUTING MISSION in worktree: {}", batch_name, worktree.path.display());
+                        worktree_path = Some(worktree.path.clone());
+                        worktree_branch = worktree.branch;
+                    }
+                    
+                    let mut cmd = AsyncCommand::new(exe.as_ref());
+                    cmd.arg("task").arg(&combined_desc);
+                    
+                    if let Some(ref path) = worktree_path {
+                        cmd.arg("--use-worktree").arg(path);
+                    }
+                    
+                    let batch_run_id = format!("{}-run", batch_id);
+                    cmd.arg("--continue-task").arg(&batch_run_id);
+                    
+                    if let Some(m) = &args_executor_model { cmd.arg("--agent").arg(m); }
+                    if args_dry_run { cmd.arg("--dry-run"); }
+                    
+                    let status = match cmd.status().await {
+                        Ok(s) => s,
+                        Err(e) => return (batch_id, batch_name.clone(), worktree_path, Err(anyhow::anyhow!("Failed to run task: {}", e))),
+                    };
+
+                    if !status.success() {
+                        return (batch_id, batch_name.clone(), worktree_path, Err(anyhow::anyhow!("Batch mission {} failed", batch_name)));
+                    }
+                    
+                    let prefix = if args_dry_run { "[Simulated]" } else { "[Batch]" };
+                    println!("{} Mission completed: {}", prefix, batch_name);
+                    (batch_id, batch_name, worktree_path, Ok(worktree_branch))
+                });
+                
+                running_futures.push(handle);
+            } else {
+                still_pending.push_back(batch);
+            }
+        }
+        pending_batches = still_pending;
+
+        // 2. Wait for at least one batch to complete if we are blocked
+        if !running_futures.is_empty() {
+            use futures::StreamExt;
+            if let Some(result) = running_futures.next().await {
+                match result {
+                    Ok((id, name, wt_path_opt, Ok(branch))) => {
+                        if !args.dry_run {
+                            // 1. Commit changes in the worktree
+                            if let Some(wt_path) = wt_path_opt {
+                                println!("[Orchestrator] Committing changes for batch '{}'...", name);
+                                let commit_msg = format!("feat(batch): {} - {}", name, id);
+                                
+                                let add_status = std::process::Command::new("git")
+                                    .arg("add")
+                                    .arg(".")
+                                    .current_dir(&wt_path)
+                                    .status()?;
+                                
+                                if !add_status.success() {
+                                    return Err(anyhow::anyhow!("Failed to git add in worktree for batch {}", name));
+                                }
+
+                                // Check if there are changes to commit
+                                let diff_status = std::process::Command::new("git")
+                                    .args(["diff", "--staged", "--quiet"])
+                                    .current_dir(&wt_path)
+                                    .status()?;
+                                
+                                // Exit code 1 means differences exist (good to commit), 0 means empty
+                                if !diff_status.success() {
+                                    let commit_status = std::process::Command::new("git")
+                                        .arg("commit")
+                                        .arg("-m")
+                                        .arg(&commit_msg)
+                                        .current_dir(&wt_path)
+                                        .status()?;
+
+                                    if !commit_status.success() {
+                                        return Err(anyhow::anyhow!("Failed to git commit in worktree for batch {}", name));
+                                    }
+                                } else {
+                                    println!("[Orchestrator] No changes to commit for batch '{}'.", name);
+                                }
+                            }
+
+                            // 2. Merge branch into current HEAD
+                            if !branch.is_empty() {
+                                println!("[Orchestrator] Merging batch '{}' ({}) into main branch...", name, branch);
+                                // Using --no-ff to preserve batch history context
+                                let merge_status = std::process::Command::new("git")
+                                    .arg("merge")
+                                    .arg("--no-ff")
+                                    .arg("--no-edit")
+                                    .arg(&branch)
+                                    .current_dir(&cwd) // Merge into the repo root/current branch
+                                    .status()?;
+
+                                if !merge_status.success() {
+                                    return Err(anyhow::anyhow!("Failed to merge batch branch {} into main branch. Please resolve conflicts manually.", branch));
+                                }
+                                println!("[Orchestrator] Successfully merged batch '{}'.", name);
+
+                                // 3. Update tasks.yaml
+                                if let Some(tids) = batch_task_map.get(&id) {
+                                    if let Err(e) = mark_tasks_complete(&tasks_path, tids) {
+                                        eprintln!("Failed to update tasks.yaml: {}", e);
+                                    }
+                                }
+                            }
+                        }
+
+                        completed_batches.insert(id);
+                    }
+                    Ok((_id, name, _path, Err(e))) => {
+                        return Err(anyhow::anyhow!("Batch '{}' failed: {}", name, e));
+                    }
+                    Err(e) => {
+                        return Err(anyhow::anyhow!("Task panic: {}", e));
+                    }
+                }
+            }
+        } else if !pending_batches.is_empty() {
+            // No futures running but still have pending batches = possible circular dependency or missing parent
+            let pending_ids: Vec<_> = pending_batches.iter().map(|b| b.id.clone()).collect();
+            return Err(anyhow::anyhow!("Scheduler deadlock: Pending batches {:?} are blocked by missing or failing dependencies.", pending_ids));
         }
     }
 
     Ok(())
 }
 
-/// Load secrets from .chakravarti/secrets/.env if it exists
-fn load_secrets(cwd: &std::path::Path) {
-    // Try to find repo root and load secrets
-    if let Ok(repo_root) = ckrv_git::repo_root(cwd) {
-        let secrets_env_path = repo_root.join(".chakravarti").join("secrets").join(".env");
-
-        if secrets_env_path.exists() {
-            // Load the .env file (sets environment variables)
-            if dotenvy::from_path(&secrets_env_path).is_ok() {
-                tracing::debug!("Loaded secrets from {}", secrets_env_path.display());
-            }
-        }
-    }
-}
-
-/// Detect Docker image based on project files
-fn detect_docker_image(project_dir: &Path) -> String {
-    // Check for various project manifest files
-    if project_dir.join("Cargo.toml").exists() {
-        return "rust:1.75-slim".to_string();
-    }
-    if project_dir.join("package.json").exists() {
-        return "node:20-slim".to_string();
-    }
-    if project_dir.join("go.mod").exists() {
-        return "golang:1.21-alpine".to_string();
-    }
-    if project_dir.join("pyproject.toml").exists() || project_dir.join("requirements.txt").exists() {
-        return "python:3.11-slim".to_string();
-    }
-    if project_dir.join("Gemfile").exists() {
-        return "ruby:3.2-slim".to_string();
-    }
+fn mark_tasks_complete(tasks_path: &Path, task_ids: &[String]) -> anyhow::Result<()> {
+    if task_ids.is_empty() { return Ok(()); }
     
-    // Default fallback
-    "ubuntu:22.04".to_string()
-}
+    let content = std::fs::read_to_string(tasks_path)?;
+    let mut file: TaskFile = serde_yaml::from_str(&content)?;
 
-/// Run verification commands in Docker sandbox
-async fn run_verification(
-    work_dir: &Path,
-    commands: &[String],
-    _image: &str,
-    json: bool,
-) -> Result<bool, String> {
-    // Try to create Docker sandbox
-    let sandbox = match DockerSandbox::with_defaults() {
-        Ok(s) => s,
-        Err(e) => {
-            if !json {
-                println!("  Note: Docker not available ({}), using local execution", e);
-            }
-            // Fall back to local execution
-            return run_local_verification(work_dir, commands, json).await;
-        }
-    };
-    
-    // Check if Docker is available
-    if sandbox.health_check().await.is_err() {
-        if !json {
-            println!("  Note: Docker health check failed, using local execution");
-        }
-        return run_local_verification(work_dir, commands, json).await;
-    }
-
-    for cmd in commands {
-        let config = ExecuteConfig::new(cmd.clone(), work_dir.to_path_buf())
-            .shell(cmd)
-            .with_timeout(Duration::from_secs(300));
-
-        match sandbox.execute(config).await {
-            Ok(result) => {
-                if result.success() {
-                    if !json {
-                        println!("  ✓ {}", cmd);
-                    }
-                } else {
-                    if !json {
-                        println!("  ✗ {} (exit code: {})", cmd, result.exit_code);
-                        if !result.stderr.is_empty() {
-                            for line in result.stderr.lines().take(10) {
-                                println!("    {}", line);
-                            }
-                        }
-                    }
-                    return Ok(false);
-                }
-            }
-            Err(e) => {
-                if !json {
-                    println!("  ✗ {} (error: {})", cmd, e);
-                }
-                return Ok(false);
-            }
+    let mut updated = false;
+    for task in &mut file.tasks {
+        if task_ids.contains(&task.id) {
+            task.status = "completed".to_string();
+            updated = true;
         }
     }
 
-    Ok(true)
-}
-
-/// Run verification commands locally (fallback when Docker not available)
-async fn run_local_verification(
-    work_dir: &Path,
-    commands: &[String],
-    json: bool,
-) -> Result<bool, String> {
-    use std::process::Command;
-
-    for cmd in commands {
-        let output = Command::new("sh")
-            .args(["-c", cmd])
-            .current_dir(work_dir)
-            .output();
-
-        match output {
-            Ok(result) => {
-                if result.status.success() {
-                    if !json {
-                        println!("  ✓ {}", cmd);
-                    }
-                } else {
-                    if !json {
-                        let exit_code = result.status.code().unwrap_or(-1);
-                        println!("  ✗ {} (exit code: {})", cmd, exit_code);
-                        let stderr = String::from_utf8_lossy(&result.stderr);
-                        if !stderr.is_empty() {
-                            for line in stderr.lines().take(10) {
-                                println!("    {}", line);
-                            }
-                        }
-                    }
-                    return Ok(false);
-                }
-            }
-            Err(e) => {
-                if !json {
-                    println!("  ✗ {} (error: {})", cmd, e);
-                }
-                return Ok(false);
-            }
-        }
+    if updated {
+        let new_content = serde_yaml::to_string(&file)?;
+        std::fs::write(tasks_path, new_content)?;
+        println!("[Orchestrator] Marked {} tasks as completed in tasks.yaml", task_ids.len());
     }
-
-    Ok(true)
+    Ok(())
 }
-

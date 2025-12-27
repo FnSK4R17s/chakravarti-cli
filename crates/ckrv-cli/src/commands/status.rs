@@ -28,7 +28,7 @@ struct StatusOutput {
 use crate::ui::UiContext;
 
 /// Execute the status command
-pub fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
+pub async fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
     // Try to find repo root
@@ -59,9 +59,13 @@ pub fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Result<(
                     println!("{}", serde_json::to_string_pretty(&output)?);
                 } else {
                     // Rich UI Output
-                    let title = if metrics.success { "Job Succeeded" } else { "Job Failed" };
+                    let title = if metrics.success {
+                        "Job Succeeded"
+                    } else {
+                        "Job Failed"
+                    };
                     let msg = format!("Job ID: {}\nSpec: {}", metrics.job_id, metrics.spec_id);
-                    
+
                     if metrics.success {
                         ui.success(title, &msg);
                     } else {
@@ -69,7 +73,10 @@ pub fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Result<(
                     }
 
                     let mut content = String::from("\n### Metrics\n");
-                    content.push_str(&format!("* **Duration**: {:.2}s\n", metrics.total_time_ms as f64 / 1000.0));
+                    content.push_str(&format!(
+                        "* **Duration**: {:.2}s\n",
+                        metrics.total_time_ms as f64 / 1000.0
+                    ));
                     content.push_str(&format!("* **Tokens**: {}\n", metrics.total_tokens()));
                     content.push_str(&format!("* **Cost**: ${:.4}\n", metrics.cost.total_usd));
                     content.push_str(&format!("* **Steps**: {}\n", metrics.step_metrics.len()));
@@ -114,7 +121,10 @@ pub fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Result<(
                 };
                 println!("{}", serde_json::to_string_pretty(&output)?);
             } else {
-                ui.success("Job Completed", &format!("Job ID: {}\n(Metrics not available)", args.job_id));
+                ui.success(
+                    "Job Completed",
+                    &format!("Job ID: {}\n(Metrics not available)", args.job_id),
+                );
                 ui.markdown(&format!("**Run Directory**: `{}`", runs_dir.display()));
             }
         } else {
@@ -130,7 +140,10 @@ pub fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Result<(
                 };
                 println!("{}", serde_json::to_string_pretty(&output)?);
             } else {
-                ui.error("Job Not Found", &format!("No job with ID '{}' was found.", args.job_id));
+                ui.error(
+                    "Job Not Found",
+                    &format!("No job with ID '{}' was found.", args.job_id),
+                );
                 ui.markdown("Run `ckrv run <spec>` to create a new job.");
             }
         }

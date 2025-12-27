@@ -19,7 +19,7 @@ fn test_optimize_cost_flag_accepted() {
     // Test that --optimize cost is a valid flag
     let output = ckrv(&["run", "--help"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     assert!(stdout.contains("optimize"), "Should have optimize option");
 }
 
@@ -28,9 +28,16 @@ fn test_optimize_cost_flag_accepted() {
 fn test_optimize_cost_uses_cheaper_model() {
     // With --optimize cost, should select cheaper models
     // This requires API key so marked as ignored
-    let output = ckrv(&["run", "test.yaml", "--optimize", "cost", "--dry-run", "--json"]);
+    let output = ckrv(&[
+        "run",
+        "test.yaml",
+        "--optimize",
+        "cost",
+        "--dry-run",
+        "--json",
+    ]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // In dry run, should indicate model selection
     assert!(stdout.contains("gpt-4o-mini") || stdout.contains("model"));
 }
@@ -44,7 +51,7 @@ fn test_optimize_time_flag_accepted() {
     // Test that --optimize time works
     let output = ckrv(&["run", "--help"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     assert!(stdout.contains("optimize"), "Should have optimize option");
 }
 
@@ -52,9 +59,16 @@ fn test_optimize_time_flag_accepted() {
 #[ignore] // Requires API key
 fn test_optimize_time_uses_capable_model() {
     // With --optimize time, should select more capable models
-    let output = ckrv(&["run", "test.yaml", "--optimize", "time", "--dry-run", "--json"]);
+    let output = ckrv(&[
+        "run",
+        "test.yaml",
+        "--optimize",
+        "time",
+        "--dry-run",
+        "--json",
+    ]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // In dry run, should indicate model selection
     assert!(stdout.contains("gpt-4o") || stdout.contains("model"));
 }
@@ -67,16 +81,22 @@ fn test_optimize_time_uses_capable_model() {
 fn test_planner_model_flag_accepted() {
     let output = ckrv(&["run", "--help"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
-    assert!(stdout.contains("planner-model"), "Should have planner-model option");
+
+    assert!(
+        stdout.contains("planner-model"),
+        "Should have planner-model option"
+    );
 }
 
 #[test]
 fn test_executor_model_flag_accepted() {
     let output = ckrv(&["run", "--help"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
-    assert!(stdout.contains("executor-model"), "Should have executor-model option");
+
+    assert!(
+        stdout.contains("executor-model"),
+        "Should have executor-model option"
+    );
 }
 
 #[test]
@@ -84,12 +104,15 @@ fn test_executor_model_flag_accepted() {
 fn test_model_override_respected() {
     // Explicit model override should be used
     let output = ckrv(&[
-        "run", "test.yaml",
-        "--executor-model", "claude-3-5-sonnet",
-        "--dry-run", "--json"
+        "run",
+        "test.yaml",
+        "--executor-model",
+        "claude-3-5-sonnet",
+        "--dry-run",
+        "--json",
     ]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     assert!(stdout.contains("claude-3-5-sonnet") || stdout.contains("model"));
 }
 

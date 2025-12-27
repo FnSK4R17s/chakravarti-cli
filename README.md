@@ -1,137 +1,88 @@
 # Chakravarti CLI
 
-> Spec-driven autonomous code editing with LLM integration
+> Spec-driven Agent Orchestration Engine
 
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Chakravarti is a command-line tool that takes structured specifications and autonomously generates code changes using large language models. It provides a complete workflow from spec definition through execution, verification, and git integration.
+**Code like an Architect, not a Typist.**
 
-## Features
+Chakravarti (`ckrv`) is an autonomous coding engine that turns high-level specifications into shipping code. It orchestrates AI agents to plan, implement, and verify features in parallel, using isolated Git worktrees and Docker sandboxes to ensure safety and code integrity.
 
-- 📝 **Spec-Driven Development** - Define changes in YAML/JSON specs
-- 🤖 **Multi-Model Support** - OpenAI, Anthropic, and custom endpoints
-- 🔄 **Automatic Retries** - Intelligent retry with replanning
-- 🐳 **Isolated Execution** - Run in Docker containers or local sandboxes
-- 🔍 **Verification** - Test and lint changes before committing
-- 📊 **Cost Tracking** - Monitor token usage and API costs
-- 🌿 **Git Native** - Promote changes to branches seamlessly
+## Philosophy
+
+Most AI coding tools are "autocomplete on steroids" or "single-file refactors." Chakravarti is an **Orchestrator**.
+
+1.  **Design First**: You define the *What* and *Why* in a Specification (`spec.yaml`).
+2.  **AI Planning**: The system analyzes your codebase and breaks the spec into actionable, dependency-aware batches.
+3.  **Parallel Execution**: Agents execute tasks in parallel using isolated **Git Worktrees**. No working directory pollution.
+4.  **Auto-Integration**: Completed code is automatically committed, merged, and propagated to dependent tasks.
+5.  **Verification**: Every step runs in a Docker sandbox to ensure tests pass before merging.
 
 ## Quick Start
 
-### Installation
-
+### 1. Initialize
+Set up Chakravarti in your repository. This creates the `.specs` directory and workflows.
 ```bash
-# From source
-git clone https://github.com/your-org/chakravarti-cli
-cd chakravarti-cli
-cargo install --path crates/ckrv-cli
-```
-
-### Initialize a Repository
-
-```bash
-cd your-project
 ckrv init
 ```
 
-This creates:
-- `.specs/` - Directory for spec files
-- `.chakravarti/` - Working directory for runs
-
-### Create a Spec
-
-```yaml
-# .specs/add-auth.yaml
-goal: "Add JWT authentication middleware"
-constraints:
-  - "Use jsonwebtoken crate"
-  - "Support RS256 algorithm"
-acceptance:
-  - "Middleware validates JWT tokens"
-  - "All tests pass"
+### 2. Define a Spec
+Describe your feature in natural language. The AI will generate a structured specification.
+```bash
+# Create a new branch and spec for your feature
+git checkout -b feature/dark-mode
+ckrv spec new "Implement dark mode with system preference detection and a toggle switch"
 ```
 
-### Run the Spec
-
+### 3. Generate Tasks
+Ask the AI to analyze the codebase and generate a detailed implementation plan (`tasks.yaml`).
 ```bash
-# Set your API key
-export OPENAI_API_KEY="sk-..."
+ckrv spec tasks
+```
+Review the generated `tasks.yaml` and `plan.yaml` in `.specs/feature/dark-mode/` to ensure the architecture is sound.
 
-# Run the spec
-ckrv run .specs/add-auth.yaml
-
-# With optimization
-ckrv run .specs/add-auth.yaml --optimize cost
+### 4. Orchestrate Execution
+Run the full job. Chakravarti will:
+- Plan execution batches.
+- Spawn parallel agents in Docker containers.
+- Execute tasks in git worktrees.
+- Commit and merge successful changes.
+```bash
+ckrv run
 ```
 
-### Review and Promote
+### 5. Review and Promote
+Inspect the changes. Since they are already merged into your feature branch (or worktree branch), you can view them with standard git tools or use the CLI.
 
 ```bash
-# Check job status
-ckrv status <job_id>
-
-# View the diff
+# Check the diff
 ckrv diff <job_id>
 
-# See cost report
-ckrv report <job_id>
-
-# Promote to a branch
-ckrv promote <job_id> --branch feature/add-auth
+# Push changes to the remote branch
+ckrv promote <job_id>
 ```
 
-## Commands
+## Primary Commands
 
 | Command | Description |
 |---------|-------------|
-| `ckrv init` | Initialize a repository for Chakravarti |
-| `ckrv run <spec>` | Execute a specification |
-| `ckrv status <job>` | Check job status |
-| `ckrv diff <job>` | View generated diff |
-| `ckrv report <job>` | View cost/metrics report |
-| `ckrv promote <job>` | Promote changes to a git branch |
-
-## Configuration
-
-### Environment Variables
-
-```bash
-# OpenAI
-export OPENAI_API_KEY="sk-..."
-
-# Anthropic
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-# Custom endpoint (OpenAI-compatible)
-export CKRV_MODEL_API_KEY="your-key"
-export CKRV_MODEL_ENDPOINT="https://api.example.com/v1"
-```
-
-### Optimization Modes
-
-```bash
---optimize cost      # Minimize API costs
---optimize time      # Minimize execution time
---optimize balanced  # Balance cost and time (default)
-```
-
-See [docs/optimization.md](docs/optimization.md) for details.
+| `ckrv init` | Initialize Chakravarti in the current repository. |
+| `ckrv spec` | Create specs, generate tasks, and validate plans. |
+| `ckrv run` | Execute the orchestration engine (Plan -> Execute -> Merge). |
+| `ckrv diff` | View the diff statistics or content of a job run. |
+| `ckrv promote` | Promote the changes from a completed job to a target branch. |
 
 ## Architecture
 
 ```
 chakravarti-cli/
 ├── crates/
-│   ├── ckrv-cli/      # CLI application
-│   ├── ckrv-core/     # Core types and orchestration
-│   ├── ckrv-spec/     # Spec parsing and validation
-│   ├── ckrv-model/    # LLM provider abstraction
-│   ├── ckrv-git/      # Git operations
-│   ├── ckrv-sandbox/  # Execution isolation
-│   ├── ckrv-verify/   # Testing and linting
-│   └── ckrv-metrics/  # Cost and time tracking
-└── docs/              # Documentation
+│   ├── ckrv-cli/      # Usage interface
+│   ├── ckrv-core/     # Orchestration, Workflow logic
+│   ├── ckrv-git/      # Worktree and Git management
+│   ├── ckrv-sandbox/  # Docker execution environment
+│   └── ckrv-agent/    # AI Agent definitions
 ```
 
 ## Development
@@ -140,17 +91,8 @@ chakravarti-cli/
 # Build
 cargo build --workspace
 
-# Test
-cargo test --workspace
-
 # Run locally
 cargo run -p ckrv-cli -- --help
-
-# Format
-cargo fmt --all
-
-# Lint
-cargo clippy --workspace
 ```
 
 ## License

@@ -14,8 +14,8 @@ use futures_util::StreamExt;
 
 use crate::SandboxError;
 
-/// Default Docker image for execution.
-pub const DEFAULT_IMAGE: &str = "rust:1.83-slim";
+/// Default Docker image for execution (contains Claude Code CLI).
+pub const DEFAULT_IMAGE: &str = "ckrv-agent:latest";
 
 /// Docker client wrapper.
 pub struct DockerClient {
@@ -85,33 +85,104 @@ impl DockerClient {
         mount_target: &str,
         env: HashMap<String, String>,
         timeout: Duration,
+        keep_container: bool,
     ) -> Result<ExecutionOutput, SandboxError> {
         let image = &self.default_image;
         self.ensure_image(image).await?;
 
         let container_name = format!("ckrv-{}", uuid::Uuid::new_v4());
 
-        // Convert env to Docker format
-        let env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
+        tracing::info!(
+            container_name = %container_name,
+            image = %image,
+            "Creating Docker container"
+        );
 
-        // Create mount
-        let mounts = vec![Mount {
-            target: Some(mount_target.to_string()),
-            source: Some(mount_source.to_string()),
-            typ: Some(MountTypeEnum::BIND),
-            read_only: Some(false),
-            ..Default::default()
-        }];
+        // Convert env to Docker format
+        let mut env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
+
+        // Mount Claude credentials if they exist
+        let home = std::env::var("HOME").unwrap_or_default();
+        let has_claude_config = std::path::Path::new(&format!("{}/.claude.json", home)).exists()
+            || std::path::Path::new(&format!("{}/.claude", home)).exists();
+
+        // Set HOME env var for Claude to find config
+        // If we have Claude config, mount it at /home/agent and set HOME there
+        // Otherwise just use /workspace as home
+        if has_claude_config {
+            env_vec.push("HOME=/home/agent".to_string());
+        } else {
+            env_vec.push(format!("HOME={}", home));
+        }
+
+        // Create mounts: workspace + Claude credentials
+        let mut mounts = vec![
+            // Workspace mount
+            Mount {
+                target: Some(mount_target.to_string()),
+                source: Some(mount_source.to_string()),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false),
+                ..Default::default()
+            },
+        ];
+
+        // Mount ~/.claude.json (main config, needs write access)
+        let claude_config = format!("{}/.claude.json", home);
+        if std::path::Path::new(&claude_config).exists() {
+            tracing::debug!(path = %claude_config, "Mounting Claude config");
+            mounts.push(Mount {
+                target: Some("/home/agent/.claude.json".to_string()),
+                source: Some(claude_config),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false), // Claude needs write access
+                ..Default::default()
+            });
+        }
+
+        // Mount ~/.claude directory (settings + credentials, needs write access)
+        let claude_dir = format!("{}/.claude", home);
+        if std::path::Path::new(&claude_dir).exists() {
+            tracing::debug!(path = %claude_dir, "Mounting Claude directory");
+            mounts.push(Mount {
+                target: Some("/home/agent/.claude".to_string()),
+                source: Some(claude_dir),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false), // Claude needs write access for sessions
+                ..Default::default()
+            });
+        }
+
+        // Get current user UID:GID for proper permission handling
+        // Use `id` command since libc is unsafe
+        let uid_gid = std::process::Command::new("id")
+            .args(["-u"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "1000".to_string());
+
+        let gid = std::process::Command::new("id")
+            .args(["-g"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "1000".to_string());
+
+        let user_spec = format!("{}:{}", uid_gid, gid);
 
         let config = Config {
             image: Some(image.to_string()),
             cmd: Some(command),
             working_dir: Some(workdir.to_string()),
+            user: Some(user_spec),
             env: Some(env_vec),
             host_config: Some(HostConfig {
                 mounts: Some(mounts),
-                network_mode: Some("none".to_string()), // No network access
-                memory: Some(512 * 1024 * 1024),        // 512MB limit
+                network_mode: Some("host".to_string()), // Need network for Claude API
+                memory: Some(1024 * 1024 * 1024),       // 1GB limit for Claude
                 ..Default::default()
             }),
             ..Default::default()
@@ -128,6 +199,12 @@ impl DockerClient {
             .create_container(options, config)
             .await
             .map_err(|e| SandboxError::ContainerCreateFailed(e.to_string()))?;
+
+        tracing::info!(
+            container_id = %container.id,
+            container_name = %container_name,
+            "Container created, starting execution"
+        );
 
         // Start container
         self.client
@@ -182,15 +259,24 @@ impl DockerClient {
             }
         }
 
-        // Cleanup container
-        let remove_options = Some(RemoveContainerOptions {
-            force: true,
-            ..Default::default()
-        });
-        let _ = self
-            .client
-            .remove_container(&container.id, remove_options)
-            .await;
+        // Cleanup container (unless keep_container is set)
+        if keep_container {
+            tracing::info!(
+                container_id = %container.id,
+                container_name = %container_name,
+                "Keeping container for debugging. Remove manually with: docker rm -f {}",
+                container_name
+            );
+        } else {
+            let remove_options = Some(RemoveContainerOptions {
+                force: true,
+                ..Default::default()
+            });
+            let _ = self
+                .client
+                .remove_container(&container.id, remove_options)
+                .await;
+        }
 
         Ok(ExecutionOutput {
             exit_code: exit_code as i32,
@@ -220,12 +306,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_docker_client_creation() {
-        let result = DockerClient::new();
-        // May fail if Docker is not available
-        if result.is_ok() {
-            let client = result.unwrap();
-            assert!(client.health_check().await.is_ok());
-        }
+        let client = DockerClient::new().expect("Docker should be available");
+        assert!(
+            client.health_check().await.is_ok(),
+            "Docker health check failed"
+        );
     }
 
     #[test]

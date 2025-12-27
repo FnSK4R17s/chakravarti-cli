@@ -77,6 +77,7 @@ async fn test_docker_simple() -> Result<(), Box<dyn std::error::Error>> {
         mount: temp_dir,
         env: std::collections::HashMap::new(),
         timeout: Duration::from_secs(60),
+        keep_container: false,
     };
 
     let result = sandbox.execute(config).await?;
@@ -100,6 +101,7 @@ async fn test_docker_mount() -> Result<(), Box<dyn std::error::Error>> {
         mount: temp_dir.path().to_path_buf(),
         env: std::collections::HashMap::new(),
         timeout: Duration::from_secs(60),
+        keep_container: false,
     };
 
     let result = sandbox.execute(config).await?;

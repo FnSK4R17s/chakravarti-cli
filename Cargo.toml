@@ -67,6 +67,12 @@ dotenvy = "0.15"
 # Testing
 tempfile = "3.9"
 
+# Prompt templating
+handlebars = "6.2"
+
+# Shell escaping
+shell-escape = "0.1"
+
 # Internal crates
 ckrv-core = { path = "crates/ckrv-core" }
 ckrv-spec = { path = "crates/ckrv-spec" }

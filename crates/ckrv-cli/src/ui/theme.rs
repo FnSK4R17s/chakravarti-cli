@@ -1,4 +1,4 @@
-use console::{Style, Color};
+use console::{Color, Style};
 use termimad::{MadSkin, StyledChar};
 
 #[derive(Debug, Clone)]
@@ -26,9 +26,9 @@ impl Default for Theme {
     fn default() -> Self {
         // Option A: Hardcoded Premium Theme
         // We use a distinct palette inspired by modern CLIs
-        
-        // Brand: Chakravarti (Purple/Magenta focused or Blue)
-        let primary_color = Color::Magenta;
+
+        // Brand: Chakravarti (Royal Gold)
+        let primary_color = Color::Color256(220);
         let secondary_color = Color::Cyan;
 
         let success_style = Style::new().green().bold();
@@ -36,7 +36,7 @@ impl Default for Theme {
         let warning_style = Style::new().yellow();
 
         // Use rounded corners for proper Unicode terminals
-        // Fallback or ASCII mode detection will happen at usage level, 
+        // Fallback or ASCII mode detection will happen at usage level,
         // but Theme defines the "Ideal" state.
         let box_chars = BoxChars {
             top_left: '╭',
@@ -49,7 +49,7 @@ impl Default for Theme {
 
         let mut skin = MadSkin::default();
         // Map to crossterm colors for Termimad
-        use termimad::crossterm::style::{Color as CColor, Attribute};
+        use termimad::crossterm::style::{Attribute, Color as CColor};
         let p_cc = CColor::Magenta;
         let s_cc = CColor::Cyan;
 
@@ -57,15 +57,15 @@ impl Default for Theme {
         skin.italic.set_fg(s_cc);
         // Bullet points
         skin.bullet = StyledChar::from_fg_char(p_cc, '•');
-        
+
         // Headers
         skin.headers[0].set_fg(p_cc);
         skin.headers[0].add_attr(Attribute::Bold);
         skin.headers[0].align = termimad::Alignment::Left;
-        
+
         skin.headers[1].set_fg(s_cc);
         skin.headers[1].add_attr(Attribute::Bold);
-        
+
         Self {
             primary_color,
             secondary_color,

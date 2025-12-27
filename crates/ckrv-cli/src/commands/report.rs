@@ -60,7 +60,7 @@ struct StepReport {
 }
 
 /// Execute the report command
-pub fn execute(args: ReportArgs, json: bool) -> anyhow::Result<()> {
+pub async fn execute(args: ReportArgs, json: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
     // Try to find repo root

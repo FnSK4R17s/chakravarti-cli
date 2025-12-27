@@ -11,6 +11,8 @@ use crate::GitError;
 pub struct Worktree {
     /// Absolute path to the worktree.
     pub path: PathBuf,
+    /// Git branch name used for this worktree.
+    pub branch: String,
     /// Parent job ID.
     pub job_id: String,
     /// Parent attempt ID.
@@ -69,6 +71,7 @@ pub trait WorktreeManager: Send + Sync {
 }
 
 /// Default worktree manager using git2.
+#[derive(Clone)]
 pub struct DefaultWorktreeManager {
     /// Path to the main repository.
     repo_path: PathBuf,
@@ -109,19 +112,22 @@ impl WorktreeManager for DefaultWorktreeManager {
         let name = Self::worktree_name(job_id, attempt_id);
         let worktree_path = self.worktree_base.join(&name);
 
-        // Get current HEAD commit
+        // Get current HEAD commit and branch name
         let head = repo.head()?;
         let head_commit = head.peel_to_commit()?;
         let base_commit = head_commit.id().to_string();
+        let current_branch = head.shorthand().unwrap_or("detached");
 
-        // Create a new branch name for this worktree (ckrv-<job_id short>)
-        let branch_name = format!("ckrv-{}", &job_id[..8.min(job_id.len())]);
-        
+        // Create a new branch name for this worktree (worktree/<branch>/ckrv-<id>)
+        let branch_name = format!("worktree/{}/ckrv-{}", current_branch, job_id);
+
         // Create the branch from HEAD
         let branch = repo
             .branch(&branch_name, &head_commit, false)
-            .map_err(|e| GitError::WorktreeCreationFailed(format!("Failed to create branch: {}", e)))?;
-        
+            .map_err(|e| {
+                GitError::WorktreeCreationFailed(format!("Failed to create branch: {}", e))
+            })?;
+
         // Get the branch reference
         let branch_ref = branch.into_reference();
 
@@ -135,6 +141,7 @@ impl WorktreeManager for DefaultWorktreeManager {
 
         Ok(Worktree {
             path: worktree_path,
+            branch: branch_name,
             job_id: job_id.to_string(),
             attempt_id: attempt_id.to_string(),
             base_commit,
@@ -188,6 +195,7 @@ impl WorktreeManager for DefaultWorktreeManager {
                     if parts.len() >= 2 {
                         worktrees.push(Worktree {
                             path: PathBuf::from(path),
+                            branch: String::new(), // Not easily recoverable from just listing worktrees
                             job_id: parts[0].to_string(),
                             attempt_id: parts[1..].join("_"),
                             base_commit: String::new(), // Would need to look this up
@@ -258,6 +266,7 @@ mod tests {
     fn test_worktree_struct() {
         let worktree = Worktree {
             path: PathBuf::from("/tmp/test"),
+            branch: "test-branch".to_string(),
             job_id: "job1".to_string(),
             attempt_id: "attempt1".to_string(),
             base_commit: "abc123".to_string(),

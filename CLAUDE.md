@@ -116,3 +116,5 @@ CKRV_MODEL_ENDPOINT     # Custom endpoint URL
 ## Active Technologies
 - Rust 1.75+ + `clap` (CLI), `indicatif` (Spinners), `termimad` (Markdown), `tabled` (Tables), `console` (Styling) (002-rich-cli-ui)
 - N/A (Presentation layer only) (002-rich-cli-ui)
+- Rust 1.75+ (Stable) (003-agent-orchestration)
+- Filesystem (.ckrv/tasks for state) (003-agent-orchestration)

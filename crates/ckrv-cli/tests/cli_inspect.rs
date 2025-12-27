@@ -24,11 +24,11 @@ fn ckrv_stdout(args: &[&str]) -> String {
 fn test_status_json_output_structure() {
     let output = ckrv(&["status", "nonexistent-job", "--json"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Should be valid JSON
-    let json: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("Status output should be valid JSON");
-    
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect("Status output should be valid JSON");
+
     // Should have required fields
     assert!(json.get("job_id").is_some(), "Missing job_id field");
     assert!(json.get("status").is_some(), "Missing status field");
@@ -38,10 +38,10 @@ fn test_status_json_output_structure() {
 fn test_status_nonexistent_job() {
     let output = ckrv(&["status", "fake-job-id-12345", "--json"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
-    let json: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("Status output should be valid JSON");
-    
+
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect("Status output should be valid JSON");
+
     assert_eq!(json["status"], "not_found");
 }
 
@@ -53,11 +53,11 @@ fn test_status_nonexistent_job() {
 fn test_diff_json_output_structure() {
     let output = ckrv(&["diff", "nonexistent-job", "--json"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Should be valid JSON
-    let json: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("Diff output should be valid JSON");
-    
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect("Diff output should be valid JSON");
+
     // Should have required fields
     assert!(json.get("job_id").is_some(), "Missing job_id field");
     assert!(json.get("has_diff").is_some(), "Missing has_diff field");
@@ -67,10 +67,10 @@ fn test_diff_json_output_structure() {
 fn test_diff_nonexistent_job() {
     let output = ckrv(&["diff", "fake-job-id-12345", "--json"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
-    let json: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("Diff output should be valid JSON");
-    
+
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect("Diff output should be valid JSON");
+
     assert_eq!(json["has_diff"], false);
     assert_eq!(json["files_changed"], 0);
 }
@@ -83,11 +83,11 @@ fn test_diff_nonexistent_job() {
 fn test_report_json_output_structure() {
     let output = ckrv(&["report", "nonexistent-job", "--json"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Should be valid JSON (even for nonexistent job)
-    let json: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("Report output should be valid JSON");
-    
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect("Report output should be valid JSON");
+
     // Should have job_id field
     assert!(json.get("job_id").is_some(), "Missing job_id field");
 }
@@ -121,11 +121,11 @@ fn test_diff_completed_job() {
 fn test_diff_stat_flag() {
     let output = ckrv(&["diff", "test-job", "--stat", "--json"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Should be valid JSON
-    let json: serde_json::Value = serde_json::from_str(&stdout)
-        .expect("Diff --stat output should be valid JSON");
-    
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect("Diff --stat output should be valid JSON");
+
     // With --stat, diff field should be null/absent
     assert!(json.get("diff").is_none() || json["diff"].is_null());
 }

@@ -44,6 +44,7 @@ coverage/
 # Chakravarti runtime directories
 .worktrees/
 .chakravarti/runs/
+.ckrv/tasks/
 
 # Node (for any tooling)
 node_modules/
