@@ -155,6 +155,7 @@ mod tests {
             goal: "Test goal".to_string(),
             constraints: vec![],
             acceptance: vec!["Tests pass".to_string()],
+            verify: None,
             source_path: None,
         }
     }

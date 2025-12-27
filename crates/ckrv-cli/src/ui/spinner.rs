@@ -1,6 +1,6 @@
-use indicatif::{ProgressBar, ProgressStyle, ProgressDrawTarget};
-use std::time::Duration;
 use crate::ui::theme::Theme;
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use std::time::Duration;
 
 pub struct SpinnerGuard {
     inner: Option<ProgressBar>,
@@ -15,7 +15,7 @@ impl SpinnerGuard {
         let pb = ProgressBar::new_spinner();
         // ENSURE it draws to stderr (Specification FR-005)
         pb.set_draw_target(ProgressDrawTarget::stderr());
-        
+
         pb.set_message(msg.to_string());
         pb.enable_steady_tick(Duration::from_millis(80));
 
@@ -23,9 +23,7 @@ impl SpinnerGuard {
         // TODO: Use theme colors if possible, but ProgressString template syntax is specific.
         // We'll use widely supported standard colors (cyan/blue) for now to match the hardcoded theme intent.
         let style = ProgressStyle::default_spinner()
-            .tick_strings(&[
-                "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"
-            ])
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
             .template("{spinner:.cyan} {msg}")
             .unwrap_or_else(|_| ProgressStyle::default_spinner());
 
@@ -65,7 +63,7 @@ impl SpinnerGuard {
             pb.finish_with_message(format!("{} {}", "✖", msg));
         }
     }
-    
+
     pub fn finish(&self) {
         if let Some(pb) = &self.inner {
             pb.finish_and_clear();
@@ -75,5 +73,5 @@ impl SpinnerGuard {
 
 // Drop safety: ensure spinner is cleared if dropped without explicit finish?
 // or allow it to persist?
-// best practice: finish_and_clear on drop if not finished? 
+// best practice: finish_and_clear on drop if not finished?
 // For now, let's keep it manual.

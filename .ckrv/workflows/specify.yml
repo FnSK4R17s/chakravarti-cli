@@ -1,0 +1,107 @@
+name: specify
+description: AI-assisted specification generation from natural language
+
+defaults:
+  timeout_secs: 600
+  agent: claude
+
+steps:
+  - id: generate_spec
+    name: Generate Specification
+    prompt: |
+      You are a product specification expert. Your task is to create a detailed, 
+      technology-agnostic specification from a natural language feature description.
+
+      ## Feature Description
+      {{inputs.description}}
+
+      ## Guidelines
+
+      1. Focus on WHAT users need and WHY, not HOW to implement
+      2. Write for business stakeholders, not developers
+      3. Make informed guesses for unspecified details (document assumptions)
+      4. Only ask for clarification on critical decisions that significantly impact scope
+
+      ## Output Format
+
+      Generate a YAML specification with this structure:
+
+      ```yaml
+      id: {{inputs.spec_id}}
+      goal: |
+        [Clear, one-paragraph description of what this feature achieves]
+
+      user_stories:
+        - id: US1
+          title: "[Brief title]"
+          priority: P1
+          description: |
+            [Describe the user journey in plain language]
+          acceptance:
+            - given: "[Initial state]"
+              when: "[Action]"
+              then: "[Expected outcome]"
+
+      requirements:
+        - id: FR-001
+          description: "System MUST [specific capability]"
+        - id: FR-002
+          description: "Users MUST be able to [specific action]"
+
+      constraints:
+        - "[Technical or business constraint]"
+
+      acceptance:
+        - "[Measurable acceptance criterion]"
+
+      success_criteria:
+        - id: SC-001
+          metric: "[Measurable outcome, e.g., 'Users complete task in under 2 minutes']"
+
+      assumptions:
+        - "[Assumption made during spec generation]"
+
+      clarifications_needed:
+        - question: "[Only critical questions that impact scope significantly]"
+          options:
+            - "[Option A]"
+            - "[Option B]"
+      ```
+
+      Generate the specification now. Output ONLY the YAML content, nothing else.
+    outputs:
+      - name: spec_yaml
+        type: file
+        path: "spec.yaml"
+
+  - id: validate_spec
+    name: Validate Specification
+    prompt: |
+      Review the generated specification and validate it against quality criteria:
+
+      ## Specification Content
+      {{steps.generate_spec.outputs.spec_yaml}}
+
+      ## Quality Checklist
+
+      1. No implementation details (languages, frameworks, APIs)
+      2. Focused on user value and business needs
+      3. Requirements are testable and unambiguous
+      4. Success criteria are measurable and technology-agnostic
+      5. All acceptance scenarios are defined
+      6. Scope is clearly bounded
+
+      If all items pass, output:
+      ```
+      VALID: Specification passes all quality checks
+      ```
+
+      If items fail, output the issues and suggest fixes:
+      ```
+      ISSUES:
+      - [Issue 1]: [Suggested fix]
+      - [Issue 2]: [Suggested fix]
+      ```
+    outputs:
+      - name: validation
+        type: text

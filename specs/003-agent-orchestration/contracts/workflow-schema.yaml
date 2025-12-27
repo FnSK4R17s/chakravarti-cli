@@ -1,0 +1,55 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+type: object
+required:
+  - version
+  - name
+  - steps
+properties:
+  version:
+    type: string
+    description: "Workflow schema version (e.g. '1.0')"
+  name:
+    type: string
+    description: "Unique name of the workflow"
+  description:
+    type: string
+    description: "Human-readable description"
+  steps:
+    type: array
+    items:
+      type: object
+      required:
+        - id
+        - name
+        - prompt
+      properties:
+        id:
+          type: string
+          description: "Unique step ID"
+        name:
+          type: string
+          description: "Display name"
+        agent:
+          type: string
+          description: "Optional agent override (default: configured default)"
+        prompt:
+          type: string
+          description: "Handlebars template for the prompt"
+        outputs:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - type
+              - source
+            properties:
+              name:
+                type: string
+                description: "Name of the output variable"
+              type:
+                type: string
+                enum: ["file", "string"]
+              source:
+                type: string
+                description: "Filename (for type=file) or JSON key (for type=string)"

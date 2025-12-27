@@ -1,0 +1,35 @@
+# Chakravarti Agent Container
+# Contains Claude Code CLI for sandboxed agent execution
+
+FROM node:22-slim
+
+# Install dependencies and Claude Code CLI
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code CLI globally
+RUN npm install -g @anthropic-ai/claude-code
+
+# Create agent user with home directory
+RUN useradd -m -s /bin/bash agent
+
+# Set up Claude config directory
+RUN mkdir -p /home/agent/.claude && \
+    chown -R agent:agent /home/agent
+
+# Create workspace directory
+RUN mkdir -p /workspace && chown agent:agent /workspace
+
+WORKDIR /workspace
+
+# Switch to agent user
+USER agent
+
+# Verify Claude is installed
+RUN claude --version || true
+
+# Default command
+CMD ["/bin/bash"]

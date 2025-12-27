@@ -2,13 +2,13 @@
 //!
 //! This binary provides the `ckrv` command-line interface.
 
-use clap::{Parser, Subcommand, CommandFactory, FromArgMatches};
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 
 mod commands;
 pub mod ui;
 
-use ui::{UiContext, Renderable};
 use ui::components::Banner;
+use ui::{Renderable, UiContext};
 
 /// Chakravarti CLI - Spec-driven agent orchestration engine
 #[derive(Parser)]
@@ -34,45 +34,49 @@ pub struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Initialize Chakravarti in the current repository
+    #[command(display_order = 1)]
     Init(commands::init::InitArgs),
 
     /// Create or manage feature specifications
+    #[command(display_order = 2)]
     Spec(commands::spec::SpecArgs),
 
     /// Run a job based on a specification
+    #[command(display_order = 3)]
     Run(commands::run::RunArgs),
 
-    /// Check the status of a job
-    Status(commands::status::StatusArgs),
-
     /// View the diff produced by a job
+    #[command(display_order = 4)]
     Diff(commands::diff::DiffArgs),
 
-    /// View the metrics report for a job
-    Report(commands::report::ReportArgs),
-
     /// Promote a successful job's changes to a branch
+    #[command(display_order = 5)]
     Promote(commands::promote::PromoteArgs),
+
+    /// Execute a workflow-based agent task
+    #[command(hide = true)]
+    Task(commands::task::TaskArgs),
+
+    /// Check the status of a job
+    #[command(hide = true)]
+    Status(commands::status::StatusArgs),
+
+    /// View the metrics report for a job
+    #[command(hide = true)]
+    Report(commands::report::ReportArgs),
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     // We want the banner to show up on --help and --version too.
-    // To do this, we must build the command, inject the banner, and then parse.
-    
-    // We need a temporary UI context to render the banner string first
-    // Note: We don't know if json/silent is requested yet, but for Help, visual is priority.
-    // We'll optimistically assume standard terminal mode for the banner generation.
     let temp_ui = UiContext::new(false);
     let banner_struct = Banner::new("CHAKRAVARTI").subtitle("Spec-driven Agent Orchestration");
-    // Render the banner to a string
-    // We use a helper from Renderable or just call render directly if we made it public?
-    // Renderable::render(banner, theme)
     let banner_str = banner_struct.render(&temp_ui.theme);
-    
+
     // Build the clap command manually to inject the banner
     let command = Cli::command();
     let command = command.before_help(banner_str);
-    
+
     // Parse matches
     let matches = command.get_matches();
     // Convert back to Cli struct
@@ -96,22 +100,15 @@ fn main() -> anyhow::Result<()> {
     let ui = UiContext::new(cli.json);
 
     match cli.command {
-        Some(Commands::Init(args)) => commands::init::execute(args, cli.json, &ui),
-        Some(Commands::Spec(args)) => commands::spec::execute(args, cli.json),
-        Some(Commands::Run(args)) => commands::run::execute(args, cli.json, &ui),
-        Some(Commands::Status(args)) => commands::status::execute(args, cli.json, &ui),
-        Some(Commands::Diff(args)) => commands::diff::execute(args, cli.json),
-        Some(Commands::Report(args)) => commands::report::execute(args, cli.json),
-        Some(Commands::Promote(args)) => commands::promote::execute(args, cli.json),
+        Some(Commands::Init(args)) => commands::init::execute(args, cli.json, &ui).await,
+        Some(Commands::Spec(args)) => commands::spec::execute(args, cli.json, &ui).await,
+        Some(Commands::Run(args)) => commands::run::execute(args, cli.json, &ui).await,
+        Some(Commands::Task(args)) => commands::task::execute(args, cli.json, &ui).await,
+        Some(Commands::Status(args)) => commands::status::execute(args, cli.json, &ui).await,
+        Some(Commands::Diff(args)) => commands::diff::execute(args, cli.json).await,
+        Some(Commands::Report(args)) => commands::report::execute(args, cli.json).await,
+        Some(Commands::Promote(args)) => commands::promote::execute(args, cli.json).await,
         None => {
-            // No command provided: Print Help (includes banner now)
-            // We use the same command builder to ensure consistency?
-            // Actually Cli::command().print_help() might NOT include the dynamic modifications?
-            // Yes, calling Cli::command() creates a NEW command builder.
-            // We need to print help using the 'command' variable we created earlier?
-            // But we consumed it with get_matches().
-            
-            // Re-inject banner for this specific case or just rely on clap
             use clap::CommandFactory;
             let mut cmd = Cli::command();
             let banner = Banner::new("CHAKRAVARTI").subtitle("Spec-driven Agent Orchestration");

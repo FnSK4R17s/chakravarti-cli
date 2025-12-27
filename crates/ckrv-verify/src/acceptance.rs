@@ -113,6 +113,7 @@ mod tests {
                 "All tests pass".to_string(),
                 "No errors in output".to_string(),
             ],
+            verify: None,
             source_path: None,
         }
     }

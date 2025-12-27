@@ -20,6 +20,8 @@ pub struct ExecuteConfig {
     pub env: HashMap<String, String>,
     /// Timeout.
     pub timeout: Duration,
+    /// Keep container after execution (for debugging).
+    pub keep_container: bool,
 }
 
 impl ExecuteConfig {
@@ -32,6 +34,7 @@ impl ExecuteConfig {
             mount,
             env: HashMap::new(),
             timeout: Duration::from_secs(300),
+            keep_container: false,
         }
     }
 
@@ -53,6 +56,13 @@ impl ExecuteConfig {
     #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
+        self
+    }
+
+    /// Keep container after execution (for debugging).
+    #[must_use]
+    pub fn with_keep_container(mut self, keep: bool) -> Self {
+        self.keep_container = keep;
         self
     }
 }
@@ -152,6 +162,7 @@ impl Sandbox for DockerSandbox {
                 &workdir,
                 config.env,
                 config.timeout,
+                config.keep_container,
             )
             .await?;
 

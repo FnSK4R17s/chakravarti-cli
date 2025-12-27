@@ -40,7 +40,7 @@ struct PromoteOutput {
 }
 
 /// Execute the promote command
-pub fn execute(args: PromoteArgs, json: bool) -> anyhow::Result<()> {
+pub async fn execute(args: PromoteArgs, json: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
     // Try to find repo root
@@ -169,6 +169,7 @@ pub fn execute(args: PromoteArgs, json: bool) -> anyhow::Result<()> {
     // Create worktree struct
     let worktree = Worktree {
         path: worktree_path.clone(),
+        branch: String::new(), // Not needed for promotion logic
         job_id: args.job_id.clone(),
         attempt_id: worktree_path
             .file_name()

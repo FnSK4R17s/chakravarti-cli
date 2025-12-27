@@ -43,10 +43,61 @@ const ENV_EXAMPLE_TEMPLATE: &str = r#"# Chakravarti API Keys
 # CKRV_MODEL_API_KEY=...
 "#;
 
+/// Default SWE workflow
+const DEFAULT_SWE_WORKFLOW: &str = r#"# Software Engineering Workflow
+# Defines a Plan -> Implement cycle for code modifications.
+
+version: '1.0'
+name: 'swe'
+description: 'Software Engineering workflow: Plan, then Implement'
+
+defaults:
+  tool: claude
+
+steps:
+  - id: plan
+    name: 'Planning'
+    type: agent
+    prompt: |
+      You are a software engineer creating an implementation plan.
+
+      Task: {{inputs.description}}
+
+      Create a detailed plan that includes:
+      1. Understanding of the task
+      2. Files to modify or create
+      3. Step-by-step implementation approach
+      4. Testing strategy
+
+      Then implement all changes as described in the plan.
+      Follow best practices for the codebase.
+      Write clean, documented code.
+    outputs:
+      - name: summary
+        type: string
+        description: "Implementation summary"
+
+  - id: implement
+    name: 'Implementation'
+    type: agent
+    prompt: |
+      You are a software engineer implementing code changes.
+
+      Original Task: {{inputs.description}}
+
+      Implement all changes needed for this task.
+      Follow best practices for the codebase.
+      Write clean, documented code.
+    outputs:
+      - name: summary
+        type: string
+        description: "Implementation summary"
+"#;
+
 use crate::ui::UiContext;
 
 /// Execute the init command
-pub fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
+pub async fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
     // Check if in a git repository
@@ -59,7 +110,10 @@ pub fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Result<()>
             });
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            ui.error("Initialization Failed", "Current directory is not a git repository.\nRun `git init` first, then try again.");
+            ui.error(
+                "Initialization Failed",
+                "Current directory is not a git repository.\nRun `git init` first, then try again.",
+            );
         }
         std::process::exit(1);
     }
@@ -88,7 +142,10 @@ pub fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Result<()>
             };
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            ui.success("Already Initialized", "Chakravarti is already set up in this repository.\nUse `--force` to reinitialize.");
+            ui.success(
+                "Already Initialized",
+                "Chakravarti is already set up in this repository.\nUse `--force` to reinitialize.",
+            );
         }
         return Ok(());
     }
@@ -96,13 +153,16 @@ pub fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Result<()>
     // Create directories
     let specs_dir = repo_root.join(".specs");
     let chakravarti_dir = repo_root.join(".chakravarti");
+    let ckrv_dir = repo_root.join(".ckrv");
     let runs_dir = chakravarti_dir.join("runs");
     let secrets_dir = chakravarti_dir.join("secrets");
+    let workflows_dir = ckrv_dir.join("workflows");
     let config_file = chakravarti_dir.join("config.json");
 
     std::fs::create_dir_all(&specs_dir)?;
     std::fs::create_dir_all(&runs_dir)?;
     std::fs::create_dir_all(&secrets_dir)?;
+    std::fs::create_dir_all(&workflows_dir)?;
 
     // Create default config
     let config = ckrv_core::Config::default();
@@ -117,6 +177,12 @@ pub fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Result<()>
 
     // Create .env.example template
     std::fs::write(&env_example_file, ENV_EXAMPLE_TEMPLATE)?;
+
+    // Create default swe workflow
+    let swe_workflow_file = workflows_dir.join("swe.yml");
+    if !swe_workflow_file.exists() || args.force {
+        std::fs::write(&swe_workflow_file, DEFAULT_SWE_WORKFLOW)?;
+    }
 
     // Update .gitignore to ignore secrets (but not .gitkeep and .env.example)
     update_gitignore(&repo_root)?;
@@ -137,24 +203,45 @@ pub fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Result<()>
         };
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
-        ui.success("Chakravarti Initialized", &format!("Ready in {}", repo_root.display()));
-        
+        ui.success(
+            "Chakravarti Initialized",
+            &format!("Ready in {}", repo_root.display()),
+        );
+
         // Relative paths make output cleaner if inside
-        let make_relative = |p: &PathBuf| p.strip_prefix(&repo_root).unwrap_or(p).display().to_string();
+        let make_relative = |p: &PathBuf| {
+            p.strip_prefix(&repo_root)
+                .unwrap_or(p)
+                .display()
+                .to_string()
+        };
 
         let mut content = String::new();
         content.push_str(&format!("* **Specs**: `{}`\n", make_relative(&specs_dir)));
-        content.push_str(&format!("* **Data**: `{}`\n", make_relative(&chakravarti_dir)));
-        content.push_str(&format!("* **Config**: `{}`\n", make_relative(&config_file)));
+        content.push_str(&format!(
+            "* **Data**: `{}`\n",
+            make_relative(&chakravarti_dir)
+        ));
+        content.push_str(&format!(
+            "* **Config**: `{}`\n",
+            make_relative(&config_file)
+        ));
         ui.markdown(&content);
 
         let mut help = String::from("### API Key Setup\n");
-        help.push_str(&format!("1. Copy template: `cp {} {}`\n", make_relative(&env_example_file), make_relative(&secrets_dir.join(".env"))));
-        help.push_str(&format!("2. Add keys to `{}`\n", make_relative(&secrets_dir.join(".env"))));
+        help.push_str(&format!(
+            "1. Copy template: `cp {} {}`\n",
+            make_relative(&env_example_file),
+            make_relative(&secrets_dir.join(".env"))
+        ));
+        help.push_str(&format!(
+            "2. Add keys to `{}`\n",
+            make_relative(&secrets_dir.join(".env"))
+        ));
         help.push_str("\n### Next Steps\n");
         help.push_str("1. Create a spec: `ckrv spec new <name>`\n");
         help.push_str("2. Run the spec:  `ckrv run .specs/<name>.yaml`\n");
-        
+
         ui.markdown(&help);
     }
 

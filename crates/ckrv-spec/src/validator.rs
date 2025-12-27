@@ -34,10 +34,10 @@ pub fn validate(spec: &Spec) -> ValidationResult {
             field: "id".to_string(),
             message: "id is required".to_string(),
         });
-    } else if !spec.id.chars().all(|c| c.is_alphanumeric() || c == '_') {
+    } else if !spec.id.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
         errors.push(ValidationError {
             field: "id".to_string(),
-            message: "id must be alphanumeric with underscores only".to_string(),
+            message: "id must be alphanumeric with underscores or hyphens only".to_string(),
         });
     }
 
@@ -77,6 +77,7 @@ mod tests {
             goal: "A valid goal".to_string(),
             constraints: vec!["Constraint".to_string()],
             acceptance: vec!["Criterion".to_string()],
+            verify: None,
             source_path: None,
         }
     }
@@ -162,6 +163,7 @@ mod tests {
             goal: String::new(),
             constraints: vec![],
             acceptance: vec![],
+            verify: None,
             source_path: None,
         };
 

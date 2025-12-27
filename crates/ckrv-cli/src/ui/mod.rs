@@ -1,10 +1,10 @@
-pub mod theme;
-pub mod terminal;
 pub mod components;
 pub mod spinner;
+pub mod terminal;
+pub mod theme;
 
-pub use theme::Theme;
 use terminal::should_enable_rich_ui;
+pub use theme::Theme;
 
 /// The main entry point for interaction with the CLI UI.
 /// It holds the theme and determines whether to render rich output.
@@ -18,9 +18,9 @@ pub struct UiContext {
 
 impl UiContext {
     /// Create a new UI context.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `json_mode` - If true, enables "Silent Mode" (no branding, no spinners, clean stdout).
     pub fn new(json_mode: bool) -> Self {
         // If JSON mode is on, we are NOT interactive and we ARE silent.
@@ -46,13 +46,13 @@ impl UiContext {
     /// Print a component to stdout in a rendered form.
     pub fn print(&self, component: impl Renderable) {
         if self.silent {
-             // In silent mode, we don't print "UI components" via this method usually?
-             // Or we print a minimal representation?
-             // Spec says "Silent Mode... disable colors/styles... banners disabled".
-             // So we do nothing?
-             return;
+            // In silent mode, we don't print "UI components" via this method usually?
+            // Or we print a minimal representation?
+            // Spec says "Silent Mode... disable colors/styles... banners disabled".
+            // So we do nothing?
+            return;
         }
-        
+
         // Render with our theme
         let output = component.render(&self.theme);
         println!("{}", output);
@@ -60,10 +60,12 @@ impl UiContext {
 
     /// Render markdown content to stdout.
     pub fn markdown(&self, content: &str) {
-        if self.silent { return; }
+        if self.silent {
+            return;
+        }
         self.theme.markdown_skin.print_text(content);
     }
-    
+
     /// Display a success panel.
     pub fn success(&self, title: &str, msg: &str) {
         self.print(components::Panel::new(title, msg).success());

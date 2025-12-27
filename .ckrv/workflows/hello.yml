@@ -1,0 +1,22 @@
+# Simple Hello World Workflow
+# A minimal workflow for testing Claude integration
+
+version: '1.0'
+name: 'hello'
+description: 'Simple file creation workflow'
+
+defaults:
+  tool: claude
+
+steps:
+  - id: create
+    name: 'Create File'
+    type: agent
+    prompt: |
+      Create a file called hello.txt with the content "Hello, World from Chakravarti!"
+      
+      Just create the file, nothing else.
+    outputs:
+      - name: file_created
+        type: string
+        description: "Confirmation message"

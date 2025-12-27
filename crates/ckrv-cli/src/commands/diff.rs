@@ -49,7 +49,7 @@ struct DiffStat {
 }
 
 /// Execute the diff command
-pub fn execute(args: DiffArgs, json: bool) -> anyhow::Result<()> {
+pub async fn execute(args: DiffArgs, json: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
     // Try to find repo root

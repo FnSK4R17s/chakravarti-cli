@@ -1,0 +1,94 @@
+# Software Engineering Workflow
+#
+# This workflow defines a Plan -> Implement cycle for code modifications.
+# It's compatible with the Rover swe.yml format.
+
+version: '1.0'
+name: 'swe'
+description: 'Software Engineering workflow: Plan, then Implement'
+
+defaults:
+  tool: claude
+
+steps:
+  - id: analyze
+    name: 'Context Analysis'
+    type: agent
+    prompt: |
+      You are a software engineer analyzing a codebase.
+
+      Task: {{inputs.description}}
+
+      Analyze the codebase and identify:
+      1. Relevant files and their purposes
+      2. Dependencies between components
+      3. Potential impact areas
+
+      Output your analysis to `context.md`.
+    outputs:
+      - name: context_file
+        type: file
+        filename: context.md
+        description: "Codebase context analysis"
+
+  - id: plan
+    name: 'Planning'
+    type: agent
+    prompt: |
+      You are a software engineer creating an implementation plan.
+
+      Task: {{inputs.description}}
+
+      Based on context: {{steps.analyze.outputs.context_file}}
+
+      Create a detailed plan in `plan.md` that includes:
+      1. Understanding of the task
+      2. Files to modify or create
+      3. Step-by-step implementation approach
+      4. Testing strategy
+    outputs:
+      - name: plan_file
+        type: file
+        filename: plan.md
+        description: "Implementation plan"
+
+  - id: implement
+    name: 'Implementation'
+    type: agent
+    prompt: |
+      You are a software engineer implementing code changes.
+
+      Original Task: {{inputs.description}}
+
+      Plan: {{steps.plan.outputs.plan_file}}
+
+      Implement all changes as described in the plan.
+      Follow best practices for the codebase.
+      Write clean, documented code.
+    outputs:
+      - name: summary
+        type: string
+        description: "Implementation summary"
+
+  - id: review
+    name: 'Code Review'
+    type: agent
+    prompt: |
+      You are a senior software engineer reviewing code changes.
+
+      Original Task: {{inputs.description}}
+      Plan: {{steps.plan.outputs.plan_file}}
+      Implementation Summary: {{steps.implement.outputs.summary}}
+
+      Review the implementation:
+      1. Check for correctness
+      2. Verify style consistency
+      3. Identify potential issues
+      4. Suggest improvements if needed
+
+      Fix any issues found. Output your review to `review.md`.
+    outputs:
+      - name: review_file
+        type: file
+        filename: review.md
+        description: "Code review notes"

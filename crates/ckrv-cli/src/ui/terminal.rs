@@ -1,5 +1,5 @@
-use std::io::IsTerminal;
 use std::env;
+use std::io::IsTerminal;
 
 /// Detects if the standard output is a terminal and if color should be enabled.
 pub fn is_tty() -> bool {
@@ -14,7 +14,9 @@ pub fn is_no_color() -> bool {
 
 /// Detects if the user has requested forced color via CLICOLOR_FORCE env var.
 pub fn is_force_color() -> bool {
-    env::var("CLICOLOR_FORCE").map(|v| v != "0").unwrap_or(false)
+    env::var("CLICOLOR_FORCE")
+        .map(|v| v != "0")
+        .unwrap_or(false)
 }
 
 /// Determines if rich UI features (colors, spinners) should be enabled.
