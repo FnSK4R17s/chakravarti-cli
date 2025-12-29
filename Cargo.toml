@@ -9,7 +9,7 @@ members = [
     "crates/ckrv-model",
     "crates/ckrv-verify",
     "crates/ckrv-metrics",
-    "crates/ckrv-integrations",
+    "crates/ckrv-integrations", "crates/ckrv-ui",
 ]
 
 [workspace.package]

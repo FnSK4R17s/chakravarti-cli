@@ -1,261 +1,425 @@
-//! Promote command - promote job changes to a branch.
+//! Promote command - create a pull/merge request for the current branch.
+
+use std::path::PathBuf;
 
 use clap::Args;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-use ckrv_git::{BranchManager, GitBranchManager, Worktree, WorktreeStatus};
-use ckrv_metrics::{FileMetricsStorage, MetricsStorage};
+use crate::ui::UiContext;
+use crate::ui::Renderable;
+use crate::ui::components::Banner;
 
 /// Arguments for the promote command
 #[derive(Args)]
 pub struct PromoteArgs {
-    /// Job ID to promote
-    pub job_id: String,
-
-    /// Target branch name
+    /// Target branch for the PR (default: main or master)
     #[arg(short, long)]
-    pub branch: String,
+    pub base: Option<String>,
 
-    /// Force overwrite if branch exists
+    /// Create as draft PR
     #[arg(long)]
-    pub force: bool,
+    pub draft: bool,
 
-    /// Push to remote after creating branch
+    /// Push branch to remote before creating PR
     #[arg(long)]
     pub push: bool,
 
-    /// Remote name for push (default: origin)
+    /// Remote name (default: origin)
     #[arg(long, default_value = "origin")]
     pub remote: String,
+
+    /// Open PR URL in browser after creation
+    #[arg(long)]
+    pub open: bool,
+
+    /// Skip verification checks
+    #[arg(long)]
+    pub skip_verify: bool,
 }
 
 #[derive(Serialize)]
-struct PromoteOutput {
-    job_id: String,
+pub struct PromoteOutput {
+    pub success: bool,
+    pub branch: String,
+    pub base: String,
+    pub pushed: bool,
+    pub pr_url: Option<String>,
+    pub pr_number: Option<u64>,
+    pub message: String,
+}
+
+#[derive(Deserialize)]
+struct ImplementationSummary {
+    status: String,
     branch: String,
-    promoted: bool,
-    pushed: bool,
-    commit: Option<String>,
-    error: Option<String>,
+    tasks_completed: usize,
+    message: String,
+}
+
+#[derive(Deserialize)]
+struct SpecYaml {
+    name: String,
+    description: Option<String>,
 }
 
 /// Execute the promote command
-pub async fn execute(args: PromoteArgs, json: bool) -> anyhow::Result<()> {
+pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
-    // Try to find repo root
-    let repo_root = ckrv_git::repo_root(&cwd).unwrap_or(cwd);
-    let chakravarti_dir = repo_root.join(".chakravarti");
+    if !json {
+        println!("{}", Banner::new("CKRV PROMOTE").subtitle("Create Pull Request").render(&ui.theme));
+    }
 
-    // Check if job exists
-    let runs_dir = chakravarti_dir.join("runs").join(&args.job_id);
+    // Get current branch
+    let current_branch = get_current_branch(&cwd)?;
+    let base_branch = args.base.unwrap_or_else(|| detect_default_branch(&cwd));
 
-    if !runs_dir.exists() {
+    if current_branch == base_branch {
+        let output = PromoteOutput {
+            success: false,
+            branch: current_branch.clone(),
+            base: base_branch.clone(),
+            pushed: false,
+            pr_url: None,
+            pr_number: None,
+            message: format!("Cannot create PR: already on base branch '{}'", base_branch),
+        };
+        
         if json {
-            let output = PromoteOutput {
-                job_id: args.job_id.clone(),
-                branch: args.branch.clone(),
-                promoted: false,
-                pushed: false,
-                commit: None,
-                error: Some("Job not found".to_string()),
-            };
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            eprintln!("Error: Job '{}' not found", args.job_id);
-            eprintln!();
-            eprintln!("Run `ckrv run <spec>` to create a job first.");
+            eprintln!("❌ {}", output.message);
         }
         std::process::exit(1);
     }
 
-    // Check if job succeeded (via metrics or diff)
-    let storage = FileMetricsStorage::new(&chakravarti_dir);
-    let job_succeeded = if storage.exists(&args.job_id) {
-        storage
-            .load(&args.job_id)
-            .map(|m| m.success)
-            .unwrap_or(false)
+    if !json {
+        println!("📋 Branch: {} → {}\n", current_branch, base_branch);
+    }
+
+    // Check for implementation.yaml to ensure run completed
+    let spec_dir = cwd.join(".specs").join(&current_branch);
+    let impl_path = spec_dir.join("implementation.yaml");
+    
+    if !impl_path.exists() && !args.skip_verify {
+        let output = PromoteOutput {
+            success: false,
+            branch: current_branch.clone(),
+            base: base_branch.clone(),
+            pushed: false,
+            pr_url: None,
+            pr_number: None,
+            message: "Implementation not complete. Run 'ckrv run' first or use --skip-verify".to_string(),
+        };
+        
+        if json {
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            eprintln!("❌ {}", output.message);
+        }
+        std::process::exit(1);
+    }
+
+    // Load spec for PR description
+    let spec_path = spec_dir.join("spec.yaml");
+    let (spec_name, spec_description) = if spec_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&spec_path) {
+            if let Ok(spec) = serde_yaml::from_str::<SpecYaml>(&content) {
+                (spec.name, spec.description)
+            } else {
+                (current_branch.clone(), None)
+            }
+        } else {
+            (current_branch.clone(), None)
+        }
     } else {
-        // Check for diff file as fallback
-        runs_dir.join("diff.patch").exists()
+        (current_branch.clone(), None)
     };
 
-    if !job_succeeded && !args.force {
-        if json {
-            let output = PromoteOutput {
-                job_id: args.job_id.clone(),
-                branch: args.branch.clone(),
-                promoted: false,
-                pushed: false,
-                commit: None,
-                error: Some("Job did not succeed. Use --force to promote anyway.".to_string()),
-            };
-            println!("{}", serde_json::to_string_pretty(&output)?);
-        } else {
-            eprintln!("Error: Job '{}' did not succeed", args.job_id);
-            eprintln!();
-            eprintln!("Only successful jobs can be promoted.");
-            eprintln!("Use --force to promote a failed job anyway.");
-        }
-        std::process::exit(1);
-    }
-
-    // Create branch manager
-    let branch_manager = GitBranchManager::new(&repo_root);
-
-    // Check if branch exists
-    if branch_manager.exists(&args.branch) && !args.force {
-        if json {
-            let output = PromoteOutput {
-                job_id: args.job_id.clone(),
-                branch: args.branch.clone(),
-                promoted: false,
-                pushed: false,
-                commit: None,
-                error: Some(format!(
-                    "Branch '{}' already exists. Use --force to overwrite.",
-                    args.branch
-                )),
-            };
-            println!("{}", serde_json::to_string_pretty(&output)?);
-        } else {
-            eprintln!("Error: Branch '{}' already exists", args.branch);
-            eprintln!();
-            eprintln!("Use --force to overwrite the existing branch.");
-        }
-        std::process::exit(1);
-    }
-
-    // Find worktree for this job
-    let worktrees_dir = chakravarti_dir.join("worktrees");
-    let mut worktree_path = None;
-
-    if worktrees_dir.exists() {
-        // Find worktrees matching this job_id (format: job_id_attempt-N)
-        if let Ok(entries) = std::fs::read_dir(&worktrees_dir) {
-            let prefix = format!("{}_attempt-", args.job_id);
-            let mut matching: Vec<_> = entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_name().to_string_lossy().starts_with(&prefix))
-                .collect();
-            matching.sort_by_key(|e| e.file_name());
-            if let Some(last) = matching.last() {
-                worktree_path = Some(last.path());
-            }
-        }
-    }
-
-    let worktree_path = match worktree_path {
-        Some(p) => p,
-        None => {
-            if json {
-                let output = PromoteOutput {
-                    job_id: args.job_id.clone(),
-                    branch: args.branch.clone(),
-                    promoted: false,
-                    pushed: false,
-                    commit: None,
-                    error: Some("No worktree found for job".to_string()),
-                };
-                println!("{}", serde_json::to_string_pretty(&output)?);
-            } else {
-                eprintln!("Error: No worktree found for job '{}'", args.job_id);
-            }
-            std::process::exit(1);
-        }
+    // Load implementation summary
+    let impl_summary = if impl_path.exists() {
+        std::fs::read_to_string(&impl_path)
+            .ok()
+            .and_then(|c| serde_yaml::from_str::<ImplementationSummary>(&c).ok())
+    } else {
+        None
     };
 
-    // Create worktree struct
-    let worktree = Worktree {
-        path: worktree_path.clone(),
-        branch: String::new(), // Not needed for promotion logic
-        job_id: args.job_id.clone(),
-        attempt_id: worktree_path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default(),
-        base_commit: String::new(), // Will be populated by branch manager
-        status: WorktreeStatus::Ready,
-    };
-
-    // Create branch from worktree
-    match branch_manager.create_from_worktree(&worktree, &args.branch, args.force) {
-        Ok(()) => {
-            // Get commit hash
-            let commit = std::process::Command::new("git")
-                .args(["rev-parse", &format!("refs/heads/{}", args.branch)])
-                .current_dir(&repo_root)
-                .output()
-                .ok()
-                .and_then(|o| {
-                    if o.status.success() {
-                        Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
-                    } else {
-                        None
-                    }
-                });
-
-            // Push if requested
-            let pushed = if args.push {
-                match branch_manager.push(&args.branch, &args.remote, args.force) {
-                    Ok(()) => true,
-                    Err(e) => {
-                        if !json {
-                            eprintln!("Warning: Failed to push to remote: {}", e);
-                        }
-                        false
-                    }
+    // Push if requested
+    let pushed = if args.push {
+        if !json {
+            println!("📤 Pushing branch to {}...", args.remote);
+        }
+        
+        let push_result = std::process::Command::new("git")
+            .args(["push", "-u", &args.remote, &current_branch])
+            .current_dir(&cwd)
+            .status();
+        
+        match push_result {
+            Ok(status) if status.success() => {
+                if !json {
+                    println!("   ✅ Pushed successfully\n");
                 }
-            } else {
+                true
+            }
+            _ => {
+                if !json {
+                    eprintln!("   ⚠️  Push failed (you may need to push manually)\n");
+                }
                 false
-            };
-
-            if json {
-                let output = PromoteOutput {
-                    job_id: args.job_id.clone(),
-                    branch: args.branch.clone(),
-                    promoted: true,
-                    pushed,
-                    commit,
-                    error: None,
-                };
-                println!("{}", serde_json::to_string_pretty(&output)?);
-            } else {
-                println!(
-                    "✓ Promoted job '{}' to branch '{}'",
-                    args.job_id, args.branch
-                );
-                if let Some(ref c) = commit.as_ref().map(|s| &s[..7.min(s.len())]) {
-                    println!("  Commit: {}", c);
-                }
-                if pushed {
-                    println!("  Pushed to: {}/{}", args.remote, args.branch);
-                } else if args.push {
-                    println!("  Push: failed (see warning above)");
-                }
-                println!();
-                println!("To switch to this branch:");
-                println!("  git checkout {}", args.branch);
             }
         }
-        Err(e) => {
-            if json {
-                let output = PromoteOutput {
-                    job_id: args.job_id.clone(),
-                    branch: args.branch.clone(),
-                    promoted: false,
-                    pushed: false,
-                    commit: None,
-                    error: Some(e.to_string()),
-                };
-                println!("{}", serde_json::to_string_pretty(&output)?);
-            } else {
-                eprintln!("Error: Failed to create branch: {}", e);
+    } else {
+        false
+    };
+
+    // Detect remote type and create PR
+    let remote_url = get_remote_url(&cwd, &args.remote);
+    let (pr_url, pr_number) = if let Some(url) = &remote_url {
+        if url.contains("github.com") {
+            create_github_pr(&cwd, &current_branch, &base_branch, &spec_name, &spec_description, &impl_summary, args.draft, json).await
+        } else if url.contains("gitlab") {
+            // GitLab MR creation would go here
+            (generate_pr_url_github(url, &current_branch, &base_branch), None)
+        } else {
+            (None, None)
+        }
+    } else {
+        (None, None)
+    };
+
+    // Generate manual PR URL if we couldn't create one automatically
+    let final_pr_url = pr_url.or_else(|| {
+        remote_url.as_ref().and_then(|url| generate_pr_url_github(url, &current_branch, &base_branch))
+    });
+
+    let output = PromoteOutput {
+        success: true,
+        branch: current_branch.clone(),
+        base: base_branch.clone(),
+        pushed,
+        pr_url: final_pr_url.clone(),
+        pr_number,
+        message: if pr_number.is_some() {
+            format!("PR #{} created successfully", pr_number.unwrap())
+        } else {
+            "Ready to create PR".to_string()
+        },
+    };
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&output)?);
+    } else {
+        println!("═══════════════════════════════════════════════════════════════");
+        
+        if let Some(num) = pr_number {
+            println!("✅ Pull Request #{} created!", num);
+        } else {
+            println!("✅ Branch ready for Pull Request!");
+        }
+        
+        println!("═══════════════════════════════════════════════════════════════\n");
+
+        println!("📊 Summary:");
+        println!("   Branch: {}", current_branch);
+        println!("   Target: {}", base_branch);
+        if let Some(ref summary) = impl_summary {
+            println!("   Tasks:  {} completed", summary.tasks_completed);
+        }
+        println!();
+
+        if let Some(ref url) = final_pr_url {
+            println!("🔗 PR URL: {}", url);
+            println!();
+            
+            if args.open {
+                let _ = open_url(url);
             }
-            std::process::exit(1);
+        }
+
+        if pr_number.is_none() {
+            println!("💡 Create PR manually:");
+            if let Some(ref url) = final_pr_url {
+                println!("   {}", url);
+            } else {
+                println!("   Go to your repository and create a PR from '{}' to '{}'", current_branch, base_branch);
+            }
+        }
+
+        // Save PR info
+        if let Some(ref url) = final_pr_url {
+            save_pr_info(&spec_dir, url, pr_number)?;
         }
     }
 
+    Ok(())
+}
+
+fn get_current_branch(cwd: &PathBuf) -> anyhow::Result<String> {
+    let output = std::process::Command::new("git")
+        .args(["branch", "--show-current"])
+        .current_dir(cwd)
+        .output()?;
+    
+    let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if branch.is_empty() {
+        return Err(anyhow::anyhow!("Not on a branch (detached HEAD state)"));
+    }
+    Ok(branch)
+}
+
+fn detect_default_branch(cwd: &PathBuf) -> String {
+    let output = std::process::Command::new("git")
+        .args(["branch", "-l", "main", "master"])
+        .current_dir(cwd)
+        .output();
+    
+    if let Ok(out) = output {
+        let branches = String::from_utf8_lossy(&out.stdout);
+        if branches.contains("main") {
+            return "main".to_string();
+        }
+    }
+    "master".to_string()
+}
+
+fn get_remote_url(cwd: &PathBuf, remote: &str) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .args(["remote", "get-url", remote])
+        .current_dir(cwd)
+        .output()
+        .ok()?;
+    
+    if output.status.success() {
+        Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        None
+    }
+}
+
+fn generate_pr_url_github(remote_url: &str, branch: &str, base: &str) -> Option<String> {
+    // Parse GitHub URL
+    // Formats: git@github.com:owner/repo.git or https://github.com/owner/repo.git
+    let repo_path = if remote_url.starts_with("git@github.com:") {
+        remote_url.strip_prefix("git@github.com:")?.strip_suffix(".git")
+    } else if remote_url.contains("github.com/") {
+        let parts: Vec<&str> = remote_url.split("github.com/").collect();
+        parts.get(1).and_then(|p| p.strip_suffix(".git").or(Some(*p)))
+    } else {
+        None
+    }?;
+
+    Some(format!(
+        "https://github.com/{}/compare/{}...{}?expand=1",
+        repo_path, base, branch
+    ))
+}
+
+async fn create_github_pr(
+    cwd: &PathBuf,
+    branch: &str,
+    base: &str,
+    title: &str,
+    description: &Option<String>,
+    impl_summary: &Option<ImplementationSummary>,
+    draft: bool,
+    json: bool,
+) -> (Option<String>, Option<u64>) {
+    // Check if gh CLI is available
+    let gh_check = std::process::Command::new("gh")
+        .arg("--version")
+        .output();
+    
+    if gh_check.is_err() || !gh_check.unwrap().status.success() {
+        return (None, None);
+    }
+
+    // Build PR body
+    let mut body = String::new();
+    if let Some(ref desc) = description {
+        body.push_str(desc);
+        body.push_str("\n\n");
+    }
+    
+    body.push_str("## Implementation Details\n\n");
+    body.push_str("This PR was created using [CKRV](https://github.com/FnSK4R17s/chakravarti-cli) - Spec-driven Agent Orchestration.\n\n");
+    
+    if let Some(ref summary) = impl_summary {
+        body.push_str(&format!("- **Tasks Completed**: {}\n", summary.tasks_completed));
+        body.push_str(&format!("- **Status**: {}\n", summary.status));
+    }
+
+    if !json {
+        println!("🚀 Creating GitHub PR using gh CLI...");
+    }
+
+    let mut args = vec![
+        "pr", "create",
+        "--title", title,
+        "--body", &body,
+        "--base", base,
+        "--head", branch,
+    ];
+
+    if draft {
+        args.push("--draft");
+    }
+
+    let output = std::process::Command::new("gh")
+        .args(&args)
+        .current_dir(cwd)
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            // Extract PR number from URL
+            let pr_number = url.split('/').last().and_then(|s| s.parse().ok());
+            (Some(url), pr_number)
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            if !json {
+                eprintln!("   ⚠️  gh CLI failed: {}", stderr.lines().next().unwrap_or("unknown error"));
+            }
+            (None, None)
+        }
+        Err(_) => (None, None),
+    }
+}
+
+fn save_pr_info(spec_dir: &PathBuf, url: &str, number: Option<u64>) -> anyhow::Result<()> {
+    #[derive(Serialize)]
+    struct PrInfo {
+        url: String,
+        number: Option<u64>,
+        created_at: String,
+    }
+
+    let info = PrInfo {
+        url: url.to_string(),
+        number,
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+
+    if spec_dir.exists() {
+        let yaml = serde_yaml::to_string(&info)?;
+        std::fs::write(spec_dir.join("pr.yaml"), yaml)?;
+    }
+
+    Ok(())
+}
+
+fn open_url(url: &str) -> anyhow::Result<()> {
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open").arg(url).spawn()?;
+    
+    #[cfg(target_os = "linux")]
+    std::process::Command::new("xdg-open").arg(url).spawn()?;
+    
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("cmd").args(["/C", "start", url]).spawn()?;
+    
     Ok(())
 }

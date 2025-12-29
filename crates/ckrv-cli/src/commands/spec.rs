@@ -214,7 +214,7 @@ IMPORTANT:
             .map_err(|e| anyhow::anyhow!("Failed to create sandbox: {}", e))?;
 
         let command = format!(
-            "claude -p {} --dangerously-skip-permissions --output-format text",
+            "claude -p {} --dangerously-skip-permissions --output-format text --tools \"\"",
             shell_escape::escape(prompt.clone().into())
         );
 
@@ -532,7 +532,7 @@ Output ONLY the raw YAML content. No ```yaml fences."#,
             .map_err(|e| anyhow::anyhow!("Failed to create sandbox: {}", e))?;
 
         let command = format!(
-            "claude -p {} --dangerously-skip-permissions --output-format text",
+            "claude -p {} --dangerously-skip-permissions --output-format text --tools \"\"",
             shell_escape::escape(prompt.clone().into())
         );
 

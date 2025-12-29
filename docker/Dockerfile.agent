@@ -13,22 +13,17 @@ RUN apt-get update && apt-get install -y \
 # Install Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
 
-# Create agent user with home directory
-RUN useradd -m -s /bin/bash agent
+# Create /home/claude directory with open permissions
+# This allows the container to run as any host user while using this home directory
+RUN mkdir -p /home/claude/.claude && \
+    chmod -R 777 /home/claude
 
-# Set up Claude config directory
-RUN mkdir -p /home/agent/.claude && \
-    chown -R agent:agent /home/agent
-
-# Create workspace directory
-RUN mkdir -p /workspace && chown agent:agent /workspace
+# Create workspace directory with open permissions
+RUN mkdir -p /workspace && chmod 777 /workspace
 
 WORKDIR /workspace
 
-# Switch to agent user
-USER agent
-
-# Verify Claude is installed
+# Verify Claude is installed (as root, before switching)
 RUN claude --version || true
 
 # Default command

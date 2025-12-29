@@ -187,6 +187,9 @@ pub async fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Resu
     // Update .gitignore to ignore secrets (but not .gitkeep and .env.example)
     update_gitignore(&repo_root)?;
 
+    // Create initial commit if repo has no commits yet (fixes HEAD resolution issues)
+    create_initial_commit_if_needed(&repo_root)?;
+
     if json {
         let output = InitOutput {
             success: true,
@@ -269,6 +272,95 @@ fn update_gitignore(repo_root: &std::path::Path) -> anyhow::Result<()> {
         content.push_str(".chakravarti/secrets/.env\n");
         std::fs::write(&gitignore_path, content)?;
     }
+
+    Ok(())
+}
+
+/// Create initial commit if the repository has no commits yet.
+/// This prevents "HEAD unknown" errors when running spec tasks.
+fn create_initial_commit_if_needed(repo_root: &std::path::Path) -> anyhow::Result<()> {
+    use std::process::Command;
+
+    // Check if HEAD exists (i.e., there's at least one commit)
+    let head_check = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(repo_root)
+        .output();
+
+    let has_commits = head_check
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+
+    if has_commits {
+        // Already has commits, nothing to do
+        return Ok(());
+    }
+
+    // Create README.md with a friendly message
+    let readme_path = repo_root.join("README.md");
+    if !readme_path.exists() {
+        let readme_content = r#"# Project
+
+Made with ❤️ using [CKRV](https://github.com/FnSK4R17s/chakravarti-cli) - AI-powered spec-driven development.
+
+## Getting Started
+
+```bash
+# Create a new specification
+ckrv spec new "your feature description"
+
+# Generate implementation tasks
+ckrv spec tasks
+
+# Run tasks with AI
+ckrv run
+```
+"#;
+        std::fs::write(&readme_path, readme_content)?;
+    }
+
+    // Configure git user if not set (for fresh repos)
+    let _ = Command::new("git")
+        .args(["config", "user.email"])
+        .current_dir(repo_root)
+        .output()
+        .and_then(|output| {
+            if output.stdout.is_empty() {
+                Command::new("git")
+                    .args(["config", "user.email", "ckrv@local"])
+                    .current_dir(repo_root)
+                    .output()
+            } else {
+                Ok(output)
+            }
+        });
+
+    let _ = Command::new("git")
+        .args(["config", "user.name"])
+        .current_dir(repo_root)
+        .output()
+        .and_then(|output| {
+            if output.stdout.is_empty() {
+                Command::new("git")
+                    .args(["config", "user.name", "CKRV"])
+                    .current_dir(repo_root)
+                    .output()
+            } else {
+                Ok(output)
+            }
+        });
+
+    // Stage all files
+    let _ = Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(repo_root)
+        .output();
+
+    // Create initial commit
+    let _ = Command::new("git")
+        .args(["commit", "-m", "🚀 Initialize project with CKRV"])
+        .current_dir(repo_root)
+        .output();
 
     Ok(())
 }

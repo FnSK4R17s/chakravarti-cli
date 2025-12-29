@@ -13,7 +13,7 @@ struct Task {
     #[tabled(skip)]
     description: String,
     
-    #[tabled(rename = "File")]
+    #[tabled(skip)]
     file: Option<String>,
     
     #[tabled(skip)]
