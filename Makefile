@@ -9,9 +9,14 @@ BIN_DIR = $(NPM_DIR)/bin
 RUST_BIN = target/release/$(BINARY_NAME)
 
 # Default target: Build the Rust binary
-build:
+build: ui-setup
 	@echo "Building Rust binary in release mode..."
-	cargo build --release --bin $(BINARY_NAME)
+	cargo build --release -p ckrv-cli
+
+# UI Setup: Install frontend dependencies
+ui-setup:
+	@echo "Installing UI frontend dependencies..."
+	cd crates/ckrv-ui/frontend && npm install
 
 # Install target: Build, copy to npm/bin, and link via npm
 install: build
@@ -21,6 +26,8 @@ install: build
 	chmod +x $(BIN_DIR)/$(BINARY_NAME)
 	@echo "Linking via npm..."
 	cd $(NPM_DIR) && npm link
+	@echo "Installing to Cargo bin..."
+	cp $(RUST_BIN) $(HOME)/.cargo/bin/$(BINARY_NAME)
 	@echo "\n✓ Chakravarti CLI installed and linked successfully!"
 	@echo "Run 'ckrv --version' to verify."
 

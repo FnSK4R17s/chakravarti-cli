@@ -102,18 +102,11 @@ impl DockerClient {
         let mut env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
 
         // Mount Claude credentials if they exist
-        let home = std::env::var("HOME").unwrap_or_default();
-        let has_claude_config = std::path::Path::new(&format!("{}/.claude.json", home)).exists()
-            || std::path::Path::new(&format!("{}/.claude", home)).exists();
-
-        // Set HOME env var for Claude to find config
-        // If we have Claude config, mount it at /home/agent and set HOME there
-        // Otherwise just use /workspace as home
-        if has_claude_config {
-            env_vec.push("HOME=/home/agent".to_string());
-        } else {
-            env_vec.push(format!("HOME={}", home));
-        }
+        let host_home = std::env::var("HOME").unwrap_or_default();
+        
+        // Use /home/claude as the container home directory (writable by any user)
+        let container_home = "/home/claude".to_string();
+        env_vec.push(format!("HOME={}", container_home));
 
         // Create mounts: workspace + Claude credentials
         let mut mounts = vec![
@@ -127,25 +120,25 @@ impl DockerClient {
             },
         ];
 
-        // Mount ~/.claude.json (main config, needs write access)
-        let claude_config = format!("{}/.claude.json", home);
+        // Mount ~/.claude.json to container home
+        let claude_config = format!("{}/.claude.json", host_home);
         if std::path::Path::new(&claude_config).exists() {
-            tracing::debug!(path = %claude_config, "Mounting Claude config");
+            tracing::debug!(path = %claude_config, "Mounting Claude config to {}", container_home);
             mounts.push(Mount {
-                target: Some("/home/agent/.claude.json".to_string()),
+                target: Some(format!("{}/.claude.json", container_home)),
                 source: Some(claude_config),
                 typ: Some(MountTypeEnum::BIND),
-                read_only: Some(false), // Claude needs write access
+                read_only: Some(false), // Claude needs write access for token refresh
                 ..Default::default()
             });
         }
 
-        // Mount ~/.claude directory (settings + credentials, needs write access)
-        let claude_dir = format!("{}/.claude", home);
+        // Mount ~/.claude directory to container home
+        let claude_dir = format!("{}/.claude", host_home);
         if std::path::Path::new(&claude_dir).exists() {
-            tracing::debug!(path = %claude_dir, "Mounting Claude directory");
+            tracing::debug!(path = %claude_dir, "Mounting Claude directory to {}", container_home);
             mounts.push(Mount {
-                target: Some("/home/agent/.claude".to_string()),
+                target: Some(format!("{}/.claude", container_home)),
                 source: Some(claude_dir),
                 typ: Some(MountTypeEnum::BIND),
                 read_only: Some(false), // Claude needs write access for sessions

@@ -118,3 +118,5 @@ CKRV_MODEL_ENDPOINT     # Custom endpoint URL
 - N/A (Presentation layer only) (002-rich-cli-ui)
 - Rust 1.75+ (Stable) (003-agent-orchestration)
 - Filesystem (.ckrv/tasks for state) (003-agent-orchestration)
+- Rust 1.75+ (Backend), Node.js/TypeScript (Frontend Build) (004-web-ui-extension)
+- N/A (Uses existing file system / git worktrees via `ckrv-core`) (004-web-ui-extension)

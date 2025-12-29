@@ -45,13 +45,21 @@ enum Commands {
     #[command(display_order = 3)]
     Run(commands::run::RunArgs),
 
-    /// View the diff produced by a job
+    /// View changes between current branch and base
     #[command(display_order = 4)]
     Diff(commands::diff::DiffArgs),
 
-    /// Promote a successful job's changes to a branch
+    /// Run tests, lint, and quality checks
     #[command(display_order = 5)]
+    Verify(commands::verify::VerifyArgs),
+
+    /// Create a pull request for the current branch
+    #[command(display_order = 6)]
     Promote(commands::promote::PromoteArgs),
+
+    /// Fix verification errors with AI
+    #[command(display_order = 7)]
+    Fix(commands::fix::FixArgs),
 
     /// Execute a workflow-based agent task
     #[command(hide = true)]
@@ -64,6 +72,10 @@ enum Commands {
     /// View the metrics report for a job
     #[command(hide = true)]
     Report(commands::report::ReportArgs),
+
+    /// Start the Web UI dashboard
+    #[command(display_order = 8)]
+    Ui(commands::ui::UiArgs),
 }
 
 #[tokio::main]
@@ -105,9 +117,12 @@ async fn main() -> anyhow::Result<()> {
         Some(Commands::Run(args)) => commands::run::execute(args, cli.json, &ui).await,
         Some(Commands::Task(args)) => commands::task::execute(args, cli.json, &ui).await,
         Some(Commands::Status(args)) => commands::status::execute(args, cli.json, &ui).await,
-        Some(Commands::Diff(args)) => commands::diff::execute(args, cli.json).await,
+        Some(Commands::Diff(args)) => commands::diff::execute(args, cli.json, &ui).await,
+        Some(Commands::Verify(args)) => commands::verify::execute(args, cli.json, &ui).await,
         Some(Commands::Report(args)) => commands::report::execute(args, cli.json).await,
-        Some(Commands::Promote(args)) => commands::promote::execute(args, cli.json).await,
+        Some(Commands::Promote(args)) => commands::promote::execute(args, cli.json, &ui).await,
+        Some(Commands::Fix(args)) => commands::fix::execute(args, cli.json, &ui).await,
+        Some(Commands::Ui(args)) => commands::ui::execute(args, cli.json, &ui).await,
         None => {
             use clap::CommandFactory;
             let mut cmd = Cli::command();

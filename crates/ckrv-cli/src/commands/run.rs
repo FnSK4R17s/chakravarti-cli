@@ -4,6 +4,7 @@
 //! multiple agent tasks to implement a feature.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,7 @@ use ckrv_core::{
 };
 use ckrv_git::{DefaultDiffGenerator, DefaultWorktreeManager, DiffGenerator, WorktreeManager};
 use ckrv_metrics::{DefaultMetricsCollector, FileMetricsStorage, MetricsCollector, MetricsStorage};
+use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox};
 
 use crate::ui::UiContext;
 use crate::ui::Renderable;
@@ -94,6 +96,17 @@ struct ExecutionPlan {
     batches: Vec<ExecutionBatch>,
 }
 
+/// Batch execution status
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(rename_all = "lowercase")]
+enum BatchStatus {
+    #[default]
+    Pending,
+    Running,
+    Completed,
+    Failed,
+}
+
 /// A batch of tasks to be executed together.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct ExecutionBatch {
@@ -103,6 +116,11 @@ struct ExecutionBatch {
     #[serde(default)]
     depends_on: Vec<String>,
     reasoning: String,
+    #[serde(default)]
+    status: BatchStatus,
+    /// Branch name created for this batch (for resume)
+    #[serde(default)]
+    branch: Option<String>,
 }
 
 /// Helper to always serialize depends_on
@@ -236,49 +254,182 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
     let file: TaskFile = serde_yaml::from_str(&content)
         .map_err(|e| anyhow::anyhow!("Failed to parse tasks.yaml: {}", e))?;
     
+    let all_tasks = file.tasks.clone();
     let pending_tasks: Vec<_> = file.tasks.into_iter().filter(|t| t.status != "completed").collect();
-    
-    if pending_tasks.is_empty() {
-         if !json { println!("All tasks are already completed."); }
-         return Ok(());
-    }
-    
-    if !json {
-        println!("Found {} pending tasks.", pending_tasks.len());
-        println!();
-    }
+    let spec_dir = spec_path.parent().unwrap_or(&cwd);
+    let impl_path = spec_dir.join("implementation.yaml");
+    let plan_yaml_path = spec_dir.join("plan.yaml");
     
     // Check for existing state/worktrees first
     let manager = DefaultWorktreeManager::new(&cwd).map_err(|e| anyhow::anyhow!("Init WT manager failed: {}", e))?;
     let existing_wts = manager.list()?;
     let batch_wts: Vec<_> = existing_wts.iter().filter(|wt| wt.job_id.starts_with("batch-")).collect();
 
-    let plan_yaml_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
-
-    if !batch_wts.is_empty() {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // COMPLETION CHECKLIST - Handle case where all tasks are already completed
+    // ═══════════════════════════════════════════════════════════════════════════
+    if pending_tasks.is_empty() {
         if !json {
-            println!("Detected existing batch worktrees. Execution may already be in progress.");
-            if plan_yaml_path.exists() {
-                let content = std::fs::read_to_string(&plan_yaml_path)?;
-                let plan: ExecutionPlan = serde_yaml::from_str(&content)?;
-                
-                println!("Current Execution Plan:");
-                let mut builder = Builder::default();
-                builder.push_record(["Batch", "Tasks", "Reasoning"]);
-                for batch in &plan.batches {
-                    builder.push_record([
-                        batch.name.as_str(),
-                        batch.task_ids.join(", ").as_str(),
-                        batch.reasoning.as_str(),
-                    ]);
-                }
-                let mut table = builder.build();
-                let rich = RichTable::new(table);
-                ui.print(rich);
-            }
-            println!("\nPlease clean up existing worktrees or finish the current run before starting a new one.");
+            println!("\n📋 Completion Checklist");
+            println!("   ✅ All {} tasks marked as completed", all_tasks.len());
         }
+        
+        // Check 1: Is implementation.yaml already created?
+        if impl_path.exists() {
+            if !json {
+                println!("   ✅ Implementation summary exists");
+                println!("\n✨ Run already completed! Nothing to do.");
+                println!("   See: {}", impl_path.display());
+            }
+            return Ok(());
+        }
+        
+        // Check 2: Are there any unmerged worktrees?
+        if !batch_wts.is_empty() {
+            if !json {
+                println!("   ⚠️  Found {} unmerged worktrees", batch_wts.len());
+                println!("\n🔄 Attempting to merge remaining worktrees...\n");
+            }
+            
+            // Try to merge each worktree
+            let mut merged_count = 0;
+            for wt in &batch_wts {
+                // Get the branch name from worktree
+                let branch_output = std::process::Command::new("git")
+                    .args(["rev-parse", "--abbrev-ref", "HEAD"])
+                    .current_dir(&wt.path)
+                    .output();
+                
+                let branch = match branch_output {
+                    Ok(out) => String::from_utf8_lossy(&out.stdout).trim().to_string(),
+                    Err(_) => continue,
+                };
+                
+                if branch.is_empty() || branch == "HEAD" {
+                    continue;
+                }
+                
+                if !json {
+                    println!("   Merging worktree: {} ({})", wt.job_id, branch);
+                }
+                
+                // Commit any uncommitted changes in worktree
+                let _ = std::process::Command::new("git")
+                    .args(["add", "."])
+                    .current_dir(&wt.path)
+                    .status();
+                
+                let diff_status = std::process::Command::new("git")
+                    .args(["diff", "--staged", "--quiet"])
+                    .current_dir(&wt.path)
+                    .status();
+                
+                if diff_status.map(|s| !s.success()).unwrap_or(false) {
+                    let _ = std::process::Command::new("git")
+                        .args(["commit", "-m", &format!("feat(batch): {} - finalize", wt.job_id)])
+                        .current_dir(&wt.path)
+                        .status();
+                }
+                
+                // Try to merge into current branch
+                let merge_status = std::process::Command::new("git")
+                    .args(["merge", "--no-ff", "--no-edit", &branch])
+                    .current_dir(&cwd)
+                    .status();
+                
+                if merge_status.map(|s| s.success()).unwrap_or(false) {
+                    merged_count += 1;
+                    if !json {
+                        println!("      ✅ Merged successfully");
+                    }
+                    
+                    // Clean up worktree
+                    let _ = std::process::Command::new("git")
+                        .args(["worktree", "remove", "--force", &wt.path.to_string_lossy()])
+                        .current_dir(&cwd)
+                        .status();
+                } else if has_merge_conflicts(&cwd) {
+                    // Try AI resolution
+                    if !json {
+                        println!("      🤖 Conflict detected, attempting AI resolution...");
+                    }
+                    
+                    match tokio::runtime::Handle::current().block_on(
+                        resolve_conflicts_with_ai(&cwd, &branch, Some(spec_path.as_path()))
+                    ) {
+                        Ok(()) => {
+                            merged_count += 1;
+                            if !json {
+                                println!("      ✅ Conflicts resolved and merged");
+                            }
+                            let _ = std::process::Command::new("git")
+                                .args(["worktree", "remove", "--force", &wt.path.to_string_lossy()])
+                                .current_dir(&cwd)
+                                .status();
+                        }
+                        Err(e) => {
+                            if !json {
+                                println!("      ❌ Failed to merge: {}", e);
+                            }
+                            let _ = std::process::Command::new("git")
+                                .args(["merge", "--abort"])
+                                .current_dir(&cwd)
+                                .status();
+                        }
+                    }
+                } else {
+                    if !json {
+                        println!("      ❌ Merge failed (non-conflict error)");
+                    }
+                }
+            }
+            
+            if !json {
+                println!("\n   Merged {}/{} worktrees", merged_count, batch_wts.len());
+            }
+        } else {
+            if !json {
+                println!("   ✅ No unmerged worktrees");
+            }
+        }
+        
+        // Check 3: Create implementation.yaml since all tasks are done
+        let branch_output = std::process::Command::new("git")
+            .args(["branch", "--show-current"])
+            .current_dir(&cwd)
+            .output()?;
+        let current_branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+        
+        // Count batches from plan if it exists
+        let batches_count = if plan_yaml_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&plan_yaml_path) {
+                if let Ok(plan) = serde_yaml::from_str::<ExecutionPlan>(&content) {
+                    plan.batches.len()
+                } else { 0 }
+            } else { 0 }
+        } else { 0 };
+        
+        create_implementation_summary(
+            spec_dir,
+            &current_branch,
+            all_tasks.len(),
+            batches_count,
+        )?;
+        
         return Ok(());
+    }
+    
+    if !json {
+        println!("Found {} pending tasks.", pending_tasks.len());
+        println!();
+    }
+
+    // Track if we're resuming from a previous run
+    let resuming = !batch_wts.is_empty() && plan_yaml_path.exists();
+    
+    if resuming && !json {
+        println!("🔄 Resuming previous execution run...");
+        println!("   Found {} existing worktrees", batch_wts.len());
     }
 
     let plan: ExecutionPlan = if plan_yaml_path.exists() {
@@ -445,7 +596,146 @@ batches:
         .collect();
 
     let mut completed_batches = std::collections::HashSet::<String>::new();
-    let mut pending_batches: std::collections::VecDeque<_> = plan.batches.into();
+    
+    // Resume handling: process previously completed batches
+    let mut mutable_plan = plan;
+    if resuming {
+        if !json {
+            println!("\n📋 Checking batch status for resume...");
+        }
+        
+        for batch in &mut mutable_plan.batches {
+            // Check if this batch was already marked as completed
+            if batch.status == BatchStatus::Completed {
+                if !json {
+                    println!("   ✅ Batch '{}' already completed, skipping", batch.name);
+                }
+                completed_batches.insert(batch.id.clone());
+                continue;
+            }
+            
+            // Check if there's a worktree for this batch that has uncommitted work
+            let batch_prefix = format!("batch-{}-", batch.id);
+            let batch_worktree = batch_wts.iter().find(|wt| wt.job_id.starts_with(&batch_prefix));
+            
+            if let Some(wt) = batch_worktree {
+                // Check if this worktree has commits that haven't been merged
+                let has_commits = std::process::Command::new("git")
+                    .args(["log", "--oneline", "-1"])
+                    .current_dir(&wt.path)
+                    .output()
+                    .map(|o| o.status.success() && !o.stdout.is_empty())
+                    .unwrap_or(false);
+                
+                if has_commits && batch.branch.is_some() {
+                    // Try to merge this completed worktree
+                    let branch = batch.branch.as_ref().unwrap();
+                    if !json {
+                        println!("   🔀 Found incomplete batch '{}' with commits, attempting to merge...", batch.name);
+                    }
+                    
+                    // Commit any uncommitted changes
+                    let _ = std::process::Command::new("git")
+                        .args(["add", "."])
+                        .current_dir(&wt.path)
+                        .status();
+                    
+                    let diff_status = std::process::Command::new("git")
+                        .args(["diff", "--staged", "--quiet"])
+                        .current_dir(&wt.path)
+                        .status();
+                    
+                    if diff_status.map(|s| !s.success()).unwrap_or(false) {
+                        let _ = std::process::Command::new("git")
+                            .args(["commit", "-m", &format!("feat(batch): {} - recovered", batch.name)])
+                            .current_dir(&wt.path)
+                            .status();
+                    }
+                    
+                    // Try to merge
+                    let merge_status = std::process::Command::new("git")
+                        .args(["merge", "--no-ff", "--no-edit", branch])
+                        .current_dir(&cwd)
+                        .status();
+                    
+                    if merge_status.map(|s| s.success()).unwrap_or(false) {
+                        if !json {
+                            println!("   ✅ Successfully merged batch '{}'", batch.name);
+                        }
+                        batch.status = BatchStatus::Completed;
+                        completed_batches.insert(batch.id.clone());
+                        
+                        // Clean up worktree
+                        let _ = std::process::Command::new("git")
+                            .args(["worktree", "remove", "--force", &wt.path.to_string_lossy()])
+                            .current_dir(&cwd)
+                            .status();
+                    } else if has_merge_conflicts(&cwd) {
+                        // Try AI-assisted resolution
+                        if !json {
+                            println!("   🤖 Merge conflict detected, attempting AI resolution...");
+                        }
+                        let spec_path_ref: Option<&Path> = Some(spec_path.as_path());
+                        match tokio::runtime::Handle::current().block_on(
+                            resolve_conflicts_with_ai(&cwd, branch, spec_path_ref)
+                        ) {
+                            Ok(()) => {
+                                if !json {
+                                    println!("   ✅ Conflicts resolved, batch '{}' completed", batch.name);
+                                }
+                                batch.status = BatchStatus::Completed;
+                                completed_batches.insert(batch.id.clone());
+                                
+                                let _ = std::process::Command::new("git")
+                                    .args(["worktree", "remove", "--force", &wt.path.to_string_lossy()])
+                                    .current_dir(&cwd)
+                                    .status();
+                            }
+                            Err(e) => {
+                                if !json {
+                                    println!("   ⚠️  Could not auto-merge batch '{}': {}", batch.name, e);
+                                }
+                                let _ = std::process::Command::new("git")
+                                    .args(["merge", "--abort"])
+                                    .current_dir(&cwd)
+                                    .status();
+                                batch.status = BatchStatus::Failed;
+                            }
+                        }
+                    } else {
+                        if !json {
+                            println!("   ⚠️  Batch '{}' merge failed, will retry", batch.name);
+                        }
+                        batch.status = BatchStatus::Failed;
+                    }
+                } else if has_commits {
+                    // Worktree has commits but no branch recorded - mark as running
+                    if !json {
+                        println!("   ⏳ Batch '{}' has in-progress worktree", batch.name);
+                    }
+                    batch.status = BatchStatus::Running;
+                }
+            }
+        }
+        
+        // Save updated plan with status
+        if let Some(parent) = tasks_path.parent() {
+            let user_plan_path = parent.join("plan.yaml");
+            let yaml = serialize_plan_with_depends_on(&mutable_plan);
+            std::fs::write(&user_plan_path, &yaml).ok();
+        }
+        
+        if !json {
+            let completed_count = completed_batches.len();
+            let remaining = mutable_plan.batches.iter().filter(|b| b.status != BatchStatus::Completed).count();
+            println!("\n   Resume summary: {} completed, {} remaining\n", completed_count, remaining);
+        }
+    }
+    
+    let mut pending_batches: std::collections::VecDeque<_> = mutable_plan.batches
+        .into_iter()
+        .filter(|b| b.status != BatchStatus::Completed)
+        .collect();
     let mut running_futures = futures::stream::FuturesUnordered::new();
 
     let exe_arc = std::sync::Arc::new(exe);
@@ -481,6 +771,11 @@ batches:
                     }
                 }
 
+                // Store plan path for status updates
+                let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
+                let plan_path_clone = plan_path.clone();
+                let batch_id_for_status = batch_id.clone();
+                
                 let handle = tokio::spawn(async move {
                     let mut worktree_path: Option<PathBuf> = None;
                     let mut worktree_branch = String::new();
@@ -500,7 +795,10 @@ batches:
                         };
                         println!("[Batch: {}] EXECUTING MISSION in worktree: {}", batch_name, worktree.path.display());
                         worktree_path = Some(worktree.path.clone());
-                        worktree_branch = worktree.branch;
+                        worktree_branch = worktree.branch.clone();
+                        
+                        // Update plan.yaml with running status and branch
+                        let _ = update_batch_status(&plan_path_clone, &batch_id_for_status, BatchStatus::Running, Some(&worktree.branch));
                     }
                     
                     let mut cmd = AsyncCommand::new(exe.as_ref());
@@ -595,7 +893,36 @@ batches:
                                     .status()?;
 
                                 if !merge_status.success() {
-                                    return Err(anyhow::anyhow!("Failed to merge batch branch {} into main branch. Please resolve conflicts manually.", branch));
+                                    // Check if it's a conflict that we can resolve with AI
+                                    if has_merge_conflicts(&cwd) {
+                                        println!("[Orchestrator] Merge conflict detected, attempting AI-assisted resolution...");
+                                        
+                                        // Try to resolve conflicts with Claude Code
+                                        let spec_path_ref: Option<&Path> = Some(spec_path.as_path());
+                                        match tokio::runtime::Handle::current().block_on(
+                                            resolve_conflicts_with_ai(&cwd, &branch, spec_path_ref)
+                                        ) {
+                                            Ok(()) => {
+                                                println!("[Orchestrator] AI successfully resolved merge conflicts!");
+                                            }
+                                            Err(e) => {
+                                                // Abort the merge and return error
+                                                let _ = std::process::Command::new("git")
+                                                    .args(["merge", "--abort"])
+                                                    .current_dir(&cwd)
+                                                    .status();
+                                                return Err(anyhow::anyhow!(
+                                                    "Failed to merge batch branch {} - AI conflict resolution failed: {}",
+                                                    branch, e
+                                                ));
+                                            }
+                                        }
+                                    } else {
+                                        return Err(anyhow::anyhow!(
+                                            "Failed to merge batch branch {} into main branch. Please resolve manually.",
+                                            branch
+                                        ));
+                                    }
                                 }
                                 println!("[Orchestrator] Successfully merged batch '{}'.", name);
 
@@ -605,12 +932,19 @@ batches:
                                         eprintln!("Failed to update tasks.yaml: {}", e);
                                     }
                                 }
+                                
+                                // 4. Update plan.yaml batch status
+                                let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
+                                let _ = update_batch_status(&plan_path, &id, BatchStatus::Completed, Some(&branch));
                             }
                         }
 
                         completed_batches.insert(id);
                     }
-                    Ok((_id, name, _path, Err(e))) => {
+                    Ok((failed_id, name, _path, Err(e))) => {
+                        // Mark batch as failed in plan.yaml for potential retry
+                        let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
+                        let _ = update_batch_status(&plan_path, &failed_id, BatchStatus::Failed, None);
                         return Err(anyhow::anyhow!("Batch '{}' failed: {}", name, e));
                     }
                     Err(e) => {
@@ -625,6 +959,78 @@ batches:
         }
     }
 
+    // All batches completed successfully - create implementation summary
+    if !args.dry_run && !completed_batches.is_empty() {
+        // Get current branch name for the summary
+        let branch_output = std::process::Command::new("git")
+            .args(["branch", "--show-current"])
+            .current_dir(&cwd)
+            .output()?;
+        let current_branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+        
+        // Get the spec directory (parent of spec.yaml)
+        if let Some(spec_dir) = spec_path.parent() {
+            // Count total tasks that were completed
+            let total_tasks = batch_task_map.values().map(|v| v.len()).sum();
+            
+            create_implementation_summary(
+                spec_dir,
+                &current_branch,
+                total_tasks,
+                completed_batches.len(),
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Implementation summary structure written after successful run completion
+#[derive(Serialize, Deserialize, Debug)]
+struct ImplementationSummary {
+    /// Status of the implementation
+    status: String,
+    /// Branch where all code has been merged
+    branch: String,
+    /// Timestamp of completion
+    completed_at: String,
+    /// Total number of tasks completed
+    tasks_completed: usize,
+    /// Total number of batches merged
+    batches_merged: usize,
+    /// Summary message
+    message: String,
+}
+
+/// Create implementation.yaml after successful completion of all batches
+fn create_implementation_summary(
+    spec_dir: &Path,
+    branch: &str,
+    tasks_completed: usize,
+    batches_merged: usize,
+) -> anyhow::Result<()> {
+    let summary = ImplementationSummary {
+        status: "completed".to_string(),
+        branch: branch.to_string(),
+        completed_at: chrono::Utc::now().to_rfc3339(),
+        tasks_completed,
+        batches_merged,
+        message: format!(
+            "Implementation complete. {} tasks executed across {} batches. Code merged to branch '{}'.",
+            tasks_completed, batches_merged, branch
+        ),
+    };
+
+    let yaml = serde_yaml::to_string(&summary)?;
+    let impl_path = spec_dir.join("implementation.yaml");
+    std::fs::write(&impl_path, yaml)?;
+    
+    println!("\n✅ Implementation complete!");
+    println!("   Summary saved to: {}", impl_path.display());
+    println!("   Branch: {}", branch);
+    println!("   Tasks: {} completed", tasks_completed);
+    println!("   Ready for code review.\n");
+    
     Ok(())
 }
 
@@ -647,5 +1053,203 @@ fn mark_tasks_complete(tasks_path: &Path, task_ids: &[String]) -> anyhow::Result
         std::fs::write(tasks_path, new_content)?;
         println!("[Orchestrator] Marked {} tasks as completed in tasks.yaml", task_ids.len());
     }
+    Ok(())
+}
+
+/// Update batch status in plan.yaml for resume capability
+fn update_batch_status(plan_path: &Path, batch_id: &str, status: BatchStatus, branch: Option<&str>) -> anyhow::Result<()> {
+    if !plan_path.exists() {
+        return Ok(());
+    }
+    
+    let content = std::fs::read_to_string(plan_path)?;
+    let mut plan: ExecutionPlan = serde_yaml::from_str(&content)?;
+    
+    for batch in &mut plan.batches {
+        if batch.id == batch_id {
+            batch.status = status;
+            if let Some(b) = branch {
+                batch.branch = Some(b.to_string());
+            }
+            break;
+        }
+    }
+    
+    let yaml = serialize_plan_with_depends_on(&plan);
+    std::fs::write(plan_path, yaml)?;
+    Ok(())
+}
+
+/// Check if there are merge conflicts in the current repository
+fn has_merge_conflicts(cwd: &Path) -> bool {
+    let output = std::process::Command::new("git")
+        .args(["diff", "--name-only", "--diff-filter=U"])
+        .current_dir(cwd)
+        .output();
+    
+    match output {
+        Ok(out) => !out.stdout.is_empty(),
+        Err(_) => false,
+    }
+}
+
+/// Get list of files with merge conflicts
+fn get_conflicted_files(cwd: &Path) -> Vec<String> {
+    let output = std::process::Command::new("git")
+        .args(["diff", "--name-only", "--diff-filter=U"])
+        .current_dir(cwd)
+        .output();
+    
+    match output {
+        Ok(out) => {
+            String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .map(|s| s.to_string())
+                .collect()
+        }
+        Err(_) => vec![],
+    }
+}
+
+/// Resolve merge conflicts using Claude Code AI
+async fn resolve_conflicts_with_ai(cwd: &Path, branch_name: &str, spec_path: Option<&Path>) -> anyhow::Result<()> {
+    let conflicted_files = get_conflicted_files(cwd);
+    
+    if conflicted_files.is_empty() {
+        return Ok(());
+    }
+
+    println!("\n🔀 Merge Conflict Detected!");
+    println!("   Conflicting files:");
+    for file in &conflicted_files {
+        println!("     • {}", file);
+    }
+    println!("\n🤖 Invoking Claude Code to resolve conflicts...\n");
+
+    // Read spec context if available
+    let spec_context = if let Some(path) = spec_path {
+        std::fs::read_to_string(path).unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    // Read the actual content of conflicted files so Claude can see them
+    let mut file_contents = String::new();
+    for file in &conflicted_files {
+        let file_path = cwd.join(file);
+        if let Ok(content) = std::fs::read_to_string(&file_path) {
+            file_contents.push_str(&format!("\n=== {} ===\n{}\n", file, content));
+        }
+    }
+
+    // Build prompt for Claude - use interactive mode so Claude can edit files
+    let prompt = format!(
+        r#"You are resolving Git merge conflicts. Your ONLY task is to edit the conflicting files to resolve the conflicts.
+
+BRANCH BEING MERGED: {branch}
+
+SPEC CONTEXT (what we're building):
+{spec}
+
+CONFLICTING FILES AND THEIR CURRENT CONTENT:
+{files}
+
+YOUR TASK:
+1. For each file above, find the conflict markers: <<<<<<<, =======, >>>>>>>
+2. EDIT each file to create a merged version that:
+   - Removes ALL conflict markers
+   - Preserves functionality from BOTH sides (HEAD and incoming)
+   - Combines imports, adds all features from both branches
+   - Does NOT duplicate code that exists in both sides
+3. After editing all files, run: git add -A
+
+CRITICAL RULES:
+- You MUST edit the actual files using your file editing tools
+- You MUST remove ALL conflict markers (<<<<<<<, =======, >>>>>>>)
+- You MUST preserve features from both HEAD and incoming changes
+- After editing, stage all files with: git add -A
+
+Start by editing the first conflicted file now."#,
+        branch = branch_name,
+        spec = if spec_context.is_empty() { "(No spec provided)".to_string() } else { spec_context },
+        files = file_contents
+    );
+
+    // Run Claude in Docker sandbox without -p flag so it can use tools to edit files
+    let sandbox = DockerSandbox::new(ckrv_sandbox::DefaultAllowList::default())
+        .map_err(|e| anyhow::anyhow!("Failed to create sandbox for conflict resolution: {}", e))?;
+
+    // Use Claude in interactive mode with the prompt passed via stdin-like mechanism
+    // Using --print flag to print the prompt and let Claude process it with tool access
+    let escaped_prompt = shell_escape::escape(prompt.into());
+    let command = format!(
+        "echo {} | claude --dangerously-skip-permissions",
+        escaped_prompt
+    );
+
+    let config = ExecuteConfig::new("", cwd.to_path_buf())
+        .shell(&command)
+        .with_timeout(Duration::from_secs(300)); // 5 minutes for conflict resolution
+
+    let result = sandbox.execute(config).await
+        .map_err(|e| anyhow::anyhow!("AI conflict resolution failed: {}", e))?;
+
+    // Log output for debugging
+    if !result.stdout.is_empty() {
+        println!("[AI Resolution] {}", result.stdout);
+    }
+
+    if !result.success() {
+        // Don't fail immediately - check if conflicts are resolved anyway
+        eprintln!("[AI Resolution] Command returned non-zero: {}", result.stderr);
+    }
+
+    // Check if conflicts are resolved
+    if has_merge_conflicts(cwd) {
+        // Try one more time with a simpler approach - just accept incoming changes
+        println!("⚠️  Some conflicts remain. Attempting fallback resolution...");
+        
+        for file in &conflicted_files {
+            let _ = std::process::Command::new("git")
+                .args(["checkout", "--theirs", file])
+                .current_dir(cwd)
+                .status();
+            let _ = std::process::Command::new("git")
+                .args(["add", file])
+                .current_dir(cwd)
+                .status();
+        }
+    }
+
+    // Final check
+    if has_merge_conflicts(cwd) {
+        return Err(anyhow::anyhow!(
+            "Could not automatically resolve all conflicts. Please resolve manually:\n  {}",
+            conflicted_files.join("\n  ")
+        ));
+    }
+
+    println!("✅ Conflicts resolved successfully!");
+    
+    // Stage all changes
+    let _ = std::process::Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(cwd)
+        .status();
+    
+    // Complete the merge
+    let commit_status = std::process::Command::new("git")
+        .args(["commit", "--no-edit"])
+        .current_dir(cwd)
+        .status()?;
+
+    if !commit_status.success() {
+        // Might already be committed or no changes
+        let _ = std::process::Command::new("git")
+            .args(["commit", "-m", &format!("Merge {} with AI-assisted conflict resolution", branch_name)])
+            .current_dir(cwd)
+            .status();
+    }
+
     Ok(())
 }

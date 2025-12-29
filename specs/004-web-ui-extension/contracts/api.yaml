@@ -1,0 +1,64 @@
+openapi: 3.0.0
+info:
+  title: Chakravarti Local API
+  description: Local API for the Chakravarti CLI UI
+  version: 0.1.0
+servers:
+  - url: http://localhost:3000
+    description: Local CLI Server
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Server is up
+  /api/status:
+    get:
+      summary: Get current system status
+      responses:
+        '200':
+          description: Status object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+  /api/command/spec:
+    post:
+      summary: Create new spec
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - description
+              properties:
+                description:
+                  type: string
+      responses:
+        '202':
+          description: Command accepted
+  /api/events:
+    get:
+      summary: Server-Sent Events stream
+      description: Stream of logs and status updates
+      responses:
+        '200':
+          description: SSE Stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+components:
+  schemas:
+    SystemStatus:
+      type: object
+      properties:
+        active_branch:
+          type: string
+        feature_number:
+          type: string
+        is_ready:
+          type: boolean
