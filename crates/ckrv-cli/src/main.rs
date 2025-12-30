@@ -4,6 +4,7 @@
 
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 
+mod cloud;
 mod commands;
 pub mod ui;
 
@@ -76,6 +77,18 @@ enum Commands {
     /// Start the Web UI dashboard
     #[command(display_order = 8)]
     Ui(commands::ui::UiArgs),
+
+    /// Cloud execution commands
+    #[command(display_order = 9)]
+    Cloud(commands::cloud::CloudArgs),
+
+    /// Stream or view logs from a cloud job
+    #[command(display_order = 10)]
+    Logs(commands::logs::LogsArgs),
+
+    /// Pull results from a completed cloud job
+    #[command(display_order = 11)]
+    Pull(commands::pull::PullArgs),
 }
 
 #[tokio::main]
@@ -123,6 +136,9 @@ async fn main() -> anyhow::Result<()> {
         Some(Commands::Promote(args)) => commands::promote::execute(args, cli.json, &ui).await,
         Some(Commands::Fix(args)) => commands::fix::execute(args, cli.json, &ui).await,
         Some(Commands::Ui(args)) => commands::ui::execute(args, cli.json, &ui).await,
+        Some(Commands::Cloud(args)) => commands::cloud::execute(args, &ui).await,
+        Some(Commands::Logs(args)) => commands::logs::execute(args, &ui).await,
+        Some(Commands::Pull(args)) => commands::pull::execute(args, &ui).await,
         None => {
             use clap::CommandFactory;
             let mut cmd = Cli::command();

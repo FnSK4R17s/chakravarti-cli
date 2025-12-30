@@ -41,6 +41,13 @@ chrono = { workspace = true }
 ckrv-ui = { version = "0.1.0", path = "../ckrv-ui" }
 open = "5.3.3"
 
+# Cloud execution support
+reqwest = { version = "0.12", features = ["json", "stream"] }
+keyring = "3.6"
+rpassword = "7.3"
+dirs = "5.0"
+thiserror = { workspace = true }
+
 [dev-dependencies]
 tempfile = { workspace = true }
 
