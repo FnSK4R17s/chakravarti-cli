@@ -47,6 +47,14 @@ pub struct RunArgs {
     /// Show the execution plan without running tasks.
     #[arg(long)]
     pub dry_run: bool,
+
+    /// Execute job in Chakravarti Cloud instead of locally.
+    #[arg(long)]
+    pub cloud: bool,
+
+    /// Git credential name to use for cloud execution (for private repos).
+    #[arg(long)]
+    pub credential: Option<String>,
 }
 
 /// Optimization strategy for CLI argument.
@@ -203,6 +211,13 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
 
     if !json {
         println!("{}", Banner::new("CKRV RUN").subtitle(spec_path.display().to_string()).render(&ui.theme));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CLOUD EXECUTION PATH - Dispatch to Chakravarti Cloud
+    // ═══════════════════════════════════════════════════════════════════════════
+    if args.cloud {
+        return execute_cloud_job(&spec_path, args.credential.as_deref(), json, ui).await;
     }
 
     // Load and validate spec
@@ -1249,6 +1264,87 @@ Start by editing the first conflicted file now."#,
             .args(["commit", "-m", &format!("Merge {} with AI-assisted conflict resolution", branch_name)])
             .current_dir(cwd)
             .status();
+    }
+
+    Ok(())
+}
+
+/// Execute a job in Chakravarti Cloud
+async fn execute_cloud_job(
+    spec_path: &Path,
+    credential_name: Option<&str>,
+    json: bool,
+    ui: &UiContext,
+) -> anyhow::Result<()> {
+    use crate::cloud::client::CloudClient;
+    use crate::cloud::jobs;
+
+    // Read spec content
+    let spec_content = std::fs::read_to_string(spec_path)?;
+
+    // Get git remote URL
+    let cwd = std::env::current_dir()?;
+    let remote_output = std::process::Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| anyhow::anyhow!("Failed to get git remote: {}", e))?;
+
+    let git_repo_url = String::from_utf8_lossy(&remote_output.stdout).trim().to_string();
+    if git_repo_url.is_empty() {
+        return Err(anyhow::anyhow!(
+            "No git remote 'origin' found. Cloud execution requires a remote repository."
+        ));
+    }
+
+    // Get current branch
+    let branch_output = std::process::Command::new("git")
+        .args(["branch", "--show-current"])
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| anyhow::anyhow!("Failed to get current branch: {}", e))?;
+
+    let git_base_branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+    if git_base_branch.is_empty() {
+        return Err(anyhow::anyhow!("Could not determine current branch."));
+    }
+
+    if !json {
+        println!("☁️  Dispatching job to Chakravarti Cloud...");
+        println!("   Repository: {}", git_repo_url);
+        println!("   Branch: {}", git_base_branch);
+        if let Some(cred) = credential_name {
+            println!("   Credential: {}", cred);
+        }
+    }
+
+    // Create cloud client and dispatch job
+    let client = CloudClient::new().map_err(|e| {
+        if e.to_string().contains("Not authenticated") {
+            anyhow::anyhow!("Not authenticated. Run 'ckrv cloud login' first.")
+        } else {
+            anyhow::anyhow!("{}", e)
+        }
+    })?;
+
+    let job = client
+        .create_job(&spec_content, &git_repo_url, &git_base_branch, credential_name)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to dispatch job: {}", e))?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&job)?);
+    } else {
+        ui.success("Job Dispatched", &format!("Job ID: {}", job.id));
+        println!();
+        println!("📋 Track progress:");
+        println!("   ckrv status {}", job.id);
+        println!();
+        println!("📝 Stream logs:");
+        println!("   ckrv logs {} --follow", job.id);
+        println!();
+        println!("📦 Pull results when complete:");
+        println!("   ckrv pull {}", job.id);
     }
 
     Ok(())

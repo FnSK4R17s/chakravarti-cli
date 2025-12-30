@@ -128,6 +128,13 @@ pub async fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Re
                 ui.markdown(&format!("**Run Directory**: `{}`", runs_dir.display()));
             }
         } else {
+            // Not a local job - try cloud job lookup
+            if let Ok(cloud_status) = check_cloud_job_status(&args.job_id, json).await {
+                if cloud_status {
+                    return Ok(());
+                }
+            }
+            
             if json {
                 let output = StatusOutput {
                     job_id: args.job_id.clone(),
@@ -144,10 +151,68 @@ pub async fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Re
                     "Job Not Found",
                     &format!("No job with ID '{}' was found.", args.job_id),
                 );
-                ui.markdown("Run `ckrv run <spec>` to create a new job.");
+                ui.markdown("Run `ckrv run <spec>` to create a new job, or `ckrv run --cloud <spec>` for cloud execution.");
             }
         }
     }
 
     Ok(())
+}
+
+/// Check cloud job status
+async fn check_cloud_job_status(job_id: &str, json: bool) -> anyhow::Result<bool> {
+    use crate::cloud::client::CloudClient;
+    
+    let client = match CloudClient::new() {
+        Ok(c) => c,
+        Err(_) => return Ok(false), // Not authenticated, skip cloud check
+    };
+    
+    match client.get_job(job_id).await {
+        Ok(job) => {
+            if json {
+                println!("{}", serde_json::to_string_pretty(&job)?);
+            } else {
+                let status_emoji = match job.status.as_str() {
+                    "pending" => "⏳",
+                    "running" => "🔄",
+                    "succeeded" => "✅",
+                    "failed" => "❌",
+                    "timeout" => "⏰",
+                    _ => "❓",
+                };
+                
+                println!("☁️  Cloud Job Status: {} {}", status_emoji, job.status);
+                println!();
+                println!("   Job ID:     {}", job.id);
+                println!("   Repository: {}", job.git_repo_url);
+                println!("   Branch:     {}", job.git_base_branch);
+                if let Some(ref feature) = job.feature_branch_name {
+                    println!("   Feature:    {}", feature);
+                }
+                println!("   Created:    {}", job.created_at);
+                if let Some(ref started) = job.started_at {
+                    println!("   Started:    {}", started);
+                }
+                if let Some(ref completed) = job.completed_at {
+                    println!("   Completed:  {}", completed);
+                }
+                if let Some(ref summary) = job.result_summary {
+                    println!("   Summary:    {}", summary);
+                }
+                if let Some(ref error) = job.error_message {
+                    println!("   Error:      {}", error);
+                }
+                println!();
+                
+                if job.status == "succeeded" {
+                    println!("📦 Pull results: ckrv pull {}", job.id);
+                } else if job.status == "running" || job.status == "pending" {
+                    println!("📝 Stream logs: ckrv logs {} --follow", job.id);
+                }
+            }
+            Ok(true)
+        }
+        Err(_) => Ok(false),
+    }
 }

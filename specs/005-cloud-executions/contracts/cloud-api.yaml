@@ -1,0 +1,521 @@
+openapi: 3.1.0
+info:
+  title: Chakravarti Cloud API
+  version: 1.0.0
+  description: |
+    API for Chakravarti Cloud Executions - dispatch agent orchestration jobs
+    to managed cloud infrastructure.
+
+servers:
+  - url: https://api.chakravarti.dev/v1
+    description: Production
+  - url: https://api.staging.chakravarti.dev/v1
+    description: Staging
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Authentication and authorization
+  - name: Jobs
+    description: Cloud job management
+  - name: Credentials
+    description: Git credential management
+  - name: Users
+    description: User profile and subscription
+
+paths:
+  # ===== Authentication =====
+  /auth/device:
+    post:
+      tags: [Auth]
+      summary: Initiate device authorization flow
+      description: Returns a device code and verification URL for CLI authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id]
+              properties:
+                client_id:
+                  type: string
+                  example: "ckrv-cli"
+      responses:
+        '200':
+          description: Device code issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceCodeResponse'
+
+  /auth/token:
+    post:
+      tags: [Auth]
+      summary: Exchange device code for tokens
+      description: Poll this endpoint after user completes browser authorization
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id, device_code, grant_type]
+              properties:
+                client_id:
+                  type: string
+                device_code:
+                  type: string
+                grant_type:
+                  type: string
+                  enum: [urn:ietf:params:oauth:grant-type:device_code]
+      responses:
+        '200':
+          description: Tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Authorization pending or denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token, grant_type]
+              properties:
+                refresh_token:
+                  type: string
+                grant_type:
+                  type: string
+                  enum: [refresh_token]
+      responses:
+        '200':
+          description: New tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  # ===== Users =====
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # ===== Git Credentials =====
+  /credentials:
+    get:
+      tags: [Credentials]
+      summary: List git credentials (names only, no values)
+      responses:
+        '200':
+          description: List of credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  credentials:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CredentialSummary'
+
+    post:
+      tags: [Credentials]
+      summary: Add a new git credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialCreate'
+      responses:
+        '201':
+          description: Credential created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialSummary'
+        '409':
+          description: Credential with this name already exists
+
+  /credentials/{name}:
+    delete:
+      tags: [Credentials]
+      summary: Delete a git credential
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Credential deleted
+        '404':
+          description: Credential not found
+
+  # ===== Jobs =====
+  /jobs:
+    get:
+      tags: [Jobs]
+      summary: List user's jobs
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, running, succeeded, failed, timeout]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated job list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobListResponse'
+
+    post:
+      tags: [Jobs]
+      summary: Dispatch a new cloud job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobCreate'
+      responses:
+        '201':
+          description: Job created and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '402':
+          description: Quota exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaExceededError'
+
+  /jobs/{job_id}:
+    get:
+      tags: [Jobs]
+      summary: Get job status and details
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          description: Job not found
+
+  /jobs/{job_id}/logs:
+    get:
+      tags: [Jobs]
+      summary: Get job logs (historical or stream)
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: follow
+          in: query
+          description: If true, stream logs as SSE
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Log content (JSON array or SSE stream)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogResponse'
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE stream of log events
+
+  /jobs/{job_id}/artifacts/diff:
+    get:
+      tags: [Jobs]
+      summary: Download job diff artifact
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Diff file content
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Job not found or no diff available
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    DeviceCodeResponse:
+      type: object
+      required: [device_code, user_code, verification_uri, expires_in, interval]
+      properties:
+        device_code:
+          type: string
+          description: Code for CLI to poll with
+        user_code:
+          type: string
+          description: Code user enters in browser
+          example: "ABCD-1234"
+        verification_uri:
+          type: string
+          format: uri
+          example: "https://chakravarti.dev/activate"
+        expires_in:
+          type: integer
+          description: Seconds until device code expires
+        interval:
+          type: integer
+          description: Minimum seconds between poll attempts
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Seconds until access token expires
+
+    TokenErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          enum: [authorization_pending, slow_down, access_denied, expired_token]
+        error_description:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        subscription_tier:
+          type: string
+          enum: [free, pro, enterprise]
+        job_quota_remaining:
+          type: integer
+        billing_cycle_end:
+          type: string
+          format: date-time
+
+    CredentialSummary:
+      type: object
+      properties:
+        name:
+          type: string
+        provider:
+          type: string
+          enum: [github, gitlab, bitbucket, generic]
+        credential_type:
+          type: string
+          enum: [pat, deploy_key]
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CredentialCreate:
+      type: object
+      required: [name, provider, credential_type, value]
+      properties:
+        name:
+          type: string
+          pattern: "^[a-z0-9-]{1,50}$"
+          example: "github-work"
+        provider:
+          type: string
+          enum: [github, gitlab, bitbucket, generic]
+        credential_type:
+          type: string
+          enum: [pat, deploy_key]
+        value:
+          type: string
+          description: The PAT or deploy key content (write-only, never returned)
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, succeeded, failed, timeout]
+        git_repo_url:
+          type: string
+        git_base_branch:
+          type: string
+        feature_branch_name:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        result_status:
+          type: string
+          enum: [succeeded, failed, timeout]
+          nullable: true
+        result_summary:
+          type: string
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+
+    JobCreate:
+      type: object
+      required: [spec_content, git_repo_url]
+      properties:
+        spec_content:
+          type: string
+          description: Full spec file content
+        git_repo_url:
+          type: string
+          format: uri
+          example: "https://github.com/user/repo.git"
+        git_base_branch:
+          type: string
+          default: "main"
+        git_credential_name:
+          type: string
+          description: Name of stored credential to use
+          nullable: true
+
+    JobListResponse:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+        next_cursor:
+          type: string
+          nullable: true
+
+    LogResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogEntry'
+
+    LogEntry:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        level:
+          type: string
+          enum: [debug, info, warn, error]
+        source:
+          type: string
+          example: "orchestrator"
+        message:
+          type: string
+
+    QuotaExceededError:
+      type: object
+      properties:
+        error:
+          type: string
+          enum: [quota_exceeded]
+        message:
+          type: string
+        quota_resets_at:
+          type: string
+          format: date-time
+        upgrade_url:
+          type: string
+          format: uri

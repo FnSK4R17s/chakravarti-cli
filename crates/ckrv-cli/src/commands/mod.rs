@@ -1,9 +1,12 @@
 //! CLI command modules.
 
+pub mod cloud;
 pub mod diff;
 pub mod fix;
 pub mod init;
+pub mod logs;
 pub mod promote;
+pub mod pull;
 pub mod report;
 pub mod run;
 pub mod spec;
