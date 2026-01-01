@@ -9,6 +9,7 @@ pub mod config;
 pub mod credentials;
 pub mod error;
 pub mod jobs;
+pub mod logs;
 
 pub use client::CloudClient;
 pub use config::CloudConfig;
