@@ -220,7 +220,7 @@ impl CloudClient {
                 } else {
                     Err(CloudError::QuotaExceeded {
                         reset_time: "unknown".into(),
-                        upgrade_url: "https://chakravarti.dev/billing".into(),
+                        upgrade_url: "https://ckrv.dev/billing".into(),
                     })
                 }
             }

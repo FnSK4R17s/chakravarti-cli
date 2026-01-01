@@ -210,20 +210,20 @@
 
 ### CLI Implementation (US3)
 
-- [ ] T072 [US3] [CLI] Create `logs` command in `crates/ckrv-cli/src/commands/logs.rs`
-- [ ] T073 [US3] [CLI] Implement SSE client for log streaming in `crates/ckrv-cli/src/cloud/logs.rs`
-- [ ] T074 [US3] [CLI] Implement `--follow` flag with real-time output
-- [ ] T075 [US3] [CLI] Implement historical log fetch (without `--follow`)
+- [x] T072 [US3] [CLI] Create `logs` command in `crates/ckrv-cli/src/commands/logs.rs`
+- [x] T073 [US3] [CLI] Implement SSE client for log streaming in `crates/ckrv-cli/src/cloud/logs.rs`
+- [x] T074 [US3] [CLI] Implement `--follow` flag with real-time output
+- [x] T075 [US3] [CLI] Implement historical log fetch (without `--follow`)
 
 ### Cloud API Implementation (US3)
 
-- [ ] T076 [US3] [CLOUD] Implement log streaming service in `/apps/chakravarti-cloud/api/src/services/log-streamer.ts`
-- [ ] T077 [US3] [CLOUD] Implement `GET /jobs/:id/logs` with SSE support
-- [ ] T078 [US3] [CLOUD] Implement log aggregation from worker pods
+- [x] T076 [US3] [CLOUD] Implement log streaming service in `/apps/chakravarti-cloud/api/src/services/log-streamer.ts`
+- [x] T077 [US3] [CLOUD] Implement `GET /jobs/:id/logs` with SSE support
+- [x] T078 [US3] [CLOUD] Implement log aggregation from worker pods
 
 ### Worker Implementation (US3)
 
-- [ ] T079 [US3] [CLOUD] Implement log forwarding to API in worker
+- [x] T079 [US3] [CLOUD] Implement log forwarding to API in worker
 
 **Checkpoint**: Log streaming works. Full observability achieved.
 
@@ -237,17 +237,17 @@
 
 ### CLI Implementation
 
-- [ ] T080 [US5] [CLI] Implement `ckrv cloud credentials` subcommand in `crates/ckrv-cli/src/commands/cloud/credentials.rs`
-- [ ] T081 [P] [US5] [CLI] Implement `add`, `list`, `remove` subcommands
-- [ ] T082 [US5] [CLI] Add `--credential` flag to `ckrv run --cloud`
+- [x] T080 [US5] [CLI] Implement `ckrv cloud credentials` subcommand in `crates/ckrv-cli/src/commands/cloud/credentials.rs`
+- [x] T081 [P] [US5] [CLI] Implement `add`, `list`, `remove` subcommands
+- [x] T082 [US5] [CLI] Add `--credential` flag to `ckrv run --cloud`
 
 ### Cloud API Implementation
 
-- [ ] T083 [US5] [CLOUD] Implement `POST /credentials` endpoint
-- [ ] T084 [P] [US5] [CLOUD] Implement `GET /credentials` endpoint (names only, no values)
-- [ ] T085 [P] [US5] [CLOUD] Implement `DELETE /credentials/:name` endpoint
-- [ ] T086 [US5] [CLOUD] Implement credential encryption service
-- [ ] T087 [US5] [CLOUD] Inject credentials as K8s secrets during job dispatch
+- [x] T083 [US5] [CLOUD] Implement `POST /credentials` endpoint
+- [x] T084 [P] [US5] [CLOUD] Implement `GET /credentials` endpoint (names only, no values)
+- [x] T085 [P] [US5] [CLOUD] Implement `DELETE /credentials/:name` endpoint
+- [x] T086 [US5] [CLOUD] Implement credential encryption service
+- [x] T087 [US5] [CLOUD] Inject credentials as K8s secrets during job dispatch
 
 **Checkpoint**: Private repository access enabled.
 
@@ -259,18 +259,18 @@
 
 ### Kubernetes Infrastructure
 
-- [ ] T088 [CLOUD] Create namespace manifest at `/apps/chakravarti-cloud/infra/k8s/namespace.yaml`
-- [ ] T089 [P] [CLOUD] Create API deployment at `/apps/chakravarti-cloud/infra/k8s/deployment.yaml`
-- [ ] T090 [P] [CLOUD] Create API service at `/apps/chakravarti-cloud/infra/k8s/service.yaml`
-- [ ] T091 [P] [CLOUD] Create ingress for API at `/apps/chakravarti-cloud/infra/k8s/ingress.yaml`
-- [ ] T092 [CLOUD] Create RBAC for worker pods at `/apps/chakravarti-cloud/infra/k8s/rbac.yaml`
+- [x] T088 [CLOUD] Create namespace manifest at `/apps/chakravarti-cloud/infra/k8s/namespace.yaml`
+- [x] T089 [P] [CLOUD] Create API deployment at `/apps/chakravarti-cloud/infra/k8s/deployment.yaml`
+- [x] T090 [P] [CLOUD] Create API service at `/apps/chakravarti-cloud/infra/k8s/service.yaml`
+- [x] T091 [P] [CLOUD] Create ingress for API at `/apps/chakravarti-cloud/infra/k8s/ingress.yaml`
+- [x] T092 [CLOUD] Create RBAC for worker pods at `/apps/chakravarti-cloud/infra/k8s/rbac.yaml`
 
 ### Terraform Infrastructure
 
-- [ ] T093 [CLOUD] Create main Terraform config at `/apps/chakravarti-cloud/infra/terraform/main.tf`
-- [ ] T094 [P] [CLOUD] Create variables file at `/apps/chakravarti-cloud/infra/terraform/variables.tf`
-- [ ] T095 [P] [CLOUD] Create K8s cluster config at `/apps/chakravarti-cloud/infra/terraform/k8s.tf`
-- [ ] T096 [CLOUD] Create S3/storage bucket config at `/apps/chakravarti-cloud/infra/terraform/storage.tf`
+- [x] T093 [CLOUD] Create main Terraform config at `/apps/chakravarti-cloud/infra/terraform/main.tf`
+- [x] T094 [P] [CLOUD] Create variables file at `/apps/chakravarti-cloud/infra/terraform/variables.tf`
+- [x] T095 [P] [CLOUD] Create K8s cluster config at `/apps/chakravarti-cloud/infra/terraform/k8s.tf`
+- [x] T096 [CLOUD] Create S3/storage bucket config at `/apps/chakravarti-cloud/infra/terraform/storage.tf`
 
 ---
 

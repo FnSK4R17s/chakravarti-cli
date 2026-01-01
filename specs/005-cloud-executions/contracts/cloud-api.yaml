@@ -7,9 +7,9 @@ info:
     to managed cloud infrastructure.
 
 servers:
-  - url: https://api.chakravarti.dev/v1
+  - url: https://api.ckrv.dev/v1
     description: Production
-  - url: https://api.staging.chakravarti.dev/v1
+  - url: https://api.staging.ckrv.dev/v1
     description: Staging
 
 security:
@@ -324,7 +324,7 @@ components:
         verification_uri:
           type: string
           format: uri
-          example: "https://chakravarti.dev/activate"
+          example: "https://ckrv.dev/activate"
         expires_in:
           type: integer
           description: Seconds until device code expires

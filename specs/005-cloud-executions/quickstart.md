@@ -24,7 +24,7 @@ This opens your browser to complete authentication. You'll see:
 
 ```
 ▌ ✔ Device Code Generated
-▌ Visit: https://chakravarti.dev/activate
+▌ Visit: https://ckrv.dev/activate
 ▌ Enter code: ABCD-1234
 ▌ 
 ▌ Waiting for authorization...
@@ -161,7 +161,7 @@ Run `ckrv cloud login` to authenticate.
 
 Your monthly job quota is exhausted. Options:
 - Wait for quota reset (shown in `ckrv cloud whoami`)
-- Upgrade your subscription at https://chakravarti.dev/billing
+- Upgrade your subscription at https://ckrv.dev/billing
 
 ### "Credential not found"
 

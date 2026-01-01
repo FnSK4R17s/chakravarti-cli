@@ -3,7 +3,7 @@
 use std::env;
 
 /// Default Chakravarti Cloud API URL
-const DEFAULT_API_URL: &str = "https://api.chakravarti.dev/v1";
+const DEFAULT_API_URL: &str = "https://api.ckrv.dev/v1";
 
 /// Cloud configuration
 #[derive(Debug, Clone)]
