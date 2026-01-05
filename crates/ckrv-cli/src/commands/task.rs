@@ -215,11 +215,19 @@ pub async fn execute(args: TaskArgs, json: bool, ui: &UiContext) -> anyhow::Resu
     // Save initial task state
     task.save(&cwd)?;
 
+    // Load agent configuration from .chakravarti/agents.yaml
+    let (openrouter_api_key, openrouter_model, openrouter_base_url) = load_agent_config(&cwd, &args.agent);
+
     // Create runner and execute
+    // Note: agent_binary is the actual CLI binary (always "claude"),
+    // while args.agent is an agent ID used only for config lookup above
     let config = RunnerConfig {
-        agent_binary: args.agent.clone(),
+        agent_binary: "claude".to_string(),  // Always use claude binary
         use_sandbox: !args.no_sandbox,
         keep_container: args.keep_container,
+        openrouter_api_key,
+        openrouter_model,
+        openrouter_base_url,
         ..Default::default()
     };
 
@@ -317,4 +325,100 @@ struct SpecTask {
     title: String,
     description: String,
     file: String,
+}
+
+/// Load agent configuration from .chakravarti/agents.yaml
+/// Returns (api_key, model, base_url) for OpenRouter if configured
+fn load_agent_config(cwd: &std::path::Path, agent_arg: &str) -> (Option<String>, Option<String>, Option<String>) {
+    // Check global path first
+    let agents_path = dirs::config_dir()
+        .map(|d| d.join("chakravarti").join("agents.yaml"))
+        .filter(|p| p.exists())
+        .unwrap_or_else(|| cwd.join(".chakravarti").join("agents.yaml"));
+    
+    if !agents_path.exists() {
+        return (None, None, None);
+    }
+
+    #[derive(Deserialize)]
+    struct AgentsFile {
+        agents: Vec<AgentEntry>,
+    }
+
+    #[derive(Deserialize)]
+    struct AgentEntry {
+        id: String,
+        #[allow(dead_code)]
+        name: String,
+        agent_type: String,
+        is_default: bool,
+        #[allow(dead_code)]
+        enabled: bool,
+        openrouter: Option<OpenRouterEntry>,
+    }
+
+    #[derive(Deserialize)]
+    struct OpenRouterEntry {
+        api_key: Option<String>,
+        model: String,
+        base_url: Option<String>,
+    }
+
+    let content = match std::fs::read_to_string(&agents_path) {
+        Ok(c) => c,
+        Err(_) => return (None, None, None),
+    };
+
+    let file: AgentsFile = match serde_yaml::from_str(&content) {
+        Ok(f) => f,
+        Err(_) => return (None, None, None),
+    };
+
+    // Helper to check if agent type is OpenRouter-compatible
+    let is_openrouter_type = |t: &str| -> bool {
+        t == "claude_openrouter" || t == "claude_open_router"
+    };
+
+    // Priority 1: If agent_arg is provided and looks like an agent ID, find that specific agent
+    if !agent_arg.is_empty() && agent_arg != "claude" {
+        if let Some(agent) = file.agents.iter().find(|a| a.id == agent_arg) {
+            if is_openrouter_type(&agent.agent_type) {
+                if let Some(ref or_config) = agent.openrouter {
+                    tracing::info!(
+                        agent_id = %agent.id,
+                        model = %or_config.model,
+                        has_api_key = or_config.api_key.is_some(),
+                        "Using specified OpenRouter agent configuration"
+                    );
+                    return (
+                        or_config.api_key.clone(),
+                        Some(or_config.model.clone()),
+                        or_config.base_url.clone(),
+                    );
+                }
+            }
+        }
+    }
+
+    // Priority 2: Find the default agent with OpenRouter type
+    let default_openrouter = file.agents.iter().find(|a| {
+        a.is_default && is_openrouter_type(&a.agent_type) && a.openrouter.is_some()
+    });
+
+    if let Some(agent) = default_openrouter {
+        if let Some(ref or_config) = agent.openrouter {
+            tracing::info!(
+                model = %or_config.model,
+                has_api_key = or_config.api_key.is_some(),
+                "Using default OpenRouter agent configuration"
+            );
+            return (
+                or_config.api_key.clone(),
+                Some(or_config.model.clone()),
+                or_config.base_url.clone(),
+            );
+        }
+    }
+
+    (None, None, None)
 }

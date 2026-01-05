@@ -140,6 +140,11 @@ impl DockerSandbox {
     pub fn with_defaults() -> Result<Self, SandboxError> {
         Self::new(crate::allowlist::DefaultAllowList::default())
     }
+
+    /// Get reference to inner Docker client.
+    pub fn inner_client(&self) -> &DockerClient {
+        &self.client
+    }
 }
 
 #[async_trait]

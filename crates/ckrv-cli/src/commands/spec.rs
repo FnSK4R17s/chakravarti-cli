@@ -507,6 +507,11 @@ tasks:
     file: "src/main.rs"  # Primary file target (optional, use empty string "" if none)
     user_story: null     # e.g., "US1" (optional)
     parallel: false      # true if can run in parallel with previous task
+    complexity: 1        # 1-5 scale (1=simple file/config, 3=standard logic, 5=complex algorithm/architecture)
+    model_tier: "light"  # light | standard | heavy | reasoning
+    estimated_tokens: 500
+    risk: "low"          # low | medium | high | critical
+    context_required: [] # List of files/concepts needed, e.g. ["README.md", "auth_flow"]
     status: "pending"
 
 INSTRUCTIONS:
@@ -515,7 +520,24 @@ INSTRUCTIONS:
 3. Assign sequential IDs (T001, T002...).
 4. "parallel: true" means it doesn't strictly depend on the immediately preceding task in the same phase.
 5. "file" should be the main file being created or modified, if applicable.
-6. Ensure every User Story in the spec is covered.
+6. "complexity" (1-5):
+   - 1: Boilerplate, config files, simple HTML/CSS.
+   - 2: Basic CRUD, simple functions.
+   - 3: Standard business logic, API endpoints.
+   - 4: Complex logic, security critical.
+   - 5: Core architecture, complex algorithms.
+7. "model_tier":
+   - light: Complexity 1-2 (e.g., config, simple UI)
+   - standard: Complexity 2-3 (e.g., CRUD, endpoints)
+   - heavy: Complexity 3-4 (e.g., tough logic, refactoring)
+   - reasoning: Complexity 5 (e.g., architecture, security)
+8. "estimated_tokens": Guess input/output tokens (e.g. 500 for small, 5000 for huge).
+9. "risk":
+   - low: Unlikely to break things.
+   - medium: standard feature.
+   - high: Changes core shared logic.
+   - critical: Security/Auth/Payment.
+10. Ensure every User Story in the spec is covered.
 
 Output ONLY the raw YAML content. No ```yaml fences."#,
         spec_content
@@ -854,9 +876,33 @@ struct Task {
     #[tabled(skip)]
     pub parallel: bool,
     
+    #[tabled(rename = "Level")]
+    #[serde(default = "default_complexity")]
+    pub complexity: u8, // 1-5 scale
+
+    #[tabled(rename = "Tier")]
+    #[serde(default = "default_tier")]
+    pub model_tier: String, // light | standard | heavy | reasoning
+
+    #[serde(default)]
+    #[tabled(skip)]
+    pub estimated_tokens: u32,
+
+    #[tabled(rename = "Risk")]
+    #[serde(default = "default_risk")]
+    pub risk: String, // low | medium | high | critical
+
+    #[serde(default)]
+    #[tabled(skip)]
+    pub context_required: Vec<String>,
+
     #[tabled(rename = "Status")]
     pub status: String,
 }
+
+fn default_complexity() -> u8 { 3 }
+fn default_tier() -> String { "standard".to_string() }
+fn default_risk() -> String { "low".to_string() }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct TaskFile {

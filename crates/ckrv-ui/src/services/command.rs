@@ -465,9 +465,10 @@ impl CommandService {
         }
     }
 
-    pub async fn run_run(state: &AppState) -> Result<String, String> {
-        Self::emit_step_start(state, "Execute Tasks");
-        Self::emit_log(state, "Running AI agents to execute tasks...");
+    pub async fn run_run(state: &AppState, dry_run: bool) -> Result<String, String> {
+        let step_name = if dry_run { "Plan Execution (Dry Run)" } else { "Execute Tasks" };
+        Self::emit_step_start(state, step_name);
+        Self::emit_log(state, if dry_run { "Running execution plan (dry-run)..." } else { "Running AI agents to execute tasks..." });
 
         // Update mode to running
         {
@@ -485,11 +486,17 @@ impl CommandService {
         let exe = std::env::current_exe()
             .map_err(|e| format!("Failed to get executable path: {}", e))?;
 
-        Self::emit_log(state, &format!("Running: {} run", exe.display()));
+        let cmd_str = if dry_run { format!("{} run --dry-run", exe.display()) } else { format!("{} run", exe.display()) };
+        Self::emit_log(state, &format!("Running: {}", cmd_str));
 
         // Use tokio Command for async streaming
-        let mut child = tokio::process::Command::new(&exe)
-            .arg("run")
+        let mut cmd = tokio::process::Command::new(&exe);
+        cmd.arg("run");
+        if dry_run {
+            cmd.arg("--dry-run");
+        }
+        
+        let mut child = cmd
             .current_dir(&cwd)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -497,7 +504,7 @@ impl CommandService {
             .map_err(|e| {
                 let error_msg = format!("Failed to spawn run command: {}", e);
                 Self::emit_error(state, &error_msg);
-                Self::emit_step_end(state, "Execute Tasks", "failed");
+                Self::emit_step_end(state, step_name, "failed");
                 // Reset mode
                 let state_clone = state.clone();
                 tokio::spawn(async move {
