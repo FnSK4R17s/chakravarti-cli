@@ -54,10 +54,18 @@ pub async fn run_spec_tasks(
     }
 }
 
+#[derive(Deserialize)]
+pub struct RunPayload {
+    #[serde(default)]
+    pub dry_run: bool,
+}
+
 pub async fn run_run(
     State(state): State<AppState>,
+    Json(payload): Json<Option<RunPayload>>,
 ) -> impl IntoResponse {
-    match CommandService::run_run(&state).await {
+    let dry_run = payload.map(|p| p.dry_run).unwrap_or(false);
+    match CommandService::run_run(&state, dry_run).await {
         Ok(msg) => Json(serde_json::json!({ "success": true, "message": msg })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
     }

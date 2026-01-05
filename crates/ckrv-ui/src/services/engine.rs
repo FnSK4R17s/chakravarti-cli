@@ -1,0 +1,514 @@
+use std::path::{Path, PathBuf};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::time::Duration;
+
+use anyhow::{Context, Result, anyhow};
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
+use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc;
+use tokio::process::Command as AsyncCommand;
+use chrono::Utc;
+
+use ckrv_git::{WorktreeManager, DefaultWorktreeManager};
+use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox, DefaultAllowList};
+
+/// Status of a batch in the execution plan
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BatchStatus {
+    Pending,
+    Running,
+    Completed,
+    Failed,
+}
+
+/// Execution plan structure (plan.yaml)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExecutionPlan {
+    #[serde(default)]
+    pub spec_id: Option<String>,
+    pub batches: Vec<Batch>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Batch {
+    pub id: String,
+    pub name: String,
+    pub task_ids: Vec<String>,
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+    pub status: BatchStatus,
+    #[serde(default)]
+    pub branch: Option<String>,
+    pub reasoning: String,
+    pub model_assignment: ModelAssignment,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ModelAssignment {
+    pub default: Option<String>,
+    #[serde(default)]
+    pub overrides: HashMap<String, String>,
+}
+
+/// Task file structure (tasks.yaml)
+#[derive(Serialize, Deserialize)]
+struct TaskFile {
+    tasks: Vec<SpecTask>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct SpecTask {
+    pub id: String,
+    pub title: String,
+    pub description: String,
+    pub status: String,
+    #[serde(default)]
+    pub complexity: u8,
+}
+
+/// Log message structure for streaming updates
+#[derive(Debug, Clone, Serialize)]
+pub struct LogMessage {
+    pub type_: String, // "info", "success", "error", "start", "batch_start", etc.
+    pub message: String,
+    pub stream: Option<String>, // stdout/stderr
+    pub timestamp: String,
+}
+
+impl LogMessage {
+    pub fn new(type_: &str, message: &str) -> Self {
+        Self {
+            type_: type_.to_string(),
+            message: message.to_string(),
+            stream: None,
+            timestamp: Utc::now().to_rfc3339(),
+        }
+    }
+}
+
+pub struct ExecutionEngine {
+    project_root: PathBuf,
+    sender: mpsc::Sender<LogMessage>,
+}
+
+impl ExecutionEngine {
+    pub fn new(project_root: PathBuf, sender: mpsc::Sender<LogMessage>) -> Self {
+        Self {
+            project_root,
+            sender,
+        }
+    }
+
+    async fn log(&self, type_: &str, message: &str) {
+        let _ = self.sender.send(LogMessage::new(type_, message)).await;
+        // Also print to server stdout for debugging
+        println!("[ExecutionEngine] {}: {}", type_, message);
+    }
+
+    pub async fn run_spec(
+        &self,
+        spec_name: String,
+        dry_run: bool,
+        executor_model: Option<String>
+    ) -> Result<()> {
+        let spec_path = self.project_root.join(".specs").join(&spec_name).join("spec.yaml");
+        let tasks_path = self.project_root.join(".specs").join(&spec_name).join("tasks.yaml");
+        let plan_path = self.project_root.join(".specs").join(&spec_name).join("plan.yaml");
+        
+        if !spec_path.exists() {
+            self.log("error", &format!("Spec not found: {}", spec_name)).await;
+            return Err(anyhow!("Spec not found"));
+        }
+
+        if !plan_path.exists() {
+            self.log("error", "Plan not found. Run 'ckrv plan' first.").await;
+            return Err(anyhow!("Plan not found"));
+        }
+
+        self.log("start", &format!("Starting execution for spec: {}", spec_name)).await;
+
+        // Load plan
+        let plan_content = std::fs::read_to_string(&plan_path)?;
+        let mut plan: ExecutionPlan = serde_yaml::from_str(&plan_content)?;
+        
+        // Load tasks to map IDs to details
+        let tasks_content = std::fs::read_to_string(&tasks_path)?;
+        let task_file: TaskFile = serde_yaml::from_str(&tasks_content)?;
+        let task_map: HashMap<String, SpecTask> = task_file.tasks
+            .into_iter()
+            .map(|t| (t.id.clone(), t))
+            .collect();
+
+        // Initialize Worktree Manager
+        let mut manager = DefaultWorktreeManager::new(&self.project_root).context("Failed to init worktree manager")?;
+        let exe = std::env::current_exe()?; // Self-reference for spawning tasks?
+        // Wait, self-referencing implies `ckrv task` is available.
+        // If we are running in `ckrv-ui` binary, we can't assume it supports `task` subcommand.
+        // We must check if we are running `ckrv` CLI or `ckrv-ui`.
+        // If `ckrv-ui` does not support `task` subcommand, we need to find `ckrv` binary.
+        
+        // Try to find ckrv in the same directory as the current executable, or use PATH
+        let ckrv_exe = if let Some(parent) = exe.parent() {
+            let candidate = parent.join("ckrv");
+            if candidate.exists() {
+                candidate
+            } else {
+                PathBuf::from("ckrv")
+            }
+        } else {
+             PathBuf::from("ckrv")
+        };
+
+        let mut completed_batches = HashSet::new();
+        let mut batch_task_map = HashMap::new();
+
+        // Populate initial state from plan (if resuming)
+        for batch in &plan.batches {
+            batch_task_map.insert(batch.id.clone(), batch.task_ids.clone());
+            if batch.status == BatchStatus::Completed {
+                completed_batches.insert(batch.id.clone());
+            }
+        }
+        
+        let count = completed_batches.len();
+        if count > 0 {
+            self.log("info", &format!("Resuming: {} batches already completed", count)).await;
+        }
+
+        let mut pending_batches: VecDeque<_> = plan.batches
+            .iter()
+            .filter(|b| b.status != BatchStatus::Completed)
+            .cloned()
+            .collect();
+            
+        let mut running_futures = FuturesUnordered::new();
+        
+        // Loop until all done
+        while !pending_batches.is_empty() || !running_futures.is_empty() {
+             // 1. Spawn unblocked
+             let mut still_pending = VecDeque::new();
+             
+             while let Some(batch) = pending_batches.pop_front() {
+                 let unblocked = batch.depends_on.iter().all(|d| completed_batches.contains(d));
+                 
+                 if unblocked {
+                     self.log("batch_start", &format!("Spawning batch: {}", batch.name)).await;
+                     
+                     // Update status to running in plan file
+                     self.update_batch_status(&plan_path, &batch.id, BatchStatus::Running, None)?;
+
+                     let batch_clone = batch.clone();
+                     let task_map_clone = task_map.clone();
+                     let exe_path = ckrv_exe.clone();
+                     let project_root = self.project_root.clone();
+                     let executor_model = executor_model.clone();
+                     let sender = self.sender.clone();
+                     
+                     // Spawn the batch execution
+                     running_futures.push(tokio::spawn(async move {
+                         Self::execute_batch(
+                             project_root,
+                             exe_path,
+                             batch_clone,
+                             task_map_clone,
+                             dry_run,
+                             executor_model,
+                             sender
+                         ).await
+                     }));
+                 } else {
+                     still_pending.push_back(batch);
+                 }
+             }
+             pending_batches = still_pending;
+             
+             // 2. Wait for completion
+             if let Some(result) = running_futures.next().await {
+                 // internal join handle result
+                 match result {
+                     Ok(batch_result) => {
+                         match batch_result {
+                             Ok((batch_id, branch_name)) => {
+                                 // Batch succeeded
+                                 self.log("batch_complete", &format!("Batch {} completed on branch {}", batch_id, branch_name)).await;
+                                 
+                                 // Update state
+                                 completed_batches.insert(batch_id.clone());
+                                 
+                                 if !dry_run {
+                                     // Merge Logic Here
+                                     self.merge_batch(&branch_name, &spec_path).await?;
+                                     
+                                     // Mark tasks complete
+                                     if let Some(tids) = batch_task_map.get(&batch_id) {
+                                         self.mark_tasks_complete(&tasks_path, tids)?;
+                                     }
+                                     
+                                     self.update_batch_status(&plan_path, &batch_id, BatchStatus::Completed, Some(&branch_name))?;
+                                 }
+                             },
+                             Err(e) => {
+                                 self.log("batch_error", &format!("Batch failed: {}", e)).await;
+                                 return Err(e);
+                             }
+                         }
+                     },
+                     Err(e) => {
+                         return Err(anyhow!("Task panic: {}", e));
+                     }
+                 }
+             } else if !pending_batches.is_empty() {
+                 return Err(anyhow!("Deadlock: {} batches pending but none can run.", pending_batches.len()));
+             }
+        }
+        
+        self.log("success", "All batches completed successfully.").await;
+        Ok(())
+    }
+    
+    // Separate function to execute a single batch
+    async fn execute_batch(
+        root: PathBuf,
+        exe: PathBuf,
+        batch: Batch,
+        task_map: HashMap<String, SpecTask>,
+        dry_run: bool,
+        executor_model: Option<String>,
+        sender: mpsc::Sender<LogMessage>,
+    ) -> Result<(String, String)> { // Returns (batch_id, branch_name)
+        
+        // Construct description
+        let mut description = format!("MISSION: {}\nREASONING: {}\n\nTASKS:\n", batch.name, batch.reasoning);
+        for id in &batch.task_ids {
+            if let Some(t) = task_map.get(id) {
+                description.push_str(&format!("- [{}]: {} ({})\n", t.id, t.title, t.description));
+            }
+        }
+
+        if dry_run {
+            // Simulate delay
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            return Ok((batch.id, "dry-run-branch".to_string()));
+        }
+
+        // Create Worktree using spawn_blocking to avoid blocking the async runtime
+        // (git2 is synchronous and would otherwise block all async tasks)
+        let root_clone = root.clone();
+        let suffix: String = uuid::Uuid::new_v4().to_string().chars().take(6).collect();
+        let wt_job_id = format!("batch-{}-{}", batch.id, suffix);
+        let wt_job_id_clone = wt_job_id.clone();
+        
+        let worktree = tokio::task::spawn_blocking(move || {
+            let manager = DefaultWorktreeManager::new(&root_clone)
+                .context("Failed to init wt manager")?;
+            manager.create(&wt_job_id_clone, "1")
+                .context("Failed to create worktree")
+        }).await.context("Worktree task panicked")??;
+        
+        let branch_name = worktree.branch.clone();
+
+        
+        // Execute 'ckrv task' in that worktree
+        let batch_run_id = format!("{}-run", batch.id);
+        
+        let mut cmd = AsyncCommand::new(&exe);
+        cmd.arg("task")
+           .arg(&description)
+           .arg("--use-worktree").arg(&worktree.path)
+           .arg("--continue-task").arg(&batch_run_id);
+           
+        if let Some(m) = executor_model.or(batch.model_assignment.default) {
+            cmd.arg("--agent").arg(m);
+        }
+
+        // We should capture stdout/stderr and forward to sender
+        use std::process::Stdio;
+        cmd.stdout(Stdio::piped())
+           .stderr(Stdio::piped())
+           .env("NO_COLOR", "1");
+        
+        let mut child = cmd.spawn()?;
+        
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        
+        let sender_out = sender.clone();
+        let sender_err = sender.clone();
+        
+        // Spawn stdout reader
+        let stdout_handle = if let Some(out) = stdout {
+            Some(tokio::spawn(async move {
+                use tokio::io::{AsyncBufReadExt, BufReader};
+                let mut reader = BufReader::new(out).lines();
+                while let Ok(Some(line)) = reader.next_line().await {
+                    let _ = sender_out.send(LogMessage::new("log", &line)).await;
+                }
+            }))
+        } else {
+            None
+        };
+
+        // Spawn stderr reader
+        let stderr_handle = if let Some(err) = stderr {
+            Some(tokio::spawn(async move {
+                use tokio::io::{AsyncBufReadExt, BufReader};
+                let mut reader = BufReader::new(err).lines();
+                while let Ok(Some(line)) = reader.next_line().await {
+                    let _ = sender_err.send(LogMessage::new("error", &line)).await;
+                }
+            }))
+        } else {
+            None
+        };
+        
+        let status = child.wait().await?;
+        
+        // Wait for I/O to finish
+        if let Some(h) = stdout_handle { let _ = h.await; }
+        if let Some(h) = stderr_handle { let _ = h.await; }
+        
+        if !status.success() {
+            return Err(anyhow!("Task failed with exit code {:?}", status.code()));
+        }
+        
+        // Commit changes inside the worktree
+        AsyncCommand::new("git")
+            .arg("add").arg(".")
+            .current_dir(&worktree.path)
+            .status().await?;
+            
+        let commit_msg = format!("feat(batch): {} - {}", batch.name, batch.id);
+        AsyncCommand::new("git")
+            .args(["commit", "-m", &commit_msg])
+            .current_dir(&worktree.path)
+            .status().await?;
+
+        Ok((batch.id, branch_name))
+    }
+    
+    async fn merge_batch(&self, branch: &str, spec_path: &Path) -> Result<()> {
+        self.log("info", &format!("Merging branch {}", branch)).await;
+        
+        let status = AsyncCommand::new("git")
+            .args(["merge", "--no-ff", "--no-edit", branch])
+            .current_dir(&self.project_root)
+            .status()
+            .await?;
+            
+        if !status.success() {
+            if self.has_merge_conflicts().await {
+                self.log("info", "Merge conflicts detected. Attempting AI resolution...").await;
+                self.resolve_conflicts(branch, spec_path).await?;
+            } else {
+                return Err(anyhow!("Merge failed"));
+            }
+        }
+        Ok(())
+    }
+    
+    async fn has_merge_conflicts(&self) -> bool {
+        let output = AsyncCommand::new("git")
+            .args(["diff", "--name-only", "--diff-filter=U"])
+            .current_dir(&self.project_root)
+            .output().await;
+            
+        match output {
+            Ok(o) => !o.stdout.is_empty(),
+            Err(_) => false,
+        }
+    }
+    
+    async fn resolve_conflicts(&self, branch: &str, spec_path: &Path) -> Result<()> {
+         // Gather conflicts
+         let output = AsyncCommand::new("git")
+            .args(["diff", "--name-only", "--diff-filter=U"])
+            .current_dir(&self.project_root)
+            .output().await?;
+        
+        let files = String::from_utf8_lossy(&output.stdout);
+        let file_list: Vec<&str> = files.lines().collect();
+        
+        if file_list.is_empty() { return Ok(()); }
+        
+        // Prompt construction
+        let spec_content = std::fs::read_to_string(spec_path).unwrap_or_default();
+        let prompt = format!(
+            "You are resolving Git merge conflicts for files: {:?}.\nSpec: {}\n\nResolve markers <<<<<<< ======= >>>>>>> and stage files.",
+            file_list, spec_content
+        );
+
+        // Run Claude Code in Sandbox
+        // We use ckrv-sandbox here
+        let sandbox = DockerSandbox::new(DefaultAllowList::default())
+             .context("Failed to create sandbox")?;
+             
+        let escaped_prompt = shell_escape::escape(prompt.into());
+        let command = format!(
+            "echo {} | claude -p - --dangerously-skip-permissions", 
+            escaped_prompt
+        );
+        
+        let config = ExecuteConfig::new("", self.project_root.clone())
+            .shell(&command)
+            .with_timeout(Duration::from_secs(300));
+            
+        let result = sandbox.execute(config).await
+            .context("Sandbox execution failed")?;
+            
+        if !result.success() {
+             self.log("error", &format!("AI conflict resolution failed: {}", result.stderr)).await;
+        }
+        
+        if self.has_merge_conflicts().await {
+            return Err(anyhow!("AI could not resolve all conflicts"));
+        }
+        
+        // Commit
+        AsyncCommand::new("git")
+             .args(["commit", "--no-edit"])
+             .current_dir(&self.project_root)
+             .status().await?;
+             
+        Ok(())
+    }
+
+    fn update_batch_status(&self, plan_path: &Path, batch_id: &str, status: BatchStatus, branch: Option<&str>) -> Result<()> {
+        let content = std::fs::read_to_string(plan_path)?;
+        let mut plan: ExecutionPlan = serde_yaml::from_str(&content)?;
+        
+        for batch in &mut plan.batches {
+            if batch.id == batch_id {
+                batch.status = status.clone();
+                if let Some(b) = branch {
+                    batch.branch = Some(b.to_string());
+                }
+            }
+        }
+        
+        // This helper fn serialization is needed?
+        // Let's just use serde_yaml directly for now
+        let yaml = serde_yaml::to_string(&plan)?;
+        std::fs::write(plan_path, yaml)?;
+        Ok(())
+    }
+    
+    fn mark_tasks_complete(&self, tasks_path: &Path, ids: &[String]) -> Result<()> {
+        let content = std::fs::read_to_string(tasks_path)?;
+        let mut file: TaskFile = serde_yaml::from_str(&content)?;
+        let mut updated = false;
+        
+        for task in &mut file.tasks {
+            if ids.contains(&task.id) {
+                task.status = "completed".to_string();
+                updated = true;
+            }
+        }
+        
+        if updated {
+            std::fs::write(tasks_path, serde_yaml::to_string(&file)?)?;
+        }
+        Ok(())
+    }
+}

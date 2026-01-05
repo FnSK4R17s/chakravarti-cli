@@ -7,6 +7,7 @@ use bollard::container::{
     Config, CreateContainerOptions, LogOutput, LogsOptions, RemoveContainerOptions,
     StartContainerOptions, WaitContainerOptions,
 };
+use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::image::CreateImageOptions;
 use bollard::models::{HostConfig, Mount, MountTypeEnum};
 use bollard::Docker;
@@ -204,33 +205,12 @@ impl DockerClient {
             .start_container(&container.id, None::<StartContainerOptions<String>>)
             .await
             .map_err(|e| SandboxError::ContainerStartFailed(e.to_string()))?;
-
-        // Wait for container with timeout
-        let wait_options = Some(WaitContainerOptions {
-            condition: "not-running",
-        });
-
+        
         let start_time = std::time::Instant::now();
-        let exit_code = tokio::select! {
-            result = async {
-                let mut stream = self.client.wait_container(&container.id, wait_options);
-                if let Some(Ok(response)) = stream.next().await {
-                    response.status_code
-                } else {
-                    -1
-                }
-            } => result,
-            _ = tokio::time::sleep(timeout) => {
-                // Kill on timeout
-                let _ = self.client.kill_container::<String>(&container.id, None).await;
-                -1
-            }
-        };
 
-        let duration = start_time.elapsed();
-
-        // Get logs
+        // Get logs with following enabled for real-time streaming
         let log_options = Some(LogsOptions::<String> {
+            follow: true,
             stdout: true,
             stderr: true,
             ..Default::default()
@@ -239,18 +219,66 @@ impl DockerClient {
         let mut stdout = String::new();
         let mut stderr = String::new();
 
-        let mut log_stream = self.client.logs(&container.id, log_options);
-        while let Some(Ok(log)) = log_stream.next().await {
-            match log {
-                LogOutput::StdOut { message } => {
-                    stdout.push_str(&String::from_utf8_lossy(&message));
-                }
-                LogOutput::StdErr { message } => {
-                    stderr.push_str(&String::from_utf8_lossy(&message));
-                }
-                _ => {}
+        // Spawn a task to wait for the container exit code independently
+        let client_clone = self.client.clone();
+        let container_id_clone = container.id.clone();
+        
+        let wait_handle = tokio::spawn(async move {
+            let wait_options = Some(WaitContainerOptions {
+                 condition: "not-running",
+            });
+            let mut stream = client_clone.wait_container(&container_id_clone, wait_options);
+            if let Some(Ok(response)) = stream.next().await {
+                 response.status_code
+            } else {
+                 -1
             }
+        });
+
+        // Stream logs in the main task
+        let mut log_stream = self.client.logs(&container.id, log_options);
+        
+        // Use a timeout for the *entire* execution, not just wait
+        let log_collection = async {
+            // Import Write trait for flush
+            use std::io::Write;
+            while let Some(Ok(log)) = log_stream.next().await {
+                match log {
+                    LogOutput::StdOut { message } => {
+                        let s = String::from_utf8_lossy(&message);
+                        print!("{}", s); // Stream to parent stdout
+                        let _ = std::io::stdout().flush(); // Force flush
+                        stdout.push_str(&s);
+                    }
+                    LogOutput::StdErr { message } => {
+                        let s = String::from_utf8_lossy(&message);
+                        eprint!("{}", s); // Stream to parent stderr
+                        let _ = std::io::stderr().flush(); // Force flush
+                        stderr.push_str(&s);
+                    }
+                    _ => {}
+                }
+            }
+        };
+
+        // Run log collection with timeout
+        if let Err(_) = tokio::time::timeout(timeout, log_collection).await {
+             // Timeout occurred
+             let _ = self.client.kill_container::<String>(&container.id, None).await;
         }
+        
+        // Now wait for the exit code (it should be ready or close to ready)
+        // We wrap this in a short timeout just in case
+        let exit_code = match tokio::time::timeout(Duration::from_secs(5), wait_handle).await {
+            Ok(Ok(code)) => code,
+            _ => {
+                 // Force kill if still running after log stream ended/timeout
+                 let _ = self.client.kill_container::<String>(&container.id, None).await;
+                 -1
+            }
+        };
+
+        let duration = start_time.elapsed();
 
         // Cleanup container (unless keep_container is set)
         if keep_container {
@@ -277,6 +305,138 @@ impl DockerClient {
             stderr,
             duration_ms: duration.as_millis() as u64,
         })
+    }
+    pub async fn create_session(
+        &self,
+        workdir: &str,
+        mount_source: &str,
+        mount_target: &str,
+        env: HashMap<String, String>,
+    ) -> Result<String, SandboxError> {
+        let image = &self.default_image;
+        self.ensure_image(image).await?;
+        let container_name = format!("ckrv-session-{}", uuid::Uuid::new_v4());
+
+        // Prepare Env and Mounts
+        let mut env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
+        let host_home = std::env::var("HOME").unwrap_or_default();
+        let container_home = "/home/claude".to_string();
+        env_vec.push(format!("HOME={}", container_home));
+
+        let mut mounts = vec![
+            Mount {
+                target: Some(mount_target.to_string()),
+                source: Some(mount_source.to_string()),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false),
+                ..Default::default()
+            },
+        ];
+
+        let claude_config = format!("{}/.claude.json", host_home);
+        if std::path::Path::new(&claude_config).exists() {
+             mounts.push(Mount {
+                target: Some(format!("{}/.claude.json", container_home)),
+                source: Some(claude_config),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false),
+                ..Default::default()
+            });
+        }
+        let claude_dir = format!("{}/.claude", host_home);
+        if std::path::Path::new(&claude_dir).exists() {
+            mounts.push(Mount {
+                target: Some(format!("{}/.claude", container_home)),
+                source: Some(claude_dir),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false),
+                ..Default::default()
+            });
+        }
+
+        let config = Config {
+            image: Some(image.to_string()),
+            cmd: Some(vec!["tail".to_string(), "-f".to_string(), "/dev/null".to_string()]), 
+            working_dir: Some(workdir.to_string()),
+            env: Some(env_vec),
+            host_config: Some(HostConfig {
+                mounts: Some(mounts),
+                network_mode: Some("host".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let options = Some(CreateContainerOptions {
+            name: container_name.clone(),
+            platform: None,
+        });
+
+        let container = self.client.create_container(options, config).await
+            .map_err(|e| SandboxError::ContainerCreateFailed(e.to_string()))?;
+        
+        self.client.start_container(&container.id, None::<StartContainerOptions<String>>).await
+            .map_err(|e| SandboxError::ContainerStartFailed(e.to_string()))?;
+
+        Ok(container.id)
+    }
+
+    /// Execute a command in an existing session container.
+    /// Supports interactive commands via PTY allocation.
+    pub async fn exec_in_session(
+        &self,
+        container_id: &str,
+        command: Vec<String>,
+        _env: HashMap<String, String>,
+    ) -> Result<ExecutionOutput, SandboxError> {
+        let exec_config = CreateExecOptions {
+            attach_stdout: Some(true),
+            attach_stderr: Some(true),
+            attach_stdin: Some(true),
+            tty: Some(true), // Allocate PTY for interactive commands
+            cmd: Some(command),
+            ..Default::default()
+        };
+
+        let exec = self.client.create_exec(container_id, exec_config).await
+            .map_err(|e| SandboxError::ExecutionFailed(format!("Create exec failed: {}", e)))?;
+
+        let stream = self.client.start_exec(&exec.id, None).await
+            .map_err(|e| SandboxError::ExecutionFailed(format!("Start exec failed: {}", e)))?;
+
+        let mut stdout = String::new();
+        let start_time = std::time::Instant::now();
+
+        // With TTY enabled, both stdout and stderr come through the same stream
+        if let StartExecResults::Attached { mut output, .. } = stream {
+             while let Some(Ok(msg)) = output.next().await {
+                match msg {
+                    LogOutput::StdOut { message } => stdout.push_str(&String::from_utf8_lossy(&message)),
+                    LogOutput::StdErr { message } => stdout.push_str(&String::from_utf8_lossy(&message)),
+                    LogOutput::Console { message } => stdout.push_str(&String::from_utf8_lossy(&message)),
+                    _ => {}
+                }
+             }
+        }
+
+        let duration = start_time.elapsed();
+        
+        let inspect = self.client.inspect_exec(&exec.id).await
+             .map_err(|e| SandboxError::ExecutionFailed(format!("Inspect exec failed: {}", e)))?;
+
+        Ok(ExecutionOutput {
+            exit_code: inspect.exit_code.unwrap_or(-1) as i32,
+            stdout,
+            stderr: String::new(), // With TTY, stderr is merged into stdout
+            duration_ms: duration.as_millis() as u64,
+        })
+    }
+
+    /// Stop and remove a session container.
+    pub async fn stop_session(&self, container_id: &str) -> Result<(), SandboxError> {
+        self.client.remove_container(container_id, Some(RemoveContainerOptions { force: true, ..Default::default() })).await
+            .map_err(|e| SandboxError::ExecutionFailed(format!("Failed to remove session: {}", e)))?;
+        Ok(())
     }
 }
 

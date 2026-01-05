@@ -65,6 +65,10 @@ pub struct AgentConfig {
     /// Agent type
     #[serde(default)]
     pub agent_type: AgentType,
+    /// Capability level (1-5, where 5 is strongest/most capable)
+    /// Used for task-to-agent matching based on complexity
+    #[serde(default = "default_level")]
+    pub level: u8,
     /// Whether this is the default agent
     #[serde(default)]
     pub is_default: bool,
@@ -83,6 +87,10 @@ pub struct AgentConfig {
     pub env_vars: Option<HashMap<String, String>>,
 }
 
+fn default_level() -> u8 {
+    3 // Default to mid-tier
+}
+
 fn default_enabled() -> bool {
     true
 }
@@ -95,7 +103,10 @@ pub struct AgentsFile {
 
 /// Get the path to the agents config file
 fn get_agents_path(state: &AppState) -> PathBuf {
-    state.project_root.join(".chakravarti").join("agents.yaml")
+    // Proactively use global config path to avoid storing secrets in repo
+    dirs::config_dir()
+        .map(|d| d.join("chakravarti").join("agents.yaml"))
+        .unwrap_or_else(|| state.project_root.join(".chakravarti").join("agents.yaml"))
 }
 
 /// Ensure default agents exist
@@ -106,6 +117,7 @@ fn ensure_defaults(agents: &mut AgentsFile) {
             id: "claude-default".to_string(),
             name: "Claude Code".to_string(),
             agent_type: AgentType::Claude,
+            level: 5, // Default Claude is strongest
             is_default: true,
             enabled: true,
             description: Some("Default Claude Code CLI agent".to_string()),
@@ -159,7 +171,7 @@ pub async fn list_agents(State(state): State<AppState>) -> impl IntoResponse {
 }
 
 /// Get available models from OpenRouter
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct OpenRouterModel {
     pub id: String,
     pub name: String,
@@ -168,10 +180,184 @@ pub struct OpenRouterModel {
     pub pricing: Option<String>,
 }
 
-/// Get popular models for OpenRouter
+/// OpenRouter API response structure
+#[derive(Debug, Deserialize)]
+struct OpenRouterApiResponse {
+    data: Vec<OpenRouterApiModel>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterApiModel {
+    id: String,
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    context_length: Option<u32>,
+    #[serde(default)]
+    pricing: Option<OpenRouterApiPricing>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterApiPricing {
+    prompt: Option<String>,
+    completion: Option<String>,
+}
+
+/// Format pricing as a human-readable string
+fn format_pricing(pricing: &OpenRouterApiPricing) -> String {
+    let prompt = pricing.prompt.as_deref().unwrap_or("0");
+    let completion = pricing.completion.as_deref().unwrap_or("0");
+    
+    // Convert from per-token to per-million tokens
+    let prompt_f: f64 = prompt.parse().unwrap_or(0.0) * 1_000_000.0;
+    let completion_f: f64 = completion.parse().unwrap_or(0.0) * 1_000_000.0;
+    
+    if prompt_f == 0.0 && completion_f == 0.0 {
+        "Free".to_string()
+    } else {
+        format!("${:.2}/${:.2} per 1M tokens", prompt_f, completion_f)
+    }
+}
+
+/// Filter to only include models suitable for coding tasks
+fn is_coding_model(model: &OpenRouterApiModel) -> bool {
+    let id = model.id.to_lowercase();
+    
+    // Include models from known good providers for coding
+    let coding_providers = [
+        "anthropic/claude",
+        "openai/gpt-4",
+        "openai/gpt-3.5",
+        "openai/o1",
+        "openai/o3",
+        "openai/o4",
+        "google/gemini",
+        "deepseek/",
+        "qwen/",
+        "meta-llama/",
+        "mistralai/",
+        "minimax/",
+        "moonshot/",
+        "x-ai/grok",
+        "z-ai/glm",          // Z.AI / Zhipu GLM models
+        "zhipu/glm",
+        "thudm/glm",         // THUDM GLM models
+        "cohere/command",
+        "nvidia/",           // NVIDIA models
+        "01-ai/",            // Yi models
+        "alibaba/",          // Alibaba models
+        "bytedance/",        // ByteDance models  
+        "amazon/",           // Amazon models
+        "ai21/",             // AI21 models
+        "inflection/",       // Inflection models
+        "perplexity/",       // Perplexity models
+        "databricks/",       // Databricks models
+    ];
+    
+    // Exclude models that are primarily for chat/roleplay
+    let exclude_patterns = [
+        "mythomax",
+        "roleplay",
+        "remm",
+        "weaver",
+        "fimbulvetr",
+        "noromaid",
+        "psyfighter",
+        "toppy",
+    ];
+    
+    let is_from_good_provider = coding_providers.iter().any(|p| id.contains(p));
+    let is_excluded = exclude_patterns.iter().any(|p| id.contains(p));
+    
+    is_from_good_provider && !is_excluded
+}
+
+/// Get models from OpenRouter API dynamically
 pub async fn get_openrouter_models() -> impl IntoResponse {
-    // Curated list of popular coding models on OpenRouter
-    let models = vec![
+    // Try to fetch from OpenRouter API
+    match fetch_openrouter_models().await {
+        Ok(models) => Json(serde_json::json!({
+            "success": true,
+            "models": models,
+            "source": "openrouter_api"
+        })),
+        Err(e) => {
+            eprintln!("Failed to fetch OpenRouter models: {}", e);
+            // Return fallback curated list
+            let fallback = get_fallback_models();
+            Json(serde_json::json!({
+                "success": true,
+                "models": fallback,
+                "source": "fallback",
+                "warning": format!("Could not fetch from OpenRouter API: {}", e)
+            }))
+        }
+    }
+}
+
+/// Fetch models from OpenRouter API
+async fn fetch_openrouter_models() -> Result<Vec<OpenRouterModel>, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    
+    let response = client
+        .get("https://openrouter.ai/api/v1/models")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch models: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("OpenRouter API returned status: {}", response.status()));
+    }
+    
+    let api_response: OpenRouterApiResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+    
+    // Transform all models (no filtering)
+    let models: Vec<OpenRouterModel> = api_response
+        .data
+        .into_iter()
+        .map(|m| {
+            let pricing = m.pricing.as_ref().map(format_pricing);
+            OpenRouterModel {
+                id: m.id.clone(),
+                name: m.name.clone(),
+                description: m.description.unwrap_or_default(),
+                context_length: m.context_length,
+                pricing,
+            }
+        })
+        .collect();
+    
+    // Sort by popularity/relevance (Claude and GPT models first)
+    let mut sorted_models = models;
+    sorted_models.sort_by(|a, b| {
+        let priority = |id: &str| -> i32 {
+            if id.contains("anthropic/claude-sonnet-4") { return 0; }
+            if id.contains("anthropic/claude-opus-4") { return 1; }
+            if id.contains("anthropic/claude") { return 2; }
+            if id.contains("openai/gpt-4") { return 3; }
+            if id.contains("openai/o3") { return 4; }
+            if id.contains("google/gemini") { return 5; }
+            if id.contains("deepseek") { return 6; }
+            if id.contains("qwen") { return 7; }
+            10
+        };
+        priority(&a.id).cmp(&priority(&b.id))
+    });
+    
+    Ok(sorted_models)
+}
+
+/// Fallback curated list if API fails
+fn get_fallback_models() -> Vec<OpenRouterModel> {
+    vec![
         OpenRouterModel {
             id: "anthropic/claude-sonnet-4".to_string(),
             name: "Claude Sonnet 4".to_string(),
@@ -194,46 +380,11 @@ pub async fn get_openrouter_models() -> impl IntoResponse {
             pricing: Some("$1.25/$10 per 1M tokens".to_string()),
         },
         OpenRouterModel {
-            id: "moonshot/kimi-k2".to_string(),
-            name: "Kimi K2".to_string(),
-            description: "Moonshot's Kimi K2 - strong coding model".to_string(),
-            context_length: Some(131072),
-            pricing: Some("$0.60/$2.40 per 1M tokens".to_string()),
-        },
-        OpenRouterModel {
-            id: "minimax/minimax-m1".to_string(),
-            name: "MiniMax M1".to_string(),
-            description: "MiniMax's coding-focused model".to_string(),
-            context_length: Some(1000000),
-            pricing: Some("$0.40/$1.60 per 1M tokens".to_string()),
-        },
-        OpenRouterModel {
             id: "deepseek/deepseek-r1".to_string(),
             name: "DeepSeek R1".to_string(),
             description: "DeepSeek's reasoning model with chain-of-thought".to_string(),
             context_length: Some(64000),
             pricing: Some("$0.55/$2.19 per 1M tokens".to_string()),
-        },
-        OpenRouterModel {
-            id: "deepseek/deepseek-chat".to_string(),
-            name: "DeepSeek V3".to_string(),
-            description: "DeepSeek's latest chat model".to_string(),
-            context_length: Some(64000),
-            pricing: Some("$0.27/$1.10 per 1M tokens".to_string()),
-        },
-        OpenRouterModel {
-            id: "qwen/qwen3-235b-a22b".to_string(),
-            name: "Qwen 3 235B".to_string(),
-            description: "Alibaba's Qwen 3 large model".to_string(),
-            context_length: Some(131072),
-            pricing: Some("$0.14/$0.50 per 1M tokens".to_string()),
-        },
-        OpenRouterModel {
-            id: "zhipu/glm-4-long".to_string(),
-            name: "GLM-4 Long".to_string(),
-            description: "Zhipu's GLM-4 with long context".to_string(),
-            context_length: Some(1000000),
-            pricing: Some("$0.14/$0.28 per 1M tokens".to_string()),
         },
         OpenRouterModel {
             id: "openai/gpt-4.1".to_string(),
@@ -242,26 +393,7 @@ pub async fn get_openrouter_models() -> impl IntoResponse {
             context_length: Some(1047576),
             pricing: Some("$2/$8 per 1M tokens".to_string()),
         },
-        OpenRouterModel {
-            id: "openai/o3".to_string(),
-            name: "OpenAI o3".to_string(),
-            description: "OpenAI's o3 reasoning model".to_string(),
-            context_length: Some(200000),
-            pricing: Some("$2/$8 per 1M tokens".to_string()),
-        },
-        OpenRouterModel {
-            id: "meta-llama/llama-4-maverick".to_string(),
-            name: "Llama 4 Maverick".to_string(),
-            description: "Meta's Llama 4 Maverick model".to_string(),
-            context_length: Some(1000000),
-            pricing: Some("$0.19/$0.49 per 1M tokens".to_string()),
-        },
-    ];
-    
-    Json(serde_json::json!({
-        "success": true,
-        "models": models
-    }))
+    ]
 }
 
 /// Create or update an agent

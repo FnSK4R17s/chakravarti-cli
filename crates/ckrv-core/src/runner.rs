@@ -26,6 +26,12 @@ pub struct RunnerConfig {
     pub sandbox_image: Option<String>,
     /// Keep Docker container after execution (for debugging).
     pub keep_container: bool,
+    /// OpenRouter API key (for Claude Code + OpenRouter mode).
+    pub openrouter_api_key: Option<String>,
+    /// OpenRouter model ID (for Claude Code + OpenRouter mode).
+    pub openrouter_model: Option<String>,
+    /// OpenRouter base URL (defaults to https://openrouter.ai/api).
+    pub openrouter_base_url: Option<String>,
 }
 
 impl Default for RunnerConfig {
@@ -37,6 +43,9 @@ impl Default for RunnerConfig {
             use_sandbox: false,
             sandbox_image: None,
             keep_container: false,
+            openrouter_api_key: None,
+            openrouter_model: None,
+            openrouter_base_url: None,
         }
     }
 }
@@ -278,19 +287,46 @@ impl WorkflowRunner {
 
         // Build the claude command with tools enabled for actual file operations
         // Using --dangerously-skip-permissions because we're running in a controlled task workspace
-        let output = Command::new(&agent_path)
-            .args([
-                "-p",
-                prompt,
-                "--output-format",
-                "text",
-                "--dangerously-skip-permissions",
-            ])
-            .current_dir(workdir)
-            .output()
-            .map_err(|e| {
-                RunnerError::AgentError(format!("Failed to spawn {}: {}", agent_path, e))
-            })?;
+        let mut cmd = Command::new(&agent_path);
+        cmd.args([
+            "-p",
+            prompt,
+            "--output-format",
+            "text",
+            "--dangerously-skip-permissions",
+        ]);
+        cmd.current_dir(workdir);
+
+        // Set OpenRouter environment variables if configured
+        // Per https://openrouter.ai/docs/guides/guides/claude-code-integration
+        if let Some(ref api_key) = self.config.openrouter_api_key {
+            let base_url = self.config.openrouter_base_url
+                .as_deref()
+                .unwrap_or("https://openrouter.ai/api");
+            
+            tracing::info!(
+                base_url = %base_url,
+                model = ?self.config.openrouter_model,
+                "Using OpenRouter for Claude Code"
+            );
+
+            // Required env vars for OpenRouter
+            cmd.env("ANTHROPIC_BASE_URL", base_url);
+            cmd.env("ANTHROPIC_AUTH_TOKEN", api_key);
+            cmd.env("ANTHROPIC_API_KEY", ""); // Must be explicitly empty!
+
+            // Optional: override default model
+            if let Some(ref model) = self.config.openrouter_model {
+                // Set all tiers to the same model for consistency
+                cmd.env("ANTHROPIC_DEFAULT_SONNET_MODEL", model);
+                cmd.env("ANTHROPIC_DEFAULT_OPUS_MODEL", model);
+                cmd.env("ANTHROPIC_DEFAULT_HAIKU_MODEL", model);
+            }
+        }
+
+        let output = cmd.output().map_err(|e| {
+            RunnerError::AgentError(format!("Failed to spawn {}: {}", agent_path, e))
+        })?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -332,10 +368,35 @@ impl WorkflowRunner {
         );
 
         // Configure execution
-        let config = ExecuteConfig::new("", workdir.to_path_buf())
+        let mut config = ExecuteConfig::new("", workdir.to_path_buf())
             .shell(&command)
             .with_timeout(Duration::from_secs(self.config.step_timeout_secs))
             .with_keep_container(self.config.keep_container);
+
+        // Add OpenRouter environment variables if configured
+        if let Some(ref api_key) = self.config.openrouter_api_key {
+            let base_url = self.config.openrouter_base_url
+                .as_deref()
+                .unwrap_or("https://openrouter.ai/api");
+
+            tracing::info!(
+                base_url = %base_url,
+                model = ?self.config.openrouter_model,
+                "Using OpenRouter for Claude Code in sandbox"
+            );
+
+            config = config
+                .env("ANTHROPIC_BASE_URL", base_url)
+                .env("ANTHROPIC_AUTH_TOKEN", api_key)
+                .env("ANTHROPIC_API_KEY", ""); // Must be explicitly empty!
+
+            if let Some(ref model) = self.config.openrouter_model {
+                config = config
+                    .env("ANTHROPIC_DEFAULT_SONNET_MODEL", model)
+                    .env("ANTHROPIC_DEFAULT_OPUS_MODEL", model)
+                    .env("ANTHROPIC_DEFAULT_HAIKU_MODEL", model);
+            }
+        }
 
         // Execute in sandbox
         let result = sandbox

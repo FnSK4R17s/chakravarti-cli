@@ -18,20 +18,8 @@ pub struct StoredTokens {
 
 /// Store tokens securely using system keychain or fallback to file
 pub fn store_tokens(tokens: &StoredTokens) -> Result<(), CloudError> {
-    let json = serde_json::to_string(tokens)
-        .map_err(|e| CloudError::CredentialError(e.to_string()))?;
-    
-    // Try keyring first
-    match keyring::Entry::new(SERVICE_NAME, USERNAME) {
-        Ok(entry) => {
-            if entry.set_password(&json).is_ok() {
-                return Ok(());
-            }
-        }
-        Err(_) => {}
-    }
-    
-    // Fallback to encrypted file
+    // WSL/Linux often doesn't have a working keyring, so always use file storage
+    // to ensure tokens are persisted reliably
     store_tokens_file(tokens)
 }
 

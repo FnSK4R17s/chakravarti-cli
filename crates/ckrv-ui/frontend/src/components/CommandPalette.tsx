@@ -1,9 +1,9 @@
 import React, { useState, createContext, useContext } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { 
-    Play, FileText, GitBranch, Rocket, Terminal, 
+import {
+    Play, FileText, GitBranch, Rocket, Terminal,
     ChevronRight, Loader2, X, Sparkles,
-    GitCompare, ShieldCheck, ExternalLink
+    GitCompare, ShieldCheck, ExternalLink, ClipboardList
 } from 'lucide-react';
 
 // Context for sharing command results with LogViewer
@@ -14,7 +14,7 @@ interface CommandResultContextType {
 
 export const CommandResultContext = createContext<CommandResultContextType>({
     lastResult: null,
-    setLastResult: () => {},
+    setLastResult: () => { },
 });
 
 export const useCommandResult = () => useContext(CommandResultContext);
@@ -96,12 +96,12 @@ export const CommandPalette: React.FC = () => {
     const tasks = tasksData?.tasks ?? [];
     const hasTasks = tasks.length > 0;
     const pendingTasks = tasks.filter(t => t.status !== 'completed').length;
-    
+
     // Check if any spec has completed implementation (code merged and ready for review)
     const hasImplementation = specs.some(s => s.has_implementation);
 
     const runCommand = async (endpoint: string, body?: object): Promise<CommandResult> => {
-        const res = await fetch(`/api/command/${endpoint}`, { 
+        const res = await fetch(`/api/command/${endpoint}`, {
             method: 'POST',
             headers: body ? { 'Content-Type': 'application/json' } : undefined,
             body: body ? JSON.stringify(body) : undefined,
@@ -122,7 +122,7 @@ export const CommandPalette: React.FC = () => {
     });
 
     const specNewMutation = useMutation({
-        mutationFn: (params: { description: string; name?: string }) => 
+        mutationFn: (params: { description: string; name?: string }) =>
             runCommand('spec-new', params),
         onSuccess: (data) => {
             setLastResult({ command: 'spec-new', result: data });
@@ -144,6 +144,18 @@ export const CommandPalette: React.FC = () => {
         },
         onError: () => {
             setLastResult({ command: 'spec-tasks', result: { success: false, message: 'Failed to generate tasks' } });
+        }
+    });
+
+    const planMutation = useMutation({
+        mutationFn: () => runCommand('run', { dry_run: true }),
+        onSuccess: (data) => {
+            setLastResult({ command: 'plan', result: data });
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['specs'] });
+        },
+        onError: () => {
+            setLastResult({ command: 'plan', result: { success: false, message: 'Failed to run plan (dry-run)' } });
         }
     });
 
@@ -227,6 +239,17 @@ export const CommandPalette: React.FC = () => {
             color: 'amber' as const,
         },
         {
+            id: 'plan',
+            icon: <ClipboardList size={16} />,
+            label: 'Plan',
+            description: `Preview execution without running agents`,
+            command: 'ckrv run --dry-run',
+            action: () => planMutation.mutate(),
+            loading: planMutation.isPending,
+            disabled: !isInitialized || !hasTasks || hasImplementation,
+            color: 'cyan' as const,
+        },
+        {
             id: 'run',
             icon: <Rocket size={16} />,
             label: 'Run',
@@ -274,22 +297,22 @@ export const CommandPalette: React.FC = () => {
 
     return (
         <>
-            <div 
+            <div
                 className="rounded-lg overflow-hidden flex flex-col"
-                style={{ 
+                style={{
                     background: 'var(--bg-secondary)',
                     border: '1px solid var(--border-subtle)',
                     maxHeight: '500px',
                 }}
             >
                 {/* Header */}
-                <div 
+                <div
                     className="px-4 py-3 flex items-center justify-between shrink-0"
                     style={{ borderBottom: '1px solid var(--border-subtle)' }}
                 >
                     <div className="flex items-center gap-2">
                         <Terminal size={16} style={{ color: 'var(--accent-cyan)' }} />
-                        <h3 
+                        <h3
                             className="font-semibold text-sm"
                             style={{ color: 'var(--text-primary)' }}
                         >
@@ -309,9 +332,9 @@ export const CommandPalette: React.FC = () => {
                 </div>
 
                 {/* Terminal Hint */}
-                <div 
+                <div
                     className="px-4 py-2 text-xs shrink-0 truncate"
-                    style={{ 
+                    style={{
                         background: 'var(--bg-tertiary)',
                         color: 'var(--text-muted)',
                         borderTop: '1px solid var(--border-subtle)'
@@ -323,7 +346,7 @@ export const CommandPalette: React.FC = () => {
 
             {/* New Spec Modal */}
             {showSpecModal && (
-                <SpecNewModal 
+                <SpecNewModal
                     onClose={() => setShowSpecModal(false)}
                     onSubmit={(description) => specNewMutation.mutate({ description })}
                     isLoading={specNewMutation.isPending}
@@ -350,39 +373,39 @@ const SpecNewModal: React.FC<SpecNewModalProps> = ({ onClose, onSubmit, isLoadin
     };
 
     return (
-        <div 
+        <div
             className="fixed inset-0 flex items-center justify-center z-50"
             style={{ background: 'rgba(0, 0, 0, 0.7)' }}
             onClick={onClose}
         >
-            <div 
+            <div
                 className="w-full max-w-lg mx-4 rounded-xl overflow-hidden shadow-2xl"
-                style={{ 
+                style={{
                     background: 'var(--bg-secondary)',
                     border: '1px solid var(--border-default)'
                 }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Modal Header */}
-                <div 
+                <div
                     className="px-6 py-4 flex items-center justify-between"
                     style={{ borderBottom: '1px solid var(--border-subtle)' }}
                 >
                     <div className="flex items-center gap-3">
-                        <div 
+                        <div
                             className="p-2 rounded-lg"
                             style={{ background: 'var(--accent-green-dim)' }}
                         >
                             <Sparkles size={20} style={{ color: 'var(--accent-green)' }} />
                         </div>
                         <div>
-                            <h2 
+                            <h2
                                 className="font-semibold text-lg"
                                 style={{ color: 'var(--text-primary)' }}
                             >
                                 New Specification
                             </h2>
-                            <p 
+                            <p
                                 className="text-xs"
                                 style={{ color: 'var(--text-muted)' }}
                             >
@@ -390,7 +413,7 @@ const SpecNewModal: React.FC<SpecNewModalProps> = ({ onClose, onSubmit, isLoadin
                             </p>
                         </div>
                     </div>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="p-2 rounded-lg transition-colors hover:bg-opacity-50"
                         style={{ color: 'var(--text-muted)' }}
@@ -403,14 +426,14 @@ const SpecNewModal: React.FC<SpecNewModalProps> = ({ onClose, onSubmit, isLoadin
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {/* Description Input */}
                     <div className="space-y-2">
-                        <label 
+                        <label
                             className="text-sm font-medium flex items-center gap-2"
                             style={{ color: 'var(--text-primary)' }}
                         >
                             Description
-                            <span 
+                            <span
                                 className="text-xs font-normal px-1.5 py-0.5 rounded"
-                                style={{ 
+                                style={{
                                     background: 'var(--accent-amber-dim)',
                                     color: 'var(--accent-amber)'
                                 }}
@@ -424,7 +447,7 @@ const SpecNewModal: React.FC<SpecNewModalProps> = ({ onClose, onSubmit, isLoadin
                             placeholder="e.g., Add user authentication with OAuth2 support"
                             rows={3}
                             className="w-full px-4 py-3 rounded-lg text-sm resize-none focus:outline-none transition-all"
-                            style={{ 
+                            style={{
                                 background: 'var(--bg-tertiary)',
                                 border: '1px solid var(--border-subtle)',
                                 color: 'var(--text-primary)',
@@ -439,7 +462,7 @@ const SpecNewModal: React.FC<SpecNewModalProps> = ({ onClose, onSubmit, isLoadin
                             }}
                             autoFocus
                         />
-                        <p 
+                        <p
                             className="text-xs"
                             style={{ color: 'var(--text-muted)' }}
                         >
@@ -453,7 +476,7 @@ const SpecNewModal: React.FC<SpecNewModalProps> = ({ onClose, onSubmit, isLoadin
                             type="button"
                             onClick={onClose}
                             className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                            style={{ 
+                            style={{
                                 color: 'var(--text-secondary)',
                                 background: 'var(--bg-tertiary)',
                                 border: '1px solid var(--border-subtle)'
@@ -465,12 +488,12 @@ const SpecNewModal: React.FC<SpecNewModalProps> = ({ onClose, onSubmit, isLoadin
                             type="submit"
                             disabled={!description.trim() || isLoading}
                             className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all"
-                            style={{ 
-                                background: description.trim() && !isLoading 
-                                    ? 'var(--accent-green)' 
+                            style={{
+                                background: description.trim() && !isLoading
+                                    ? 'var(--accent-green)'
                                     : 'var(--bg-tertiary)',
-                                color: description.trim() && !isLoading 
-                                    ? 'var(--bg-primary)' 
+                                color: description.trim() && !isLoading
+                                    ? 'var(--bg-primary)'
                                     : 'var(--text-muted)',
                                 border: '1px solid transparent',
                                 cursor: !description.trim() || isLoading ? 'not-allowed' : 'pointer',
@@ -493,9 +516,9 @@ const SpecNewModal: React.FC<SpecNewModalProps> = ({ onClose, onSubmit, isLoadin
                 </form>
 
                 {/* Footer hint */}
-                <div 
+                <div
                     className="px-6 py-3 text-xs font-mono"
-                    style={{ 
+                    style={{
                         background: 'var(--bg-tertiary)',
                         color: 'var(--text-muted)',
                         borderTop: '1px solid var(--border-subtle)'
@@ -519,8 +542,8 @@ interface CommandButtonProps {
     color: 'cyan' | 'green' | 'amber' | 'purple';
 }
 
-const CommandButton: React.FC<CommandButtonProps> = ({ 
-    icon, label, description, command, action, disabled, loading, color 
+const CommandButton: React.FC<CommandButtonProps> = ({
+    icon, label, description, command, action, disabled, loading, color
 }) => {
     const colorMap = {
         cyan: { accent: 'var(--accent-cyan)', dim: 'var(--accent-cyan-dim)' },
@@ -536,7 +559,7 @@ const CommandButton: React.FC<CommandButtonProps> = ({
             onClick={action}
             disabled={disabled || loading}
             className="w-full p-3 rounded-lg flex items-center gap-3 transition-all duration-200 group text-left relative"
-            style={{ 
+            style={{
                 background: 'var(--bg-tertiary)',
                 border: '1px solid var(--border-subtle)',
                 opacity: disabled ? 0.5 : 1,
@@ -555,9 +578,9 @@ const CommandButton: React.FC<CommandButtonProps> = ({
             title={command}
         >
             {/* Icon */}
-            <div 
+            <div
                 className="p-2 rounded-lg transition-all shrink-0"
-                style={{ 
+                style={{
                     background: colors.dim,
                     color: colors.accent
                 }}
@@ -567,13 +590,13 @@ const CommandButton: React.FC<CommandButtonProps> = ({
 
             {/* Content */}
             <div className="flex-1 min-w-0 overflow-hidden">
-                <div 
+                <div
                     className="font-medium text-sm truncate"
                     style={{ color: 'var(--text-primary)' }}
                 >
                     {label}
                 </div>
-                <div 
+                <div
                     className="text-xs truncate"
                     style={{ color: 'var(--text-muted)' }}
                 >
@@ -583,10 +606,10 @@ const CommandButton: React.FC<CommandButtonProps> = ({
 
             {/* Arrow */}
             <div className="shrink-0">
-                <ChevronRight 
-                    size={14} 
+                <ChevronRight
+                    size={14}
                     className="transition-transform group-hover:translate-x-0.5"
-                    style={{ color: disabled ? 'var(--text-muted)' : colors.accent }} 
+                    style={{ color: disabled ? 'var(--text-muted)' : colors.accent }}
                 />
             </div>
         </button>

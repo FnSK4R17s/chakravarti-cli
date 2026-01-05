@@ -96,7 +96,15 @@ struct SpecTask {
     pub status: String,
     pub user_story: Option<String>,
     pub parallel: bool,
+    #[serde(default = "default_complexity")]
+    pub complexity: u8,
+    #[serde(default)]
+    pub model_tier: Option<String>,
+    #[serde(default)]
+    pub risk: Option<String>,
 }
+
+fn default_complexity() -> u8 { 3 }
 
 /// Execution plan structure.
 #[derive(Serialize, Deserialize, Debug)]
@@ -115,6 +123,14 @@ enum BatchStatus {
     Failed,
 }
 
+/// Model assignment for a batch
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+struct ModelAssignment {
+    default: Option<String>,
+    #[serde(default)]
+    overrides: std::collections::HashMap<String, String>,
+}
+
 /// A batch of tasks to be executed together.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct ExecutionBatch {
@@ -129,8 +145,19 @@ struct ExecutionBatch {
     /// Branch name created for this batch (for resume)
     #[serde(default)]
     branch: Option<String>,
+    
+    // Enhanced Fields
+    #[serde(default)]
+    model_assignment: ModelAssignment,
+    #[serde(default)]
+    execution_strategy: Option<String>, // "parallel" | "sequential"
+    #[serde(default)]
+    estimated_cost: f64,
+    #[serde(default)]
+    estimated_time: String,
 }
 
+/// Helper to always serialize depends_on
 /// Helper to always serialize depends_on
 fn serialize_plan_with_depends_on(plan: &ExecutionPlan) -> String {
     let mut output = String::from("batches:\n");
@@ -149,7 +176,47 @@ fn serialize_plan_with_depends_on(plan: &ExecutionPlan) -> String {
                 output.push_str(&format!("      - \"{}\"\n", dep));
             }
         }
-        output.push_str(&format!("    reasoning: \"{}\"\n\n", batch.reasoning.replace('"', "\\\"")));
+        
+        // Serialize model_assignment
+        output.push_str("    model_assignment:\n");
+        if let Some(default_model) = &batch.model_assignment.default {
+            output.push_str(&format!("      default: \"{}\"\n", default_model));
+        } else {
+             output.push_str("      default: null\n");
+        }
+        
+        if batch.model_assignment.overrides.is_empty() {
+            output.push_str("      overrides: {}\n");
+        } else {
+            output.push_str("      overrides:\n");
+            for (key, val) in &batch.model_assignment.overrides {
+                output.push_str(&format!("        {}: \"{}\"\n", key, val));
+            }
+        }
+
+        if let Some(strategy) = &batch.execution_strategy {
+             output.push_str(&format!("    execution_strategy: \"{}\"\n", strategy));
+        }
+
+        output.push_str(&format!("    estimated_cost: {}\n", batch.estimated_cost));
+        output.push_str(&format!("    estimated_time: \"{}\"\n", batch.estimated_time));
+
+        output.push_str(&format!("    reasoning: \"{}\"\n", batch.reasoning.replace('"', "\\\"")));
+        
+        // Include status and branch for resume capability
+        let status_str = match batch.status {
+            BatchStatus::Pending => "pending",
+            BatchStatus::Running => "running",
+            BatchStatus::Completed => "completed",
+            BatchStatus::Failed => "failed",
+        };
+        output.push_str(&format!("    status: {}\n", status_str));
+        
+        if let Some(ref branch) = batch.branch {
+            output.push_str(&format!("    branch: \"{}\"\n", branch));
+        }
+        
+        output.push('\n');
     }
     output
 }
@@ -161,7 +228,44 @@ struct ValidationErrorOutput {
     message: String,
 }
 
+/// Agent configuration from agent.yaml
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct AgentConfig {
+    models: Vec<AgentModelDef>,
+}
+
+/// Model definition in agent.yaml
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct AgentModelDef {
+    id: String,
+    description: String,
+}
+
+fn load_agent_model_instructions(cwd: &Path) -> String {
+    let locations = [cwd.join("agent.yaml"), cwd.join(".ckrv/agent.yaml")];
+    for loc in &locations {
+        if loc.exists() {
+             if let Ok(content) = std::fs::read_to_string(loc) {
+                 if let Ok(config) = serde_yaml::from_str::<AgentConfig>(&content) {
+                     let mut instructions = String::new();
+                     for model in config.models {
+                         instructions.push_str(&format!("   - Use '{}' {}.\n", model.id, model.description));
+                     }
+                     if !instructions.is_empty() {
+                         return instructions;
+                     }
+                 }
+             }
+        }
+    }
+    // Default fallback
+    r#"   - Use 'minimax/minimax-m2.1' for light/standard tasks (Level 1-3).
+   - Use 'z-ai/glm-4.7' for complex logic (Level 4).
+   - Use 'claude' (default) if high reasoning/risk required (Level 5)."#.to_string()
+}
+
 /// Execute the run command.
+
 pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     
@@ -457,14 +561,18 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
         }
 
         let tasks_json = serde_json::to_string_pretty(&pending_tasks)?;
+        let model_instructions = load_agent_model_instructions(&cwd);
         let prompt_base = format!(r#"### ARCHITECTURAL PLANNER
 Analyze these tasks and group them into logical execution batches.
 
 DEPENDENCY MAPPING RULES:
-1. Every batch MUST have 'id', 'name', 'task_ids', 'reasoning', and 'depends_on' fields.
+1. Every batch MUST have 'id', 'name', 'task_ids', 'reasoning', 'depends_on', and assignment fields.
 2. 'depends_on' is a list of batch IDs this batch depends on.
 3. If Batch B needs code created in Batch A, Batch B MUST have `depends_on: ["batch-a-id"]`.
 4. For batches with no prerequisites, use `depends_on: []`.
+5. 'model_assignment': Assign the best model based on task complexity/risk.
+{}
+6. 'execution_strategy': "parallel" if tasks within batch don't depend on each other, else "sequential".
 
 Tasks:
 {}
@@ -476,12 +584,24 @@ batches:
     task_ids: ["T001", "T002"]
     depends_on: []
     reasoning: "Standard setup."
+    model_assignment:
+      default: "minimax/minimax-m2.1"
+      overrides: {{}}
+    execution_strategy: "parallel"
+    estimated_cost: 0.01
+    estimated_time: "30s"
   - id: "ui-components"
     name: "Component Development"
     task_ids: ["T003"]
     depends_on: ["foundation"]
     reasoning: "Depends on foundation."
-"#, tasks_json);
+    model_assignment:
+      default: "z-ai/glm-4.7"
+      overrides: {{}}
+    execution_strategy: "sequential"
+    estimated_cost: 0.05
+    estimated_time: "2m"
+"#, model_instructions, tasks_json);
 
         let plan_workflow = Workflow {
             version: "1.0".to_string(),
@@ -778,13 +898,41 @@ batches:
                 let task_ids = batch.task_ids.clone();
                 let reasoning = batch.reasoning.clone();
 
-                // Build combined description
+                // Build combined description & calculate max complexity
                 let mut combined_desc = format!("MISSION: {}\nREASONING: {}\n\nTASKS:\n", batch_name, reasoning);
+                let mut max_complexity: u8 = 1;
+
                 for id in &task_ids {
                     if let Some(t) = task_map.get(id) {
                         combined_desc.push_str(&format!("- [{}]: {} ({})\n", t.id, t.title, t.description));
+                        max_complexity = max_complexity.max(t.complexity);
                     }
                 }
+                
+                // Intelligent Agent Selection
+                // Priority: 1. CLI Override, 2. AI Plan (model_assignment), 3. Complexity Auto-Select
+                let resolved_agent = if args.executor_model.is_none() {
+                    let mut agent_id = None;
+                    
+                    // 1. Try Plan Assignment
+                    if let Some(model_str) = &batch.model_assignment.default {
+                        agent_id = find_agent_for_model_string(&cwd, model_str);
+                        if let Some(ref id) = agent_id {
+                             println!("   🧠 Plan-selected agent '{}' for model '{}', Batch Level {}", id, model_str, max_complexity);
+                        }
+                    } 
+                    
+                    // 2. Fallback to Complexity
+                    if agent_id.is_none() {
+                         agent_id = find_best_agent_for_level(&cwd, max_complexity);
+                         if let Some(ref id) = agent_id {
+                             println!("   🧠 Auto-selecting agent '{}' for Batch Level {}", id, max_complexity);
+                         }
+                    }
+                    agent_id
+                } else {
+                    None
+                };
 
                 // Store plan path for status updates
                 let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
@@ -826,7 +974,9 @@ batches:
                     let batch_run_id = format!("{}-run", batch_id);
                     cmd.arg("--continue-task").arg(&batch_run_id);
                     
-                    if let Some(m) = &args_executor_model { cmd.arg("--agent").arg(m); }
+                    // Prioritize CLI arg, then auto-resolved agent
+                    let final_agent = args_executor_model.or(resolved_agent);
+                    if let Some(m) = &final_agent { cmd.arg("--agent").arg(m); }
                     if args_dry_run { cmd.arg("--dry-run"); }
                     
                     let status = match cmd.status().await {
@@ -957,9 +1107,11 @@ batches:
                         completed_batches.insert(id);
                     }
                     Ok((failed_id, name, _path, Err(e))) => {
-                        // Mark batch as failed in plan.yaml for potential retry
-                        let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
-                        let _ = update_batch_status(&plan_path, &failed_id, BatchStatus::Failed, None);
+                        // Mark batch as failed in plan.yaml for potential retry (only if not dry-run)
+                        if !args.dry_run {
+                            let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
+                            let _ = update_batch_status(&plan_path, &failed_id, BatchStatus::Failed, None);
+                        }
                         return Err(anyhow::anyhow!("Batch '{}' failed: {}", name, e));
                     }
                     Err(e) => {
@@ -1348,4 +1500,102 @@ async fn execute_cloud_job(
     }
 
     Ok(())
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct OpenRouterConfigLite {
+    model: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct AgentConfigLite {
+    id: String,
+    name: String,
+    #[serde(default)]
+    level: u8,
+    #[serde(default)]
+    enabled: bool,
+    openrouter: Option<OpenRouterConfigLite>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct AgentsFileLite {
+    agents: Vec<AgentConfigLite>,
+}
+
+/// Find an agent ID that matches a model string (e.g. "minimax/minimax-m2.1")
+fn find_agent_for_model_string(cwd: &Path, model_string: &str) -> Option<String> {
+    let agents_path = dirs::config_dir()
+        .map(|d| d.join("chakravarti").join("agents.yaml"))
+        .filter(|p| p.exists())
+        .unwrap_or_else(|| cwd.join(".chakravarti").join("agents.yaml"));
+
+    if !agents_path.exists() { return None; }
+
+    let content = match std::fs::read_to_string(agents_path) {
+        Ok(c) => c,
+        Err(_) => return None,
+    };
+
+    let config: AgentsFileLite = match serde_yaml::from_str(&content) {
+        Ok(c) => c,
+        Err(_) => return None,
+    };
+
+    config.agents.iter()
+        .filter(|a| a.enabled)
+        .find(|a| {
+            // Match ID, Name, or OpenRouter Model
+            a.id == model_string || 
+            a.name == model_string || 
+            a.openrouter.as_ref().map(|o| o.model.as_deref() == Some(model_string)).unwrap_or(false)
+        })
+        .map(|a| a.id.clone())
+}
+
+/// Find the best agent for a given complexity level.
+/// Strategy: Find the lowest level agent that is >= required level.
+/// If no agent meets the requirement, return the highest available level.
+fn find_best_agent_for_level(cwd: &Path, required_level: u8) -> Option<String> {
+    // Check global path first
+    let agents_path = dirs::config_dir()
+        .map(|d| d.join("chakravarti").join("agents.yaml"))
+        .filter(|p| p.exists())
+        .unwrap_or_else(|| cwd.join(".chakravarti").join("agents.yaml"));
+
+    if !agents_path.exists() {
+        return None;
+    }
+
+    let content = match std::fs::read_to_string(agents_path) {
+        Ok(c) => c,
+        Err(_) => return None,
+    };
+
+    let config: AgentsFileLite = match serde_yaml::from_str(&content) {
+        Ok(c) => c,
+        Err(_) => return None,
+    };
+
+    let enabled_agents: Vec<&AgentConfigLite> = config.agents.iter().filter(|a| a.enabled).collect();
+    if enabled_agents.is_empty() {
+        return None;
+    }
+
+    // 1. Try to find agents with level >= required
+    let mut sufficient_agents: Vec<&AgentConfigLite> = enabled_agents.iter()
+        .filter(|a| a.level >= required_level)
+        .map(|&a| a)
+        .collect();
+
+    if !sufficient_agents.is_empty() {
+        // Sort by level ascending (pick the "cheapest" one that is good enough)
+        sufficient_agents.sort_by_key(|a| a.level);
+        return Some(sufficient_agents[0].id.clone());
+    }
+
+    // 2. Fallback: pick the strongest available agent
+    let mut all_agents = enabled_agents;
+    all_agents.sort_by_key(|a| a.level); // Sort ascending
+    all_agents.last().map(|a| a.id.clone())
 }
