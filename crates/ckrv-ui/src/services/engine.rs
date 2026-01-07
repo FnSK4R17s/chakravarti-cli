@@ -13,6 +13,9 @@ use chrono::Utc;
 use ckrv_git::{WorktreeManager, DefaultWorktreeManager};
 use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox, DefaultAllowList};
 
+use crate::services::history::HistoryService;
+use crate::models::history::{Run, HistoryBatchStatus};
+
 /// Status of a batch in the execution plan
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -206,6 +209,26 @@ impl ExecutionEngine {
             .map(|t| (t.id.clone(), t))
             .collect();
 
+        // T016: Initialize history service and create run entry
+        let history_service = HistoryService::new(&self.project_root);
+        let run_id = Run::generate_id();
+        let batch_info: Vec<(String, String)> = plan.batches
+            .iter()
+            .map(|b| (b.id.clone(), b.name.clone()))
+            .collect();
+        
+        // Create run entry (best-effort - don't fail execution if history fails)
+        let history_run_id = match history_service.create_run(&spec_name, &run_id, batch_info, dry_run) {
+            Ok(run) => {
+                self.log("info", &format!("Created run history entry: {}", run.id)).await;
+                Some(run.id)
+            }
+            Err(e) => {
+                self.log("warning", &format!("Failed to create history entry: {}", e)).await;
+                None
+            }
+        };
+
         // Initialize Worktree Manager
         let mut manager = DefaultWorktreeManager::new(&self.project_root).context("Failed to init worktree manager")?;
         let exe = std::env::current_exe()?; // Self-reference for spawning tasks?
@@ -322,11 +345,29 @@ impl ExecutionEngine {
                                      
                                      self.update_batch_status(&plan_path, &batch_id, BatchStatus::Completed, Some(&branch_name))?;
                                  }
+                                 
+                                 // T017: Update history with batch completion
+                                 if let Some(ref run_id) = history_run_id {
+                                     let _ = history_service.update_batch_status(
+                                         &spec_name,
+                                         run_id,
+                                         &batch_id,
+                                         HistoryBatchStatus::Completed,
+                                         Some(&branch_name),
+                                         None,
+                                     );
+                                 }
                              },
                              Err(e) => {
                                  self.log("batch_error", &format!("Batch failed: {}", e)).await;
                                  // T015: Send status failed so frontend stops timer and shows error
                                  let _ = self.sender.send(LogMessage::status("failed")).await;
+                                 
+                                 // T018: Update history with run failure
+                                 if let Some(ref run_id) = history_run_id {
+                                     let _ = history_service.fail_run(&spec_name, run_id, &e.to_string());
+                                 }
+                                 
                                  return Err(e);
                              }
                          }
@@ -334,18 +375,37 @@ impl ExecutionEngine {
                      Err(e) => {
                          // T015: Send status failed for task panics
                          let _ = self.sender.send(LogMessage::status("failed")).await;
+                         
+                         // T018: Update history with run failure
+                         if let Some(ref run_id) = history_run_id {
+                             let _ = history_service.fail_run(&spec_name, run_id, &format!("Task panic: {}", e));
+                         }
+                         
                          return Err(anyhow!("Task panic: {}", e));
                      }
                  }
              } else if !pending_batches.is_empty() {
                  // T015: Send status failed for deadlocks
                  let _ = self.sender.send(LogMessage::status("failed")).await;
+                 
+                 // T018: Update history with run failure
+                 if let Some(ref run_id) = history_run_id {
+                     let _ = history_service.fail_run(&spec_name, run_id, &format!("Deadlock: {} batches pending", pending_batches.len()));
+                 }
+                 
                  return Err(anyhow!("Deadlock: {} batches pending but none can run.", pending_batches.len()));
              }
         }
         
         // T014: Send explicit status completed so frontend knows execution is done
         let _ = self.sender.send(LogMessage::status("completed")).await;
+        
+        // T018: Update history with run completion
+        if let Some(ref run_id) = history_run_id {
+            let _ = history_service.complete_run(&spec_name, run_id);
+            self.log("info", &format!("Run history entry completed: {}", run_id)).await;
+        }
+        
         self.log("success", "All batches completed successfully.").await;
         Ok(())
     }
