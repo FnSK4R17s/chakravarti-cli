@@ -125,3 +125,5 @@ CKRV_MODEL_ENDPOINT     # Custom endpoint URL
 - File-based (specs, plans, tasks in YAML format) (006-bug-free-polished-ui)
 - Rust 1.75+ (backend), TypeScript 5.x (frontend) + axum, tokio (backend); React 18, XTerm.js (frontend) (007-execution-state-sync)
 - N/A (stateless WebSocket communication) (007-execution-state-sync)
+- Rust 1.75+ (backend), TypeScript 5.x (frontend) + axum, tokio, serde_yaml (backend); React 18, @tanstack/react-query (frontend) (008-persistent-run-history)
+- YAML files in `.specs/<spec-name>/runs.yaml` (008-persistent-run-history)

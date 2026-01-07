@@ -110,6 +110,12 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
         .route("/api/execution/branches", axum::routing::post(crate::api::execution::list_unmerged_branches))
         .route("/api/execution/merge", axum::routing::post(crate::api::execution::merge_branch))
         .route("/api/execution/merge-all", axum::routing::post(crate::api::execution::merge_all_branches))
+        // Run history routes
+        .route("/api/history/:spec", axum::routing::get(crate::api::history::list_runs))
+        .route("/api/history/:spec", axum::routing::post(crate::api::history::create_run))
+        .route("/api/history/:spec/:run_id", axum::routing::get(crate::api::history::get_run))
+        .route("/api/history/:spec/:run_id", axum::routing::patch(crate::api::history::update_run))
+        .route("/api/history/:spec/:run_id", axum::routing::delete(crate::api::history::delete_run))
         // Git diff routes
         .route("/api/diff/branches", axum::routing::get(crate::api::diff::get_branches))
         .route("/api/diff", axum::routing::get(crate::api::diff::get_diff))

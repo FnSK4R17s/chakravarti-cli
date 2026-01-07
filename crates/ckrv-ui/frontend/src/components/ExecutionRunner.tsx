@@ -7,8 +7,10 @@ import {
     Layers, Timer, DollarSign, Rocket, GitMerge, ArrowDown
 } from 'lucide-react';
 import { LogTerminal } from './LogTerminal';
+import { CompletionSummary } from './CompletionSummary';
 import type { Terminal } from '@xterm/xterm';
 import { useTimeout } from '../hooks/useTimeout';
+import type { RunStatus } from '../types/history';
 
 // Types
 interface Batch {
@@ -426,6 +428,10 @@ export default function ExecutionRunner() {
     // Track when batches completed (for auto-collapse after 5s)
     const [batchCompletedAt, setBatchCompletedAt] = useState<Record<string, number>>({});
 
+    // T030: Completion summary state
+    const [showCompletionSummary, setShowCompletionSummary] = useState(false);
+    const [completionError, setCompletionError] = useState<string | null>(null);
+
     // T024: WebSocket reconnection state (BUG-002)
     const [wsRetryCount, setWsRetryCount] = useState(0);
     const [wsRetryCountdown, setWsRetryCountdown] = useState(0);
@@ -639,18 +645,29 @@ export default function ExecutionRunner() {
                         setExecutionStatus('running');
                         setWsRetryCount(0);
                         setWsRetryCountdown(0);
+                        setShowCompletionSummary(false);
+                        setCompletionError(null);
                     } else if (data.status === 'completed') {
                         setExecutionStatus('completed');
                         addLog(data.message || 'Execution completed', 'success');
                         currentBatchRef.current = null;
+                        // T031: Show completion summary
+                        setShowCompletionSummary(true);
+                        setCompletionError(null);
                     } else if (data.status === 'failed') {
                         setExecutionStatus('failed');
                         addLog(data.message || 'Execution failed', 'error');
                         currentBatchRef.current = null;
+                        // T031: Show failure summary
+                        setShowCompletionSummary(true);
+                        setCompletionError(data.error || data.message || 'Execution failed');
                     } else if (data.status === 'aborted') {
                         setExecutionStatus('aborted');
                         addLog('Execution aborted', 'error');
                         currentBatchRef.current = null;
+                        // T031: Show aborted summary
+                        setShowCompletionSummary(true);
+                        setCompletionError('Execution was aborted by user');
                     }
                 }
                 // T013: Handle explicit batch_status messages
@@ -1147,6 +1164,31 @@ export default function ExecutionRunner() {
                     </div>
                 </div>
             </div>
+
+            {/* T030: Completion Summary Overlay */}
+            {showCompletionSummary && (executionStatus === 'completed' || executionStatus === 'failed' || executionStatus === 'aborted') && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+                    <div className="w-full max-w-2xl mx-4 animate-slide-up">
+                        <CompletionSummary
+                            status={executionStatus as RunStatus}
+                            summary={{
+                                total_batches: batches.length,
+                                completed_batches: completedBatches.size,
+                                failed_batches: batches.filter(b => b.status === 'failed').length,
+                                pending_batches: batches.filter(b => b.status === 'pending').length,
+                                tasks_completed: batches.reduce((sum, b) =>
+                                    b.status === 'completed' ? sum + b.task_ids.length : sum, 0
+                                ),
+                                branches_merged: unmergedBranches.filter(b => b.is_clean).length,
+                            }}
+                            elapsedSeconds={elapsedTime}
+                            dryRun={runIdRef.current?.includes('dry')}
+                            error={completionError}
+                            onClose={() => setShowCompletionSummary(false)}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Merge Panel - Slide over */}
             {unmergedBranches.length > 0 && (executionStatus === 'completed' || executionStatus === 'idle') && (

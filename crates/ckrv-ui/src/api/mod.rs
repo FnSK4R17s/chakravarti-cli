@@ -12,3 +12,4 @@ pub mod terminal;
 pub mod plans;
 pub mod execution;
 pub mod diff;
+pub mod history;
