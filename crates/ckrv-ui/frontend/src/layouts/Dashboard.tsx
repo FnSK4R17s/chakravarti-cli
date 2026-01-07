@@ -75,54 +75,61 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 </div>
 
                 {/* Navigation Icons */}
-                <nav className="flex flex-col gap-1 w-full items-center flex-1">
+                <nav className="flex flex-col gap-1 w-full items-center flex-1" role="navigation" aria-label="Main navigation">
                     <NavIcon
                         icon={<Layers size={20} />}
                         label="Dashboard"
                         active={currentPage === 'dashboard'}
                         onClick={() => setCurrentPage('dashboard')}
+                        testId="nav-dashboard"
                     />
                     <NavIcon
                         icon={<Bot size={20} />}
                         label="Agents"
                         active={currentPage === 'agents'}
                         onClick={() => setCurrentPage('agents')}
+                        testId="nav-agents"
                     />
                     <NavIcon
                         icon={<FileText size={20} />}
                         label="Specs"
                         active={currentPage === 'specs'}
                         onClick={() => setCurrentPage('specs')}
+                        testId="nav-specs"
                     />
                     <NavIcon
                         icon={<ListTodo size={20} />}
                         label="Tasks"
                         active={currentPage === 'tasks'}
                         onClick={() => setCurrentPage('tasks')}
+                        testId="nav-tasks"
                     />
                     <NavIcon
                         icon={<Workflow size={20} />}
                         label="Plan"
                         active={currentPage === 'plan'}
                         onClick={() => setCurrentPage('plan')}
+                        testId="nav-plan"
                     />
                     <NavIcon
                         icon={<Rocket size={20} />}
                         label="Runner"
                         active={currentPage === 'runner'}
                         onClick={() => setCurrentPage('runner')}
+                        testId="nav-runner"
                     />
                     <NavIcon
                         icon={<GitCompare size={20} />}
                         label="Diff"
                         active={currentPage === 'diff'}
                         onClick={() => setCurrentPage('diff')}
+                        testId="nav-diff"
                     />
                 </nav>
 
                 {/* Bottom section */}
                 <div className="flex flex-col gap-1 items-center">
-                    <NavIcon icon={<Zap size={20} />} label="Quick Run" disabled />
+                    <NavIcon icon={<Zap size={20} />} label="Quick Run" disabled testId="nav-quick-run" />
                 </div>
             </aside>
 
@@ -185,9 +192,10 @@ interface NavIconProps {
     active?: boolean;
     disabled?: boolean;
     onClick?: () => void;
+    testId?: string; // T015: Added for E2E testing
 }
 
-const NavIcon: React.FC<NavIconProps> = ({ icon, label, active, disabled, onClick }) => (
+const NavIcon: React.FC<NavIconProps> = ({ icon, label, active, disabled, onClick, testId }) => (
     <button
         className="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 relative group"
         style={{
@@ -199,6 +207,8 @@ const NavIcon: React.FC<NavIconProps> = ({ icon, label, active, disabled, onClic
         title={disabled ? `${label} (coming soon)` : label}
         onClick={disabled ? undefined : onClick}
         disabled={disabled}
+        data-testid={testId}
+        aria-label={label}
     >
         {icon}
         {active && (

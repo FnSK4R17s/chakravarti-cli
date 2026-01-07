@@ -1,0 +1,22 @@
+# Test Feature Spec
+
+id: test-feature
+goal: A sample feature for testing the UI workflow
+
+user_stories:
+  - id: US1
+    title: Sample User Story
+    priority: P1
+    description: As a tester, I want to verify the UI works correctly
+    acceptance:
+      - given: The dashboard is loaded
+        when: I view the specs page
+        then: I see this test spec listed
+
+requirements:
+  - id: FR-001
+    description: System must display test spec in the list
+
+success_criteria:
+  - id: SC-001
+    metric: Test spec is visible in the UI
