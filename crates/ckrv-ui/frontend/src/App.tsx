@@ -13,6 +13,7 @@ import { TaskEditor } from './components/TaskEditor';
 import PlanEditor from './components/PlanEditor';
 import ExecutionRunner from './components/ExecutionRunner';
 import DiffViewer from './components/DiffViewer';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -114,23 +115,27 @@ function App() {
     const [currentPage, setCurrentPage] = useState<PageType>('dashboard');
 
     return (
-        <QueryClientProvider client={queryClient}>
-            <Theme appearance="dark" accentColor="cyan" grayColor="slate" radius="medium" scaling="100%">
-                <NavigationContext.Provider value={{ currentPage, setCurrentPage }}>
-                    <CommandResultContext.Provider value={{ lastResult, setLastResult }}>
-                        <DashboardLayout>
-                            {currentPage === 'dashboard' && <DashboardPage />}
-                            {currentPage === 'agents' && <AgentsPage />}
-                            {currentPage === 'specs' && <SpecsPage />}
-                            {currentPage === 'plan' && <PlanPage />}
-                            {currentPage === 'tasks' && <TasksPage />}
-                            {currentPage === 'runner' && <RunnerPage />}
-                            {currentPage === 'diff' && <DiffPage />}
-                        </DashboardLayout>
-                    </CommandResultContext.Provider>
-                </NavigationContext.Provider>
-            </Theme>
-        </QueryClientProvider>
+        <ErrorBoundary>
+            <QueryClientProvider client={queryClient}>
+                <Theme appearance="dark" accentColor="cyan" grayColor="slate" radius="medium" scaling="100%">
+                    <NavigationContext.Provider value={{ currentPage, setCurrentPage }}>
+                        <CommandResultContext.Provider value={{ lastResult, setLastResult }}>
+                            <DashboardLayout>
+                                <ErrorBoundary>
+                                    {currentPage === 'dashboard' && <DashboardPage />}
+                                    {currentPage === 'agents' && <AgentsPage />}
+                                    {currentPage === 'specs' && <SpecsPage />}
+                                    {currentPage === 'plan' && <PlanPage />}
+                                    {currentPage === 'tasks' && <TasksPage />}
+                                    {currentPage === 'runner' && <RunnerPage />}
+                                    {currentPage === 'diff' && <DiffPage />}
+                                </ErrorBoundary>
+                            </DashboardLayout>
+                        </CommandResultContext.Provider>
+                    </NavigationContext.Provider>
+                </Theme>
+            </QueryClientProvider>
+        </ErrorBoundary>
     );
 }
 

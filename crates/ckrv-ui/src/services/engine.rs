@@ -71,10 +71,23 @@ struct SpecTask {
 /// Log message structure for streaming updates
 #[derive(Debug, Clone, Serialize)]
 pub struct LogMessage {
-    pub type_: String, // "info", "success", "error", "start", "batch_start", etc.
+    #[serde(rename = "type")]
+    pub type_: String, // "info", "success", "error", "start", "batch_start", "status", "batch_status", etc.
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<String>, // stdout/stderr
     pub timestamp: String,
+    // T004: New fields for explicit status messages
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>, // "running", "completed", "failed", "aborted"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub batch_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub batch_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 impl LogMessage {
@@ -84,7 +97,56 @@ impl LogMessage {
             message: message.to_string(),
             stream: None,
             timestamp: Utc::now().to_rfc3339(),
+            status: None,
+            batch_id: None,
+            batch_name: None,
+            branch: None,
+            error: None,
         }
+    }
+    
+    /// T005: Create an execution status message
+    /// Used to signal running/completed/failed state transitions
+    pub fn status(status: &str) -> Self {
+        Self {
+            type_: "status".to_string(),
+            message: String::new(),
+            stream: None,
+            timestamp: Utc::now().to_rfc3339(),
+            status: Some(status.to_string()),
+            batch_id: None,
+            batch_name: None,
+            branch: None,
+            error: None,
+        }
+    }
+    
+    /// T005: Create a batch status message
+    /// Used to signal batch running/completed/failed state transitions
+    pub fn batch_status(batch_id: &str, batch_name: &str, status: &str) -> Self {
+        Self {
+            type_: "batch_status".to_string(),
+            message: String::new(),
+            stream: None,
+            timestamp: Utc::now().to_rfc3339(),
+            status: Some(status.to_string()),
+            batch_id: Some(batch_id.to_string()),
+            batch_name: Some(batch_name.to_string()),
+            branch: None,
+            error: None,
+        }
+    }
+    
+    /// Set branch name (for completed batches)
+    pub fn with_branch(mut self, branch: &str) -> Self {
+        self.branch = Some(branch.to_string());
+        self
+    }
+    
+    /// Set error message (for failed batches)
+    pub fn with_error(mut self, error: &str) -> Self {
+        self.error = Some(error.to_string());
+        self
     }
 }
 
@@ -128,6 +190,9 @@ impl ExecutionEngine {
         }
 
         self.log("start", &format!("Starting execution for spec: {}", spec_name)).await;
+        
+        // T006: Send explicit status message so frontend knows execution is running
+        let _ = self.sender.send(LogMessage::status("running")).await;
 
         // Load plan
         let plan_content = std::fs::read_to_string(&plan_path)?;
@@ -196,6 +261,9 @@ impl ExecutionEngine {
                  if unblocked {
                      self.log("batch_start", &format!("Spawning batch: {}", batch.name)).await;
                      
+                     // T011: Send explicit batch status so frontend updates batch card
+                     let _ = self.sender.send(LogMessage::batch_status(&batch.id, &batch.name, "running")).await;
+                     
                      // Update status to running in plan file
                      self.update_batch_status(&plan_path, &batch.id, BatchStatus::Running, None)?;
 
@@ -234,6 +302,12 @@ impl ExecutionEngine {
                                  // Batch succeeded
                                  self.log("batch_complete", &format!("Batch {} completed on branch {}", batch_id, branch_name)).await;
                                  
+                                 // T012: Send explicit batch status so frontend updates counter
+                                 let _ = self.sender.send(
+                                     LogMessage::batch_status(&batch_id, &batch_id, "completed")
+                                         .with_branch(&branch_name)
+                                 ).await;
+                                 
                                  // Update state
                                  completed_batches.insert(batch_id.clone());
                                  
@@ -251,19 +325,27 @@ impl ExecutionEngine {
                              },
                              Err(e) => {
                                  self.log("batch_error", &format!("Batch failed: {}", e)).await;
+                                 // T015: Send status failed so frontend stops timer and shows error
+                                 let _ = self.sender.send(LogMessage::status("failed")).await;
                                  return Err(e);
                              }
                          }
                      },
                      Err(e) => {
+                         // T015: Send status failed for task panics
+                         let _ = self.sender.send(LogMessage::status("failed")).await;
                          return Err(anyhow!("Task panic: {}", e));
                      }
                  }
              } else if !pending_batches.is_empty() {
+                 // T015: Send status failed for deadlocks
+                 let _ = self.sender.send(LogMessage::status("failed")).await;
                  return Err(anyhow!("Deadlock: {} batches pending but none can run.", pending_batches.len()));
              }
         }
         
+        // T014: Send explicit status completed so frontend knows execution is done
+        let _ = self.sender.send(LogMessage::status("completed")).await;
         self.log("success", "All batches completed successfully.").await;
         Ok(())
     }

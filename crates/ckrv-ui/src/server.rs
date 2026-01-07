@@ -45,7 +45,15 @@ async fn static_handler(uri: Uri) -> impl IntoResponse {
 }
 
 pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let project_root = std::env::current_dir().unwrap_or_default();
+    // T006: Support CKRV_PROJECT_ROOT env var for test isolation (TR-007)
+    // E2E tests set this to a temporary directory to prevent modifying working code
+    let project_root = std::env::var("CKRV_PROJECT_ROOT")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+    
+    if std::env::var("CKRV_PROJECT_ROOT").is_ok() {
+        println!("Using custom project root from CKRV_PROJECT_ROOT: {:?}", project_root);
+    }
     
     let state = AppState {
         status: Arc::new(RwLock::new(SystemStatus::default())),

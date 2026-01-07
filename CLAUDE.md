@@ -121,3 +121,7 @@ CKRV_MODEL_ENDPOINT     # Custom endpoint URL
 - Rust 1.75+ (Backend), Node.js/TypeScript (Frontend Build) (004-web-ui-extension)
 - N/A (Uses existing file system / git worktrees via `ckrv-core`) (004-web-ui-extension)
 - Rust 1.75+ (CLI), TypeScript/Node.js (Cloud API) (005-cloud-executions)
+- TypeScript 5.x (Frontend), Rust 1.75+ (Backend) (006-bug-free-polished-ui)
+- File-based (specs, plans, tasks in YAML format) (006-bug-free-polished-ui)
+- Rust 1.75+ (backend), TypeScript 5.x (frontend) + axum, tokio (backend); React 18, XTerm.js (frontend) (007-execution-state-sync)
+- N/A (stateless WebSocket communication) (007-execution-state-sync)

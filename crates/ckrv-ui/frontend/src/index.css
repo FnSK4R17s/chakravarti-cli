@@ -8,15 +8,15 @@
   --bg-tertiary: #18181b;
   --bg-elevated: #1f1f23;
   --bg-surface: #27272a;
-  
+
   --border-subtle: #27272a;
   --border-default: #3f3f46;
   --border-strong: #52525b;
-  
+
   --text-primary: #fafafa;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
-  
+
   /* Accent colors */
   --accent-cyan: #22d3ee;
   --accent-cyan-dim: rgba(34, 211, 238, 0.15);
@@ -28,7 +28,23 @@
   --accent-red-dim: rgba(248, 113, 113, 0.15);
   --accent-purple: #a78bfa;
   --accent-purple-dim: rgba(167, 139, 250, 0.15);
-  
+
+  /* T010: Animation timing tokens (BUG-009) */
+  --duration-fast: 150ms;
+  /* Micro-interactions: hover, focus */
+  --duration-normal: 200ms;
+  /* Standard transitions: buttons, toggles */
+  --duration-slow: 300ms;
+  /* Modal/panel transitions */
+  --duration-focus: 5000ms;
+  /* Auto-collapse delay */
+
+  /* Easing functions */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
   font-family: 'Geist', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -102,13 +118,27 @@ body {
 
 /* Subtle animations */
 @keyframes pulse-subtle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in {
@@ -121,9 +151,9 @@ body {
 
 /* Grid pattern background */
 .bg-grid {
-  background-image: 
-    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -160,4 +190,133 @@ body {
 .status-dot.promoting {
   background: var(--accent-purple);
   box-shadow: 0 0 8px var(--accent-purple);
+}
+
+/* T033-T038: Animation timing utility classes (BUG-009) */
+/* These override Tailwind's hardcoded durations with CSS variables */
+
+.transition-fast {
+  transition-duration: var(--duration-fast) !important;
+  transition-timing-function: var(--ease-default);
+}
+
+.transition-normal {
+  transition-duration: var(--duration-normal) !important;
+  transition-timing-function: var(--ease-default);
+}
+
+.transition-slow {
+  transition-duration: var(--duration-slow) !important;
+  transition-timing-function: var(--ease-default);
+}
+
+/* Override Tailwind duration classes to use CSS variables */
+.duration-150 {
+  transition-duration: var(--duration-fast, 150ms) !important;
+}
+
+.duration-200 {
+  transition-duration: var(--duration-normal, 200ms) !important;
+}
+
+.duration-300 {
+  transition-duration: var(--duration-slow, 300ms) !important;
+}
+
+.duration-500 {
+  transition-duration: 500ms;
+  /* Special case for progress animations */
+}
+
+/* Panel and modal transitions */
+.panel-transition {
+  transition: all var(--duration-slow) var(--ease-default);
+}
+
+/* Button hover transitions */
+.btn-transition {
+  transition: all var(--duration-normal) var(--ease-default);
+}
+
+/* Micro-interaction transitions */
+.micro-transition {
+  transition: all var(--duration-fast) var(--ease-default);
+}
+
+/* T068: Visible focus indicators for accessibility (BUG-011) */
+/* Ensure all interactive elements have clear focus states */
+
+/* Default focus ring for all focusable elements */
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Remove default outline only when using :focus-visible */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Enhanced focus for buttons */
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.2);
+}
+
+/* Focus ring for links */
+a:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Focus ring for inputs */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 0;
+  border-color: var(--accent-cyan);
+}
+
+/* Focus within containers (for custom components) */
+.focus-within:focus-within {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Skip link for accessibility */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  z-index: 9999;
+  transition: top var(--duration-fast) var(--ease-default);
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 3px solid CanvasText;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,0 +1,6 @@
+{
+    "name": "test-project",
+    "version": "1.0.0",
+    "description": "Sample project for E2E testing",
+    "private": true
+}

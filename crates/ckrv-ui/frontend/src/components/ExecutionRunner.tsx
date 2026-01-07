@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     Square, RotateCcw, CheckCircle2, Circle, Clock,
     AlertTriangle, Loader2, Terminal as TerminalIcon, ChevronRight, Maximize2, Minimize2,
     ArrowRight, Zap, Brain, Cpu,
-    Layers, Timer, DollarSign, Rocket, GitMerge
+    Layers, Timer, DollarSign, Rocket, GitMerge, ArrowDown
 } from 'lucide-react';
 import { LogTerminal } from './LogTerminal';
 import type { Terminal } from '@xterm/xterm';
+import { useTimeout } from '../hooks/useTimeout';
 
 // Types
 interface Batch {
@@ -35,7 +36,8 @@ interface Spec {
 }
 
 type BatchStatus = 'pending' | 'waiting' | 'running' | 'completed' | 'failed';
-type ExecutionStatus = 'idle' | 'starting' | 'running' | 'completed' | 'failed' | 'aborted';
+// T022: Added 'reconnecting' status for WebSocket reconnection handling (BUG-002)
+type ExecutionStatus = 'idle' | 'starting' | 'running' | 'reconnecting' | 'completed' | 'failed' | 'aborted';
 
 interface LogEntry {
     time: string;
@@ -51,6 +53,11 @@ interface WsMessage {
     status?: string;
     stream?: string;
     timestamp?: string;
+    // T013: Added fields for batch_status messages
+    batch_id?: string;
+    batch_name?: string;
+    branch?: string;
+    error?: string;
 }
 
 // API functions
@@ -184,17 +191,52 @@ const BatchLogPanel: React.FC<{
     isExpanded: boolean;
     onToggleExpand: () => void;
 }> = ({ batch, logs, isExpanded, onToggleExpand }) => {
+    const logsContainerRef = useRef<HTMLDivElement>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
+    // T027: Track if user has manually scrolled away from bottom (BUG-007)
+    const [isUserScrolled, setIsUserScrolled] = useState(false);
+    const isUserScrolledRef = useRef(false);
+
     const status = batch.status || 'pending';
     const statusCfg = statusConfig[status];
     const StatusIcon = statusCfg.icon;
     const modelConfig = getModelConfig(batch.model_assignment.default);
     const ModelIcon = modelConfig.icon;
 
-    // Auto-scroll logs
+    // T027: Detect user scroll to pause auto-scroll (BUG-007)
+    const handleScroll = useCallback(() => {
+        const container = logsContainerRef.current;
+        if (!container) return;
+
+        // Check if scrolled to bottom (within 50px threshold)
+        const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+
+        if (isAtBottom) {
+            // User scrolled back to bottom, resume auto-scroll
+            isUserScrolledRef.current = false;
+            setIsUserScrolled(false);
+        } else {
+            // User scrolled away from bottom
+            isUserScrolledRef.current = true;
+            setIsUserScrolled(true);
+        }
+    }, []);
+
+    // T027: Only auto-scroll if user hasn't manually scrolled (BUG-007)
     useEffect(() => {
-        logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (!isUserScrolledRef.current && logsEndRef.current) {
+            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
     }, [logs]);
+
+    // T028: Scroll to bottom when button is clicked (BUG-007)
+    const handleScrollToBottom = useCallback(() => {
+        if (logsEndRef.current) {
+            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+        isUserScrolledRef.current = false;
+        setIsUserScrolled(false);
+    }, []);
 
     const colorMap: Record<string, string> = {
         sky: 'bg-sky-900/30 text-sky-300',
@@ -225,14 +267,20 @@ const BatchLogPanel: React.FC<{
                     <button
                         onClick={onToggleExpand}
                         className="p-1 hover:bg-gray-700 rounded transition-colors"
+                        aria-label={isExpanded ? 'Minimize panel' : 'Maximize panel'}
                     >
                         {isExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
                     </button>
                 </div>
             </div>
 
-            {/* Log content */}
-            <div className="flex-1 overflow-y-auto bg-gray-900/30 p-2 font-mono text-xs min-h-0">
+            {/* Log content with scroll detection */}
+            <div
+                ref={logsContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto bg-gray-900/30 p-2 font-mono text-xs min-h-0 relative"
+                data-testid="batch-log-container"
+            >
                 {logs.length === 0 ? (
                     <div className="text-gray-500 text-center py-4 flex items-center justify-center gap-2">
                         {status === 'pending' && <Circle size={12} />}
@@ -268,6 +316,20 @@ const BatchLogPanel: React.FC<{
                 )}
                 <div ref={logsEndRef} />
             </div>
+
+            {/* T028: Scroll to bottom button - shown when user has scrolled up (BUG-007) */}
+            {isUserScrolled && logs.length > 0 && (
+                <button
+                    onClick={handleScrollToBottom}
+                    className="absolute bottom-12 right-4 p-2 rounded-full bg-gray-800/90 hover:bg-gray-700 border border-gray-600 shadow-lg transition-all duration-200 flex items-center gap-1 text-xs text-gray-300"
+                    style={{ backdropFilter: 'blur(4px)' }}
+                    aria-label="Scroll to bottom"
+                    data-testid="scroll-to-bottom-button"
+                >
+                    <ArrowDown size={14} />
+                    <span>New logs</span>
+                </button>
+            )}
         </div>
     );
 };
@@ -364,11 +426,25 @@ export default function ExecutionRunner() {
     // Track when batches completed (for auto-collapse after 5s)
     const [batchCompletedAt, setBatchCompletedAt] = useState<Record<string, number>>({});
 
+    // T024: WebSocket reconnection state (BUG-002)
+    const [wsRetryCount, setWsRetryCount] = useState(0);
+    const [wsRetryCountdown, setWsRetryCountdown] = useState(0);
+
+    // T021: Use transition for non-urgent state updates (BUG-001)
+    const [isPending, startTransition] = useTransition();
+
+    // T026: Use timeout hook for automatic cleanup (BUG-005)
+    const { set: setTimeout, clearAll: clearAllTimeouts } = useTimeout();
+
     const wsRef = useRef<WebSocket | null>(null);
     const runIdRef = useRef<string>('');
     const timerRef = useRef<number | null>(null);
     const startTimeRef = useRef<number>(0);
     const terminalRef = useRef<Terminal | null>(null);
+
+    // T020: Message batching refs for requestAnimationFrame (BUG-001)
+    const pendingMessagesRef = useRef<WsMessage[]>([]);
+    const rafIdRef = useRef<number | null>(null);
 
     // Fetch specs
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({
@@ -404,8 +480,26 @@ export default function ExecutionRunner() {
         }
     }, [planData]);
 
+    // T020/T026: Cleanup effect for RAF, WebSocket, and timeouts (BUG-001, BUG-005)
     useEffect(() => {
-        if (executionStatus === 'running') {
+        return () => {
+            // Cancel any pending requestAnimationFrame
+            if (rafIdRef.current) {
+                cancelAnimationFrame(rafIdRef.current);
+                rafIdRef.current = null;
+            }
+            // Close WebSocket connection
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+            // Clear all managed timeouts (handled by useTimeout hook)
+            clearAllTimeouts();
+        };
+    }, [clearAllTimeouts]);
+
+    useEffect(() => {
+        if (executionStatus === 'running' || executionStatus === 'reconnecting') {
             startTimeRef.current = Date.now();
             timerRef.current = window.setInterval(() => {
                 setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
@@ -454,6 +548,8 @@ export default function ExecutionRunner() {
         const spawnMatch = message.match(/Spawning batch:\s*(.+)/i);
         const completeMatch = message.match(/Mission completed:\s*(.+)/i);
         const mergeSuccessMatch = message.match(/Successfully merged batch\s*'?([^']+)'?/i);
+        // T010: Add pattern for backend's actual format: "Batch <id> completed on branch <branch>"
+        const batchCompleteMatch = message.match(/Batch\s+(\S+)\s+completed on branch\s+(\S+)/i);
 
         let batchName: string | null = null;
         let newStatus: BatchStatus | null = null;
@@ -470,6 +566,11 @@ export default function ExecutionRunner() {
             isComplete = true;
         } else if (mergeSuccessMatch) {
             batchName = mergeSuccessMatch[1].trim();
+            newStatus = 'completed';
+            isComplete = true;
+        } else if (batchCompleteMatch) {
+            // T010: Handle backend's batch complete format (matches by batch ID)
+            batchName = batchCompleteMatch[1].trim();
             newStatus = 'completed';
             isComplete = true;
         }
@@ -492,7 +593,8 @@ export default function ExecutionRunner() {
                         const completedBatchId = batch.id;
                         setBatchCompletedAt(prev => ({ ...prev, [completedBatchId]: Date.now() }));
 
-                        // Trigger re-render after 5s to collapse the panel
+                        // T026: Use managed timeout for auto-collapse (BUG-005)
+                        // This timeout will be automatically cleaned up on unmount
                         setTimeout(() => {
                             setBatchCompletedAt(prev => ({ ...prev })); // Force re-render
                         }, 5100);
@@ -520,27 +622,23 @@ export default function ExecutionRunner() {
         }
     }, [addLog]);
 
-    const connectWebSocket = useCallback((runId: string) => {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.host}/api/execution/ws?run_id=${runId}`;
+    // T020: Process batched messages using requestAnimationFrame (BUG-001)
+    const processBatchedMessages = useCallback(() => {
+        const messages = pendingMessagesRef.current;
+        if (messages.length === 0) return;
 
-        console.log(`Attempting to connect to WebSocket: ${wsUrl}`);
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
+        // Clear pending messages before processing
+        pendingMessagesRef.current = [];
 
-        ws.onopen = () => {
-            console.log('WebSocket connection established');
-            addLog('Connected to execution stream', 'info');
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const data: WsMessage = JSON.parse(event.data);
-                console.log('Received WebSocket message:', data);
-
+        // Process all pending messages in a single batch
+        startTransition(() => {
+            messages.forEach(data => {
+                // Handle explicit status messages
                 if (data.type === 'status') {
                     if (data.status === 'running') {
                         setExecutionStatus('running');
+                        setWsRetryCount(0);
+                        setWsRetryCountdown(0);
                     } else if (data.status === 'completed') {
                         setExecutionStatus('completed');
                         addLog(data.message || 'Execution completed', 'success');
@@ -554,10 +652,89 @@ export default function ExecutionRunner() {
                         addLog('Execution aborted', 'error');
                         currentBatchRef.current = null;
                     }
-                } else if (data.message) {
+                }
+                // T013: Handle explicit batch_status messages
+                else if (data.type === 'batch_status' && data.batch_id) {
+                    const batchId = data.batch_id;
+                    const batchStatus = data.status as BatchStatus;
+
+                    setBatches(prev => prev.map(b => {
+                        // Match by ID or by name containing the batch ID
+                        if (b.id === batchId || b.name.toLowerCase().includes(batchId.toLowerCase())) {
+                            if (batchStatus === 'completed') {
+                                setCompletedBatches(p => new Set(p).add(b.name));
+                                // Record completion time for auto-collapse
+                                setBatchCompletedAt(prevState => ({ ...prevState, [b.id]: Date.now() }));
+                            }
+                            return { ...b, status: batchStatus };
+                        }
+                        return b;
+                    }));
+                }
+                // T007: Fallback handling for 'start' type to set running status
+                else if (data.type === 'start') {
+                    setExecutionStatus('running');
+                    setWsRetryCount(0);
+                    setWsRetryCountdown(0);
+                    if (data.message) {
+                        addLog(data.message, 'info');
+                    }
+                }
+                // T016: Fallback handling for 'success' type to set completed status
+                else if (data.type === 'success') {
+                    setExecutionStatus('completed');
+                    if (data.message) {
+                        addLog(data.message, 'success');
+                    }
+                    currentBatchRef.current = null;
+                }
+                // Handle regular log messages
+                else if (data.message) {
                     const logType = (data.type as LogEntry['type']) || 'info';
                     addLog(data.message, logType);
                     updateBatchFromLog(data.message, data.type);
+                }
+            });
+        });
+    }, [addLog, updateBatchFromLog, startTransition]);
+
+    const connectWebSocket = useCallback((runId: string, retryCount: number = 0) => {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/api/execution/ws?run_id=${runId}`;
+
+        // T024: Maximum retry configuration (BUG-002)
+        const MAX_RETRIES = 3;
+        const RETRY_DELAYS = [5000, 10000, 20000]; // Exponential backoff
+
+        console.log(`Attempting to connect to WebSocket: ${wsUrl} (attempt ${retryCount + 1})`);
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+            console.log('WebSocket connection established');
+            addLog('Connected to execution stream', 'info');
+            setWsRetryCount(0);
+            setWsRetryCountdown(0);
+            if (retryCount > 0) {
+                setExecutionStatus('running'); // Restore from 'reconnecting'
+            }
+        };
+
+        // T020: Batch messages using requestAnimationFrame (BUG-001)
+        ws.onmessage = (event) => {
+            try {
+                const data: WsMessage = JSON.parse(event.data);
+                console.log('Received WebSocket message:', data);
+
+                // Add to pending messages
+                pendingMessagesRef.current.push(data);
+
+                // Schedule processing on next animation frame if not already scheduled
+                if (!rafIdRef.current) {
+                    rafIdRef.current = requestAnimationFrame(() => {
+                        rafIdRef.current = null;
+                        processBatchedMessages();
+                    });
                 }
             } catch {
                 console.log('Received raw WebSocket message:', event.data);
@@ -565,17 +742,55 @@ export default function ExecutionRunner() {
             }
         };
 
+        // T023/T024: WebSocket error handling with reconnection (BUG-002)
         ws.onerror = (error) => {
             console.error('WebSocket error:', error);
-            addLog('WebSocket error', 'error');
-            setExecutionStatus('failed');
+            addLog('WebSocket connection error', 'error');
         };
 
-        ws.onclose = () => {
-            console.log('WebSocket connection closed');
-            addLog('Execution stream closed', 'info');
+        // T023/T024: WebSocket close with reconnection logic (BUG-002)
+        ws.onclose = (event) => {
+            console.log('WebSocket connection closed', event);
+
+            // Only attempt reconnection if execution was in progress and not intentionally closed
+            if (executionStatus === 'running' || executionStatus === 'reconnecting') {
+                if (retryCount < MAX_RETRIES) {
+                    const delay = RETRY_DELAYS[retryCount] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
+                    const delaySeconds = Math.ceil(delay / 1000);
+
+                    setExecutionStatus('reconnecting');
+                    setWsRetryCount(retryCount + 1);
+                    setWsRetryCountdown(delaySeconds);
+
+                    addLog(`Connection lost. Reconnecting in ${delaySeconds}s (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`, 'info');
+
+                    // Start countdown
+                    let countdown = delaySeconds;
+                    const countdownInterval = window.setInterval(() => {
+                        countdown -= 1;
+                        setWsRetryCountdown(countdown);
+                        if (countdown <= 0) {
+                            clearInterval(countdownInterval);
+                        }
+                    }, 1000);
+
+                    // Schedule reconnection using managed timeout
+                    setTimeout(() => {
+                        clearInterval(countdownInterval);
+                        connectWebSocket(runId, retryCount + 1);
+                    }, delay);
+                } else {
+                    // All retries exhausted
+                    setExecutionStatus('failed');
+                    setWsRetryCount(0);
+                    setWsRetryCountdown(0);
+                    addLog('Connection failed after maximum retry attempts', 'error');
+                }
+            } else {
+                addLog('Execution stream closed', 'info');
+            }
         };
-    }, [addLog, updateBatchFromLog]);
+    }, [addLog, processBatchedMessages, executionStatus, setTimeout]);
 
     const handleRun = useCallback(async () => {
         if (!selectedSpecName) return;
@@ -584,7 +799,23 @@ export default function ExecutionRunner() {
         runIdRef.current = runId;
 
         setExecutionStatus('starting');
-        terminalRef.current?.clear();
+
+        // T025: Fix terminal clear race condition (BUG-003)
+        // Use requestAnimationFrame to ensure terminal is ready before clearing
+        if (terminalRef.current) {
+            requestAnimationFrame(() => {
+                try {
+                    terminalRef.current?.clear();
+                } catch (e) {
+                    console.warn('Terminal clear failed, will retry:', e);
+                    // Fallback: try again after a short delay
+                    window.setTimeout(() => {
+                        terminalRef.current?.clear();
+                    }, 100);
+                }
+            });
+        }
+
         setBatchLogs(prev => {
             const reset: Record<string, LogEntry[]> = {};
             Object.keys(prev).forEach(k => { reset[k] = []; });
@@ -782,6 +1013,8 @@ export default function ExecutionRunner() {
                             <button
                                 onClick={handlePlan}
                                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium text-xs transition-colors"
+                                data-testid="dry-run-button"
+                                aria-label="Run dry run"
                             >
                                 <Layers size={14} />
                                 Dry Run
@@ -789,6 +1022,8 @@ export default function ExecutionRunner() {
                             <button
                                 onClick={handleRun}
                                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-lg shadow-emerald-900/20 transition-all hover:scale-105 active:scale-95"
+                                data-testid="run-button"
+                                aria-label="Start execution"
                             >
                                 <Zap size={14} fill="currentColor" />
                                 Run Execution
@@ -798,15 +1033,31 @@ export default function ExecutionRunner() {
                         <button
                             onClick={handleStop}
                             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-900/50 hover:bg-red-900 border border-red-800 text-red-300 font-medium text-xs transition-colors"
+                            data-testid="stop-button"
+                            aria-label="Stop execution"
                         >
                             <Square size={14} fill="currentColor" />
                             Stop
                         </button>
                     )}
+
+                    {/* T024: WebSocket reconnection indicator (BUG-002) */}
+                    {executionStatus === 'reconnecting' && (
+                        <div
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-900/50 border border-amber-800 text-amber-300 text-xs font-medium"
+                            data-testid="reconnecting-indicator"
+                        >
+                            <Loader2 size={14} className={isPending ? 'animate-spin' : 'animate-spin'} />
+                            <span>Reconnecting in {wsRetryCountdown}s</span>
+                            <span className="text-amber-500">(attempt {wsRetryCount}/{3})</span>
+                        </div>
+                    )}
+
                     <button
                         onClick={handleReset}
                         className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 transition-colors"
                         title="Reset state"
+                        aria-label="Reset execution state"
                     >
                         <RotateCcw size={16} />
                     </button>

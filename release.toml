@@ -1,0 +1,39 @@
+# cargo-release configuration
+# https://github.com/crate-ci/cargo-release/blob/master/docs/reference.md
+
+# Allow releasing from any branch
+allow-branch = ["*"]
+
+# Sign git tags
+sign-tag = false
+
+# Push to remote after release
+push = true
+
+# Create git tag
+tag = true
+
+# Tag name format
+tag-name = "v{{version}}"
+
+# Tag message format
+tag-message = "Release {{crate_name}} v{{version}}"
+
+# Pre-release hook to update npm package.json files
+# Use bash -c to find workspace root and run script from there
+pre-release-hook = ["bash", "-c", "$(git rev-parse --show-toplevel)/scripts/bump-npm-versions.sh {{version}}"]
+
+# Commit all changes (including npm package.json updates)
+consolidate-commits = true
+
+# Custom commit message
+pre-release-commit-message = "chore: release v{{version}}"
+
+# Don't publish to crates.io (private project)
+publish = false
+
+# Run cargo build before release to verify
+verify = true
+
+# Use same version across workspace
+shared-version = true
