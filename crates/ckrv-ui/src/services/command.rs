@@ -465,10 +465,125 @@ impl CommandService {
         }
     }
 
-    pub async fn run_run(state: &AppState, dry_run: bool) -> Result<String, String> {
-        let step_name = if dry_run { "Plan Execution (Dry Run)" } else { "Execute Tasks" };
-        Self::emit_step_start(state, step_name);
-        Self::emit_log(state, if dry_run { "Running execution plan (dry-run)..." } else { "Running AI agents to execute tasks..." });
+    /// Run the plan command - generates execution plan in Docker
+    pub async fn run_plan(state: &AppState) -> Result<String, String> {
+        Self::emit_step_start(state, "Generate Execution Plan");
+        Self::emit_log(state, "🐳 Generating execution plan in Docker sandbox...");
+
+        // Update mode to planning
+        {
+            let mut status = state.status.write().await;
+            status.mode = SystemMode::Planning;
+        }
+
+        // Get current directory
+        let cwd = std::env::current_dir()
+            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+
+        Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
+
+        // Build the command
+        let exe = std::env::current_exe()
+            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+
+        let cmd_str = format!("{} plan", exe.display());
+        Self::emit_log(state, &format!("Running: {}", cmd_str));
+
+        // Use tokio Command for async streaming
+        let mut child = tokio::process::Command::new(&exe)
+            .arg("plan")
+            .current_dir(&cwd)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| {
+                let error_msg = format!("Failed to spawn plan command: {}", e);
+                Self::emit_error(state, &error_msg);
+                Self::emit_step_end(state, "Generate Execution Plan", "failed");
+                let state_clone = state.clone();
+                tokio::spawn(async move {
+                    let mut status = state_clone.status.write().await;
+                    status.mode = SystemMode::Idle;
+                });
+                error_msg
+            })?;
+
+        // Stream stdout
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        
+        let state_stdout = state.clone();
+        let state_stderr = state.clone();
+
+        // Spawn task to read stdout
+        let stdout_handle = if let Some(stdout) = stdout {
+            Some(tokio::spawn(async move {
+                let reader = BufReader::new(stdout);
+                let mut lines = reader.lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    CommandService::emit_log(&state_stdout, &line);
+                }
+            }))
+        } else {
+            None
+        };
+
+        // Spawn task to read stderr
+        let stderr_handle = if let Some(stderr) = stderr {
+            Some(tokio::spawn(async move {
+                let reader = BufReader::new(stderr);
+                let mut lines = reader.lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    CommandService::emit_stderr_line(&state_stderr, &line);
+                }
+            }))
+        } else {
+            None
+        };
+
+        // Wait for the process to complete
+        let status = child.wait().await;
+
+        // Wait for output readers to finish
+        if let Some(handle) = stdout_handle {
+            let _ = handle.await;
+        }
+        if let Some(handle) = stderr_handle {
+            let _ = handle.await;
+        }
+
+        // Reset mode
+        {
+            let mut sys_status = state.status.write().await;
+            sys_status.mode = SystemMode::Idle;
+        }
+
+        match status {
+            Ok(exit_status) => {
+                if exit_status.success() {
+                    Self::emit_success(state, "Execution plan generated");
+                    Self::emit_step_end(state, "Generate Execution Plan", "success");
+                    Ok("Plan generated".to_string())
+                } else {
+                    let error_msg = format!("plan failed with exit code: {:?}", exit_status.code());
+                    Self::emit_error(state, &error_msg);
+                    Self::emit_step_end(state, "Generate Execution Plan", "failed");
+                    Err(error_msg)
+                }
+            }
+            Err(e) => {
+                let error_msg = format!("Failed to wait for plan command: {}", e);
+                Self::emit_error(state, &error_msg);
+                Self::emit_step_end(state, "Generate Execution Plan", "failed");
+                Err(error_msg)
+            }
+        }
+    }
+
+    /// Run the execute command - runs batches in Docker containers
+    pub async fn run_execute(state: &AppState) -> Result<String, String> {
+        Self::emit_step_start(state, "Execute Tasks");
+        Self::emit_log(state, "🐳 Running AI agents in Docker sandbox...");
 
         // Update mode to running
         {
@@ -486,17 +601,12 @@ impl CommandService {
         let exe = std::env::current_exe()
             .map_err(|e| format!("Failed to get executable path: {}", e))?;
 
-        let cmd_str = if dry_run { format!("{} run --dry-run", exe.display()) } else { format!("{} run", exe.display()) };
+        let cmd_str = format!("{} run", exe.display());
         Self::emit_log(state, &format!("Running: {}", cmd_str));
 
         // Use tokio Command for async streaming
-        let mut cmd = tokio::process::Command::new(&exe);
-        cmd.arg("run");
-        if dry_run {
-            cmd.arg("--dry-run");
-        }
-        
-        let mut child = cmd
+        let mut child = tokio::process::Command::new(&exe)
+            .arg("run")
             .current_dir(&cwd)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -504,8 +614,7 @@ impl CommandService {
             .map_err(|e| {
                 let error_msg = format!("Failed to spawn run command: {}", e);
                 Self::emit_error(state, &error_msg);
-                Self::emit_step_end(state, step_name, "failed");
-                // Reset mode
+                Self::emit_step_end(state, "Execute Tasks", "failed");
                 let state_clone = state.clone();
                 tokio::spawn(async move {
                     let mut status = state_clone.status.write().await;
@@ -584,6 +693,12 @@ impl CommandService {
                 Err(error_msg)
             }
         }
+    }
+
+    /// Legacy run_run for backwards compatibility - now just calls run_execute
+    pub async fn run_run(state: &AppState, _dry_run: bool) -> Result<String, String> {
+        // Ignore dry_run flag, always run real execution
+        Self::run_execute(state).await
     }
 
     pub async fn run_diff(

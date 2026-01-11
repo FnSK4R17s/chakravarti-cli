@@ -45,6 +45,31 @@
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
+  /* T021-T026: Spacing tokens for UI consistency */
+  --space-xs: 0.25rem;
+  /* 4px */
+  --space-sm: 0.5rem;
+  /* 8px */
+  --space-md: 1rem;
+  /* 16px */
+  --space-lg: 1.5rem;
+  /* 24px */
+  --space-xl: 2rem;
+  /* 32px */
+  --space-2xl: 3rem;
+  /* 48px */
+
+  /* Layout tokens */
+  --header-height: 3.5rem;
+  /* 56px - consistent header height */
+  --sidebar-width: 280px;
+  --panel-radius: 0.75rem;
+  /* 12px */
+  --card-radius: 0.5rem;
+  /* 8px */
+  --button-radius: 0.5rem;
+  /* 8px */
+
   font-family: 'Geist', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -307,6 +332,88 @@ select:focus-visible {
   :focus-visible {
     outline: 3px solid CanvasText;
   }
+}
+
+/* T021-T025: UI Consistency Utilities */
+/* Page header - consistent across all pages */
+.page-header {
+  height: var(--header-height);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(17, 17, 19, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-md);
+}
+
+/* Panel card - consistent card styling */
+.panel-card {
+  background: rgba(31, 31, 35, 0.5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-radius);
+  transition: all var(--duration-normal) var(--ease-default);
+}
+
+.panel-card:hover {
+  border-color: var(--border-default);
+  background: rgba(31, 31, 35, 0.8);
+}
+
+/* Primary action button */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--button-radius);
+  font-weight: 500;
+  font-size: 0.875rem;
+  background: #059669;
+  color: white;
+  transition: all var(--duration-normal) var(--ease-default);
+}
+
+.btn-primary:hover {
+  background: #10b981;
+  transform: scale(1.02);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* Secondary action button */
+.btn-secondary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--button-radius);
+  font-weight: 500;
+  font-size: 0.875rem;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  transition: all var(--duration-normal) var(--ease-default);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* Empty state container */
+.empty-state {
+  text-align: center;
+  padding: var(--space-2xl) var(--space-md);
+  color: var(--text-muted);
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--space-md);
+  opacity: 0.5;
 }
 
 /* Reduced motion preference */

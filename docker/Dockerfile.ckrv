@@ -1,0 +1,44 @@
+# Chakravarti CLI Agent Container
+# Contains ckrv CLI for sandboxed batch execution
+
+FROM rust:1.83-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy source code
+COPY . .
+
+# Build release binary
+RUN cargo build --release --package ckrv-cli
+
+# Runtime image
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy binary from builder
+COPY --from=builder /build/target/release/ckrv /usr/local/bin/ckrv
+
+# Create workspace directory
+RUN mkdir -p /workspace && chmod 777 /workspace
+
+WORKDIR /workspace
+
+# Verify ckrv is installed
+RUN ckrv --version || true
+
+# Default command
+CMD ["/bin/bash"]

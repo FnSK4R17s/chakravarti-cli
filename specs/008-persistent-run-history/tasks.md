@@ -96,12 +96,12 @@ This task list implements persistent run history for the Execution Runner, inclu
 
 ### UI Updates
 
-- [ ] T021 [US2] Update Runner page header to match other pages in `crates/ckrv-ui/frontend/src/components/ExecutionRunner.tsx`
-- [ ] T022 [US2] Update panel layout (sidebar + main) to match in `crates/ckrv-ui/frontend/src/components/ExecutionRunner.tsx`
-- [ ] T023 [US2] Update empty state styling to match in `crates/ckrv-ui/frontend/src/components/ExecutionRunner.tsx`
-- [ ] T024 [US2] Update batch card styling to use shared design tokens in `crates/ckrv-ui/frontend/src/components/ExecutionRunner.tsx`
-- [ ] T025 [US2] Update button styles to match other pages in `crates/ckrv-ui/frontend/src/components/ExecutionRunner.tsx`
-- [ ] T026 [US2] Add shared CSS variables for consistent spacing in `crates/ckrv-ui/frontend/src/index.css`
+- [x] T021 [US2] Update Runner page header to match other pages in `crates/ckrv-ui/frontend/src/components/ExecutionRunner.tsx`
+- [x] T022 [US2] Update panel layout (sidebar + main) to match in `crates/ckrv-ui/frontend/src/components/ExecutionRunner.tsx`
+- [x] T023 [US2] Update empty state styling to match in `crates/ckrv-ui/frontend/src/components/ExecutionRunner.tsx`
+- [x] T024 [US2] Update batch card styling to use shared design tokens in `crates/ckrv-ui/frontend/src/components/ExecutionRunner.tsx`
+- [x] T025 [US2] Update button styles to match other pages in `crates/ckrv-ui/frontend/src/components/ExecutionRunner.tsx`
+- [x] T026 [US2] Add shared CSS variables for consistent spacing in `crates/ckrv-ui/frontend/src/index.css`
 
 **Checkpoint**: Runner page visually consistent with other pages
 
@@ -133,14 +133,14 @@ This task list implements persistent run history for the Execution Runner, inclu
 
 ### Backend
 
-- [ ] T032 [US4] Add resume_run() method to engine in `crates/ckrv-ui/src/services/engine.rs`
-- [ ] T033 [US4] Add retry_failed_batches() method in `crates/ckrv-ui/src/services/engine.rs`
-- [ ] T034 [US4] Create POST /api/execution/resume endpoint in `crates/ckrv-ui/src/api/execution.rs`
+- [x] T032 [US4] Add resume_run() method to engine in `crates/ckrv-ui/src/services/engine.rs`
+- [x] T033 [US4] Add retry_failed_batches() method in `crates/ckrv-ui/src/services/engine.rs`
+- [x] T034 [US4] Create POST /api/execution/resume endpoint in `crates/ckrv-ui/src/api/execution.rs`
 
 ### Frontend
 
-- [ ] T035 [US4] Add "Resume" button to incomplete runs in `crates/ckrv-ui/frontend/src/components/RunHistoryPanel.tsx`
-- [ ] T036 [US4] Add "Retry Failed" button to failed runs in `crates/ckrv-ui/frontend/src/components/RunHistoryPanel.tsx`
+- [x] T035 [US4] Add "Resume" button to incomplete runs in `crates/ckrv-ui/frontend/src/components/RunHistoryPanel.tsx`
+- [x] T036 [US4] Add "Retry Failed" button to failed runs in `crates/ckrv-ui/frontend/src/components/RunHistoryPanel.tsx`
 
 **Checkpoint**: Users can resume or retry runs without starting from scratch
 

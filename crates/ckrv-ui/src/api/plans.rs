@@ -23,6 +23,7 @@ pub struct Batch {
     #[serde(default)]
     pub depends_on: Vec<String>,
     pub model_assignment: ModelAssignment,
+    #[serde(default)]
     pub execution_strategy: String,
     #[serde(default)]
     pub estimated_cost: f64,

@@ -60,12 +60,34 @@ pub struct RunPayload {
     pub dry_run: bool,
 }
 
+/// Generate execution plan in Docker
+pub async fn run_plan(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    match CommandService::run_plan(&state).await {
+        Ok(msg) => Json(serde_json::json!({ "success": true, "message": msg })),
+        Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
+    }
+}
+
+/// Execute tasks in Docker (legacy run_run for backwards compatibility)
 pub async fn run_run(
     State(state): State<AppState>,
     Json(payload): Json<Option<RunPayload>>,
 ) -> impl IntoResponse {
-    let dry_run = payload.map(|p| p.dry_run).unwrap_or(false);
-    match CommandService::run_run(&state, dry_run).await {
+    // Ignore dry_run, always run execute
+    let _ = payload;
+    match CommandService::run_execute(&state).await {
+        Ok(msg) => Json(serde_json::json!({ "success": true, "message": msg })),
+        Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
+    }
+}
+
+/// Execute batches in Docker
+pub async fn run_execute(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    match CommandService::run_execute(&state).await {
         Ok(msg) => Json(serde_json::json!({ "success": true, "message": msg })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
     }
