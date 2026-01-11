@@ -44,10 +44,6 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub executor_model: Option<String>,
 
-    /// Show the execution plan without running tasks.
-    #[arg(long)]
-    pub dry_run: bool,
-
     /// Execute job in Chakravarti Cloud instead of locally.
     #[arg(long)]
     pub cloud: bool,
@@ -636,7 +632,7 @@ batches:
 
         let config = RunnerConfig {
             agent_binary: "claude".to_string(),
-            use_sandbox: !args.dry_run,
+            use_sandbox: true,
             keep_container: false,
             ..Default::default()
         };
@@ -885,14 +881,13 @@ batches:
             let unblocked = batch.depends_on.iter().all(|dep_id| completed_batches.contains(dep_id));
             
             if unblocked {
-                let prefix = if args.dry_run { "[Simulated]" } else { "[Orchestrator]" };
+                let prefix = "[Orchestrator]";
                 println!("{} Spawning batch: {}", prefix, batch.name);
                 
                 spawned_any = true;
                 let exe = exe_arc.clone();
                 let manager = manager_arc.clone();
                 let args_executor_model = args.executor_model.clone();
-                let args_dry_run = args.dry_run;
                 let batch_name = batch.name.clone();
                 let batch_id = batch.id.clone();
                 let task_ids = batch.task_ids.clone();
@@ -943,26 +938,22 @@ batches:
                     let mut worktree_path: Option<PathBuf> = None;
                     let mut worktree_branch = String::new();
 
-                    if args_dry_run {
-                        println!("[Batch: {}] WOULD execute mission in a new worktree.", batch_name);
-                    } else {
-                        let suffix: String = uuid::Uuid::new_v4().to_string().chars().take(6).collect();
-                        let wt_job_id = format!("batch-{}-{}", batch_id, suffix); 
-                        
-                        let worktree = match manager.create(&wt_job_id, "1") {
-                            Ok(wt) => wt,
-                            Err(e) => {
-                                eprintln!("[Batch: {}] Failed to create worktree: {}", batch_name, e);
-                                return (batch_id, batch_name.clone(), None, Err(anyhow::anyhow!("Worktree for {} failed", batch_name)));
-                            }
-                        };
-                        println!("[Batch: {}] EXECUTING MISSION in worktree: {}", batch_name, worktree.path.display());
-                        worktree_path = Some(worktree.path.clone());
-                        worktree_branch = worktree.branch.clone();
-                        
-                        // Update plan.yaml with running status and branch
-                        let _ = update_batch_status(&plan_path_clone, &batch_id_for_status, BatchStatus::Running, Some(&worktree.branch));
-                    }
+                    let suffix: String = uuid::Uuid::new_v4().to_string().chars().take(6).collect();
+                    let wt_job_id = format!("batch-{}-{}", batch_id, suffix); 
+                    
+                    let worktree = match manager.create(&wt_job_id, "1") {
+                        Ok(wt) => wt,
+                        Err(e) => {
+                            eprintln!("[Batch: {}] Failed to create worktree: {}", batch_name, e);
+                            return (batch_id, batch_name.clone(), None, Err(anyhow::anyhow!("Worktree for {} failed", batch_name)));
+                        }
+                    };
+                    println!("[Batch: {}] EXECUTING MISSION in worktree: {}", batch_name, worktree.path.display());
+                    worktree_path = Some(worktree.path.clone());
+                    worktree_branch = worktree.branch.clone();
+                    
+                    // Update plan.yaml with running status and branch
+                    let _ = update_batch_status(&plan_path_clone, &batch_id_for_status, BatchStatus::Running, Some(&worktree.branch));
                     
                     let mut cmd = AsyncCommand::new(exe.as_ref());
                     cmd.arg("task").arg(&combined_desc);
@@ -977,7 +968,6 @@ batches:
                     // Prioritize CLI arg, then auto-resolved agent
                     let final_agent = args_executor_model.or(resolved_agent);
                     if let Some(m) = &final_agent { cmd.arg("--agent").arg(m); }
-                    if args_dry_run { cmd.arg("--dry-run"); }
                     
                     let status = match cmd.status().await {
                         Ok(s) => s,
@@ -988,8 +978,7 @@ batches:
                         return (batch_id, batch_name.clone(), worktree_path, Err(anyhow::anyhow!("Batch mission {} failed", batch_name)));
                     }
                     
-                    let prefix = if args_dry_run { "[Simulated]" } else { "[Batch]" };
-                    println!("{} Mission completed: {}", prefix, batch_name);
+                    println!("[Batch] Mission completed: {}", batch_name);
                     (batch_id, batch_name, worktree_path, Ok(worktree_branch))
                 });
                 
@@ -1005,113 +994,133 @@ batches:
             use futures::StreamExt;
             if let Some(result) = running_futures.next().await {
                 match result {
-                    Ok((id, name, wt_path_opt, Ok(branch))) => {
-                        if !args.dry_run {
-                            // 1. Commit changes in the worktree
-                            if let Some(wt_path) = wt_path_opt {
-                                println!("[Orchestrator] Committing changes for batch '{}'...", name);
-                                let commit_msg = format!("feat(batch): {} - {}", name, id);
-                                
-                                let add_status = std::process::Command::new("git")
-                                    .arg("add")
-                                    .arg(".")
-                                    .current_dir(&wt_path)
-                                    .status()?;
-                                
-                                if !add_status.success() {
-                                    return Err(anyhow::anyhow!("Failed to git add in worktree for batch {}", name));
-                                }
-
-                                // Check if there are changes to commit
-                                let diff_status = std::process::Command::new("git")
-                                    .args(["diff", "--staged", "--quiet"])
-                                    .current_dir(&wt_path)
-                                    .status()?;
-                                
-                                // Exit code 1 means differences exist (good to commit), 0 means empty
-                                if !diff_status.success() {
-                                    let commit_status = std::process::Command::new("git")
-                                        .arg("commit")
-                                        .arg("-m")
-                                        .arg(&commit_msg)
-                                        .current_dir(&wt_path)
-                                        .status()?;
-
-                                    if !commit_status.success() {
-                                        return Err(anyhow::anyhow!("Failed to git commit in worktree for batch {}", name));
-                                    }
-                                } else {
-                                    println!("[Orchestrator] No changes to commit for batch '{}'.", name);
-                                }
+                    Ok((id, name, ref wt_path_opt, Ok(branch))) => {
+                        // 1. Commit changes in the worktree
+                        if let Some(ref wt_path) = wt_path_opt {
+                            println!("[Orchestrator] Committing changes for batch '{}'...", name);
+                            let commit_msg = format!("feat(batch): {} - {}", name, id);
+                            
+                            let add_status = std::process::Command::new("git")
+                                .arg("add")
+                                .arg(".")
+                                .current_dir(&wt_path)
+                                .status()?;
+                            
+                            if !add_status.success() {
+                                return Err(anyhow::anyhow!("Failed to git add in worktree for batch {}", name));
                             }
 
-                            // 2. Merge branch into current HEAD
-                            if !branch.is_empty() {
-                                println!("[Orchestrator] Merging batch '{}' ({}) into main branch...", name, branch);
-                                // Using --no-ff to preserve batch history context
-                                let merge_status = std::process::Command::new("git")
-                                    .arg("merge")
-                                    .arg("--no-ff")
-                                    .arg("--no-edit")
-                                    .arg(&branch)
-                                    .current_dir(&cwd) // Merge into the repo root/current branch
+                            // Check if there are changes to commit
+                            let diff_status = std::process::Command::new("git")
+                                .args(["diff", "--staged", "--quiet"])
+                                .current_dir(&wt_path)
+                                .status()?;
+                            
+                            // Exit code 1 means differences exist (good to commit), 0 means empty
+                            if !diff_status.success() {
+                                let commit_status = std::process::Command::new("git")
+                                    .arg("commit")
+                                    .arg("-m")
+                                    .arg(&commit_msg)
+                                    .current_dir(&wt_path)
                                     .status()?;
 
-                                if !merge_status.success() {
-                                    // Check if it's a conflict that we can resolve with AI
-                                    if has_merge_conflicts(&cwd) {
-                                        println!("[Orchestrator] Merge conflict detected, attempting AI-assisted resolution...");
-                                        
-                                        // Try to resolve conflicts with Claude Code
-                                        let spec_path_ref: Option<&Path> = Some(spec_path.as_path());
-                                        match tokio::runtime::Handle::current().block_on(
-                                            resolve_conflicts_with_ai(&cwd, &branch, spec_path_ref)
-                                        ) {
-                                            Ok(()) => {
-                                                println!("[Orchestrator] AI successfully resolved merge conflicts!");
-                                            }
-                                            Err(e) => {
-                                                // Abort the merge and return error
-                                                let _ = std::process::Command::new("git")
-                                                    .args(["merge", "--abort"])
-                                                    .current_dir(&cwd)
-                                                    .status();
-                                                return Err(anyhow::anyhow!(
-                                                    "Failed to merge batch branch {} - AI conflict resolution failed: {}",
-                                                    branch, e
-                                                ));
-                                            }
-                                        }
-                                    } else {
-                                        return Err(anyhow::anyhow!(
-                                            "Failed to merge batch branch {} into main branch. Please resolve manually.",
-                                            branch
-                                        ));
-                                    }
+                                if !commit_status.success() {
+                                    return Err(anyhow::anyhow!("Failed to git commit in worktree for batch {}", name));
                                 }
-                                println!("[Orchestrator] Successfully merged batch '{}'.", name);
+                            } else {
+                                println!("[Orchestrator] No changes to commit for batch '{}'.", name);
+                            }
+                        }
 
-                                // 3. Update tasks.yaml
-                                if let Some(tids) = batch_task_map.get(&id) {
-                                    if let Err(e) = mark_tasks_complete(&tasks_path, tids) {
-                                        eprintln!("Failed to update tasks.yaml: {}", e);
+                        // 2. Merge branch into current HEAD
+                        if !branch.is_empty() {
+                            println!("[Orchestrator] Merging batch '{}' ({}) into main branch...", name, branch);
+                            // Using --no-ff to preserve batch history context
+                            let merge_status = std::process::Command::new("git")
+                                .arg("merge")
+                                .arg("--no-ff")
+                                .arg("--no-edit")
+                                .arg(&branch)
+                                .current_dir(&cwd) // Merge into the repo root/current branch
+                                .status()?;
+
+                            if !merge_status.success() {
+                                // Check if it's a conflict that we can resolve with AI
+                                if has_merge_conflicts(&cwd) {
+                                    println!("[Orchestrator] Merge conflict detected, attempting AI-assisted resolution...");
+                                    
+                                    // Try to resolve conflicts with Claude Code
+                                    let spec_path_ref: Option<&Path> = Some(spec_path.as_path());
+                                    match tokio::runtime::Handle::current().block_on(
+                                        resolve_conflicts_with_ai(&cwd, &branch, spec_path_ref)
+                                    ) {
+                                        Ok(()) => {
+                                            println!("[Orchestrator] AI successfully resolved merge conflicts!");
+                                        }
+                                        Err(e) => {
+                                            // Abort the merge and return error
+                                            let _ = std::process::Command::new("git")
+                                                .args(["merge", "--abort"])
+                                                .current_dir(&cwd)
+                                                .status();
+                                            return Err(anyhow::anyhow!(
+                                                "Failed to merge batch branch {} - AI conflict resolution failed: {}",
+                                                branch, e
+                                            ));
+                                        }
+                                    }
+                                } else {
+                                    return Err(anyhow::anyhow!(
+                                        "Failed to merge batch branch {} into main branch. Please resolve manually.",
+                                        branch
+                                    ));
+                                }
+                            }
+                            println!("[Orchestrator] Successfully merged batch '{}'.", name);
+
+                            // 3. Update tasks.yaml
+                            if let Some(tids) = batch_task_map.get(&id) {
+                                if let Err(e) = mark_tasks_complete(&tasks_path, tids) {
+                                    eprintln!("Failed to update tasks.yaml: {}", e);
+                                }
+                            }
+                            
+                            // 4. Update plan.yaml batch status
+                            let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
+                            let _ = update_batch_status(&plan_path, &id, BatchStatus::Completed, Some(&branch));
+                            
+                            // 5. Verify merge and cleanup worktree
+                            // Check if the branch is now an ancestor of HEAD (merge was successful)
+                            let verify_merge = std::process::Command::new("git")
+                                .args(["merge-base", "--is-ancestor", &branch, "HEAD"])
+                                .current_dir(&cwd)
+                                .status();
+                            
+                            if verify_merge.map(|s| s.success()).unwrap_or(false) {
+                                // Branch is merged, safe to remove worktree
+                                if let Some(ref wt_path) = wt_path_opt {
+                                    println!("[Orchestrator] Cleaning up worktree for batch '{}'...", name);
+                                    let remove_result = std::process::Command::new("git")
+                                        .args(["worktree", "remove", "--force", &wt_path.to_string_lossy()])
+                                        .current_dir(&cwd)
+                                        .status();
+                                    
+                                    if remove_result.map(|s| s.success()).unwrap_or(false) {
+                                        println!("[Orchestrator] Worktree cleaned up ✓");
+                                    } else {
+                                        eprintln!("[Orchestrator] Warning: Could not remove worktree at {}", wt_path.display());
                                     }
                                 }
-                                
-                                // 4. Update plan.yaml batch status
-                                let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
-                                let _ = update_batch_status(&plan_path, &id, BatchStatus::Completed, Some(&branch));
                             }
                         }
 
                         completed_batches.insert(id);
                     }
                     Ok((failed_id, name, _path, Err(e))) => {
-                        // Mark batch as failed in plan.yaml for potential retry (only if not dry-run)
-                        if !args.dry_run {
-                            let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
-                            let _ = update_batch_status(&plan_path, &failed_id, BatchStatus::Failed, None);
-                        }
+                        // Mark batch as failed in plan.yaml for potential retry
+                        let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
+                        let _ = update_batch_status(&plan_path, &failed_id, BatchStatus::Failed, None);
                         return Err(anyhow::anyhow!("Batch '{}' failed: {}", name, e));
                     }
                     Err(e) => {
@@ -1127,7 +1136,7 @@ batches:
     }
 
     // All batches completed successfully - create implementation summary
-    if !args.dry_run && !completed_batches.is_empty() {
+    if !completed_batches.is_empty() {
         // Get current branch name for the summary
         let branch_output = std::process::Command::new("git")
             .args(["branch", "--show-current"])

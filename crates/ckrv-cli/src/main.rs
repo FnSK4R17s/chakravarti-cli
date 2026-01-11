@@ -42,8 +42,12 @@ enum Commands {
     #[command(display_order = 2)]
     Spec(commands::spec::SpecArgs),
 
-    /// Run a job based on a specification
+    /// Generate execution plan from tasks (in Docker)
     #[command(display_order = 3)]
+    Plan(commands::plan::PlanArgs),
+
+    /// Run a job based on a specification
+    #[command(display_order = 4)]
     Run(commands::run::RunArgs),
 
     /// View changes between current branch and base
@@ -127,6 +131,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Some(Commands::Init(args)) => commands::init::execute(args, cli.json, &ui).await,
         Some(Commands::Spec(args)) => commands::spec::execute(args, cli.json, &ui).await,
+        Some(Commands::Plan(args)) => commands::plan::execute(args, cli.json, &ui).await,
         Some(Commands::Run(args)) => commands::run::execute(args, cli.json, &ui).await,
         Some(Commands::Task(args)) => commands::task::execute(args, cli.json, &ui).await,
         Some(Commands::Status(args)) => commands::status::execute(args, cli.json, &ui).await,

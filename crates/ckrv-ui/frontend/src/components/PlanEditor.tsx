@@ -46,6 +46,7 @@ interface Spec {
     path: string;
     task_count: number;
     has_plan: boolean;
+    has_implementation: boolean;
 }
 
 interface AgentConfig {
@@ -379,7 +380,7 @@ const SpecListView: React.FC<{
             <div className="text-center py-12 text-gray-500">
                 <Workflow size={48} className="mx-auto mb-4 opacity-50" />
                 <p>No specs with execution plans found</p>
-                <p className="text-sm mt-2">Run <code className="bg-gray-800 px-2 py-0.5 rounded">ckrv run --dry-run</code> to generate a plan</p>
+                <p className="text-sm mt-2">Run <code className="bg-gray-800 px-2 py-0.5 rounded">ckrv plan</code> to generate an execution plan</p>
             </div>
         );
     }
@@ -400,6 +401,11 @@ const SpecListView: React.FC<{
                                 <div className="flex items-center gap-2 mt-1">
                                     <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded">has plan</span>
                                     <span className="text-xs text-gray-500">{spec.task_count} tasks</span>
+                                    {spec.has_implementation && (
+                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded">
+                                            implemented
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>

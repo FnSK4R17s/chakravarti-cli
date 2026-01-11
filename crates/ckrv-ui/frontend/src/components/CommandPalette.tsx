@@ -34,6 +34,7 @@ interface Spec {
     name: string;
     path: string;
     has_tasks: boolean;
+    has_plan: boolean;
     has_implementation: boolean;
     implementation_branch: string | null;
 }
@@ -100,6 +101,9 @@ export const CommandPalette: React.FC = () => {
     // Check if any spec has completed implementation (code merged and ready for review)
     const hasImplementation = specs.some(s => s.has_implementation);
 
+    // Check if any spec already has a plan
+    const hasPlan = specs.some(s => s.has_plan);
+
     const runCommand = async (endpoint: string, body?: object): Promise<CommandResult> => {
         const res = await fetch(`/api/command/${endpoint}`, {
             method: 'POST',
@@ -148,19 +152,19 @@ export const CommandPalette: React.FC = () => {
     });
 
     const planMutation = useMutation({
-        mutationFn: () => runCommand('run', { dry_run: true }),
+        mutationFn: () => runCommand('plan'),
         onSuccess: (data) => {
             setLastResult({ command: 'plan', result: data });
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
             queryClient.invalidateQueries({ queryKey: ['specs'] });
         },
         onError: () => {
-            setLastResult({ command: 'plan', result: { success: false, message: 'Failed to run plan (dry-run)' } });
+            setLastResult({ command: 'plan', result: { success: false, message: 'Failed to generate plan' } });
         }
     });
 
     const runMutation = useMutation({
-        mutationFn: () => runCommand('run'),
+        mutationFn: () => runCommand('execute'),
         onSuccess: (data) => {
             setLastResult({ command: 'run', result: data });
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -241,23 +245,25 @@ export const CommandPalette: React.FC = () => {
         {
             id: 'plan',
             icon: <ClipboardList size={16} />,
-            label: 'Plan',
-            description: `Preview execution without running agents`,
-            command: 'ckrv run --dry-run',
+            label: hasPlan ? 'Plan Exists' : 'Plan',
+            description: hasPlan ? 'Execution plan already generated' : 'Generate execution plan in Docker',
+            command: 'ckrv plan',
             action: () => planMutation.mutate(),
             loading: planMutation.isPending,
-            disabled: !isInitialized || !hasTasks || hasImplementation,
+            disabled: !isInitialized || !hasTasks || hasImplementation || hasPlan,
             color: 'cyan' as const,
         },
         {
             id: 'run',
             icon: <Rocket size={16} />,
             label: 'Run',
-            description: `Execute tasks with AI agents${pendingTasks > 0 ? ` (${pendingTasks} pending)` : ''}`,
+            description: hasPlan
+                ? `Execute batches in Docker${pendingTasks > 0 ? ` (${pendingTasks} pending)` : ''}`
+                : 'Generate a plan first',
             command: 'ckrv run',
             action: () => runMutation.mutate(),
             loading: runMutation.isPending,
-            disabled: !isInitialized || !hasTasks || hasImplementation,
+            disabled: !isInitialized || !hasTasks || hasImplementation || !hasPlan,
             color: 'purple' as const,
         },
         {

@@ -51,6 +51,7 @@ pub struct StartExecutionRequest {
     #[serde(default)]
     pub dry_run: bool,
     pub executor_model: Option<String>,
+    pub resume_run_id: Option<String>, // T032: Resume specific run
 }
 
 /// Response from starting execution
@@ -118,12 +119,14 @@ pub async fn start_execution(
     let run_id = payload.run_id.clone();
     let dry_run = payload.dry_run;
     let executor_model = payload.executor_model.clone();
+    let resume_run_id = payload.resume_run_id.clone(); // T032: Resume support
     
     let error_tx = log_mpsc_tx.clone();
 
     // Spawn Execution Task
     let handle = tokio::spawn(async move {
-        if let Err(e) = engine.run_spec(spec_name, dry_run, executor_model).await {
+        // T032: Pass resume_run_id to run_spec for resuming
+        if let Err(e) = engine.run_spec(spec_name, dry_run, executor_model, resume_run_id).await {
             eprintln!("Execution failed: {:?}", e);
             let _ = error_tx.send(LogMessage::new("error", &format!("Execution failed: {:?}", e))).await;
         }
@@ -294,68 +297,100 @@ pub async fn list_unmerged_branches(
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "HEAD".to_string());
     
-    // List all branches that match the worktree pattern
+    // Get list of actual worktrees (not just branches)
+    let worktree_output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(cwd)
+        .output();
+    
+    // Build set of branches that have actual worktrees
+    let mut worktree_branches: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if let Ok(output) = worktree_output {
+        let text = String::from_utf8_lossy(&output.stdout);
+        for line in text.lines() {
+            if line.starts_with("branch refs/heads/") {
+                let branch = line.strip_prefix("branch refs/heads/").unwrap_or("").to_string();
+                if branch.contains("worktree/") {
+                    worktree_branches.insert(branch);
+                }
+            }
+        }
+    }
+    
+    // If no worktrees exist, return empty list immediately
+    if worktree_branches.is_empty() {
+        return Json(ListBranchesResponse {
+            success: true,
+            current_branch,
+            branches: vec![],
+            message: None,
+        });
+    }
+    
+    // Filter by spec if provided
     let filter_pattern = if let Some(ref spec) = req.spec {
         format!("worktree/{}/*", spec)
     } else {
         "worktree/*".to_string()
     };
     
-    let output = std::process::Command::new("git")
-        .args(["branch", "--list", &filter_pattern])
-        .current_dir(cwd)
-        .output();
+    let mut branches = Vec::new();
     
-    match output {
-        Ok(out) if out.status.success() => {
-            let mut branches = Vec::new();
-            
-            for line in String::from_utf8_lossy(&out.stdout).lines() {
-                let branch_name = line.trim().trim_start_matches("* ").to_string();
-                if branch_name.is_empty() {
-                    continue;
-                }
-                
-                // Extract batch name from branch name (e.g., ckrv-batch-setup-structure-abc123 -> Setup Structure)
-                let batch_name = branch_name
-                    .split('/')
-                    .last()
-                    .unwrap_or(&branch_name)
-                    .replace("ckrv-batch-", "") // Basic cleanup
-                    .to_string();
-                
-                branches.push(BranchInfo {
-                    name: branch_name,
-                    batch_name,
-                    ahead_commits: 1, // Dummy for performance
-                    is_clean: true,
-                });
+    for branch_name in worktree_branches {
+        // Check if matches filter pattern
+        if !branch_name.starts_with(&filter_pattern.replace("*", "")) {
+            if req.spec.is_some() {
+                continue;
             }
-            
-            Json(ListBranchesResponse {
-                success: true,
-                current_branch,
-                branches,
-                message: None,
-            })
         }
-        Ok(out) => {
-            Json(ListBranchesResponse {
-                success: false,
-                current_branch,
-                branches: vec![],
-                message: Some(String::from_utf8_lossy(&out.stderr).to_string()),
-            })
+        
+        // Check if branch is already merged into HEAD
+        let is_merged = std::process::Command::new("git")
+            .args(["merge-base", "--is-ancestor", &branch_name, "HEAD"])
+            .current_dir(cwd)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        
+        if is_merged {
+            // Already merged, skip (worktree should have been cleaned up)
+            continue;
         }
-        Err(e) => {
-            Json(ListBranchesResponse {
-                success: false,
-                current_branch,
-                branches: vec![],
-                message: Some(e.to_string()),
-            })
-        }
+        
+        // Get ahead commit count
+        let ahead_output = std::process::Command::new("git")
+            .args(["rev-list", "--count", &format!("HEAD..{}", branch_name)])
+            .current_dir(cwd)
+            .output();
+        
+        let ahead_commits: u32 = ahead_output
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .and_then(|s| s.trim().parse().ok())
+            .unwrap_or(0);
+        
+        // Extract batch name from branch name
+        let batch_name = branch_name
+            .split('/')
+            .last()
+            .unwrap_or(&branch_name)
+            .replace("ckrv-batch-", "")
+            .to_string();
+        
+        branches.push(BranchInfo {
+            name: branch_name,
+            batch_name,
+            ahead_commits,
+            is_clean: true,
+        });
     }
+    
+    Json(ListBranchesResponse {
+        success: true,
+        current_branch,
+        branches,
+        message: None,
+    })
 }
 
 // ... Additional merge endpoints can be kept or redefined.
@@ -375,15 +410,106 @@ pub struct MergeAllResponse {
 }
 
 pub async fn merge_all_branches(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(_req): Json<MergeAllRequest>,
 ) -> impl IntoResponse {
-    // Stub implementation to satisfy the route
+    let project_root = state.project_root.clone();
+    
+    // Get list of worktree branches to merge
+    let worktree_output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(&project_root)
+        .output();
+    
+    let worktree_info: Vec<(String, String)> = match worktree_output {
+        Ok(output) => {
+            let text = String::from_utf8_lossy(&output.stdout);
+            let mut worktrees = Vec::new();
+            let mut current_path = String::new();
+            let mut current_branch = String::new();
+            
+            for line in text.lines() {
+                if line.starts_with("worktree ") {
+                    current_path = line.strip_prefix("worktree ").unwrap_or("").to_string();
+                } else if line.starts_with("branch refs/heads/") {
+                    current_branch = line.strip_prefix("branch refs/heads/").unwrap_or("").to_string();
+                    // Only include worktree branches (not the main worktree)
+                    if current_branch.contains("worktree/") && !current_path.is_empty() {
+                        worktrees.push((current_path.clone(), current_branch.clone()));
+                    }
+                }
+            }
+            worktrees
+        }
+        Err(_) => Vec::new(),
+    };
+    
+    if worktree_info.is_empty() {
+        return Json(MergeAllResponse {
+            success: true,
+            merged: vec![],
+            failed: vec![],
+            message: "No worktree branches to merge".to_string(),
+        });
+    }
+    
+    let mut merged = Vec::new();
+    let mut failed = Vec::new();
+    
+    for (wt_path, branch) in worktree_info {
+        // Check if already merged (branch is ancestor of HEAD)
+        let is_merged = std::process::Command::new("git")
+            .args(["merge-base", "--is-ancestor", &branch, "HEAD"])
+            .current_dir(&project_root)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        
+        if is_merged {
+            // Already merged, just clean up worktree
+            let _ = std::process::Command::new("git")
+                .args(["worktree", "remove", "--force", &wt_path])
+                .current_dir(&project_root)
+                .status();
+            merged.push(branch);
+            continue;
+        }
+        
+        // Try to merge
+        let merge_result = std::process::Command::new("git")
+            .args(["merge", "--no-ff", "--no-edit", &branch])
+            .current_dir(&project_root)
+            .status();
+        
+        if merge_result.map(|s| s.success()).unwrap_or(false) {
+            // Merge successful, clean up worktree
+            let _ = std::process::Command::new("git")
+                .args(["worktree", "remove", "--force", &wt_path])
+                .current_dir(&project_root)
+                .status();
+            merged.push(branch);
+        } else {
+            // Merge failed - abort if in progress
+            let _ = std::process::Command::new("git")
+                .args(["merge", "--abort"])
+                .current_dir(&project_root)
+                .status();
+            failed.push(branch);
+        }
+    }
+    
+    let success = failed.is_empty();
+    let message = if success {
+        format!("Successfully merged {} branches", merged.len())
+    } else {
+        format!("Merged {} branches, {} failed", merged.len(), failed.len())
+    };
+    
     Json(MergeAllResponse {
-        success: true,
-        merged: vec![],
-        failed: vec![],
-        message: "Merged all branches".to_string(),
+        success,
+        merged,
+        failed,
+        message,
     })
 }
 

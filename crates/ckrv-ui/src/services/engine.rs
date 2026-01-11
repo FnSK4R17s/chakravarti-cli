@@ -14,7 +14,7 @@ use ckrv_git::{WorktreeManager, DefaultWorktreeManager};
 use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox, DefaultAllowList};
 
 use crate::services::history::HistoryService;
-use crate::models::history::{Run, HistoryBatchStatus};
+use crate::models::history::{Run, RunStatus, HistoryBatchStatus};
 
 /// Status of a batch in the execution plan
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -172,11 +172,18 @@ impl ExecutionEngine {
         println!("[ExecutionEngine] {}: {}", type_, message);
     }
 
+    fn save_plan(&self, plan_path: &Path, plan: &ExecutionPlan) -> Result<()> {
+        let content = serde_yaml::to_string(plan)?;
+        std::fs::write(plan_path, content)?;
+        Ok(())
+    }
+
     pub async fn run_spec(
         &self,
         spec_name: String,
         dry_run: bool,
-        executor_model: Option<String>
+        executor_model: Option<String>,
+        existing_run_id: Option<String>, // T032: Resume existing run
     ) -> Result<()> {
         let spec_path = self.project_root.join(".specs").join(&spec_name).join("spec.yaml");
         let tasks_path = self.project_root.join(".specs").join(&spec_name).join("tasks.yaml");
@@ -209,24 +216,66 @@ impl ExecutionEngine {
             .map(|t| (t.id.clone(), t))
             .collect();
 
-        // T016: Initialize history service and create run entry
+        // T016: Initialize history service and create/resume run
         let history_service = HistoryService::new(&self.project_root);
-        let run_id = Run::generate_id();
-        let batch_info: Vec<(String, String)> = plan.batches
-            .iter()
-            .map(|b| (b.id.clone(), b.name.clone()))
-            .collect();
         
-        // Create run entry (best-effort - don't fail execution if history fails)
-        let history_run_id = match history_service.create_run(&spec_name, &run_id, batch_info, dry_run) {
-            Ok(run) => {
-                self.log("info", &format!("Created run history entry: {}", run.id)).await;
-                Some(run.id)
+        let run_id = if let Some(id) = existing_run_id {
+            // T032: Resume existing run - sync plan with history
+            match history_service.get_run(&spec_name, &id) {
+                Ok(Some(run)) => {
+                    // Sync plan with history: completed stays completed, others reset to pending
+                    for batch in &mut plan.batches {
+                        if let Some(result) = run.batches.iter().find(|b| b.id == batch.id) {
+                            match result.status {
+                                HistoryBatchStatus::Completed => {
+                                    batch.status = BatchStatus::Completed;
+                                }
+                                _ => {
+                                    // Reset non-completed batches so they run again
+                                    batch.status = BatchStatus::Pending;
+                                }
+                            }
+                        }
+                    }
+                    self.save_plan(&plan_path, &plan)?;
+                    
+                    // Update history status to Running
+                    let _ = history_service.update_run(&spec_name, &id, |r| {
+                        r.status = RunStatus::Running;
+                        r.ended_at = None;
+                        r.error = None;
+                    });
+                    
+                    self.log("info", &format!("Resuming run: {}", id)).await;
+                    id
+                }
+                Ok(None) => {
+                    self.log("warning", &format!("Run {} not found, starting fresh", id)).await;
+                    Run::generate_id()
+                }
+                Err(e) => {
+                    self.log("warning", &format!("Failed to load run {}, starting fresh: {}", id, e)).await;
+                    // Fall back to creating new run
+                    Run::generate_id()
+                }
             }
-            Err(e) => {
-                self.log("warning", &format!("Failed to create history entry: {}", e)).await;
-                None
-            }
+        } else {
+            let id = Run::generate_id();
+            let batch_info: Vec<(String, String)> = plan.batches
+                .iter()
+                .map(|b| (b.id.clone(), b.name.clone()))
+                .collect();
+            
+            // Create run entry (best-effort - don't fail execution if history fails)
+            match history_service.create_run(&spec_name, &id, batch_info, dry_run) {
+                Ok(run) => {
+                    self.log("info", &format!("Created run history entry: {}", run.id)).await;
+                }
+                Err(e) => {
+                    self.log("warning", &format!("Failed to create history entry: {}", e)).await;
+                }
+            };
+            id
         };
 
         // Initialize Worktree Manager
@@ -305,6 +354,7 @@ impl ExecutionEngine {
                              batch_clone,
                              task_map_clone,
                              dry_run,
+                             true, // use_sandbox: always use Docker
                              executor_model,
                              sender
                          ).await
@@ -347,7 +397,7 @@ impl ExecutionEngine {
                                  }
                                  
                                  // T017: Update history with batch completion
-                                 if let Some(ref run_id) = history_run_id {
+                                 { let run_id = &run_id;
                                      let _ = history_service.update_batch_status(
                                          &spec_name,
                                          run_id,
@@ -364,7 +414,7 @@ impl ExecutionEngine {
                                  let _ = self.sender.send(LogMessage::status("failed")).await;
                                  
                                  // T018: Update history with run failure
-                                 if let Some(ref run_id) = history_run_id {
+                                 { let run_id = &run_id;
                                      let _ = history_service.fail_run(&spec_name, run_id, &e.to_string());
                                  }
                                  
@@ -377,7 +427,7 @@ impl ExecutionEngine {
                          let _ = self.sender.send(LogMessage::status("failed")).await;
                          
                          // T018: Update history with run failure
-                         if let Some(ref run_id) = history_run_id {
+                         { let run_id = &run_id;
                              let _ = history_service.fail_run(&spec_name, run_id, &format!("Task panic: {}", e));
                          }
                          
@@ -389,7 +439,7 @@ impl ExecutionEngine {
                  let _ = self.sender.send(LogMessage::status("failed")).await;
                  
                  // T018: Update history with run failure
-                 if let Some(ref run_id) = history_run_id {
+                 { let run_id = &run_id;
                      let _ = history_service.fail_run(&spec_name, run_id, &format!("Deadlock: {} batches pending", pending_batches.len()));
                  }
                  
@@ -401,7 +451,7 @@ impl ExecutionEngine {
         let _ = self.sender.send(LogMessage::status("completed")).await;
         
         // T018: Update history with run completion
-        if let Some(ref run_id) = history_run_id {
+        { let run_id = &run_id;
             let _ = history_service.complete_run(&spec_name, run_id);
             self.log("info", &format!("Run history entry completed: {}", run_id)).await;
         }
@@ -417,6 +467,7 @@ impl ExecutionEngine {
         batch: Batch,
         task_map: HashMap<String, SpecTask>,
         dry_run: bool,
+        use_sandbox: bool, // NEW: Use Docker sandbox for execution
         executor_model: Option<String>,
         sender: mpsc::Sender<LogMessage>,
     ) -> Result<(String, String)> { // Returns (batch_id, branch_name)
@@ -455,18 +506,114 @@ impl ExecutionEngine {
         // Execute 'ckrv task' in that worktree
         let batch_run_id = format!("{}-run", batch.id);
         
-        let mut cmd = AsyncCommand::new(&exe);
-        cmd.arg("task")
-           .arg(&description)
-           .arg("--use-worktree").arg(&worktree.path)
-           .arg("--continue-task").arg(&batch_run_id);
-           
+        // Build the command arguments
+        let mut task_args = vec![
+            "task".to_string(),
+            description.clone(),
+            "--use-worktree".to_string(),
+            worktree.path.to_string_lossy().to_string(),
+            "--continue-task".to_string(),
+            batch_run_id.clone(),
+        ];
+        
         if let Some(m) = executor_model.or(batch.model_assignment.default) {
-            cmd.arg("--agent").arg(m);
+            task_args.push("--agent".to_string());
+            task_args.push(m);
         }
 
-        // We should capture stdout/stderr and forward to sender
+        if use_sandbox {
+            // Docker sandbox execution using Claude Code CLI
+            let _ = sender.send(LogMessage::new("info", "Executing in Docker sandbox with Claude Code...")).await;
+            
+            // Try to create Docker sandbox, fall back to local if unavailable
+            match DockerSandbox::with_defaults() {
+                Ok(sandbox) => {
+                    // Build the Claude Code command
+                    // claude --print "<prompt>" runs non-interactively
+                    let claude_prompt = format!(
+                        "You are implementing code changes in a project. Follow these instructions exactly:\n\n{}\n\nMake all changes to the files in /workspace. Do not ask questions - implement the code directly.",
+                        description
+                    );
+                    
+                    // Configure execution with claude CLI
+                    let mut config = ExecuteConfig::new(
+                        "claude",
+                        worktree.path.clone()
+                    ).shell(&format!("claude --print \"{}\"", claude_prompt.replace("\"", "\\\"")))
+                     .with_timeout(Duration::from_secs(900)); // 15 minute timeout for AI
+                    
+                    // Pass ANTHROPIC_API_KEY for Claude Code authentication
+                    if let Ok(api_key) = std::env::var("ANTHROPIC_API_KEY") {
+                        config = config.env("ANTHROPIC_API_KEY", api_key);
+                    } else {
+                        let _ = sender.send(LogMessage::new("error", "ANTHROPIC_API_KEY not set")).await;
+                        return Err(anyhow!("ANTHROPIC_API_KEY environment variable required for Claude Code"));
+                    }
+                    
+                    // Set HOME for Claude Code config
+                    config = config.env("HOME", "/home/claude");
+                    config = config.env("NO_COLOR", "1");
+                    
+                    // Execute in sandbox
+                    match sandbox.execute(config).await {
+                        Ok(result) => {
+                            // Log stdout
+                            for line in result.stdout.lines() {
+                                let _ = sender.send(LogMessage::new("log", line)).await;
+                            }
+                            // Log stderr
+                            for line in result.stderr.lines() {
+                                let _ = sender.send(LogMessage::new("error", line)).await;
+                            }
+                            
+                            if !result.success() {
+                                return Err(anyhow!("Claude Code execution failed with exit code {}", result.exit_code));
+                            }
+                        }
+                        Err(e) => {
+                            let _ = sender.send(LogMessage::new("error", &format!("Sandbox execution error: {}", e))).await;
+                            return Err(anyhow!("Sandbox execution failed: {}", e));
+                        }
+                    }
+                }
+                Err(e) => {
+                    // Fall back to local execution if Docker is not available
+                    let _ = sender.send(LogMessage::new("warning", &format!("Docker unavailable ({}), falling back to local execution", e))).await;
+                    Self::execute_local(&exe, &task_args, &sender).await?;
+                }
+            }
+        } else {
+            // Local execution (no sandbox) - uses ckrv task
+            Self::execute_local(&exe, &task_args, &sender).await?;
+        }
+        
+        // Commit changes inside the worktree
+        AsyncCommand::new("git")
+            .arg("add").arg(".")
+            .current_dir(&worktree.path)
+            .status().await?;
+            
+        let commit_msg = format!("feat(batch): {} - {}", batch.name, batch.id);
+        AsyncCommand::new("git")
+            .args(["commit", "-m", &commit_msg])
+            .current_dir(&worktree.path)
+            .status().await?;
+
+        Ok((batch.id, branch_name))
+    }
+    
+    /// Execute command locally (no sandbox)
+    async fn execute_local(
+        exe: &Path,
+        args: &[String],
+        sender: &mpsc::Sender<LogMessage>,
+    ) -> Result<()> {
         use std::process::Stdio;
+        
+        let mut cmd = AsyncCommand::new(exe);
+        for arg in args {
+            cmd.arg(arg);
+        }
         cmd.stdout(Stdio::piped())
            .stderr(Stdio::piped())
            .env("NO_COLOR", "1");
@@ -515,19 +662,7 @@ impl ExecutionEngine {
             return Err(anyhow!("Task failed with exit code {:?}", status.code()));
         }
         
-        // Commit changes inside the worktree
-        AsyncCommand::new("git")
-            .arg("add").arg(".")
-            .current_dir(&worktree.path)
-            .status().await?;
-            
-        let commit_msg = format!("feat(batch): {} - {}", batch.name, batch.id);
-        AsyncCommand::new("git")
-            .args(["commit", "-m", &commit_msg])
-            .current_dir(&worktree.path)
-            .status().await?;
-
-        Ok((batch.id, branch_name))
+        Ok(())
     }
     
     async fn merge_batch(&self, branch: &str, spec_path: &Path) -> Result<()> {

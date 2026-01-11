@@ -34,6 +34,7 @@ interface Spec {
     path: string;
     has_tasks: boolean;
     has_plan: boolean;
+    has_implementation: boolean;
     task_count: number;
 }
 
@@ -355,7 +356,7 @@ const SpecListView: React.FC<{ specs: Spec[]; onSelect: (name: string) => void; 
             <div className="text-center py-12 text-gray-500">
                 <Rocket size={48} className="mx-auto mb-4 opacity-50" />
                 <p>No specs with execution plans found</p>
-                <p className="text-sm mt-2">Run <code className="bg-gray-800 px-2 py-0.5 rounded">ckrv run --dry-run</code> to generate a plan</p>
+                <p className="text-sm mt-2">Run <code className="bg-gray-800 px-2 py-0.5 rounded">ckrv plan</code> to generate an execution plan</p>
             </div>
         );
     }
@@ -376,6 +377,11 @@ const SpecListView: React.FC<{ specs: Spec[]; onSelect: (name: string) => void; 
                                 <div className="flex items-center gap-2 mt-1">
                                     <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded">ready to run</span>
                                     <span className="text-xs text-gray-500">{spec.task_count} tasks</span>
+                                    {spec.has_implementation && (
+                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded">
+                                            implemented
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -485,6 +491,13 @@ export default function ExecutionRunner() {
             setCompletedBatches(completed);
         }
     }, [planData]);
+
+    // Check if the selected spec already has a plan
+    const selectedSpecHasPlan = useMemo(() => {
+        if (!selectedSpecName || !specsData?.specs) return false;
+        const spec = specsData.specs.find(s => s.name === selectedSpecName);
+        return spec?.has_plan || false;
+    }, [selectedSpecName, specsData]);
 
     // T020/T026: Cleanup effect for RAF, WebSocket, and timeouts (BUG-001, BUG-005)
     useEffect(() => {
@@ -862,9 +875,6 @@ export default function ExecutionRunner() {
     const handlePlan = useCallback(async () => {
         if (!selectedSpecName) return;
 
-        const runId = `plan-${Date.now()}`;
-        runIdRef.current = runId;
-
         setExecutionStatus('starting');
         terminalRef.current?.clear();
         setBatchLogs(prev => {
@@ -877,21 +887,32 @@ export default function ExecutionRunner() {
         currentBatchRef.current = null;
         setBatches(prev => prev.map(b => ({ ...b, status: 'pending' as BatchStatus })));
 
-        addLog('📋 Running execution plan (dry-run)...', 'start');
+        addLog('🐳 Generating execution plan in Docker sandbox...', 'start');
 
         try {
-            const res = await startExecution(selectedSpecName, runId, true);
-            if (res.success) {
-                connectWebSocket(runId);
+            // Call the new plan endpoint that runs in Docker
+            const res = await fetch('/api/command/plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                addLog('✅ Plan generated successfully', 'success');
+                setExecutionStatus('completed');
+                // Refresh the plan data
+                if (selectedSpecName) {
+                    queryClient.invalidateQueries({ queryKey: ['plan', selectedSpecName] });
+                }
             } else {
-                addLog(`Failed to start plan: ${res.message}`, 'error');
+                addLog(`Failed to generate plan: ${data.message}`, 'error');
                 setExecutionStatus('failed');
             }
         } catch (e) {
             addLog(`Error: ${e}`, 'error');
             setExecutionStatus('failed');
         }
-    }, [selectedSpecName, addLog, connectWebSocket]);
+    }, [selectedSpecName, addLog, queryClient]);
 
     const handleStop = useCallback(async () => {
         if (runIdRef.current) {
@@ -973,7 +994,14 @@ export default function ExecutionRunner() {
         try {
             const result = await mergeAllBranches(selectedSpecName);
             setMergeResult({ success: result.success, message: result.message });
-            if (result.success || result.merged.length > 0) {
+            if (result.success) {
+                // Clear unmerged branches immediately on full success
+                setUnmergedBranches([]);
+                // Invalidate related queries to refresh UI state
+                queryClient.invalidateQueries({ queryKey: ['specs'] });
+                queryClient.invalidateQueries({ queryKey: ['plan', selectedSpecName] });
+            } else if (result.merged?.length > 0) {
+                // Partial success - reload to show remaining branches
                 await loadUnmergedBranches();
             }
         } catch (e) {
@@ -981,7 +1009,7 @@ export default function ExecutionRunner() {
         } finally {
             setIsMerging(false);
         }
-    }, [selectedSpecName, loadUnmergedBranches]);
+    }, [selectedSpecName, loadUnmergedBranches, queryClient]);
 
     if (!selectedSpecName) {
         return (
@@ -1029,21 +1057,31 @@ export default function ExecutionRunner() {
                         <>
                             <button
                                 onClick={handlePlan}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium text-xs transition-colors"
-                                data-testid="dry-run-button"
-                                aria-label="Run dry run"
+                                disabled={selectedSpecHasPlan}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors ${selectedSpecHasPlan
+                                    ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                                    }`}
+                                data-testid="generate-plan-button"
+                                aria-label="Generate plan in Docker"
+                                title={selectedSpecHasPlan ? 'Plan already exists' : 'Generate execution plan'}
                             >
                                 <Layers size={14} />
-                                Dry Run
+                                {selectedSpecHasPlan ? 'Plan Exists' : 'Generate Plan'}
                             </button>
                             <button
                                 onClick={handleRun}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-lg shadow-emerald-900/20 transition-all hover:scale-105 active:scale-95"
+                                disabled={batches.length > 0 && completedBatches.size === batches.length}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all ${batches.length > 0 && completedBatches.size === batches.length
+                                    ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 hover:scale-105 active:scale-95'
+                                    }`}
                                 data-testid="run-button"
                                 aria-label="Start execution"
+                                title={batches.length > 0 && completedBatches.size === batches.length ? 'All batches completed' : 'Run execution'}
                             >
                                 <Zap size={14} fill="currentColor" />
-                                Run Execution
+                                {batches.length > 0 && completedBatches.size === batches.length ? 'Completed' : 'Run Execution'}
                             </button>
                         </>
                     ) : (

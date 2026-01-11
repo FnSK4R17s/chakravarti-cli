@@ -499,6 +499,11 @@ const SpecListView: React.FC<{
                                 <h3 className="font-medium text-gray-200">{spec.name}</h3>
                                 <div className="flex items-center gap-2 mt-1">
                                     <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded">has tasks</span>
+                                    {spec.has_implementation && (
+                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded">
+                                            implemented
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
