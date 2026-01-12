@@ -260,7 +260,7 @@ const AgentManager: React.FC = () => {
                             onDelete={() => deleteMutation.mutate(agent.id)}
                             onSetDefault={() => setDefaultMutation.mutate(agent.id)}
                             onTest={() => testMutation.mutate(agent)}
-                            onCli={() => setCliAgent(agent)}
+                            onCli={() => { console.log('[AgentManager] setCliAgent called with:', agent.name); setCliAgent(agent); }}
                             isDeleting={deleteMutation.isPending}
                             isTesting={testMutation.isPending && testMutation.variables?.id === agent.id}
                             testResult={testResults[agent.id] || null}

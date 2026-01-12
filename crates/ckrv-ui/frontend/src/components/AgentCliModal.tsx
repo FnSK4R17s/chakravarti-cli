@@ -33,6 +33,8 @@ interface AgentCliModalProps {
 }
 
 export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) => {
+    console.log('[AgentCliModal] Component rendering with agent:', agent.name);
+
     const terminalRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<Terminal | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
@@ -43,10 +45,25 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
     const [containerId, setContainerId] = useState<string | null>(null);
 
     useEffect(() => {
+        console.log('[AgentCliModal] useEffect running, terminalRef:', terminalRef.current);
         let mounted = true;
 
         const init = async () => {
-            if (!terminalRef.current) return;
+            // Wait for terminal ref to be available (Dialog renders asynchronously as a portal)
+            let attempts = 0;
+            while (!terminalRef.current && attempts < 20 && mounted) {
+                console.log('[AgentCliModal] Waiting for terminalRef... attempt', attempts + 1);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (!mounted) return;
+            if (!terminalRef.current) {
+                console.error('[AgentCliModal] terminalRef never became available');
+                return;
+            }
+
+            console.log('[AgentCliModal] terminalRef ready, initializing xterm...');
 
             // Create xterm instance
             const term = new Terminal({
@@ -85,7 +102,21 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
             fitAddonRef.current = fitAddon;
 
             term.open(terminalRef.current);
-            fitAddon.fit();
+
+            // Use ResizeObserver for reliable sizing
+            const resizeObserver = new ResizeObserver(() => {
+                if (fitAddonRef.current && terminalRef.current) {
+                    try {
+                        fitAddonRef.current.fit();
+                    } catch (e) {
+                        // Ignore fit errors during resize
+                    }
+                }
+            });
+            resizeObserver.observe(terminalRef.current);
+
+            // Initial fit with a slight delay
+            setTimeout(() => fitAddon.fit(), 50);
 
             // Enable clipboard paste support
             term.attachCustomKeyEventHandler((event) => {
@@ -114,11 +145,14 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                 return true;
             });
 
+            console.log('[AgentCliModal] xterm initialized, starting session...');
             term.writeln('\x1b[33m# Starting sandbox terminal...\x1b[0m');
 
             // Start terminal session
             try {
+                console.log('[AgentCliModal] Calling /api/terminal/start with session_id:', sessionIdRef.current);
                 const res = await startTerminalSession(sessionIdRef.current, agent);
+                console.log('[AgentCliModal] API response:', res);
                 if (!mounted) return;
 
                 if (res.success) {
