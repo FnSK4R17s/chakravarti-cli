@@ -33,8 +33,6 @@ interface AgentCliModalProps {
 }
 
 export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) => {
-    console.log('[AgentCliModal] Component rendering with agent:', agent.name);
-
     const terminalRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<Terminal | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
@@ -45,25 +43,20 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
     const [containerId, setContainerId] = useState<string | null>(null);
 
     useEffect(() => {
-        console.log('[AgentCliModal] useEffect running, terminalRef:', terminalRef.current);
         let mounted = true;
 
         const init = async () => {
             // Wait for terminal ref to be available (Dialog renders asynchronously as a portal)
             let attempts = 0;
             while (!terminalRef.current && attempts < 20 && mounted) {
-                console.log('[AgentCliModal] Waiting for terminalRef... attempt', attempts + 1);
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
             }
 
             if (!mounted) return;
             if (!terminalRef.current) {
-                console.error('[AgentCliModal] terminalRef never became available');
                 return;
             }
-
-            console.log('[AgentCliModal] terminalRef ready, initializing xterm...');
 
             // Create xterm instance
             const term = new Terminal({
@@ -258,7 +251,11 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
 
     return (
         <Dialog open onOpenChange={(open) => !open && handleClose()}>
-            <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
+            <DialogContent
+                className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0"
+                onEscapeKeyDown={(e) => e.preventDefault()}
+                onInteractOutside={(e) => e.preventDefault()}
+            >
                 <DialogHeader className="px-4 py-3 shrink-0 border-b border-border bg-muted">
                     <div className="flex items-center gap-3">
                         <TerminalIcon size={16} className="text-muted-foreground" />
