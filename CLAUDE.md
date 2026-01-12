@@ -129,3 +129,5 @@ CKRV_MODEL_ENDPOINT     # Custom endpoint URL
 - YAML files in `.specs/<spec-name>/runs.yaml` (008-persistent-run-history)
 - TypeScript 5.9.3, React 19.2.0 + Vite 7.2.4, Tailwind CSS 4.1.18, shadcn/ui (latest), @tanstack/react-query, lucide-react (009-shadcn-ui-migration)
 - N/A (frontend-only) (009-shadcn-ui-migration)
+- TypeScript 5.x, CSS (Tailwind 4) + Tailwind CSS v4, React 18, Vite (001-css-theme-consolidation)
+- N/A (CSS files only) (001-css-theme-consolidation)
