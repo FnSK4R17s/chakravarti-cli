@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Terminal as TerminalIcon, X, Circle } from 'lucide-react';
+import { Terminal as TerminalIcon, Circle } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import type { AgentConfig } from './AgentManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
 // API functions
@@ -227,42 +226,34 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
         <Dialog open onOpenChange={(open) => !open && handleClose()}>
             <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
                 <DialogHeader className="px-4 py-3 shrink-0 border-b border-border bg-muted">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <TerminalIcon size={16} className="text-muted-foreground" />
-                            <DialogTitle className="text-sm">
-                                Interactive Terminal: {agent.name}
-                            </DialogTitle>
-                            <Badge variant="info">Sandboxed</Badge>
-                            <Badge variant={getStatusVariant()} className="flex items-center gap-1">
-                                <Circle size={8} fill="currentColor" />
-                                {statusLabel}
-                            </Badge>
-                            {containerId && (
-                                <span className="text-[10px] font-mono text-muted-foreground">
-                                    {containerId.slice(0, 12)}
-                                </span>
-                            )}
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleClose}
-                            className="h-8 w-8"
-                        >
-                            <X size={16} />
-                        </Button>
+                    <div className="flex items-center gap-3">
+                        <TerminalIcon size={16} className="text-muted-foreground" />
+                        <DialogTitle className="text-sm">
+                            Interactive Terminal: {agent.name}
+                        </DialogTitle>
+                        <Badge variant="info">Sandboxed</Badge>
+                        <Badge variant={getStatusVariant()} className="flex items-center gap-1">
+                            <Circle size={8} fill="currentColor" />
+                            {statusLabel}
+                        </Badge>
+                        {containerId && (
+                            <span className="text-[10px] font-mono text-muted-foreground">
+                                {containerId.slice(0, 12)}
+                            </span>
+                        )}
                     </div>
                 </DialogHeader>
 
                 {/* Terminal wrapped in Card */}
-                <Card className="flex-1 m-2 overflow-hidden rounded-lg border-border">
-                    <div
-                        ref={terminalRef}
-                        className="h-full p-2"
-                        style={{ background: '#1e1e1e' }}
-                    />
-                </Card>
+                <div className="flex-1 m-2 overflow-hidden">
+                    <Card className="h-full w-full overflow-hidden rounded-lg border-border">
+                        <div
+                            ref={terminalRef}
+                            className="w-full h-full p-2"
+                            style={{ background: '#1e1e1e', minHeight: '400px' }}
+                        />
+                    </Card>
+                </div>
             </DialogContent>
         </Dialog>
     );
