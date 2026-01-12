@@ -11,6 +11,9 @@ import { CompletionSummary } from './CompletionSummary';
 import type { Terminal } from '@xterm/xterm';
 import { useTimeout } from '../hooks/useTimeout';
 import type { RunStatus } from '../types/history';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 // Types
 interface Batch {
@@ -337,7 +340,7 @@ const BatchLogPanel: React.FC<{
     );
 };
 
-// Spec List View
+// Spec List View using shadcn Card and Badge
 const SpecListView: React.FC<{ specs: Spec[]; onSelect: (name: string) => void; isLoading: boolean }> = ({
     specs, onSelect, isLoading
 }) => {
@@ -346,17 +349,17 @@ const SpecListView: React.FC<{ specs: Spec[]; onSelect: (name: string) => void; 
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-gray-500" size={24} />
+                <Loader2 className="animate-spin text-muted-foreground" size={24} />
             </div>
         );
     }
 
     if (specsWithPlan.length === 0) {
         return (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
                 <Rocket size={48} className="mx-auto mb-4 opacity-50" />
                 <p>No specs with execution plans found</p>
-                <p className="text-sm mt-2">Run <code className="bg-gray-800 px-2 py-0.5 rounded">ckrv plan</code> to generate an execution plan</p>
+                <p className="text-sm mt-2">Run <code className="bg-muted px-2 py-0.5 rounded">ckrv plan</code> to generate an execution plan</p>
             </div>
         );
     }
@@ -364,30 +367,30 @@ const SpecListView: React.FC<{ specs: Spec[]; onSelect: (name: string) => void; 
     return (
         <div className="space-y-2">
             {specsWithPlan.map((spec) => (
-                <button
+                <Card
                     key={spec.name}
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
                     onClick={() => onSelect(spec.name)}
-                    className="w-full text-left p-4 bg-gray-800/50 hover:bg-gray-800 rounded-lg border border-gray-700 transition-colors"
                 >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Rocket size={20} className="text-cyan-400" />
-                            <div>
-                                <h3 className="font-medium text-gray-200">{spec.name}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded">ready to run</span>
-                                    <span className="text-xs text-gray-500">{spec.task_count} tasks</span>
-                                    {spec.has_implementation && (
-                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded">
-                                            implemented
-                                        </span>
-                                    )}
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Rocket size={20} className="text-primary" />
+                                <div>
+                                    <h3 className="font-medium text-foreground">{spec.name}</h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Badge variant="success">ready to run</Badge>
+                                        <span className="text-xs text-muted-foreground">{spec.task_count} tasks</span>
+                                        {spec.has_implementation && (
+                                            <Badge variant="info">implemented</Badge>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
+                            <ChevronRight size={20} className="text-muted-foreground" />
                         </div>
-                        <ChevronRight size={20} className="text-gray-500" />
-                    </div>
-                </button>
+                    </CardContent>
+                </Card>
             ))}
         </div>
     );
@@ -1013,18 +1016,16 @@ export default function ExecutionRunner() {
 
     if (!selectedSpecName) {
         return (
-            <div className="flex-1 p-6 relative">
-                <div className="max-w-4xl mx-auto space-y-6">
-                    <header className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-200 mb-2">Execution Runner</h2>
-                        <p className="text-gray-400 text-sm">Select a specification to plan and execute</p>
-                    </header>
-                    <SpecListView
-                        specs={specsData?.specs || []}
-                        onSelect={setSelectedSpecName}
-                        isLoading={isLoadingSpecs}
-                    />
+            <div className="h-full overflow-auto p-4">
+                <div className="mb-6">
+                    <h1 className="text-2xl font-bold text-foreground">Execution Runner</h1>
+                    <p className="text-muted-foreground mt-1">Select a specification to plan and execute</p>
                 </div>
+                <SpecListView
+                    specs={specsData?.specs || []}
+                    onSelect={setSelectedSpecName}
+                    isLoading={isLoadingSpecs}
+                />
             </div>
         );
     }
@@ -1032,93 +1033,96 @@ export default function ExecutionRunner() {
     const { cols, rows } = getGridLayout(activeBatches.length);
 
     return (
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-950">
-            {/* Header Toolbar */}
-            <div className="h-14 shrink-0 border-b border-gray-800 bg-gray-900/50 flex items-center justify-between px-4">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleBack}
-                        className="p-1.5 hover:bg-gray-800 rounded-lg text-gray-400 transition-colors"
-                    >
-                        <ArrowRight className="rotate-180" size={18} />
-                    </button>
-                    <div className="flex flex-col">
-                        <span className="font-semibold text-gray-200">{selectedSpecName}</span>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="h-full flex flex-col bg-background text-foreground font-sans">
+            {/* Header */}
+            <Card className="shrink-0 rounded-none border-x-0 border-t-0">
+                <CardContent className="px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleBack}
+                        >
+                            <ArrowRight size={20} className="rotate-180" />
+                        </Button>
+                        <div>
+                            <div className="text-sm text-muted-foreground font-mono">execution</div>
+                            <h1 className="text-lg font-semibold text-foreground">{selectedSpecName}</h1>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span>{batches.length} batches</span>
                             <span>•</span>
                             <span>{formatElapsedTime(elapsedTime)}</span>
                         </div>
                     </div>
-                </div>
 
-                <div className="flex items-center gap-3">
-                    {executionStatus === 'idle' || executionStatus === 'completed' || executionStatus === 'failed' || executionStatus === 'aborted' ? (
-                        <>
+                    <div className="flex items-center gap-3">
+                        {executionStatus === 'idle' || executionStatus === 'completed' || executionStatus === 'failed' || executionStatus === 'aborted' ? (
+                            <>
+                                <button
+                                    onClick={handlePlan}
+                                    disabled={selectedSpecHasPlan}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors ${selectedSpecHasPlan
+                                        ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                                        : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                                        }`}
+                                    data-testid="generate-plan-button"
+                                    aria-label="Generate plan in Docker"
+                                    title={selectedSpecHasPlan ? 'Plan already exists' : 'Generate execution plan'}
+                                >
+                                    <Layers size={14} />
+                                    {selectedSpecHasPlan ? 'Plan Exists' : 'Generate Plan'}
+                                </button>
+                                <button
+                                    onClick={handleRun}
+                                    disabled={batches.length > 0 && completedBatches.size === batches.length}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all ${batches.length > 0 && completedBatches.size === batches.length
+                                        ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 hover:scale-105 active:scale-95'
+                                        }`}
+                                    data-testid="run-button"
+                                    aria-label="Start execution"
+                                    title={batches.length > 0 && completedBatches.size === batches.length ? 'All batches completed' : 'Run execution'}
+                                >
+                                    <Zap size={14} fill="currentColor" />
+                                    {batches.length > 0 && completedBatches.size === batches.length ? 'Completed' : 'Run Execution'}
+                                </button>
+                            </>
+                        ) : (
                             <button
-                                onClick={handlePlan}
-                                disabled={selectedSpecHasPlan}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors ${selectedSpecHasPlan
-                                    ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-                                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-                                    }`}
-                                data-testid="generate-plan-button"
-                                aria-label="Generate plan in Docker"
-                                title={selectedSpecHasPlan ? 'Plan already exists' : 'Generate execution plan'}
+                                onClick={handleStop}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-900/50 hover:bg-red-900 border border-red-800 text-red-300 font-medium text-xs transition-colors"
+                                data-testid="stop-button"
+                                aria-label="Stop execution"
                             >
-                                <Layers size={14} />
-                                {selectedSpecHasPlan ? 'Plan Exists' : 'Generate Plan'}
+                                <Square size={14} fill="currentColor" />
+                                Stop
                             </button>
-                            <button
-                                onClick={handleRun}
-                                disabled={batches.length > 0 && completedBatches.size === batches.length}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all ${batches.length > 0 && completedBatches.size === batches.length
-                                    ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 hover:scale-105 active:scale-95'
-                                    }`}
-                                data-testid="run-button"
-                                aria-label="Start execution"
-                                title={batches.length > 0 && completedBatches.size === batches.length ? 'All batches completed' : 'Run execution'}
+                        )}
+
+                        {/* T024: WebSocket reconnection indicator (BUG-002) */}
+                        {executionStatus === 'reconnecting' && (
+                            <div
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-900/50 border border-amber-800 text-amber-300 text-xs font-medium"
+                                data-testid="reconnecting-indicator"
                             >
-                                <Zap size={14} fill="currentColor" />
-                                {batches.length > 0 && completedBatches.size === batches.length ? 'Completed' : 'Run Execution'}
-                            </button>
-                        </>
-                    ) : (
+                                <Loader2 size={14} className={isPending ? 'animate-spin' : 'animate-spin'} />
+                                <span>Reconnecting in {wsRetryCountdown}s</span>
+                                <span className="text-amber-500">(attempt {wsRetryCount}/{3})</span>
+                            </div>
+                        )}
+
                         <button
-                            onClick={handleStop}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-900/50 hover:bg-red-900 border border-red-800 text-red-300 font-medium text-xs transition-colors"
-                            data-testid="stop-button"
-                            aria-label="Stop execution"
+                            onClick={handleReset}
+                            className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 transition-colors"
+                            title="Reset state"
+                            aria-label="Reset execution state"
                         >
-                            <Square size={14} fill="currentColor" />
-                            Stop
+                            <RotateCcw size={16} />
                         </button>
-                    )}
-
-                    {/* T024: WebSocket reconnection indicator (BUG-002) */}
-                    {executionStatus === 'reconnecting' && (
-                        <div
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-900/50 border border-amber-800 text-amber-300 text-xs font-medium"
-                            data-testid="reconnecting-indicator"
-                        >
-                            <Loader2 size={14} className={isPending ? 'animate-spin' : 'animate-spin'} />
-                            <span>Reconnecting in {wsRetryCountdown}s</span>
-                            <span className="text-amber-500">(attempt {wsRetryCount}/{3})</span>
-                        </div>
-                    )}
-
-                    <button
-                        onClick={handleReset}
-                        className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 transition-colors"
-                        title="Reset state"
-                        aria-label="Reset execution state"
-                    >
-                        <RotateCcw size={16} />
-                    </button>
-                </div>
-            </div>
-
+                    </div>
+                </CardContent>
+            </Card>
             {/* Main Content Area */}
             <div className="flex-1 overflow-hidden p-4 relative">
                 <div className="h-full flex flex-col gap-4">

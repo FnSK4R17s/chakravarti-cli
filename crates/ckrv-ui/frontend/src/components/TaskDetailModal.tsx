@@ -2,13 +2,30 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
     X, Play, CheckCircle2, Circle, AlertTriangle, GitBranch,
-    Zap, Brain, Cpu, Link2, Clock, Bot, ChevronDown, Loader2,
+    Zap, Brain, Cpu, Link2, Clock, Bot, Loader2,
     RotateCcw, Terminal as TerminalIcon
 } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import type { AgentConfig } from './AgentManager';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 // Types
 interface Task {
@@ -58,59 +75,64 @@ const stopTerminalSession = async (sessionId: string) => {
     return res.json();
 };
 
-// Badge Components
+// Badge Components using shadcn Badge
 const RiskBadge: React.FC<{ risk: string }> = ({ risk }) => {
-    const styles: Record<string, string> = {
-        low: 'bg-green-900/50 text-green-300 border-green-700',
-        medium: 'bg-amber-900/50 text-amber-300 border-amber-700',
-        high: 'bg-orange-900/50 text-orange-300 border-orange-700',
-        critical: 'bg-red-900/50 text-red-300 border-red-700'
+    const variants: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
+        low: 'success',
+        medium: 'warning',
+        high: 'warning',
+        critical: 'destructive'
     };
     return (
-        <span className={`text-xs font-medium px-2 py-0.5 rounded border ${styles[risk] || styles.low}`}>
+        <Badge variant={variants[risk] || 'secondary'}>
             {risk}
-        </span>
+        </Badge>
     );
 };
 
 const ModelTierBadge: React.FC<{ tier: string }> = ({ tier }) => {
-    const styles: Record<string, { bg: string; icon: React.ElementType }> = {
-        light: { bg: 'bg-sky-900/50 text-sky-300', icon: Zap },
-        standard: { bg: 'bg-violet-900/50 text-violet-300', icon: Cpu },
-        heavy: { bg: 'bg-fuchsia-900/50 text-fuchsia-300', icon: Brain }
+    const icons: Record<string, React.ElementType> = {
+        light: Zap,
+        standard: Cpu,
+        heavy: Brain
     };
-    const { bg, icon: Icon } = styles[tier] || styles.standard;
+    const Icon = icons[tier] || Cpu;
     return (
-        <span className={`text-xs font-medium px-2 py-0.5 rounded flex items-center gap-1 ${bg}`}>
+        <Badge variant="info" className="flex items-center gap-1">
             <Icon size={12} />
             {tier}
-        </span>
+        </Badge>
     );
 };
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-    const styles: Record<string, { bg: string; icon: React.ElementType; label: string }> = {
-        pending: { bg: 'bg-gray-700 text-gray-300', icon: Circle, label: 'Pending' },
-        running: { bg: 'bg-blue-900/50 text-blue-300', icon: Play, label: 'Running' },
-        completed: { bg: 'bg-green-900/50 text-green-300', icon: CheckCircle2, label: 'Completed' },
-        failed: { bg: 'bg-red-900/50 text-red-300', icon: AlertTriangle, label: 'Failed' }
+    const variants: Record<string, "secondary" | "info" | "success" | "destructive"> = {
+        pending: 'secondary',
+        running: 'info',
+        completed: 'success',
+        failed: 'destructive'
     };
-    const { bg, icon: Icon, label } = styles[status] || styles.pending;
+    const icons: Record<string, React.ElementType> = {
+        pending: Circle,
+        running: Play,
+        completed: CheckCircle2,
+        failed: AlertTriangle
+    };
+    const Icon = icons[status] || Circle;
     return (
-        <div className={`text-sm font-medium px-3 py-1.5 rounded flex items-center gap-2 ${bg}`}>
+        <Badge variant={variants[status] || 'secondary'} className="flex items-center gap-2 px-3 py-1.5">
             <Icon size={16} />
-            {label}
-        </div>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+        </Badge>
     );
 };
 
-// Agent Selector Component
+// Agent Selector using shadcn Select
 const AgentSelector: React.FC<{
     selectedAgent: AgentConfig | null;
     onSelect: (agent: AgentConfig) => void;
     recommendedTier: string;
 }> = ({ selectedAgent, onSelect, recommendedTier }) => {
-    const [isOpen, setIsOpen] = useState(false);
     const { data: agentsData, isLoading } = useQuery({
         queryKey: ['agents'],
         queryFn: fetchAgents,
@@ -138,7 +160,7 @@ const AgentSelector: React.FC<{
 
     if (isLoading) {
         return (
-            <div className="flex items-center gap-2 text-gray-500">
+            <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 size={16} className="animate-spin" />
                 Loading agents...
             </div>
@@ -147,7 +169,7 @@ const AgentSelector: React.FC<{
 
     if (agents.length === 0) {
         return (
-            <div className="text-amber-400 text-sm flex items-center gap-2">
+            <div className="text-[var(--accent-amber)] text-sm flex items-center gap-2">
                 <AlertTriangle size={16} />
                 No agents configured. Add one in Agent Manager.
             </div>
@@ -155,76 +177,60 @@ const AgentSelector: React.FC<{
     }
 
     return (
-        <div className="relative">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg flex items-center justify-between hover:border-gray-500 transition-colors"
-                title={selectedAgent?.description}
-            >
-                <div className="flex items-center gap-3">
-                    <Bot size={20} className="text-cyan-400" />
-                    <div className="text-left">
-                        <div className="font-medium text-gray-200">
-                            {selectedAgent?.name || 'Select Agent'}
+        <Select
+            value={selectedAgent?.id || ''}
+            onValueChange={(value) => {
+                const agent = agents.find(a => a.id === value);
+                if (agent) onSelect(agent);
+            }}
+        >
+            <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select an agent">
+                    {selectedAgent && (
+                        <div className="flex items-center gap-2">
+                            <Bot size={16} className="text-primary" />
+                            <span>{selectedAgent.name}</span>
+                            <span className="text-muted-foreground">• {selectedAgent.agent_type} • Level {selectedAgent.level}</span>
                         </div>
-                        {selectedAgent && (
-                            <div className="text-xs text-gray-500">
-                                {selectedAgent.agent_type} • Level {selectedAgent.level}
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <ChevronDown size={20} className={`text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isOpen && (
-                <div className="absolute z-50 mt-2 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-xl overflow-hidden">
-                    {agents.map(agent => {
-                        const rec = getAgentRecommendation(agent);
-                        return (
-                            <button
-                                key={agent.id}
-                                onClick={() => {
-                                    onSelect(agent);
-                                    setIsOpen(false);
-                                }}
-                                className={`w-full px-4 py-3 flex items-center justify-between hover:bg-gray-700 transition-colors ${selectedAgent?.id === agent.id ? 'bg-gray-700' : ''
-                                    }`}
-                                title={agent.description}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Bot size={18} className={agent.is_default ? 'text-amber-400' : 'text-gray-400'} />
-                                    <div className="text-left">
-                                        <div className="font-medium text-gray-200 flex items-center gap-2">
-                                            {agent.name}
+                    )}
+                </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+                {agents.map(agent => {
+                    const rec = getAgentRecommendation(agent);
+                    return (
+                        <SelectItem key={agent.id} value={agent.id}>
+                            <div className="flex items-center justify-between w-full gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Bot size={16} className={agent.is_default ? 'text-[var(--accent-amber)]' : 'text-muted-foreground'} />
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium">{agent.name}</span>
                                             {agent.is_default && (
-                                                <span className="text-xs bg-amber-900/50 text-amber-300 px-1.5 py-0.5 rounded">default</span>
+                                                <Badge variant="warning" className="text-xs">default</Badge>
                                             )}
                                         </div>
-                                        <div className="text-xs text-gray-500">
+                                        <div className="text-xs text-muted-foreground">
                                             {agent.agent_type} • Level {agent.level}
                                             {agent.openrouter?.model && ` • ${agent.openrouter.model}`}
                                         </div>
                                     </div>
                                 </div>
                                 {rec && (
-                                    <span className={`text-xs px-2 py-0.5 rounded ${rec === 'recommended' ? 'bg-green-900/50 text-green-300' :
-                                        rec === 'capable' ? 'bg-blue-900/50 text-blue-300' :
-                                            'bg-amber-900/50 text-amber-300'
-                                        }`}>
+                                    <Badge variant={rec === 'recommended' ? 'success' : rec === 'capable' ? 'info' : 'warning'}>
                                         {rec}
-                                    </span>
+                                    </Badge>
                                 )}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
+                            </div>
+                        </SelectItem>
+                    );
+                })}
+            </SelectContent>
+        </Select>
     );
 };
 
-// Embedded Terminal Component
+// Embedded Terminal Component wrapped in Card
 const EmbeddedTerminal: React.FC<{
     agent: AgentConfig;
     task: Task;
@@ -352,33 +358,29 @@ const EmbeddedTerminal: React.FC<{
     }, [agent, task, specName]);
 
     return (
-        <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-700">
+        <Card className="flex flex-col h-full">
+            <CardHeader className="py-2 px-4 flex flex-row items-center justify-between border-b border-border">
                 <div className="flex items-center gap-3">
-                    <TerminalIcon size={16} className="text-gray-500" />
-                    <span className="text-sm text-gray-400">Task Execution</span>
-                    <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500' :
-                        status === 'connecting' ? 'bg-amber-500 animate-pulse' :
-                            status === 'error' ? 'bg-red-500' : 'bg-gray-500'
+                    <TerminalIcon size={16} className="text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Task Execution</span>
+                    <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-[var(--accent-green)]' :
+                        status === 'connecting' ? 'bg-[var(--accent-amber)] animate-pulse' :
+                            status === 'error' ? 'bg-destructive' : 'bg-muted-foreground'
                         }`} />
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => onComplete(true)}
-                        className="text-xs px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded"
-                    >
+                    <Button size="sm" variant="default" onClick={() => onComplete(true)}>
                         Mark Complete
-                    </button>
-                    <button
-                        onClick={() => onComplete(false)}
-                        className="text-xs px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded"
-                    >
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => onComplete(false)}>
                         Mark Failed
-                    </button>
+                    </Button>
                 </div>
-            </div>
-            <div ref={terminalRef} className="flex-1 bg-[#0d1117] p-2" />
-        </div>
+            </CardHeader>
+            <CardContent className="flex-1 p-0">
+                <div ref={terminalRef} className="w-full h-full bg-[#0d1117] p-2" />
+            </CardContent>
+        </Card>
     );
 };
 
@@ -403,7 +405,7 @@ function buildTaskCommand(task: Task): string {
     return `claude -p "${prompt.replace(/"/g, '\\"')}"`;
 }
 
-// Main Modal Component
+// Main Modal Component using shadcn Dialog
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     task,
     specName,
@@ -439,26 +441,24 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div className="bg-gray-900 rounded-xl border border-gray-700 shadow-2xl w-[90vw] max-w-4xl h-[85vh] flex flex-col overflow-hidden">
+        <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
                 {/* Header */}
-                <div className="shrink-0 px-6 py-4 border-b border-gray-700 flex items-center justify-between bg-gray-800/50">
+                <DialogHeader className="px-6 py-4 border-b border-border flex-row items-center justify-between space-y-0">
                     <div className="flex items-center gap-4">
-                        <span className="font-mono text-sm bg-gray-700 px-3 py-1 rounded text-gray-300">{task.id}</span>
+                        <Badge variant="secondary" className="font-mono">{task.id}</Badge>
                         <StatusBadge status={task.status} />
                         {task.parallel && (
-                            <span className="text-xs bg-emerald-900/50 text-emerald-300 px-2 py-0.5 rounded flex items-center gap-1">
+                            <Badge variant="success" className="flex items-center gap-1">
                                 <GitBranch size={12} /> parallel
-                            </span>
+                            </Badge>
                         )}
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                        <X size={20} className="text-gray-400" />
-                    </button>
-                </div>
+                    <DialogTitle className="sr-only">{task.title}</DialogTitle>
+                    <Button variant="ghost" size="icon" onClick={onClose}>
+                        <X size={20} />
+                    </Button>
+                </DialogHeader>
 
                 {/* Content */}
                 <div className="flex-1 overflow-hidden flex flex-col">
@@ -472,28 +472,26 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     ) : (
                         <div className="flex-1 overflow-auto p-6">
                             {/* Title */}
-                            <h2 className="text-xl font-semibold text-gray-100 mb-4">{task.title}</h2>
+                            <h2 className="text-xl font-semibold text-foreground mb-4">{task.title}</h2>
 
                             {/* Metadata Row */}
                             <div className="flex items-center gap-4 flex-wrap mb-6">
                                 <RiskBadge risk={task.risk} />
                                 <ModelTierBadge tier={task.model_tier} />
-                                <div className="flex items-center gap-1 text-gray-500 text-sm">
+                                <div className="flex items-center gap-1 text-muted-foreground text-sm">
                                     <Clock size={14} />
                                     {task.estimated_tokens} tokens
                                 </div>
                                 {task.user_story && (
-                                    <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded">
-                                        {task.user_story}
-                                    </span>
+                                    <Badge variant="info">{task.user_story}</Badge>
                                 )}
                             </div>
 
                             {/* Target File */}
                             {task.file && (
                                 <div className="mb-6">
-                                    <h3 className="text-sm font-medium text-gray-400 mb-2">Target File</h3>
-                                    <code className="text-sm text-cyan-400 bg-cyan-900/30 px-3 py-2 rounded block">
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Target File</h3>
+                                    <code className="text-sm text-[var(--accent-cyan)] bg-[var(--accent-cyan-dim)] px-3 py-2 rounded block">
                                         {task.file}
                                     </code>
                                 </div>
@@ -501,24 +499,28 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
                             {/* Description */}
                             <div className="mb-6">
-                                <h3 className="text-sm font-medium text-gray-400 mb-2">Description</h3>
-                                <p className="text-gray-300 whitespace-pre-wrap bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                                    {task.description}
-                                </p>
+                                <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
+                                <Card>
+                                    <CardContent className="p-4">
+                                        <p className="text-foreground whitespace-pre-wrap">
+                                            {task.description}
+                                        </p>
+                                    </CardContent>
+                                </Card>
                             </div>
 
                             {/* Dependencies */}
                             {task.context_required.length > 0 && (
                                 <div className="mb-6">
-                                    <h3 className="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
                                         <Link2 size={14} />
                                         Required Context
                                     </h3>
                                     <div className="flex flex-wrap gap-2">
                                         {task.context_required.map((dep, i) => (
-                                            <code key={i} className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
+                                            <Badge key={i} variant="secondary" className="font-mono">
                                                 {dep}
-                                            </code>
+                                            </Badge>
                                         ))}
                                     </div>
                                 </div>
@@ -527,7 +529,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                             {/* Agent Selection (only for pending/failed tasks) */}
                             {(task.status === 'pending' || task.status === 'failed') && (
                                 <div className="mb-6">
-                                    <h3 className="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
                                         <Bot size={14} />
                                         Select Agent
                                     </h3>
@@ -544,74 +546,51 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
                 {/* Footer Actions */}
                 {!showTerminal && (
-                    <div className="shrink-0 px-6 py-4 border-t border-gray-700 bg-gray-800/50 flex items-center justify-between">
+                    <DialogFooter className="px-6 py-4 border-t border-border flex items-center justify-between sm:justify-between">
                         <div className="flex items-center gap-2">
                             {task.status === 'failed' && (
-                                <button
-                                    onClick={handleRetry}
-                                    className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors"
-                                >
-                                    <RotateCcw size={16} />
+                                <Button variant="outline" onClick={handleRetry}>
+                                    <RotateCcw size={16} className="mr-2" />
                                     Reset to Pending
-                                </button>
+                                </Button>
                             )}
                             {task.status === 'running' && (
-                                <button
-                                    onClick={() => onStatusChange(task.id, 'pending')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors"
-                                >
-                                    <RotateCcw size={16} />
+                                <Button variant="outline" onClick={() => onStatusChange(task.id, 'pending')}>
+                                    <RotateCcw size={16} className="mr-2" />
                                     Cancel
-                                </button>
+                                </Button>
                             )}
                         </div>
 
                         <div className="flex items-center gap-3">
                             {task.status === 'pending' && (
                                 <>
-                                    <button
-                                        onClick={handleMarkComplete}
-                                        className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors"
-                                    >
-                                        <CheckCircle2 size={16} />
+                                    <Button variant="outline" onClick={handleMarkComplete}>
+                                        <CheckCircle2 size={16} className="mr-2" />
                                         Mark Complete
-                                    </button>
-                                    <button
-                                        onClick={handleStartExecution}
-                                        disabled={!selectedAgent}
-                                        className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${selectedAgent
-                                            ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                                            : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                                            }`}
-                                    >
-                                        <Play size={16} />
+                                    </Button>
+                                    <Button onClick={handleStartExecution} disabled={!selectedAgent}>
+                                        <Play size={16} className="mr-2" />
                                         Run Task
-                                    </button>
+                                    </Button>
                                 </>
                             )}
                             {task.status === 'completed' && (
-                                <div className="text-green-400 flex items-center gap-2">
+                                <div className="text-[var(--accent-green)] flex items-center gap-2">
                                     <CheckCircle2 size={18} />
                                     Task completed
                                 </div>
                             )}
                             {task.status === 'failed' && (
-                                <button
-                                    onClick={handleStartExecution}
-                                    disabled={!selectedAgent}
-                                    className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${selectedAgent
-                                        ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                                        : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                                        }`}
-                                >
-                                    <RotateCcw size={16} />
+                                <Button onClick={handleStartExecution} disabled={!selectedAgent}>
+                                    <RotateCcw size={16} className="mr-2" />
                                     Retry Task
-                                </button>
+                                </Button>
                             )}
                         </div>
-                    </div>
+                    </DialogFooter>
                 )}
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };

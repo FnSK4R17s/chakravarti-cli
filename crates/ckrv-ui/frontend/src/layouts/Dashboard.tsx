@@ -3,6 +3,9 @@ import { FileText, Layers, Zap, ChevronRight, Loader2, Container, Bot, Cloud, Li
 import { useConnection, type ConnectionStatus } from '../hooks/useConnection';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '../App';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface DockerStatus {
     available: boolean;
@@ -54,14 +57,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     const pageTitle = pageTitles[currentPage] || 'Dashboard';
 
     return (
-        <div className="flex h-screen w-full" style={{ background: 'var(--bg-primary)' }}>
+        <div className="flex h-screen w-full bg-background">
             {/* Sidebar Navigation */}
             <aside
-                className="w-16 flex flex-col items-center py-6 gap-2"
-                style={{
-                    background: 'var(--bg-secondary)',
-                    borderRight: '1px solid var(--border-subtle)'
-                }}
+                className="w-16 flex flex-col items-center py-6 gap-2 bg-muted border-r border-border"
             >
                 {/* Logo */}
                 <div
@@ -129,7 +128,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
 
                 {/* Bottom section */}
                 <div className="flex flex-col gap-1 items-center">
-                    <NavIcon icon={<Zap size={20} />} label="Quick Run" disabled testId="nav-quick-run" />
+                    <NavIcon icon={<Zap size={20} />} label="Quick Run (coming soon)" disabled testId="nav-quick-run" />
                 </div>
             </aside>
 
@@ -137,27 +136,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Header */}
                 <header
-                    className="h-14 flex items-center justify-between px-6"
-                    style={{
-                        background: 'var(--bg-secondary)',
-                        borderBottom: '1px solid var(--border-subtle)'
-                    }}
+                    className="h-14 flex items-center justify-between px-6 bg-muted border-b border-border"
                 >
                     <div className="flex items-center gap-3">
                         <span
-                            className="font-mono text-sm px-2 py-1 rounded"
-                            style={{
-                                background: 'var(--bg-tertiary)',
-                                color: 'var(--text-secondary)'
-                            }}
+                            className="font-mono text-sm px-2 py-1 rounded bg-secondary text-secondary-foreground"
                         >
                             ckrv
                         </span>
-                        <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
-                        <h1
-                            className="text-lg font-semibold"
-                            style={{ color: 'var(--text-primary)' }}
-                        >
+                        <ChevronRight size={14} className="text-muted-foreground" />
+                        <h1 className="text-lg font-semibold text-foreground">
                             {pageTitle}
                         </h1>
                     </div>
@@ -174,8 +162,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
 
                 {/* Page Content */}
                 <main
-                    className="flex-1 overflow-hidden p-4 bg-grid"
-                    style={{ background: 'var(--bg-primary)' }}
+                    className="flex-1 overflow-hidden p-4 bg-background"
                 >
                     <div className="h-full">
                         {children}
@@ -192,44 +179,33 @@ interface NavIconProps {
     active?: boolean;
     disabled?: boolean;
     onClick?: () => void;
-    testId?: string; // T015: Added for E2E testing
+    testId?: string;
 }
 
 const NavIcon: React.FC<NavIconProps> = ({ icon, label, active, disabled, onClick, testId }) => (
-    <button
-        className="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 relative group"
-        style={{
-            background: active ? 'var(--bg-tertiary)' : 'transparent',
-            color: active ? 'var(--accent-cyan)' : disabled ? 'var(--text-muted)' : 'var(--text-muted)',
-            opacity: disabled ? 0.4 : 1,
-            cursor: disabled ? 'not-allowed' : 'pointer',
-        }}
-        title={disabled ? `${label} (coming soon)` : label}
-        onClick={disabled ? undefined : onClick}
-        disabled={disabled}
-        data-testid={testId}
-        aria-label={label}
-    >
-        {icon}
-        {active && (
-            <div
-                className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r"
-                style={{ background: 'var(--accent-cyan)' }}
-            />
-        )}
-        {/* Tooltip */}
-        <div
-            className="absolute left-full ml-2 px-2 py-1 rounded text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-            style={{
-                background: 'var(--bg-elevated)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-default)'
-            }}
-        >
-            {label}
-            {disabled && <span style={{ color: 'var(--text-muted)' }}> (soon)</span>}
-        </div>
-    </button>
+    <Tooltip>
+        <TooltipTrigger asChild>
+            <Button
+                variant="ghost"
+                size="icon"
+                className={`w-10 h-10 relative ${active ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={disabled ? undefined : onClick}
+                disabled={disabled}
+                data-testid={testId}
+                aria-label={label}
+            >
+                {icon}
+                {active && (
+                    <div
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r bg-primary"
+                    />
+                )}
+            </Button>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+            <p>{label}</p>
+        </TooltipContent>
+    </Tooltip>
 );
 
 interface ConnectionIndicatorProps {
@@ -241,25 +217,22 @@ const ConnectionIndicator: React.FC<ConnectionIndicatorProps> = ({ status }) => 
         switch (status) {
             case 'connected':
                 return {
-                    dotClass: 'running',
+                    variant: 'success' as const,
                     label: 'Connected',
-                    color: 'var(--accent-green)',
-                    bgColor: 'var(--accent-green-dim)',
+                    showPulse: true,
                 };
             case 'connecting':
                 return {
-                    dotClass: '',
+                    variant: 'warning' as const,
                     label: 'Connecting...',
-                    color: 'var(--accent-amber)',
-                    bgColor: 'var(--accent-amber-dim)',
+                    showPulse: false,
                 };
             case 'disconnected':
             default:
                 return {
-                    dotClass: '',
+                    variant: 'destructive' as const,
                     label: 'Disconnected',
-                    color: 'var(--accent-red)',
-                    bgColor: 'var(--accent-red-dim)',
+                    showPulse: false,
                 };
         }
     };
@@ -267,35 +240,27 @@ const ConnectionIndicator: React.FC<ConnectionIndicatorProps> = ({ status }) => 
     const config = getStatusConfig();
 
     return (
-        <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300"
-            style={{
-                background: config.bgColor,
-                border: `1px solid ${config.color}`,
-            }}
-        >
-            {status === 'connecting' ? (
-                <Loader2
-                    size={12}
-                    className="animate-spin"
-                    style={{ color: config.color }}
-                />
-            ) : (
-                <div
-                    className="w-2 h-2 rounded-full"
-                    style={{
-                        background: config.color,
-                        boxShadow: status === 'connected' ? `0 0 8px ${config.color}` : 'none',
-                    }}
-                />
-            )}
-            <span
-                className="text-xs font-medium"
-                style={{ color: config.color }}
-            >
-                {config.label}
-            </span>
-        </div>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Badge variant={config.variant} className="flex items-center gap-2 cursor-default">
+                    {status === 'connecting' ? (
+                        <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                        <div
+                            className={`w-2 h-2 rounded-full ${config.showPulse ? 'animate-pulse' : ''}`}
+                            style={{
+                                backgroundColor: 'currentColor',
+                                boxShadow: config.showPulse ? '0 0 8px currentColor' : 'none',
+                            }}
+                        />
+                    )}
+                    {config.label}
+                </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p>Server connection status</p>
+            </TooltipContent>
+        </Tooltip>
     );
 };
 
@@ -305,44 +270,23 @@ interface DockerIndicatorProps {
 
 const DockerIndicator: React.FC<DockerIndicatorProps> = ({ status }) => {
     const isAvailable = status?.available ?? false;
-    const message = status?.message ?? 'Checking...';
+    const message = status?.message ?? 'Checking Docker status...';
 
-    const config = isAvailable
-        ? {
-            color: 'var(--accent-cyan)',
-            bgColor: 'var(--accent-cyan-dim)',
-            label: 'Docker',
-        }
-        : {
-            color: 'var(--accent-red)',
-            bgColor: 'var(--accent-red-dim)',
-            label: 'Docker',
-        };
+    const variant = isAvailable ? 'default' : 'destructive';
 
     return (
-        <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 cursor-help"
-            style={{
-                background: config.bgColor,
-                border: `1px solid ${config.color}`,
-            }}
-            title={message}
-        >
-            <Container size={12} style={{ color: config.color }} />
-            <span
-                className="text-xs font-medium"
-                style={{ color: config.color }}
-            >
-                {config.label}
-            </span>
-            {!status && (
-                <Loader2
-                    size={10}
-                    className="animate-spin"
-                    style={{ color: config.color }}
-                />
-            )}
-        </div>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Badge variant={variant} className="flex items-center gap-2 cursor-default">
+                    <Container size={12} />
+                    Docker
+                    {!status && <Loader2 size={10} className="animate-spin" />}
+                </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p>{message}</p>
+            </TooltipContent>
+        </Tooltip>
     );
 };
 
@@ -353,47 +297,27 @@ interface CloudIndicatorProps {
 const CloudIndicator: React.FC<CloudIndicatorProps> = ({ status }) => {
     const isAuthenticated = status?.authenticated ?? false;
     const email = status?.email;
-    const baseMessage = status?.message ?? 'Checking...';
+    const baseMessage = status?.message ?? 'Checking cloud status...';
 
     // Show email in tooltip if authenticated
     const tooltipMessage = isAuthenticated && email
         ? `${baseMessage} (${email})`
         : baseMessage;
 
-    // Purple/magenta theme for cloud - matches the royal branding
-    const config = isAuthenticated
-        ? {
-            color: 'var(--accent-purple)',
-            bgColor: 'var(--accent-purple-dim)',
-        }
-        : {
-            color: 'var(--accent-amber)',
-            bgColor: 'var(--accent-amber-dim)',
-        };
+    const variant = isAuthenticated ? 'info' : 'warning';
 
     return (
-        <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 cursor-help whitespace-nowrap"
-            style={{
-                background: config.bgColor,
-                border: `1px solid ${config.color}`,
-            }}
-            title={tooltipMessage}
-        >
-            <Cloud size={12} style={{ color: config.color }} />
-            <span
-                className="text-xs font-medium"
-                style={{ color: config.color }}
-            >
-                Cloud
-            </span>
-            {!status && (
-                <Loader2
-                    size={10}
-                    className="animate-spin"
-                    style={{ color: config.color }}
-                />
-            )}
-        </div>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Badge variant={variant} className="flex items-center gap-2 cursor-default">
+                    <Cloud size={12} />
+                    Cloud
+                    {!status && <Loader2 size={10} className="animate-spin" />}
+                </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p>{tooltipMessage}</p>
+            </TooltipContent>
+        </Tooltip>
     );
 };

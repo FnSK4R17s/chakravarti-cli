@@ -1,14 +1,17 @@
 /**
- * ErrorBoundary Component (T007)
+ * ErrorBoundary Component
  * 
  * Catches JavaScript errors anywhere in the child component tree,
  * logs those errors, and displays a fallback UI.
  * 
- * Addresses BUG-006: Missing Error Boundary for Component Crashes
+ * Migrated to use shadcn Alert and Button components.
  */
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface Props {
     children: ReactNode;
@@ -58,76 +61,39 @@ export class ErrorBoundary extends Component<Props, State> {
                 return this.props.fallback;
             }
 
-            // Default error UI
+            // Default error UI using shadcn components
             return (
-                <div
-                    className="min-h-[400px] flex items-center justify-center p-8"
-                    style={{ background: 'var(--bg-secondary)' }}
-                >
-                    <div
-                        className="max-w-md w-full rounded-lg p-6 text-center"
-                        style={{
-                            background: 'var(--bg-tertiary)',
-                            border: '1px solid var(--accent-red-dim)',
-                        }}
-                    >
-                        <div
-                            className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center"
-                            style={{
-                                background: 'var(--accent-red-dim)',
-                                color: 'var(--accent-red)',
-                            }}
-                        >
-                            <AlertTriangle size={24} />
-                        </div>
-
-                        <h2
-                            className="text-lg font-semibold mb-2"
-                            style={{ color: 'var(--text-primary)' }}
-                        >
-                            Something went wrong
-                        </h2>
-
-                        <p
-                            className="text-sm mb-4"
-                            style={{ color: 'var(--text-secondary)' }}
-                        >
-                            An unexpected error occurred. Please try again or refresh the page.
-                        </p>
-
-                        {this.state.error && (
-                            <div
-                                className="text-xs font-mono p-3 rounded mb-4 text-left overflow-auto max-h-32"
-                                style={{
-                                    background: 'var(--bg-surface)',
-                                    color: 'var(--accent-red)',
-                                }}
-                            >
-                                {this.state.error.message}
+                <div className="min-h-[400px] flex items-center justify-center p-8 bg-background">
+                    <Card className="max-w-md w-full border-destructive">
+                        <CardContent className="p-6 text-center">
+                            <div className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center bg-destructive/10 text-destructive">
+                                <AlertTriangle size={24} />
                             </div>
-                        )}
 
-                        <button
-                            onClick={this.handleRetry}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all"
-                            style={{
-                                background: 'var(--accent-cyan-dim)',
-                                color: 'var(--accent-cyan)',
-                                border: '1px solid var(--accent-cyan)',
-                            }}
-                            onMouseOver={(e) => {
-                                e.currentTarget.style.background = 'var(--accent-cyan)';
-                                e.currentTarget.style.color = 'var(--bg-primary)';
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.background = 'var(--accent-cyan-dim)';
-                                e.currentTarget.style.color = 'var(--accent-cyan)';
-                            }}
-                        >
-                            <RotateCcw size={16} />
-                            Try Again
-                        </button>
-                    </div>
+                            <h2 className="text-lg font-semibold mb-2 text-foreground">
+                                Something went wrong
+                            </h2>
+
+                            <p className="text-sm mb-4 text-muted-foreground">
+                                An unexpected error occurred. Please try again or refresh the page.
+                            </p>
+
+                            {this.state.error && (
+                                <Alert variant="destructive" className="mb-4 text-left">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Error</AlertTitle>
+                                    <AlertDescription className="font-mono text-xs overflow-auto max-h-32">
+                                        {this.state.error.message}
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
+                            <Button onClick={this.handleRetry} variant="outline">
+                                <RotateCcw size={16} className="mr-2" />
+                                Try Again
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </div>
             );
         }

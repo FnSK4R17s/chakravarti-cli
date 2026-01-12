@@ -2,9 +2,22 @@ import React, { useState, createContext, useContext } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import {
     Play, FileText, GitBranch, Rocket, Terminal,
-    ChevronRight, Loader2, X, Sparkles,
+    ChevronRight, Loader2, Sparkles,
     GitCompare, ShieldCheck, ExternalLink, ClipboardList
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 // Context for sharing command results with LogViewer
 interface CommandResultContextType {
@@ -60,7 +73,7 @@ export const CommandPalette: React.FC = () => {
     const [showSpecModal, setShowSpecModal] = useState(false);
 
     // Fetch status to determine workflow state
-    const { data: status } = useQuery<SystemStatus>({
+    const { data: status, isLoading: isLoadingStatus } = useQuery<SystemStatus>({
         queryKey: ['status'],
         queryFn: async () => {
             const res = await fetch('/api/status');
@@ -70,7 +83,7 @@ export const CommandPalette: React.FC = () => {
     });
 
     // Fetch specs to check if any exist
-    const { data: specsData } = useQuery<SpecsResponse>({
+    const { data: specsData, isLoading: isLoadingSpecs } = useQuery<SpecsResponse>({
         queryKey: ['specs'],
         queryFn: async () => {
             const res = await fetch('/api/specs');
@@ -80,7 +93,7 @@ export const CommandPalette: React.FC = () => {
     });
 
     // Fetch tasks to check if any exist
-    const { data: tasksData } = useQuery<TasksResponse>({
+    const { data: tasksData, isLoading: isLoadingTasks } = useQuery<TasksResponse>({
         queryKey: ['tasks'],
         queryFn: async () => {
             const res = await fetch('/api/tasks');
@@ -217,7 +230,7 @@ export const CommandPalette: React.FC = () => {
             command: 'ckrv init',
             action: () => initMutation.mutate(),
             loading: initMutation.isPending,
-            disabled: isInitialized, // Disable if already initialized
+            disabled: isInitialized,
             color: 'cyan' as const,
         },
         {
@@ -228,7 +241,7 @@ export const CommandPalette: React.FC = () => {
             command: 'ckrv spec new "..."',
             action: () => setShowSpecModal(true),
             loading: specNewMutation.isPending,
-            disabled: !isInitialized, // Enable only after initialization
+            disabled: !isInitialized,
             color: 'green' as const,
         },
         {
@@ -239,7 +252,7 @@ export const CommandPalette: React.FC = () => {
             command: 'ckrv spec tasks',
             action: () => specTasksMutation.mutate(),
             loading: specTasksMutation.isPending,
-            disabled: !isInitialized || !hasSpecsWithoutTasks, // Enable only if initialized and has specs without tasks
+            disabled: !isInitialized || !hasSpecsWithoutTasks,
             color: 'amber' as const,
         },
         {
@@ -274,7 +287,7 @@ export const CommandPalette: React.FC = () => {
             command: 'ckrv diff',
             action: () => diffMutation.mutate(),
             loading: diffMutation.isPending,
-            disabled: !hasImplementation, // Enable after implementation complete
+            disabled: !hasImplementation,
             color: 'cyan' as const,
         },
         {
@@ -285,7 +298,7 @@ export const CommandPalette: React.FC = () => {
             command: 'ckrv verify',
             action: () => verifyMutation.mutate(),
             loading: verifyMutation.isPending,
-            disabled: !hasImplementation, // Enable after implementation complete
+            disabled: !hasImplementation,
             color: 'amber' as const,
         },
         {
@@ -296,79 +309,72 @@ export const CommandPalette: React.FC = () => {
             command: 'ckrv promote --push',
             action: () => promoteMutation.mutate(),
             loading: promoteMutation.isPending,
-            disabled: !hasImplementation, // Enable after implementation complete
+            disabled: !hasImplementation,
             color: 'green' as const,
         },
     ];
 
+    const isLoading = isLoadingStatus || isLoadingSpecs || isLoadingTasks;
+
     return (
         <>
-            <div
-                className="rounded-lg overflow-hidden flex flex-col"
-                style={{
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                    maxHeight: '500px',
-                }}
-            >
-                {/* Header */}
-                <div
-                    className="px-4 py-3 flex items-center justify-between shrink-0"
-                    style={{ borderBottom: '1px solid var(--border-subtle)' }}
-                >
+            <Card className="flex flex-col max-h-[500px]">
+                <CardHeader className="pb-3 shrink-0">
                     <div className="flex items-center gap-2">
-                        <Terminal size={16} style={{ color: 'var(--accent-cyan)' }} />
-                        <h3
-                            className="font-semibold text-sm"
-                            style={{ color: 'var(--text-primary)' }}
-                        >
-                            Commands
-                        </h3>
+                        <Terminal size={16} className="text-primary" />
+                        <CardTitle className="text-sm font-semibold">Commands</CardTitle>
                     </div>
-                </div>
+                </CardHeader>
 
-                {/* Command List */}
-                <div className="p-2 space-y-1 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar min-h-0">
-                    {commands.map((cmd) => (
-                        <CommandButton
-                            key={cmd.id}
-                            {...cmd}
-                        />
-                    ))}
-                </div>
+                <CardContent className="flex-1 overflow-y-auto space-y-1 min-h-0">
+                    {isLoading ? (
+                        // Loading skeleton
+                        <>
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className="flex items-center gap-3 p-3">
+                                    <Skeleton className="h-8 w-8 rounded-lg" />
+                                    <div className="flex-1 space-y-2">
+                                        <Skeleton className="h-4 w-24" />
+                                        <Skeleton className="h-3 w-40" />
+                                    </div>
+                                </div>
+                            ))}
+                        </>
+                    ) : (
+                        commands.map((cmd) => (
+                            <CommandButton
+                                key={cmd.id}
+                                {...cmd}
+                            />
+                        ))
+                    )}
+                </CardContent>
 
                 {/* Terminal Hint */}
-                <div
-                    className="px-4 py-2 text-xs shrink-0 truncate"
-                    style={{
-                        background: 'var(--bg-tertiary)',
-                        color: 'var(--text-muted)',
-                        borderTop: '1px solid var(--border-subtle)'
-                    }}
-                >
-                    CLI: <code className="font-mono" style={{ color: 'var(--accent-cyan)' }}>ckrv --help</code>
+                <div className="px-4 py-2 text-xs shrink-0 truncate border-t border-border bg-muted/50">
+                    CLI: <code className="font-mono text-primary">ckrv --help</code>
                 </div>
-            </div>
+            </Card>
 
-            {/* New Spec Modal */}
-            {showSpecModal && (
-                <SpecNewModal
-                    onClose={() => setShowSpecModal(false)}
-                    onSubmit={(description) => specNewMutation.mutate({ description })}
-                    isLoading={specNewMutation.isPending}
-                />
-            )}
+            {/* New Spec Dialog */}
+            <SpecNewDialog
+                open={showSpecModal}
+                onOpenChange={setShowSpecModal}
+                onSubmit={(description) => specNewMutation.mutate({ description })}
+                isLoading={specNewMutation.isPending}
+            />
         </>
     );
 };
 
-interface SpecNewModalProps {
-    onClose: () => void;
+interface SpecNewDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
     onSubmit: (description: string) => void;
     isLoading: boolean;
 }
 
-const SpecNewModal: React.FC<SpecNewModalProps> = ({ onClose, onSubmit, isLoading }) => {
+const SpecNewDialog: React.FC<SpecNewDialogProps> = ({ open, onOpenChange, onSubmit, isLoading }) => {
     const [description, setDescription] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -379,161 +385,74 @@ const SpecNewModal: React.FC<SpecNewModalProps> = ({ onClose, onSubmit, isLoadin
     };
 
     return (
-        <div
-            className="fixed inset-0 flex items-center justify-center z-50"
-            style={{ background: 'rgba(0, 0, 0, 0.7)' }}
-            onClick={onClose}
-        >
-            <div
-                className="w-full max-w-lg mx-4 rounded-xl overflow-hidden shadow-2xl"
-                style={{
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-default)'
-                }}
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Modal Header */}
-                <div
-                    className="px-6 py-4 flex items-center justify-between"
-                    style={{ borderBottom: '1px solid var(--border-subtle)' }}
-                >
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
                     <div className="flex items-center gap-3">
-                        <div
-                            className="p-2 rounded-lg"
-                            style={{ background: 'var(--accent-green-dim)' }}
-                        >
-                            <Sparkles size={20} style={{ color: 'var(--accent-green)' }} />
+                        <div className="p-2 rounded-lg bg-[var(--accent-green-dim)]">
+                            <Sparkles size={20} className="text-[var(--accent-green)]" />
                         </div>
                         <div>
-                            <h2
-                                className="font-semibold text-lg"
-                                style={{ color: 'var(--text-primary)' }}
-                            >
-                                New Specification
-                            </h2>
-                            <p
-                                className="text-xs"
-                                style={{ color: 'var(--text-muted)' }}
-                            >
+                            <DialogTitle>New Specification</DialogTitle>
+                            <DialogDescription>
                                 Describe your feature and AI will generate a spec
-                            </p>
+                            </DialogDescription>
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-lg transition-colors hover:bg-opacity-50"
-                        style={{ color: 'var(--text-muted)' }}
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
+                </DialogHeader>
 
-                {/* Modal Body */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {/* Description Input */}
+                <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                        <label
-                            className="text-sm font-medium flex items-center gap-2"
-                            style={{ color: 'var(--text-primary)' }}
-                        >
+                        <label className="text-sm font-medium flex items-center gap-2">
                             Description
-                            <span
-                                className="text-xs font-normal px-1.5 py-0.5 rounded"
-                                style={{
-                                    background: 'var(--accent-amber-dim)',
-                                    color: 'var(--accent-amber)'
-                                }}
-                            >
-                                required
-                            </span>
+                            <Badge variant="warning" className="text-xs">required</Badge>
                         </label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="e.g., Add user authentication with OAuth2 support"
                             rows={3}
-                            className="w-full px-4 py-3 rounded-lg text-sm resize-none focus:outline-none transition-all"
-                            style={{
-                                background: 'var(--bg-tertiary)',
-                                border: '1px solid var(--border-subtle)',
-                                color: 'var(--text-primary)',
-                            }}
-                            onFocus={(e) => {
-                                e.currentTarget.style.borderColor = 'var(--accent-green)';
-                                e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-green-dim)';
-                            }}
-                            onBlur={(e) => {
-                                e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                                e.currentTarget.style.boxShadow = 'none';
-                            }}
+                            className="w-full px-4 py-3 rounded-lg text-sm resize-none bg-muted border border-border focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                             autoFocus
                         />
-                        <p
-                            className="text-xs"
-                            style={{ color: 'var(--text-muted)' }}
-                        >
+                        <p className="text-xs text-muted-foreground">
                             Describe what feature you want to build. Be specific about requirements.
                         </p>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center justify-end gap-3 pt-2">
-                        <button
+                    <DialogFooter>
+                        <Button
                             type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                            style={{
-                                color: 'var(--text-secondary)',
-                                background: 'var(--bg-tertiary)',
-                                border: '1px solid var(--border-subtle)'
-                            }}
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
                         >
                             Cancel
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="submit"
                             disabled={!description.trim() || isLoading}
-                            className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all"
-                            style={{
-                                background: description.trim() && !isLoading
-                                    ? 'var(--accent-green)'
-                                    : 'var(--bg-tertiary)',
-                                color: description.trim() && !isLoading
-                                    ? 'var(--bg-primary)'
-                                    : 'var(--text-muted)',
-                                border: '1px solid transparent',
-                                cursor: !description.trim() || isLoading ? 'not-allowed' : 'pointer',
-                                opacity: !description.trim() || isLoading ? 0.6 : 1,
-                            }}
                         >
                             {isLoading ? (
                                 <>
-                                    <Loader2 size={16} className="animate-spin" />
+                                    <Loader2 size={16} className="mr-2 animate-spin" />
                                     Creating...
                                 </>
                             ) : (
                                 <>
-                                    <Sparkles size={16} />
+                                    <Sparkles size={16} className="mr-2" />
                                     Create Specification
                                 </>
                             )}
-                        </button>
-                    </div>
+                        </Button>
+                    </DialogFooter>
                 </form>
 
                 {/* Footer hint */}
-                <div
-                    className="px-6 py-3 text-xs font-mono"
-                    style={{
-                        background: 'var(--bg-tertiary)',
-                        color: 'var(--text-muted)',
-                        borderTop: '1px solid var(--border-subtle)'
-                    }}
-                >
-                    <span style={{ color: 'var(--accent-cyan)' }}>$</span> ckrv spec new "{description || '...'}"
+                <div className="px-4 py-3 -mx-6 -mb-6 text-xs font-mono bg-muted border-t border-border rounded-b-lg">
+                    <span className="text-primary">$</span> ckrv spec new "{description || '...'}"
                 </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };
 
@@ -551,61 +470,42 @@ interface CommandButtonProps {
 const CommandButton: React.FC<CommandButtonProps> = ({
     icon, label, description, command, action, disabled, loading, color
 }) => {
-    const colorMap = {
-        cyan: { accent: 'var(--accent-cyan)', dim: 'var(--accent-cyan-dim)' },
-        green: { accent: 'var(--accent-green)', dim: 'var(--accent-green-dim)' },
-        amber: { accent: 'var(--accent-amber)', dim: 'var(--accent-amber-dim)' },
-        purple: { accent: 'var(--accent-purple)', dim: 'var(--accent-purple-dim)' },
+    const colorClasses = {
+        cyan: 'bg-[var(--accent-cyan-dim)] text-[var(--accent-cyan)] hover:border-[var(--accent-cyan)] hover:shadow-[0_0_20px_var(--accent-cyan-dim)]',
+        green: 'bg-[var(--accent-green-dim)] text-[var(--accent-green)] hover:border-[var(--accent-green)] hover:shadow-[0_0_20px_var(--accent-green-dim)]',
+        amber: 'bg-[var(--accent-amber-dim)] text-[var(--accent-amber)] hover:border-[var(--accent-amber)] hover:shadow-[0_0_20px_var(--accent-amber-dim)]',
+        purple: 'bg-[var(--accent-purple-dim)] text-[var(--accent-purple)] hover:border-[var(--accent-purple)] hover:shadow-[0_0_20px_var(--accent-purple-dim)]',
     };
 
-    const colors = colorMap[color];
+    const arrowColors = {
+        cyan: 'text-[var(--accent-cyan)]',
+        green: 'text-[var(--accent-green)]',
+        amber: 'text-[var(--accent-amber)]',
+        purple: 'text-[var(--accent-purple)]',
+    };
 
     return (
         <button
             onClick={action}
             disabled={disabled || loading}
-            className="w-full p-3 rounded-lg flex items-center gap-3 transition-all duration-200 group text-left relative"
-            style={{
-                background: 'var(--bg-tertiary)',
-                border: '1px solid var(--border-subtle)',
-                opacity: disabled ? 0.5 : 1,
-                cursor: disabled ? 'not-allowed' : 'pointer',
-            }}
-            onMouseEnter={(e) => {
-                if (!disabled) {
-                    e.currentTarget.style.borderColor = colors.accent;
-                    e.currentTarget.style.boxShadow = `0 0 20px ${colors.dim}`;
-                }
-            }}
-            onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                e.currentTarget.style.boxShadow = 'none';
-            }}
+            className={cn(
+                "w-full p-3 rounded-lg flex items-center gap-3 transition-all duration-200 group text-left",
+                "bg-accent border border-border",
+                disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-primary"
+            )}
             title={command}
         >
             {/* Icon */}
-            <div
-                className="p-2 rounded-lg transition-all shrink-0"
-                style={{
-                    background: colors.dim,
-                    color: colors.accent
-                }}
-            >
+            <div className={cn("p-2 rounded-lg transition-all shrink-0", colorClasses[color].split(' ').slice(0, 2).join(' '))}>
                 {loading ? <Loader2 size={16} className="animate-spin" /> : icon}
             </div>
 
             {/* Content */}
             <div className="flex-1 min-w-0 overflow-hidden">
-                <div
-                    className="font-medium text-sm truncate"
-                    style={{ color: 'var(--text-primary)' }}
-                >
+                <div className="font-medium text-sm truncate text-foreground">
                     {label}
                 </div>
-                <div
-                    className="text-xs truncate"
-                    style={{ color: 'var(--text-muted)' }}
-                >
+                <div className="text-xs truncate text-muted-foreground">
                     {description}
                 </div>
             </div>
@@ -614,8 +514,10 @@ const CommandButton: React.FC<CommandButtonProps> = ({
             <div className="shrink-0">
                 <ChevronRight
                     size={14}
-                    className="transition-transform group-hover:translate-x-0.5"
-                    style={{ color: disabled ? 'var(--text-muted)' : colors.accent }}
+                    className={cn(
+                        "transition-transform group-hover:translate-x-0.5",
+                        disabled ? "text-muted-foreground" : arrowColors[color]
+                    )}
                 />
             </div>
         </button>

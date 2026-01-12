@@ -1,13 +1,12 @@
 import { useState, createContext, useContext } from 'react';
-import { Theme } from '@radix-ui/themes';
-import '@radix-ui/themes/styles.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { DashboardLayout } from './layouts/Dashboard';
 import { StatusWidget } from './components/StatusWidget';
 import { LogViewer } from './components/LogViewer';
 import { CommandPalette, CommandResultContext } from './components/CommandPalette';
 import { WorkflowPanel } from './components/WorkflowPanel';
-import { AgentManager } from './components/AgentManager';
+import AgentManager from './components/AgentManager';
 import { SpecEditor } from './components/SpecEditor';
 import { TaskEditor } from './components/TaskEditor';
 import PlanEditor from './components/PlanEditor';
@@ -117,23 +116,25 @@ function App() {
     return (
         <ErrorBoundary>
             <QueryClientProvider client={queryClient}>
-                <Theme appearance="dark" accentColor="cyan" grayColor="slate" radius="medium" scaling="100%">
-                    <NavigationContext.Provider value={{ currentPage, setCurrentPage }}>
-                        <CommandResultContext.Provider value={{ lastResult, setLastResult }}>
-                            <DashboardLayout>
-                                <ErrorBoundary>
-                                    {currentPage === 'dashboard' && <DashboardPage />}
-                                    {currentPage === 'agents' && <AgentsPage />}
-                                    {currentPage === 'specs' && <SpecsPage />}
-                                    {currentPage === 'plan' && <PlanPage />}
-                                    {currentPage === 'tasks' && <TasksPage />}
-                                    {currentPage === 'runner' && <RunnerPage />}
-                                    {currentPage === 'diff' && <DiffPage />}
-                                </ErrorBoundary>
-                            </DashboardLayout>
-                        </CommandResultContext.Provider>
-                    </NavigationContext.Provider>
-                </Theme>
+                <div className="dark">
+                    <TooltipProvider delayDuration={200}>
+                        <NavigationContext.Provider value={{ currentPage, setCurrentPage }}>
+                            <CommandResultContext.Provider value={{ lastResult, setLastResult }}>
+                                <DashboardLayout>
+                                    <ErrorBoundary>
+                                        {currentPage === 'dashboard' && <DashboardPage />}
+                                        {currentPage === 'agents' && <AgentsPage />}
+                                        {currentPage === 'specs' && <SpecsPage />}
+                                        {currentPage === 'plan' && <PlanPage />}
+                                        {currentPage === 'tasks' && <TasksPage />}
+                                        {currentPage === 'runner' && <RunnerPage />}
+                                        {currentPage === 'diff' && <DiffPage />}
+                                    </ErrorBoundary>
+                                </DashboardLayout>
+                            </CommandResultContext.Provider>
+                        </NavigationContext.Provider>
+                    </TooltipProvider>
+                </div>
             </QueryClientProvider>
         </ErrorBoundary>
     );

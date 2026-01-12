@@ -1,11 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { type OrchestrationEvent } from '../types';
 import { useMutation } from '@tanstack/react-query';
-import { 
-    Terminal, AlertCircle, CheckCircle2, ChevronRight, 
+import {
+    Terminal, AlertCircle, CheckCircle2, ChevronRight,
     Play, Pause, Trash2, Download, Filter, Sparkles, Loader2, X
 } from 'lucide-react';
 import { useCommandResult } from './CommandPalette';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 export const LogViewer: React.FC = () => {
     const [logs, setLogs] = useState<OrchestrationEvent[]>([]);
@@ -52,7 +64,7 @@ export const LogViewer: React.FC = () => {
     }, [logs, autoScroll]);
 
     const filteredLogs = logs.filter(log => {
-        const matchesText = filter === '' || 
+        const matchesText = filter === '' ||
             log.message.toLowerCase().includes(filter.toLowerCase()) ||
             log.type.toLowerCase().includes(filter.toLowerCase());
         const matchesType = typeFilter === 'all' || log.type.toLowerCase() === typeFilter;
@@ -62,10 +74,10 @@ export const LogViewer: React.FC = () => {
     const handleClear = () => setLogs([]);
 
     const handleExport = () => {
-        const content = filteredLogs.map(log => 
+        const content = filteredLogs.map(log =>
             `[${new Date(log.timestamp).toISOString()}] [${log.type.toUpperCase()}] ${log.message}`
         ).join('\n');
-        
+
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -74,275 +86,206 @@ export const LogViewer: React.FC = () => {
         a.click();
     };
 
+    const errorCount = logs.filter(l => l.type === 'error').length;
+
     return (
-        <div 
-            className="flex flex-col h-full rounded-lg overflow-hidden"
-            style={{ 
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-subtle)'
-            }}
-        >
-            {/* Header */}
-            <div 
-                className="px-4 py-3 flex items-center justify-between"
-                style={{ borderBottom: '1px solid var(--border-subtle)' }}
-            >
-                <div className="flex items-center gap-3">
-                    <Terminal size={16} style={{ color: 'var(--accent-cyan)' }} />
-                    <h3 
-                        className="font-semibold text-sm"
-                        style={{ color: 'var(--text-primary)' }}
-                    >
-                        Execution Log
-                    </h3>
-                    <div 
-                        className="flex items-center gap-1 text-xs"
-                        style={{ color: 'var(--text-muted)' }}
-                    >
-                        <div className="status-dot running"></div>
-                        Live
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    {/* Type Filter */}
-                    <select
-                        value={typeFilter}
-                        onChange={(e) => setTypeFilter(e.target.value)}
-                        className="text-xs px-2 py-1 rounded border-none outline-none cursor-pointer"
-                        style={{ 
-                            background: 'var(--bg-tertiary)',
-                            color: 'var(--text-secondary)'
-                        }}
-                    >
-                        <option value="all">All Events</option>
-                        <option value="step_start">Steps</option>
-                        <option value="success">Success</option>
-                        <option value="error">Errors</option>
-                        <option value="log">Logs</option>
-                    </select>
-
-                    {/* Text Filter */}
-                    <div className="relative">
-                        <Filter 
-                            size={12} 
-                            className="absolute left-2 top-1/2 -translate-y-1/2"
-                            style={{ color: 'var(--text-muted)' }}
-                        />
-                        <input
-                            type="text"
-                            placeholder="Filter..."
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                            className="w-32 pl-7 pr-2 py-1 text-xs rounded border-none outline-none"
-                            style={{ 
-                                background: 'var(--bg-tertiary)',
-                                color: 'var(--text-primary)'
-                            }}
-                        />
+        <Card className="flex flex-col h-full">
+            <CardHeader className="pb-3 shrink-0">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Terminal size={16} className="text-primary" />
+                        <CardTitle className="text-sm font-semibold">Execution Log</CardTitle>
+                        <Badge variant="success" className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                            Live
+                        </Badge>
                     </div>
 
-                    {/* Auto-scroll toggle */}
-                    <button
-                        onClick={() => setAutoScroll(!autoScroll)}
-                        className="p-1.5 rounded transition-colors"
-                        style={{ 
-                            background: autoScroll ? 'var(--accent-cyan-dim)' : 'var(--bg-tertiary)',
-                            color: autoScroll ? 'var(--accent-cyan)' : 'var(--text-muted)'
-                        }}
-                        title={autoScroll ? 'Pause auto-scroll' : 'Resume auto-scroll'}
-                    >
-                        {autoScroll ? <Pause size={14} /> : <Play size={14} />}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {/* Type Filter */}
+                        <Select value={typeFilter} onValueChange={setTypeFilter}>
+                            <SelectTrigger className="w-[120px] h-8 text-xs">
+                                <SelectValue placeholder="All Events" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Events</SelectItem>
+                                <SelectItem value="step_start">Steps</SelectItem>
+                                <SelectItem value="success">Success</SelectItem>
+                                <SelectItem value="error">Errors</SelectItem>
+                                <SelectItem value="log">Logs</SelectItem>
+                            </SelectContent>
+                        </Select>
 
-                    {/* Export */}
-                    <button
-                        onClick={handleExport}
-                        className="p-1.5 rounded transition-colors"
-                        style={{ 
-                            background: 'var(--bg-tertiary)',
-                            color: 'var(--text-muted)'
-                        }}
-                        title="Export logs"
-                    >
-                        <Download size={14} />
-                    </button>
+                        {/* Text Filter */}
+                        <div className="relative">
+                            <Filter
+                                size={12}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            />
+                            <Input
+                                type="text"
+                                placeholder="Filter..."
+                                value={filter}
+                                onChange={(e) => setFilter(e.target.value)}
+                                className="w-32 h-8 pl-7 text-xs"
+                            />
+                        </div>
 
-                    {/* Clear */}
-                    <button
-                        onClick={handleClear}
-                        className="p-1.5 rounded transition-colors"
-                        style={{ 
-                            background: 'var(--bg-tertiary)',
-                            color: 'var(--text-muted)'
-                        }}
-                        title="Clear logs"
-                    >
-                        <Trash2 size={14} />
-                    </button>
+                        {/* Toolbar buttons */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setAutoScroll(!autoScroll)}
+                            title={autoScroll ? 'Pause auto-scroll' : 'Resume auto-scroll'}
+                        >
+                            {autoScroll ? <Pause size={14} /> : <Play size={14} />}
+                        </Button>
+
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={handleExport}
+                            title="Export logs"
+                        >
+                            <Download size={14} />
+                        </Button>
+
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={handleClear}
+                            title="Clear logs"
+                        >
+                            <Trash2 size={14} />
+                        </Button>
+                    </div>
                 </div>
-            </div>
+            </CardHeader>
 
             {/* Log Content */}
-            <div
-                ref={viewportRef}
-                className="flex-1 overflow-y-auto p-2 font-mono text-xs leading-relaxed"
-                style={{ background: 'var(--bg-primary)' }}
-            >
-                {filteredLogs.length === 0 ? (
-                    <EmptyLogs />
-                ) : (
-                    filteredLogs.map((log, i) => (
-                        <LogLine key={i} log={log} />
-                    ))
-                )}
-            </div>
+            <CardContent className="flex-1 p-0 min-h-0">
+                <ScrollArea className="h-full" ref={viewportRef}>
+                    <div className="p-2 font-mono text-xs leading-relaxed">
+                        {filteredLogs.length === 0 ? (
+                            <EmptyLogs />
+                        ) : (
+                            filteredLogs.map((log, i) => (
+                                <LogLine key={i} log={log} />
+                            ))
+                        )}
+                    </div>
+                </ScrollArea>
+            </CardContent>
 
             {/* Status Bar */}
-            <div 
-                className="px-4 py-2 flex items-center justify-between text-xs font-mono"
-                style={{ 
-                    background: 'var(--bg-tertiary)',
-                    borderTop: '1px solid var(--border-subtle)',
-                    color: 'var(--text-muted)'
-                }}
-            >
+            <div className="px-4 py-2 flex items-center justify-between text-xs font-mono border-t border-border bg-muted/50">
                 <div className="flex items-center gap-3">
-                    <span>{filteredLogs.length} events</span>
-                    
+                    <span className="text-muted-foreground">{filteredLogs.length} events</span>
+
                     {/* Command Result Toast */}
                     {lastResult && (
-                        <div 
-                            className="flex items-center gap-2 px-2 py-1 rounded"
-                            style={{ 
-                                background: lastResult.result.success ? 'var(--accent-green-dim)' : 'var(--accent-red-dim)',
-                                border: `1px solid ${lastResult.result.success ? 'var(--accent-green)' : 'var(--accent-red)'}`
-                            }}
+                        <Badge
+                            variant={lastResult.result.success ? 'success' : 'destructive'}
+                            className="flex items-center gap-2"
                         >
-                            {lastResult.result.success 
-                                ? <CheckCircle2 size={12} style={{ color: 'var(--accent-green)' }} />
-                                : <AlertCircle size={12} style={{ color: 'var(--accent-red)' }} />
+                            {lastResult.result.success
+                                ? <CheckCircle2 size={12} />
+                                : <AlertCircle size={12} />
                             }
-                            <span 
+                            <span
                                 className="max-w-[200px] truncate"
-                                style={{ color: lastResult.result.success ? 'var(--accent-green)' : 'var(--accent-red)' }}
                                 title={lastResult.result.message || (lastResult.result.success ? 'Command completed' : 'Command failed')}
                             >
                                 {lastResult.result.message || (lastResult.result.success ? 'Done' : 'Failed')}
                             </span>
-                            <button 
+                            <button
                                 onClick={() => setLastResult(null)}
-                                className="opacity-60 hover:opacity-100"
-                                style={{ color: 'var(--text-secondary)' }}
+                                className="opacity-60 hover:opacity-100 ml-1"
                             >
                                 <X size={12} />
                             </button>
-                        </div>
+                        </Badge>
                     )}
                 </div>
                 <div className="flex items-center gap-3">
                     {/* Fix with AI button - show when there are errors */}
-                    {logs.filter(l => l.type === 'error').length > 0 && (
-                        <button
+                    {errorCount > 0 && (
+                        <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => fixMutation.mutate()}
                             disabled={fixMutation.isPending}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all"
-                            style={{
-                                background: 'var(--accent-purple-dim)',
-                                color: 'var(--accent-purple)',
-                                border: '1px solid var(--accent-purple)',
-                                cursor: fixMutation.isPending ? 'not-allowed' : 'pointer',
-                                opacity: fixMutation.isPending ? 0.7 : 1,
-                            }}
-                            title="Run AI to fix verification errors"
+                            className="h-7 text-xs bg-[var(--accent-purple-dim)] text-[var(--accent-purple)] border-[var(--accent-purple)] hover:bg-[var(--accent-purple)] hover:text-background"
                         >
                             {fixMutation.isPending ? (
-                                <Loader2 size={12} className="animate-spin" />
+                                <Loader2 size={12} className="mr-1.5 animate-spin" />
                             ) : (
-                                <Sparkles size={12} />
+                                <Sparkles size={12} className="mr-1.5" />
                             )}
-                            <span className="font-medium">
-                                {fixMutation.isPending ? 'Fixing...' : 'Fix with AI'}
-                            </span>
-                        </button>
+                            {fixMutation.isPending ? 'Fixing...' : 'Fix with AI'}
+                        </Button>
                     )}
-                    {logs.filter(l => l.type === 'error').length > 0 && (
-                        <span style={{ color: 'var(--accent-red)' }}>
-                            {logs.filter(l => l.type === 'error').length} err
-                        </span>
+                    {errorCount > 0 && (
+                        <Badge variant="destructive">{errorCount} err</Badge>
                     )}
                 </div>
             </div>
-        </div>
+        </Card>
     );
 };
 
 const LogLine: React.FC<{ log: OrchestrationEvent }> = ({ log }) => {
-    const timestamp = new Date(log.timestamp).toLocaleTimeString([], { 
-        hour12: false, 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
+    const timestamp = new Date(log.timestamp).toLocaleTimeString([], {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
     });
 
     const getTypeStyle = (type: string) => {
         switch (type.toLowerCase()) {
             case 'error':
-                return { color: 'var(--accent-red)', icon: <AlertCircle size={12} /> };
+                return { color: 'text-[var(--accent-red)]', icon: <AlertCircle size={12} /> };
             case 'success':
-                return { color: 'var(--accent-green)', icon: <CheckCircle2 size={12} /> };
+                return { color: 'text-[var(--accent-green)]', icon: <CheckCircle2 size={12} /> };
             case 'warning':
-                return { color: 'var(--accent-amber)', icon: <AlertCircle size={12} /> };
+                return { color: 'text-[var(--accent-amber)]', icon: <AlertCircle size={12} /> };
             case 'step_start':
-                return { color: 'var(--accent-cyan)', icon: <ChevronRight size={12} /> };
+                return { color: 'text-[var(--accent-cyan)]', icon: <ChevronRight size={12} /> };
             case 'step_end':
-                return { color: 'var(--accent-purple)', icon: <CheckCircle2 size={12} /> };
+                return { color: 'text-[var(--accent-purple)]', icon: <CheckCircle2 size={12} /> };
             default:
-                return { color: 'var(--text-muted)', icon: null };
+                return { color: 'text-muted-foreground', icon: null };
         }
     };
 
     const style = getTypeStyle(log.type);
 
     return (
-        <div 
-            className="flex items-start gap-2 py-1 px-2 rounded hover:bg-white/5 transition-colors group"
-        >
+        <div className="flex items-start gap-2 py-1 px-2 rounded hover:bg-accent/50 transition-colors group">
             {/* Timestamp */}
-            <span 
-                className="shrink-0 select-none"
-                style={{ color: 'var(--text-muted)' }}
-            >
+            <span className="shrink-0 select-none text-muted-foreground">
                 {timestamp}
             </span>
 
             {/* Type indicator */}
-            <span 
-                className="shrink-0 w-4 flex items-center justify-center"
-                style={{ color: style.color }}
-            >
+            <span className={`shrink-0 w-4 flex items-center justify-center ${style.color}`}>
                 {style.icon}
             </span>
 
             {/* Message */}
-            <span 
-                className="flex-1 break-all"
-                style={{ color: style.color }}
-            >
+            <span className={`flex-1 break-all ${style.color}`}>
                 {log.message}
             </span>
 
             {/* Step name if present */}
             {log.step_name && (
-                <span 
-                    className="shrink-0 px-1.5 py-0.5 rounded text-xs"
-                    style={{ 
-                        background: 'var(--bg-surface)',
-                        color: 'var(--text-muted)'
-                    }}
-                >
+                <Badge variant="secondary" className="shrink-0 text-xs">
                     {log.step_name}
-                </span>
+                </Badge>
             )}
         </div>
     );
@@ -357,10 +300,10 @@ const CkrvLogo: React.FC = () => {
         '╚██████╗██║  ██╗██║  ██║ ╚████╔╝ ',
         ' ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝  ╚═══╝  ',
     ];
-    
+
     // Exact color mapping from CLI (ANSI 256 colors to hex)
     const colors = ['#FFFFAF', '#FFFF87', '#FFD700', '#FFAF00', '#FF8700', '#FF8700'];
-    
+
     return (
         <pre style={{ fontFamily: 'monospace', fontSize: '11px', lineHeight: 1.2, margin: 0 }}>
             {lines.map((line, i) => (
@@ -371,19 +314,12 @@ const CkrvLogo: React.FC = () => {
 };
 
 const EmptyLogs: React.FC = () => (
-    <div 
-        className="h-full flex flex-col items-center justify-center gap-4"
-    >
+    <div className="h-full flex flex-col items-center justify-center gap-4 py-12">
         <CkrvLogo />
-        <div className="text-center" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-center text-muted-foreground">
             <div className="text-sm mb-1 opacity-80">No activity yet</div>
             <div className="text-xs opacity-60">
-                Run <code 
-                    className="px-1.5 py-0.5 rounded"
-                    style={{ background: 'var(--bg-surface)' }}
-                >
-                    ckrv run
-                </code> to start
+                Run <code className="px-1.5 py-0.5 rounded bg-muted">ckrv run</code> to start
             </div>
         </div>
     </div>

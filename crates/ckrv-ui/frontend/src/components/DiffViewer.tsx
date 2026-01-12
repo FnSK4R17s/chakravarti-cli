@@ -5,6 +5,18 @@ import {
     FileCode2, FilePlus2, FileX2, FileEdit, Loader2,
     ArrowRight, Check, RefreshCw
 } from 'lucide-react';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 // Types
 interface FileDiff {
@@ -60,10 +72,10 @@ const statusIcons: Record<string, React.ElementType> = {
 };
 
 const statusColors: Record<string, string> = {
-    added: 'text-emerald-400',
-    modified: 'text-amber-400',
-    deleted: 'text-red-400',
-    renamed: 'text-blue-400',
+    added: 'text-[var(--accent-green)]',
+    modified: 'text-[var(--accent-amber)]',
+    deleted: 'text-destructive',
+    renamed: 'text-[var(--accent-cyan)]',
 };
 
 // Parse diff content into lines with styling
@@ -83,85 +95,83 @@ function parseDiffLines(diff: string): { type: 'header' | 'add' | 'remove' | 'co
     });
 }
 
-// File diff component
+// File diff component using Collapsible
 const FileDiffView: React.FC<{ file: FileDiff; isExpanded: boolean; onToggle: () => void }> = ({
     file, isExpanded, onToggle
 }) => {
     const StatusIcon = statusIcons[file.status] || FileCode2;
-    const statusColor = statusColors[file.status] || 'text-gray-400';
+    const statusColor = statusColors[file.status] || 'text-muted-foreground';
     const diffLines = useMemo(() => parseDiffLines(file.diff), [file.diff]);
 
     return (
-        <div className="border border-gray-700 rounded-lg overflow-hidden bg-gray-800/50">
-            {/* File header */}
-            <button
-                onClick={onToggle}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-700/50 transition-colors"
-            >
-                <div className="flex items-center gap-3">
-                    <div className="text-gray-500">
-                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                    </div>
-                    <StatusIcon size={16} className={statusColor} />
-                    <span className="font-mono text-sm text-gray-200">{file.path}</span>
-                </div>
-                <div className="flex items-center gap-4 text-sm">
-                    {file.additions > 0 && (
-                        <span className="text-emerald-400 flex items-center gap-1">
-                            <Plus size={12} />
-                            {file.additions}
-                        </span>
-                    )}
-                    {file.deletions > 0 && (
-                        <span className="text-red-400 flex items-center gap-1">
-                            <Minus size={12} />
-                            {file.deletions}
-                        </span>
-                    )}
-                </div>
-            </button>
+        <Card className="overflow-hidden">
+            <Collapsible open={isExpanded} onOpenChange={onToggle}>
+                <CollapsibleTrigger asChild>
+                    <button className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                            <div className="text-muted-foreground">
+                                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </div>
+                            <StatusIcon size={16} className={statusColor} />
+                            <span className="font-mono text-sm text-foreground">{file.path}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                            {file.additions > 0 && (
+                                <Badge variant="success" className="flex items-center gap-1">
+                                    <Plus size={12} />
+                                    {file.additions}
+                                </Badge>
+                            )}
+                            {file.deletions > 0 && (
+                                <Badge variant="destructive" className="flex items-center gap-1">
+                                    <Minus size={12} />
+                                    {file.deletions}
+                                </Badge>
+                            )}
+                        </div>
+                    </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                    <div className="border-t border-border bg-muted/30 overflow-x-auto">
+                        <pre className="text-xs font-mono p-0">
+                            {diffLines.map((line, i) => {
+                                let bgColor = '';
+                                let textColor = 'text-muted-foreground';
 
-            {/* Diff content */}
-            {isExpanded && (
-                <div className="border-t border-gray-700 bg-gray-900 overflow-x-auto">
-                    <pre className="text-xs font-mono p-0">
-                        {diffLines.map((line, i) => {
-                            let bgColor = '';
-                            let textColor = 'text-gray-400';
+                                if (line.type === 'add') {
+                                    bgColor = 'bg-[var(--accent-green)]/10';
+                                    textColor = 'text-[var(--accent-green)]';
+                                } else if (line.type === 'remove') {
+                                    bgColor = 'bg-destructive/10';
+                                    textColor = 'text-destructive';
+                                } else if (line.type === 'hunk') {
+                                    bgColor = 'bg-[var(--accent-cyan)]/10';
+                                    textColor = 'text-[var(--accent-cyan)]';
+                                } else if (line.type === 'header') {
+                                    textColor = 'text-muted-foreground';
+                                }
 
-                            if (line.type === 'add') {
-                                bgColor = 'bg-emerald-900/30';
-                                textColor = 'text-emerald-300';
-                            } else if (line.type === 'remove') {
-                                bgColor = 'bg-red-900/30';
-                                textColor = 'text-red-300';
-                            } else if (line.type === 'hunk') {
-                                bgColor = 'bg-blue-900/20';
-                                textColor = 'text-blue-400';
-                            } else if (line.type === 'header') {
-                                textColor = 'text-gray-500';
-                            }
-
-                            return (
-                                <div
-                                    key={i}
-                                    className={`px-4 py-0.5 ${bgColor} ${textColor} border-l-2 ${line.type === 'add' ? 'border-emerald-500' :
-                                            line.type === 'remove' ? 'border-red-500' :
+                                return (
+                                    <div
+                                        key={i}
+                                        className={`px-4 py-0.5 ${bgColor} ${textColor} border-l-2 ${line.type === 'add' ? 'border-[var(--accent-green)]' :
+                                            line.type === 'remove' ? 'border-destructive' :
                                                 'border-transparent'
-                                        }`}
-                                >
-                                    {line.content || ' '}
-                                </div>
-                            );
-                        })}
-                    </pre>
-                </div>
-            )}
-        </div>
+                                            }`}
+                                    >
+                                        {line.content || ' '}
+                                    </div>
+                                );
+                            })}
+                        </pre>
+                    </div>
+                </CollapsibleContent>
+            </Collapsible>
+        </Card>
     );
 };
 
-// Branch selector dropdown
+// Branch selector using shadcn Select
 const BranchSelector: React.FC<{
     value: string;
     onChange: (val: string) => void;
@@ -170,16 +180,17 @@ const BranchSelector: React.FC<{
 }> = ({ value, onChange, branches, label }) => {
     return (
         <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500">{label}</label>
-            <select
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-            >
-                {branches.map(branch => (
-                    <option key={branch} value={branch}>{branch}</option>
-                ))}
-            </select>
+            <label className="text-xs text-muted-foreground">{label}</label>
+            <Select value={value} onValueChange={onChange}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
+                <SelectContent>
+                    {branches.map(branch => (
+                        <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
         </div>
     );
 };
@@ -239,83 +250,81 @@ export default function DiffViewer() {
     const branches = branchesData?.branches || [];
 
     return (
-        <div className="h-full flex flex-col bg-gray-950 text-gray-100">
+        <div className="h-full flex flex-col bg-background text-foreground">
             {/* Header */}
-            <div className="shrink-0 px-6 py-4 border-b border-gray-800 bg-gray-900/50">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-xl font-semibold flex items-center gap-3">
-                            <GitCompare className="text-cyan-400" size={24} />
-                            Diff Viewer
-                        </h1>
-                        <p className="text-gray-500 text-sm mt-1">Compare changes between branches</p>
-                    </div>
-
-                    {/* Branch selectors */}
-                    <div className="flex items-center gap-4">
-                        <BranchSelector
-                            label="Base"
-                            value={baseBranch}
-                            onChange={setBaseBranch}
-                            branches={branches}
-                        />
-                        <div className="pt-5 text-gray-500">
-                            <ArrowRight size={20} />
+            <Card className="shrink-0 rounded-none border-x-0 border-t-0">
+                <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle className="text-xl flex items-center gap-3">
+                                <GitCompare className="text-primary" size={24} />
+                                Diff Viewer
+                            </CardTitle>
+                            <p className="text-muted-foreground text-sm mt-1">Compare changes between branches</p>
                         </div>
-                        <BranchSelector
-                            label="Compare"
-                            value={targetBranch}
-                            onChange={setTargetBranch}
-                            branches={['HEAD', ...branches]}
-                        />
-                        <button
-                            onClick={() => refetch()}
-                            disabled={isLoading}
-                            className="mt-5 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
-                            title="Refresh"
-                        >
-                            <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
-                        </button>
+
+                        {/* Branch selectors */}
+                        <div className="flex items-center gap-4">
+                            <BranchSelector
+                                label="Base"
+                                value={baseBranch}
+                                onChange={setBaseBranch}
+                                branches={branches}
+                            />
+                            <div className="pt-5 text-muted-foreground">
+                                <ArrowRight size={20} />
+                            </div>
+                            <BranchSelector
+                                label="Compare"
+                                value={targetBranch}
+                                onChange={setTargetBranch}
+                                branches={['HEAD', ...branches]}
+                            />
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => refetch()}
+                                disabled={isLoading}
+                                className="mt-5"
+                                title="Refresh"
+                            >
+                                <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+                            </Button>
+                        </div>
                     </div>
-                </div>
-            </div>
+                </CardHeader>
+            </Card>
 
             {/* Stats bar */}
             {diffData?.stats && (
-                <div className="shrink-0 px-6 py-3 border-b border-gray-800 flex items-center gap-6 text-sm">
+                <div className="shrink-0 px-6 py-3 border-b border-border flex items-center gap-6 text-sm bg-muted/30">
                     <div className="flex items-center gap-2">
-                        <FileCode2 size={16} className="text-gray-500" />
-                        <span className="text-gray-300">{diffData.stats.files_changed} files changed</span>
+                        <FileCode2 size={16} className="text-muted-foreground" />
+                        <span className="text-foreground">{diffData.stats.files_changed} files changed</span>
                     </div>
-                    <div className="flex items-center gap-2 text-emerald-400">
+                    <Badge variant="success" className="flex items-center gap-1">
                         <Plus size={14} />
-                        <span>{diffData.stats.insertions} insertions</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-red-400">
+                        {diffData.stats.insertions} insertions
+                    </Badge>
+                    <Badge variant="destructive" className="flex items-center gap-1">
                         <Minus size={14} />
-                        <span>{diffData.stats.deletions} deletions</span>
-                    </div>
+                        {diffData.stats.deletions} deletions
+                    </Badge>
                     <div className="flex-1" />
-                    <button
-                        onClick={expandAll}
-                        className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                    >
+                    <Button variant="ghost" size="sm" onClick={expandAll}>
                         Expand all
-                    </button>
-                    <button
-                        onClick={collapseAll}
-                        className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                    >
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={collapseAll}>
                         Collapse all
-                    </button>
+                    </Button>
                 </div>
             )}
 
             {/* Content */}
-            <div className="flex-1 overflow-auto p-6">
+            <ScrollArea className="flex-1 p-6">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-64">
-                        <Loader2 className="animate-spin text-gray-500" size={32} />
+                        <Loader2 className="animate-spin text-muted-foreground" size={32} />
                     </div>
                 ) : diffData?.files && diffData.files.length > 0 ? (
                     <div className="space-y-3">
@@ -329,15 +338,15 @@ export default function DiffViewer() {
                         ))}
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                        <Check size={48} className="text-emerald-500 mb-4" />
-                        <p className="text-lg font-medium text-gray-300">No differences</p>
+                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                        <Check size={48} className="text-[var(--accent-green)] mb-4" />
+                        <p className="text-lg font-medium text-foreground">No differences</p>
                         <p className="text-sm mt-1">
                             {baseBranch} and {targetBranch} are identical
                         </p>
                     </div>
                 )}
-            </div>
+            </ScrollArea>
         </div>
     );
 }
