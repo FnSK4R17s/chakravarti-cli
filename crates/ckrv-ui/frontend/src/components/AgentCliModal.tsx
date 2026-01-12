@@ -1,10 +1,13 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as TerminalIcon, X, Circle } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import type { AgentConfig } from './AgentManager';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 // API functions
 const startTerminalSession = async (sessionId: string, agent: AgentConfig) => {
@@ -204,12 +207,14 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
         onClose();
     };
 
-    const statusColor = {
-        connecting: 'text-yellow-400',
-        connected: 'text-green-400',
-        error: 'text-red-400',
-        disconnected: 'text-gray-400'
-    }[status];
+    const getStatusVariant = (): "success" | "warning" | "destructive" | "secondary" => {
+        switch (status) {
+            case 'connecting': return 'warning';
+            case 'connected': return 'success';
+            case 'error': return 'destructive';
+            case 'disconnected': return 'secondary';
+        }
+    };
 
     const statusLabel = {
         connecting: 'Connecting...',
@@ -219,55 +224,46 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
     }[status];
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.8)' }}
-            onClick={handleClose}
-        >
-            <div
-                className="w-full max-w-4xl h-[85vh] flex flex-col rounded-xl overflow-hidden shadow-2xl"
-                style={{ background: '#1e1e1e', border: '1px solid #333' }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div
-                    className="px-4 py-3 flex items-center justify-between shrink-0"
-                    style={{ background: '#252526', borderBottom: '1px solid #333' }}
-                >
-                    <div className="flex items-center gap-3">
-                        <TerminalIcon size={16} className="text-gray-400" />
-                        <h3 className="text-sm font-semibold text-gray-200">
-                            Interactive Terminal: {agent.name}
-                        </h3>
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-purple-900/50 text-purple-300 border border-purple-900">
-                            Sandboxed
-                        </span>
-                        <div className={`flex items-center gap-1 text-xs ${statusColor}`}>
-                            <Circle size={8} fill="currentColor" />
-                            {statusLabel}
+        <Dialog open onOpenChange={(open) => !open && handleClose()}>
+            <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
+                <DialogHeader className="px-4 py-3 shrink-0 border-b border-border bg-muted">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <TerminalIcon size={16} className="text-muted-foreground" />
+                            <DialogTitle className="text-sm">
+                                Interactive Terminal: {agent.name}
+                            </DialogTitle>
+                            <Badge variant="info">Sandboxed</Badge>
+                            <Badge variant={getStatusVariant()} className="flex items-center gap-1">
+                                <Circle size={8} fill="currentColor" />
+                                {statusLabel}
+                            </Badge>
+                            {containerId && (
+                                <span className="text-[10px] font-mono text-muted-foreground">
+                                    {containerId.slice(0, 12)}
+                                </span>
+                            )}
                         </div>
-                        {containerId && (
-                            <span className="text-[10px] font-mono text-gray-500">
-                                {containerId.slice(0, 12)}
-                            </span>
-                        )}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleClose}
+                            className="h-8 w-8"
+                        >
+                            <X size={16} />
+                        </Button>
                     </div>
-                    <button
-                        onClick={handleClose}
-                        className="p-1 rounded hover:bg-white/10 transition-colors text-gray-400"
-                        title="Close terminal"
-                    >
-                        <X size={16} />
-                    </button>
-                </div>
+                </DialogHeader>
 
-                {/* Terminal */}
-                <div
-                    ref={terminalRef}
-                    className="flex-1 p-2"
-                    style={{ background: '#1e1e1e' }}
-                />
-            </div>
-        </div>
+                {/* Terminal wrapped in Card */}
+                <Card className="flex-1 m-2 overflow-hidden rounded-lg border-border">
+                    <div
+                        ref={terminalRef}
+                        className="h-full p-2"
+                        style={{ background: '#1e1e1e' }}
+                    />
+                </Card>
+            </DialogContent>
+        </Dialog>
     );
 };

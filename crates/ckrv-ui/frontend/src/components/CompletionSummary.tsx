@@ -9,6 +9,9 @@ import {
     CheckCircle2, XCircle, Clock, GitMerge,
     Trophy, AlertTriangle, Layers, Timer
 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { RunSummary, RunStatus } from '../types/history';
 import { formatElapsedTime } from '../types/history';
 
@@ -21,6 +24,43 @@ interface CompletionSummaryProps {
     error?: string | null;
     onClose?: () => void;
     onViewHistory?: () => void;
+}
+
+/**
+ * Stat Card Component using shadcn Card
+ */
+function StatCard({
+    icon: Icon,
+    label,
+    value,
+    color
+}: {
+    icon: React.ElementType;
+    label: string;
+    value: string;
+    color: 'emerald' | 'blue' | 'purple' | 'teal' | 'red' | 'gray' | 'orange';
+}) {
+    const colorClasses = {
+        emerald: 'border-[var(--accent-green)]/30 text-[var(--accent-green)]',
+        blue: 'border-[var(--accent-cyan)]/30 text-[var(--accent-cyan)]',
+        purple: 'border-[var(--accent-purple)]/30 text-[var(--accent-purple)]',
+        teal: 'border-[var(--accent-cyan)]/30 text-[var(--accent-cyan)]',
+        red: 'border-destructive/30 text-destructive',
+        gray: 'border-border text-muted-foreground',
+        orange: 'border-[var(--accent-amber)]/30 text-[var(--accent-amber)]',
+    };
+
+    return (
+        <Card className={`${colorClasses[color]}`}>
+            <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                    <Icon className="w-4 h-4 opacity-70" />
+                    <span className="text-xs opacity-70">{label}</span>
+                </div>
+                <div className="text-2xl font-bold">{value}</div>
+            </CardContent>
+        </Card>
+    );
 }
 
 /**
@@ -38,67 +78,66 @@ function SuccessSummary({
     mergedBranches?: string[];
 }) {
     return (
-        <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/10 border border-emerald-500/40 rounded-xl p-6">
-            <div className="flex items-center gap-4 mb-4">
-                <div className="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <Trophy className="w-7 h-7 text-emerald-400" />
-                </div>
-                <div>
-                    <h2 className="text-xl font-bold text-emerald-300">
-                        {dryRun ? '🧪 Dry Run Complete' : 'Execution Complete!'}
-                    </h2>
-                    <p className="text-emerald-400/80 text-sm">
-                        All {summary.total_batches} batches completed successfully
-                    </p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                <StatCard
-                    icon={Layers}
-                    label="Batches"
-                    value={`${summary.completed_batches}/${summary.total_batches}`}
-                    color="emerald"
-                />
-                <StatCard
-                    icon={Timer}
-                    label="Duration"
-                    value={formatElapsedTime(elapsedSeconds)}
-                    color="blue"
-                />
-                <StatCard
-                    icon={GitMerge}
-                    label="Merged"
-                    value={String(summary.branches_merged)}
-                    color="purple"
-                />
-                <StatCard
-                    icon={CheckCircle2}
-                    label="Tasks"
-                    value={String(summary.tasks_completed)}
-                    color="teal"
-                />
-            </div>
-
-            {!dryRun && mergedBranches.length > 0 && (
-                <div className="mt-6 p-4 bg-gray-800/50 rounded-lg">
-                    <h3 className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                        <GitMerge className="w-4 h-4" />
-                        Merged Branches
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                        {mergedBranches.map((branch) => (
-                            <span
-                                key={branch}
-                                className="px-2 py-1 text-xs bg-purple-500/20 text-purple-300 rounded border border-purple-500/30"
-                            >
-                                {branch}
-                            </span>
-                        ))}
+        <Card className="border-[var(--accent-green)]/40 bg-[var(--accent-green-dim)]">
+            <CardContent className="p-6">
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="w-14 h-14 rounded-full bg-[var(--accent-green)]/20 flex items-center justify-center">
+                        <Trophy className="w-7 h-7 text-[var(--accent-green)]" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-[var(--accent-green)]">
+                            {dryRun ? '🧪 Dry Run Complete' : 'Execution Complete!'}
+                        </h2>
+                        <p className="text-[var(--accent-green)]/80 text-sm">
+                            All {summary.total_batches} batches completed successfully
+                        </p>
                     </div>
                 </div>
-            )}
-        </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    <StatCard
+                        icon={Layers}
+                        label="Batches"
+                        value={`${summary.completed_batches}/${summary.total_batches}`}
+                        color="emerald"
+                    />
+                    <StatCard
+                        icon={Timer}
+                        label="Duration"
+                        value={formatElapsedTime(elapsedSeconds)}
+                        color="blue"
+                    />
+                    <StatCard
+                        icon={GitMerge}
+                        label="Merged"
+                        value={String(summary.branches_merged)}
+                        color="purple"
+                    />
+                    <StatCard
+                        icon={CheckCircle2}
+                        label="Tasks"
+                        value={String(summary.tasks_completed)}
+                        color="teal"
+                    />
+                </div>
+
+                {!dryRun && mergedBranches.length > 0 && (
+                    <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                        <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                            <GitMerge className="w-4 h-4" />
+                            Merged Branches
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                            {mergedBranches.map((branch) => (
+                                <Badge key={branch} variant="info">
+                                    {branch}
+                                </Badge>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
@@ -115,53 +154,55 @@ function PartialSuccessSummary({
     error?: string | null;
 }) {
     return (
-        <div className="bg-gradient-to-br from-orange-900/30 to-orange-800/10 border border-orange-500/40 rounded-xl p-6">
-            <div className="flex items-center gap-4 mb-4">
-                <div className="w-14 h-14 rounded-full bg-orange-500/20 flex items-center justify-center">
-                    <AlertTriangle className="w-7 h-7 text-orange-400" />
+        <Card className="border-[var(--accent-amber)]/40 bg-[var(--accent-amber-dim)]">
+            <CardContent className="p-6">
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="w-14 h-14 rounded-full bg-[var(--accent-amber)]/20 flex items-center justify-center">
+                        <AlertTriangle className="w-7 h-7 text-[var(--accent-amber)]" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-[var(--accent-amber)]">Partial Success</h2>
+                        <p className="text-[var(--accent-amber)]/80 text-sm">
+                            {summary.completed_batches} of {summary.total_batches} batches completed
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <h2 className="text-xl font-bold text-orange-300">Partial Success</h2>
-                    <p className="text-orange-400/80 text-sm">
-                        {summary.completed_batches} of {summary.total_batches} batches completed
-                    </p>
-                </div>
-            </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                <StatCard
-                    icon={CheckCircle2}
-                    label="Completed"
-                    value={String(summary.completed_batches)}
-                    color="emerald"
-                />
-                <StatCard
-                    icon={XCircle}
-                    label="Failed"
-                    value={String(summary.failed_batches)}
-                    color="red"
-                />
-                <StatCard
-                    icon={Clock}
-                    label="Pending"
-                    value={String(summary.pending_batches)}
-                    color="gray"
-                />
-                <StatCard
-                    icon={Timer}
-                    label="Duration"
-                    value={formatElapsedTime(elapsedSeconds)}
-                    color="blue"
-                />
-            </div>
-
-            {error && (
-                <div className="mt-6 p-4 bg-red-900/30 rounded-lg border border-red-500/30">
-                    <h3 className="text-sm font-medium text-red-300 mb-1">Error</h3>
-                    <p className="text-xs text-red-400/80 font-mono">{error}</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    <StatCard
+                        icon={CheckCircle2}
+                        label="Completed"
+                        value={String(summary.completed_batches)}
+                        color="emerald"
+                    />
+                    <StatCard
+                        icon={XCircle}
+                        label="Failed"
+                        value={String(summary.failed_batches)}
+                        color="red"
+                    />
+                    <StatCard
+                        icon={Clock}
+                        label="Pending"
+                        value={String(summary.pending_batches)}
+                        color="gray"
+                    />
+                    <StatCard
+                        icon={Timer}
+                        label="Duration"
+                        value={formatElapsedTime(elapsedSeconds)}
+                        color="blue"
+                    />
                 </div>
-            )}
-        </div>
+
+                {error && (
+                    <div className="mt-6 p-4 bg-destructive/10 rounded-lg border border-destructive/30">
+                        <h3 className="text-sm font-medium text-destructive mb-1">Error</h3>
+                        <p className="text-xs text-destructive/80 font-mono">{error}</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
@@ -178,82 +219,49 @@ function FailureSummary({
     error?: string | null;
 }) {
     return (
-        <div className="bg-gradient-to-br from-red-900/30 to-red-800/10 border border-red-500/40 rounded-xl p-6">
-            <div className="flex items-center gap-4 mb-4">
-                <div className="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center">
-                    <XCircle className="w-7 h-7 text-red-400" />
+        <Card className="border-destructive/40 bg-destructive/10">
+            <CardContent className="p-6">
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="w-14 h-14 rounded-full bg-destructive/20 flex items-center justify-center">
+                        <XCircle className="w-7 h-7 text-destructive" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-destructive">Execution Failed</h2>
+                        <p className="text-destructive/80 text-sm">
+                            Execution stopped after {summary.completed_batches} batch(es)
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <h2 className="text-xl font-bold text-red-300">Execution Failed</h2>
-                    <p className="text-red-400/80 text-sm">
-                        Execution stopped after {summary.completed_batches} batch(es)
-                    </p>
+
+                <div className="grid grid-cols-3 gap-4 mt-6">
+                    <StatCard
+                        icon={CheckCircle2}
+                        label="Completed"
+                        value={String(summary.completed_batches)}
+                        color="emerald"
+                    />
+                    <StatCard
+                        icon={XCircle}
+                        label="Failed"
+                        value={String(summary.failed_batches)}
+                        color="red"
+                    />
+                    <StatCard
+                        icon={Timer}
+                        label="Duration"
+                        value={formatElapsedTime(elapsedSeconds)}
+                        color="blue"
+                    />
                 </div>
-            </div>
 
-            <div className="grid grid-cols-3 gap-4 mt-6">
-                <StatCard
-                    icon={CheckCircle2}
-                    label="Completed"
-                    value={String(summary.completed_batches)}
-                    color="emerald"
-                />
-                <StatCard
-                    icon={XCircle}
-                    label="Failed"
-                    value={String(summary.failed_batches)}
-                    color="red"
-                />
-                <StatCard
-                    icon={Timer}
-                    label="Duration"
-                    value={formatElapsedTime(elapsedSeconds)}
-                    color="blue"
-                />
-            </div>
-
-            {error && (
-                <div className="mt-6 p-4 bg-red-900/30 rounded-lg border border-red-500/30">
-                    <h3 className="text-sm font-medium text-red-300 mb-1">Error Details</h3>
-                    <p className="text-xs text-red-400/80 font-mono whitespace-pre-wrap">{error}</p>
-                </div>
-            )}
-        </div>
-    );
-}
-
-/**
- * Stat Card Component
- */
-function StatCard({
-    icon: Icon,
-    label,
-    value,
-    color
-}: {
-    icon: React.ElementType;
-    label: string;
-    value: string;
-    color: 'emerald' | 'blue' | 'purple' | 'teal' | 'red' | 'gray' | 'orange';
-}) {
-    const colorClasses = {
-        emerald: 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400',
-        blue: 'bg-blue-900/30 border-blue-500/30 text-blue-400',
-        purple: 'bg-purple-900/30 border-purple-500/30 text-purple-400',
-        teal: 'bg-teal-900/30 border-teal-500/30 text-teal-400',
-        red: 'bg-red-900/30 border-red-500/30 text-red-400',
-        gray: 'bg-gray-800/50 border-gray-600/30 text-gray-400',
-        orange: 'bg-orange-900/30 border-orange-500/30 text-orange-400',
-    };
-
-    return (
-        <div className={`p-4 rounded-lg border ${colorClasses[color]}`}>
-            <div className="flex items-center gap-2 mb-1">
-                <Icon className="w-4 h-4 opacity-70" />
-                <span className="text-xs opacity-70">{label}</span>
-            </div>
-            <div className="text-2xl font-bold">{value}</div>
-        </div>
+                {error && (
+                    <div className="mt-6 p-4 bg-destructive/10 rounded-lg border border-destructive/30">
+                        <h3 className="text-sm font-medium text-destructive mb-1">Error Details</h3>
+                        <p className="text-xs text-destructive/80 font-mono whitespace-pre-wrap">{error}</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
@@ -279,13 +287,15 @@ export function CompletionSummary({
         <div className="relative">
             {/* Close button */}
             {onClose && (
-                <button
+                <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={onClose}
-                    className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors"
+                    className="absolute top-2 right-2"
                     title="Close summary"
                 >
                     ×
-                </button>
+                </Button>
             )}
 
             {isSuccess && (
@@ -316,12 +326,9 @@ export function CompletionSummary({
             {/* Action buttons */}
             {onViewHistory && (
                 <div className="mt-4 flex justify-end">
-                    <button
-                        onClick={onViewHistory}
-                        className="px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 rounded-lg text-sm transition-colors"
-                    >
+                    <Button variant="outline" onClick={onViewHistory}>
                         View Run History
-                    </button>
+                    </Button>
                 </div>
             )}
         </div>

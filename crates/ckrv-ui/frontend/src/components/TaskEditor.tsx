@@ -7,6 +7,19 @@ import {
     Link2, FileText, ArrowLeft, Save, Loader2, RotateCcw
 } from 'lucide-react';
 import { TaskDetailModal } from './TaskDetailModal';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Types matching backend
 interface Task {
@@ -61,52 +74,59 @@ const updateTaskStatus = async (spec: string, taskId: string, status: string): P
     return res.json();
 };
 
-// Badge Components
+// Badge Components using shadcn Badge
 const RiskBadge: React.FC<{ risk: string }> = ({ risk }) => {
-    const styles: Record<string, string> = {
-        low: 'bg-green-900/50 text-green-300 border-green-700',
-        medium: 'bg-amber-900/50 text-amber-300 border-amber-700',
-        high: 'bg-orange-900/50 text-orange-300 border-orange-700',
-        critical: 'bg-red-900/50 text-red-300 border-red-700'
+    const variants: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
+        low: 'success',
+        medium: 'warning',
+        high: 'warning',
+        critical: 'destructive'
     };
     return (
-        <span className={`text-xs font-medium px-2 py-0.5 rounded border ${styles[risk] || styles.low}`}>
+        <Badge variant={variants[risk] || 'secondary'}>
             {risk}
-        </span>
+        </Badge>
     );
 };
 
 const ModelTierBadge: React.FC<{ tier: string }> = ({ tier }) => {
-    const styles: Record<string, { bg: string; icon: React.ElementType }> = {
-        light: { bg: 'bg-sky-900/50 text-sky-300', icon: Zap },
-        standard: { bg: 'bg-violet-900/50 text-violet-300', icon: Cpu },
-        heavy: { bg: 'bg-fuchsia-900/50 text-fuchsia-300', icon: Brain }
+    const icons: Record<string, React.ElementType> = {
+        light: Zap,
+        standard: Cpu,
+        heavy: Brain
     };
-    const { bg, icon: Icon } = styles[tier] || styles.standard;
+    const Icon = icons[tier] || Cpu;
     return (
-        <span className={`text-xs font-medium px-2 py-0.5 rounded flex items-center gap-1 ${bg}`}>
+        <Badge variant="info" className="flex items-center gap-1">
             <Icon size={12} />
             {tier}
-        </span>
+        </Badge>
     );
 };
 
 const StatusBadge: React.FC<{ status: string; onClick?: () => void }> = ({ status, onClick }) => {
-    const styles: Record<string, { bg: string; icon: React.ElementType }> = {
-        pending: { bg: 'bg-gray-700 text-gray-300', icon: Circle },
-        running: { bg: 'bg-blue-900/50 text-blue-300', icon: Play },
-        completed: { bg: 'bg-green-900/50 text-green-300', icon: CheckCircle2 },
-        failed: { bg: 'bg-red-900/50 text-red-300', icon: AlertTriangle }
+    const variants: Record<string, "secondary" | "info" | "success" | "destructive"> = {
+        pending: 'secondary',
+        running: 'info',
+        completed: 'success',
+        failed: 'destructive'
     };
-    const { bg, icon: Icon } = styles[status] || styles.pending;
+    const icons: Record<string, React.ElementType> = {
+        pending: Circle,
+        running: Play,
+        completed: CheckCircle2,
+        failed: AlertTriangle
+    };
+    const Icon = icons[status] || Circle;
     return (
-        <button
+        <Badge
+            variant={variants[status] || 'secondary'}
+            className="cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1"
             onClick={onClick}
-            className={`text-xs font-medium px-2 py-1 rounded flex items-center gap-1 ${bg} hover:opacity-80 transition-opacity`}
         >
             <Icon size={12} />
             {status}
-        </button>
+        </Badge>
     );
 };
 
@@ -115,13 +135,13 @@ const ComplexityDots: React.FC<{ complexity: number }> = ({ complexity }) => (
         {[1, 2, 3, 4, 5].map(i => (
             <div
                 key={i}
-                className={`w-1.5 h-1.5 rounded-full ${i <= complexity ? 'bg-gray-400' : 'bg-gray-700'}`}
+                className={`w-1.5 h-1.5 rounded-full ${i <= complexity ? 'bg-muted-foreground' : 'bg-muted'}`}
             />
         ))}
     </div>
 );
 
-// Task Card Component
+// Task Card Component using shadcn Card
 const TaskCard: React.FC<{
     task: Task;
     onStatusChange: (status: string) => void;
@@ -135,27 +155,27 @@ const TaskCard: React.FC<{
     };
 
     return (
-        <div className={`border border-gray-700 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-all ${task.status === 'completed' ? 'opacity-60' : ''}`}>
-            <div className="p-4">
+        <Card className={`transition-all ${task.status === 'completed' ? 'opacity-60' : ''}`}>
+            <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300">{task.id}</span>
+                        <Badge variant="secondary" className="font-mono text-xs">{task.id}</Badge>
                         {task.parallel && (
-                            <span className="text-xs bg-emerald-900/50 text-emerald-300 px-2 py-0.5 rounded flex items-center gap-1">
+                            <Badge variant="success" className="flex items-center gap-1">
                                 <GitBranch size={12} /> parallel
-                            </span>
+                            </Badge>
                         )}
                         {task.user_story && (
-                            <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded">{task.user_story}</span>
+                            <Badge variant="info">{task.user_story}</Badge>
                         )}
                     </div>
                     <StatusBadge status={task.status} onClick={cycleStatus} />
                 </div>
 
-                <h4 className="font-medium text-gray-200 mt-2 text-sm">{task.title}</h4>
+                <h4 className="font-medium text-foreground mt-2 text-sm">{task.title}</h4>
 
                 {task.file && (
-                    <code className="text-xs text-cyan-400 bg-cyan-900/30 px-2 py-0.5 rounded mt-2 inline-block">
+                    <code className="text-xs text-[var(--accent-cyan)] bg-[var(--accent-cyan-dim)] px-2 py-0.5 rounded mt-2 inline-block">
                         {task.file}
                     </code>
                 )}
@@ -164,40 +184,42 @@ const TaskCard: React.FC<{
                     <RiskBadge risk={task.risk} />
                     <ModelTierBadge tier={task.model_tier} />
                     <ComplexityDots complexity={task.complexity} />
-                    <span className="text-xs text-gray-500">{task.estimated_tokens} tokens</span>
+                    <span className="text-xs text-muted-foreground">{task.estimated_tokens} tokens</span>
                 </div>
 
                 {task.context_required.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-700">
-                        <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                    <div className="mt-3 pt-3 border-t border-border">
+                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                             <Link2 size={12} /> Dependencies:
                         </div>
                         <div className="flex flex-wrap gap-1">
                             {task.context_required.map((dep, i) => (
-                                <code key={i} className="text-xs bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded">{dep}</code>
+                                <code key={i} className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{dep}</code>
                             ))}
                         </div>
                     </div>
                 )}
 
-                <button
+                <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={onToggleExpand}
-                    className="text-xs text-gray-500 hover:text-gray-300 mt-3 flex items-center gap-1"
+                    className="mt-3 text-xs"
                 >
                     {expanded ? <><ChevronDown size={14} /> Less</> : <><ChevronRight size={14} /> More</>}
-                </button>
+                </Button>
 
                 {expanded && task.description && (
-                    <div className="mt-3 pt-3 border-t border-gray-700">
-                        <p className="text-sm text-gray-400 whitespace-pre-wrap">{task.description}</p>
+                    <div className="mt-3 pt-3 border-t border-border">
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{task.description}</p>
                     </div>
                 )}
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 };
 
-// Phase Group Component
+// Phase Group Component using Collapsible
 const PhaseGroup: React.FC<{
     phase: string;
     tasks: Task[];
@@ -210,83 +232,85 @@ const PhaseGroup: React.FC<{
     const totalTokens = tasks.reduce((sum, t) => sum + t.estimated_tokens, 0);
 
     const phaseColors: Record<string, string> = {
-        'Setup': 'border-l-emerald-500 bg-emerald-900/10',
-        'Foundation': 'border-l-blue-500 bg-blue-900/10',
-        'User Story 1': 'border-l-violet-500 bg-violet-900/10',
-        'User Story 2': 'border-l-purple-500 bg-purple-900/10',
-        'User Story 3': 'border-l-fuchsia-500 bg-fuchsia-900/10',
-        'User Story 4': 'border-l-pink-500 bg-pink-900/10',
-        'User Story 5': 'border-l-rose-500 bg-rose-900/10',
-        'User Story 6': 'border-l-orange-500 bg-orange-900/10',
-        'Polish': 'border-l-amber-500 bg-amber-900/10',
+        'Setup': 'border-l-[var(--accent-green)] bg-[var(--accent-green-dim)]',
+        'Foundation': 'border-l-[var(--accent-cyan)] bg-[var(--accent-cyan-dim)]',
+        'User Story 1': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
+        'User Story 2': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
+        'User Story 3': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
+        'User Story 4': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
+        'User Story 5': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
+        'User Story 6': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
+        'Polish': 'border-l-[var(--accent-amber)] bg-[var(--accent-amber-dim)]',
     };
 
     return (
-        <div className={`border-l-4 rounded-r-lg mb-4 ${phaseColors[phase] || 'border-l-gray-500 bg-gray-800/30'}`}>
-            <button
-                onClick={() => setCollapsed(!collapsed)}
-                className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-white/5 transition-colors"
-            >
-                <div className="flex items-center gap-3">
-                    {collapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
-                    <span className="font-semibold text-gray-200">{phase}</span>
-                    <span className="text-xs bg-gray-700 px-2 py-0.5 rounded-full text-gray-400">
-                        {completedCount}/{tasks.length}
-                    </span>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span>{totalTokens.toLocaleString()} tokens</span>
-                    <div className="w-24 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-emerald-500 transition-all"
-                            style={{ width: `${(completedCount / tasks.length) * 100}%` }}
-                        />
+        <Collapsible open={!collapsed} onOpenChange={(open) => setCollapsed(!open)}>
+            <Card className={`border-l-4 mb-4 ${phaseColors[phase] || 'border-l-border bg-muted/30'}`}>
+                <CollapsibleTrigger asChild>
+                    <button className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-accent/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                            {collapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
+                            <span className="font-semibold text-foreground">{phase}</span>
+                            <Badge variant="secondary">
+                                {completedCount}/{tasks.length}
+                            </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>{totalTokens.toLocaleString()} tokens</span>
+                            <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-[var(--accent-green)] transition-all"
+                                    style={{ width: `${(completedCount / tasks.length) * 100}%` }}
+                                />
+                            </div>
+                        </div>
+                    </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                    <div className="px-4 pb-4 grid gap-3">
+                        {tasks.map(task => (
+                            <TaskCard
+                                key={task.id}
+                                task={task}
+                                onStatusChange={(status) => onStatusChange(task.id, status)}
+                                expanded={expandedTasks.has(task.id)}
+                                onToggleExpand={() => toggleExpand(task.id)}
+                            />
+                        ))}
                     </div>
-                </div>
-            </button>
-
-            {!collapsed && (
-                <div className="px-4 pb-4 grid gap-3">
-                    {tasks.map(task => (
-                        <TaskCard
-                            key={task.id}
-                            task={task}
-                            onStatusChange={(status) => onStatusChange(task.id, status)}
-                            expanded={expandedTasks.has(task.id)}
-                            onToggleExpand={() => toggleExpand(task.id)}
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
+                </CollapsibleContent>
+            </Card>
+        </Collapsible>
     );
 };
 
-// Summary Stats
+// Summary Stats using Card
 const SummaryStats: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
     const stats = [
-        { label: 'Total Tasks', value: tasks.length, color: 'bg-gray-500' },
-        { label: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'bg-green-500' },
-        { label: 'Parallelizable', value: tasks.filter(t => t.parallel).length, color: 'bg-emerald-500' },
-        { label: 'Critical Risk', value: tasks.filter(t => t.risk === 'critical').length, color: 'bg-red-500' }
+        { label: 'Total Tasks', value: tasks.length, color: 'bg-muted-foreground' },
+        { label: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'bg-[var(--accent-green)]' },
+        { label: 'Parallelizable', value: tasks.filter(t => t.parallel).length, color: 'bg-[var(--accent-cyan)]' },
+        { label: 'Critical Risk', value: tasks.filter(t => t.risk === 'critical').length, color: 'bg-destructive' }
     ];
 
     return (
         <div className="grid grid-cols-4 gap-4 mb-6">
             {stats.map(({ label, value, color }) => (
-                <div key={label} className="bg-gray-800/50 rounded-lg border border-gray-700 p-4">
-                    <div className="text-2xl font-bold text-gray-200">{value}</div>
-                    <div className="text-sm text-gray-500 flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${color}`} />
-                        {label}
-                    </div>
-                </div>
+                <Card key={label}>
+                    <CardContent className="p-4">
+                        <div className="text-2xl font-bold text-foreground">{value}</div>
+                        <div className="text-sm text-muted-foreground flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${color}`} />
+                            {label}
+                        </div>
+                    </CardContent>
+                </Card>
             ))}
         </div>
     );
 };
 
-// Filter Bar
+// Filter Bar using Select components
 interface FilterState {
     phase: string;
     status: string;
@@ -301,92 +325,96 @@ const FilterBar: React.FC<{
     phases: string[];
     stats: { filtered: number; total: number; tokens: number };
 }> = ({ filters, setFilters, phases, stats }) => (
-    <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-4">
-        <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-                <Filter size={16} className="text-gray-500" />
-                <span className="text-sm font-medium text-gray-400">Filters:</span>
+    <Card className="mb-4">
+        <CardContent className="p-4">
+            <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                    <Filter size={16} className="text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">Filters:</span>
+                </div>
+
+                <Select value={filters.phase} onValueChange={(v) => setFilters({ ...filters, phase: v })}>
+                    <SelectTrigger className="w-[140px]">
+                        <SelectValue placeholder="All Phases" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="__all__">All Phases</SelectItem>
+                        {phases.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+
+                <Select value={filters.status} onValueChange={(v) => setFilters({ ...filters, status: v })}>
+                    <SelectTrigger className="w-[130px]">
+                        <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="__all__">All Status</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="running">Running</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <Select value={filters.risk} onValueChange={(v) => setFilters({ ...filters, risk: v })}>
+                    <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="All Risk" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="__all__">All Risk</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <Select value={filters.tier} onValueChange={(v) => setFilters({ ...filters, tier: v })}>
+                    <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="All Tiers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="__all__">All Tiers</SelectItem>
+                        <SelectItem value="light">Light</SelectItem>
+                        <SelectItem value="standard">Standard</SelectItem>
+                        <SelectItem value="heavy">Heavy</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                    <Checkbox
+                        checked={filters.parallelOnly}
+                        onCheckedChange={(checked: boolean | "indeterminate") => setFilters({ ...filters, parallelOnly: checked === true })}
+                    />
+                    Parallel only
+                </label>
+
+                <div className="ml-auto text-sm text-muted-foreground">
+                    {stats.filtered}/{stats.total} tasks • {stats.tokens.toLocaleString()} tokens
+                </div>
             </div>
-
-            <select
-                value={filters.phase}
-                onChange={(e) => setFilters({ ...filters, phase: e.target.value })}
-                className="text-sm border border-gray-600 rounded px-2 py-1 bg-gray-800 text-gray-300"
-            >
-                <option value="">All Phases</option>
-                {phases.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-
-            <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="text-sm border border-gray-600 rounded px-2 py-1 bg-gray-800 text-gray-300"
-            >
-                <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="running">Running</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-            </select>
-
-            <select
-                value={filters.risk}
-                onChange={(e) => setFilters({ ...filters, risk: e.target.value })}
-                className="text-sm border border-gray-600 rounded px-2 py-1 bg-gray-800 text-gray-300"
-            >
-                <option value="">All Risk</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-            </select>
-
-            <select
-                value={filters.tier}
-                onChange={(e) => setFilters({ ...filters, tier: e.target.value })}
-                className="text-sm border border-gray-600 rounded px-2 py-1 bg-gray-800 text-gray-300"
-            >
-                <option value="">All Tiers</option>
-                <option value="light">Light</option>
-                <option value="standard">Standard</option>
-                <option value="heavy">Heavy</option>
-            </select>
-
-            <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-                <input
-                    type="checkbox"
-                    checked={filters.parallelOnly}
-                    onChange={(e) => setFilters({ ...filters, parallelOnly: e.target.checked })}
-                    className="rounded bg-gray-700 border-gray-600"
-                />
-                Parallel only
-            </label>
-
-            <div className="ml-auto text-sm text-gray-500">
-                {stats.filtered}/{stats.total} tasks • {stats.tokens.toLocaleString()} tokens
-            </div>
-        </div>
-    </div>
+        </CardContent>
+    </Card>
 );
 
-// View Toggle
+// View Toggle using Tabs
 const ViewToggle: React.FC<{ view: string; setView: (v: string) => void }> = ({ view, setView }) => (
-    <div className="flex bg-gray-800 rounded-lg p-1 gap-1">
-        {[
-            { id: 'phase', icon: Layers, label: 'By Phase' },
-            { id: 'kanban', icon: LayoutGrid, label: 'Kanban' },
-            { id: 'code', icon: Code, label: 'YAML' }
-        ].map(({ id, icon: Icon, label }) => (
-            <button
-                key={id}
-                onClick={() => setView(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-all ${view === id ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
-            >
-                <Icon size={16} />
-                {label}
-            </button>
-        ))}
-    </div>
+    <Tabs value={view} onValueChange={setView}>
+        <TabsList>
+            <TabsTrigger value="phase" className="gap-1.5">
+                <Layers size={16} />
+                By Phase
+            </TabsTrigger>
+            <TabsTrigger value="kanban" className="gap-1.5">
+                <LayoutGrid size={16} />
+                Kanban
+            </TabsTrigger>
+            <TabsTrigger value="code" className="gap-1.5">
+                <Code size={16} />
+                YAML
+            </TabsTrigger>
+        </TabsList>
+    </Tabs>
 );
 
 const KanbanColumn: React.FC<{
@@ -394,71 +422,53 @@ const KanbanColumn: React.FC<{
     tasks: Task[];
     onTaskClick: (task: Task) => void;
 }> = ({ status, tasks, onTaskClick }) => {
-    const statusConfig: Record<string, { label: string; color: string; headerColor: string; borderColor: string }> = {
-        pending: {
-            label: 'Pending',
-            color: 'bg-slate-950/30',
-            headerColor: 'bg-slate-900/50',
-            borderColor: 'border-slate-800/50'
-        },
-        running: {
-            label: 'Running',
-            color: 'bg-indigo-950/30',
-            headerColor: 'bg-indigo-900/40',
-            borderColor: 'border-indigo-800/40'
-        },
-        completed: {
-            label: 'Completed',
-            color: 'bg-emerald-950/20',
-            headerColor: 'bg-emerald-900/30',
-            borderColor: 'border-emerald-800/30'
-        },
-        failed: {
-            label: 'Failed',
-            color: 'bg-rose-950/20',
-            headerColor: 'bg-rose-900/30',
-            borderColor: 'border-rose-800/30'
-        }
+    const statusConfig: Record<string, { label: string; variant: "secondary" | "info" | "success" | "destructive" }> = {
+        pending: { label: 'Pending', variant: 'secondary' },
+        running: { label: 'Running', variant: 'info' },
+        completed: { label: 'Completed', variant: 'success' },
+        failed: { label: 'Failed', variant: 'destructive' }
     };
     const config = statusConfig[status] || statusConfig.pending;
 
     return (
-        <div className={`rounded-lg ${config.color} min-w-[280px] flex-1 border ${config.borderColor} transition-colors duration-300`}>
-            <div className={`${config.headerColor} px-4 py-2 rounded-t-lg flex items-center justify-between border-b ${config.borderColor}`}>
-                <span className="font-medium text-gray-200">{config.label}</span>
-                <span className="text-xs bg-gray-900/50 px-2 py-0.5 rounded-full text-gray-300">{tasks.length}</span>
-            </div>
-            <div className="p-3 space-y-2 max-h-[500px] overflow-y-auto">
+        <Card className="min-w-[280px] flex-1">
+            <CardHeader className="py-2 px-4 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-medium">{config.label}</CardTitle>
+                <Badge variant={config.variant}>{tasks.length}</Badge>
+            </CardHeader>
+            <CardContent className="p-3 space-y-2 max-h-[500px] overflow-y-auto">
                 {tasks.map(task => (
-                    <div
+                    <Card
                         key={task.id}
-                        className="bg-gray-800/80 rounded-lg p-3 border border-gray-700/50 hover:border-cyan-600/50 hover:shadow-lg hover:shadow-cyan-900/10 transition-all cursor-pointer backdrop-blur-sm"
+                        className="cursor-pointer hover:border-primary transition-all"
                         onClick={() => onTaskClick(task)}
                     >
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-mono text-xs text-gray-500">{task.id}</span>
-                            {task.parallel && <GitBranch size={12} className="text-emerald-400" />}
-                        </div>
-                        <p className="text-sm font-medium text-gray-300 line-clamp-2">{task.title}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                            <ModelTierBadge tier={task.model_tier} />
-                            <RiskBadge risk={task.risk} />
-                        </div>
-                    </div>
+                        <CardContent className="p-3">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="font-mono text-xs text-muted-foreground">{task.id}</span>
+                                {task.parallel && <GitBranch size={12} className="text-[var(--accent-green)]" />}
+                            </div>
+                            <p className="text-sm font-medium text-foreground line-clamp-2">{task.title}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                                <ModelTierBadge tier={task.model_tier} />
+                                <RiskBadge risk={task.risk} />
+                            </div>
+                        </CardContent>
+                    </Card>
                 ))}
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 };
 
 // YAML View
 const YamlView: React.FC<{ rawYaml?: string }> = ({ rawYaml }) => (
-    <pre className="font-mono text-sm bg-gray-900 text-gray-100 p-4 rounded-lg overflow-auto max-h-[60vh]">
+    <pre className="font-mono text-sm bg-muted text-foreground p-4 rounded-lg overflow-auto max-h-[60vh]">
         <code>{rawYaml || '# No YAML content'}</code>
     </pre>
 );
 
-// Spec List View
+// Spec List View using Card
 const SpecListView: React.FC<{
     specs: SpecListItem[];
     onSelect: (name: string) => void;
@@ -469,17 +479,17 @@ const SpecListView: React.FC<{
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-gray-500" size={24} />
+                <Loader2 className="animate-spin text-muted-foreground" size={24} />
             </div>
         );
     }
 
     if (specsWithTasks.length === 0) {
         return (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
                 <FileText size={48} className="mx-auto mb-4 opacity-50" />
                 <p>No specs with tasks found</p>
-                <p className="text-sm mt-2">Run <code className="bg-gray-800 px-2 py-0.5 rounded">ckrv spec tasks</code> to generate tasks</p>
+                <p className="text-sm mt-2">Run <code className="bg-muted px-2 py-0.5 rounded">ckrv spec tasks</code> to generate tasks</p>
             </div>
         );
     }
@@ -487,29 +497,29 @@ const SpecListView: React.FC<{
     return (
         <div className="space-y-2">
             {specsWithTasks.map((spec) => (
-                <button
+                <Card
                     key={spec.name}
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
                     onClick={() => onSelect(spec.name)}
-                    className="w-full text-left p-4 bg-gray-800/50 hover:bg-gray-800 rounded-lg border border-gray-700 transition-colors"
                 >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Layers size={20} className="text-cyan-400" />
-                            <div>
-                                <h3 className="font-medium text-gray-200">{spec.name}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded">has tasks</span>
-                                    {spec.has_implementation && (
-                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded">
-                                            implemented
-                                        </span>
-                                    )}
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Layers size={20} className="text-primary" />
+                                <div>
+                                    <h3 className="font-medium text-foreground">{spec.name}</h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Badge variant="success">has tasks</Badge>
+                                        {spec.has_implementation && (
+                                            <Badge variant="info">implemented</Badge>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
+                            <ChevronRight size={20} className="text-muted-foreground" />
                         </div>
-                        <ChevronRight size={20} className="text-gray-500" />
-                    </div>
-                </button>
+                    </CardContent>
+                </Card>
             ))}
         </div>
     );
@@ -524,7 +534,7 @@ export const TaskEditor: React.FC = () => {
     const [view, setView] = useState<'phase' | 'kanban' | 'code'>('phase');
     const [hasChanges, setHasChanges] = useState(false);
     const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
-    const [filters, setFilters] = useState({ phase: '', status: '', risk: '', tier: '', parallelOnly: false });
+    const [filters, setFilters] = useState({ phase: '__all__', status: '__all__', risk: '__all__', tier: '__all__', parallelOnly: false });
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
     // Fetch specs list
@@ -587,10 +597,10 @@ export const TaskEditor: React.FC = () => {
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(t => {
-            if (filters.phase && t.phase !== filters.phase) return false;
-            if (filters.status && t.status !== filters.status) return false;
-            if (filters.risk && t.risk !== filters.risk) return false;
-            if (filters.tier && t.model_tier !== filters.tier) return false;
+            if (filters.phase && filters.phase !== '__all__' && t.phase !== filters.phase) return false;
+            if (filters.status && filters.status !== '__all__' && t.status !== filters.status) return false;
+            if (filters.risk && filters.risk !== '__all__' && t.risk !== filters.risk) return false;
+            if (filters.tier && filters.tier !== '__all__' && t.model_tier !== filters.tier) return false;
             if (filters.parallelOnly && !t.parallel) return false;
             return true;
         });
@@ -622,8 +632,8 @@ export const TaskEditor: React.FC = () => {
         return (
             <div className="h-full overflow-auto p-4">
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-100">Task Orchestration</h1>
-                    <p className="text-gray-500 mt-1">Select a spec to view and manage tasks</p>
+                    <h1 className="text-2xl font-bold text-foreground">Task Orchestration</h1>
+                    <p className="text-muted-foreground mt-1">Select a spec to view and manage tasks</p>
                 </div>
                 <SpecListView
                     specs={specsData?.specs || []}
@@ -637,7 +647,7 @@ export const TaskEditor: React.FC = () => {
     if (isLoadingTasks || tasks.length === 0) {
         return (
             <div className="flex items-center justify-center h-full">
-                <Loader2 className="animate-spin text-gray-500" size={32} />
+                <Loader2 className="animate-spin text-muted-foreground" size={32} />
             </div>
         );
     }
@@ -645,53 +655,52 @@ export const TaskEditor: React.FC = () => {
     return (
         <div className="h-full flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="shrink-0 px-4 py-3 border-b border-gray-700 flex items-center justify-between bg-gray-900/50">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => setSelectedSpecName(null)}
-                        className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-                    >
-                        <ArrowLeft size={20} className="text-gray-400" />
-                    </button>
-                    <div>
-                        <span className="text-sm text-gray-500 font-mono">tasks.yaml</span>
-                        <h1 className="text-lg font-semibold text-gray-200">{selectedSpecName}</h1>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <ViewToggle view={view} setView={(v) => setView(v as typeof view)} />
-                    {hasChanges && (
-                        <button
-                            onClick={() => {
-                                if (tasksDetailData?.tasks) {
-                                    setTasks(tasksDetailData.tasks);
-                                    setRawYaml(tasksDetailData.raw_yaml);
-                                    setHasChanges(false);
-                                }
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-gray-700 hover:bg-gray-600 text-gray-200"
+            <Card className="shrink-0 rounded-none border-x-0 border-t-0">
+                <CardContent className="px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedSpecName(null)}
                         >
-                            <RotateCcw size={16} />
-                            Discard
-                        </button>
-                    )}
-                    <button
-                        onClick={() => saveMutation.mutate()}
-                        disabled={!hasChanges || saveMutation.isPending}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${hasChanges
-                            ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                            : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                            }`}
-                    >
-                        {saveMutation.isPending ? (
-                            <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                            <Save size={16} />
+                            <ArrowLeft size={20} />
+                        </Button>
+                        <div>
+                            <span className="text-sm text-muted-foreground font-mono">tasks.yaml</span>
+                            <h1 className="text-lg font-semibold text-foreground">{selectedSpecName}</h1>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <ViewToggle view={view} setView={(v) => setView(v as typeof view)} />
+                        {hasChanges && (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    if (tasksDetailData?.tasks) {
+                                        setTasks(tasksDetailData.tasks);
+                                        setRawYaml(tasksDetailData.raw_yaml);
+                                        setHasChanges(false);
+                                    }
+                                }}
+                            >
+                                <RotateCcw size={16} className="mr-2" />
+                                Discard
+                            </Button>
                         )}
-                        Save
-                    </button>
-                </div>
-            </div>
+                        <Button
+                            onClick={() => saveMutation.mutate()}
+                            disabled={!hasChanges || saveMutation.isPending}
+                        >
+                            {saveMutation.isPending ? (
+                                <Loader2 size={16} className="mr-2 animate-spin" />
+                            ) : (
+                                <Save size={16} className="mr-2" />
+                            )}
+                            Save
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Content */}
             <div className="flex-1 overflow-auto p-4">
@@ -731,25 +740,27 @@ export const TaskEditor: React.FC = () => {
                 )}
 
                 {view === 'code' && (
-                    <div className="rounded-lg overflow-hidden border border-gray-700">
-                        <div className="bg-gray-800 px-4 py-2 flex items-center justify-between border-b border-gray-700">
-                            <span className="text-gray-400 text-sm">tasks.yaml</span>
-                            <button className="text-xs text-gray-400 hover:text-white">Copy</button>
-                        </div>
-                        <YamlView rawYaml={rawYaml} />
-                    </div>
+                    <Card>
+                        <CardHeader className="py-2 px-4 flex flex-row items-center justify-between border-b border-border">
+                            <CardTitle className="text-sm">tasks.yaml</CardTitle>
+                            <Button variant="ghost" size="sm">Copy</Button>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <YamlView rawYaml={rawYaml} />
+                        </CardContent>
+                    </Card>
                 )}
             </div>
 
             {/* Status Bar */}
-            <div className="shrink-0 px-4 py-2 border-t border-gray-700 flex items-center justify-between text-sm text-gray-500 bg-gray-900/50">
+            <div className="shrink-0 px-4 py-2 border-t border-border flex items-center justify-between text-sm text-muted-foreground bg-muted/50">
                 <div className="flex items-center gap-4">
                     <span>{tasks.length} tasks</span>
                     <span>{tasks.filter(t => t.status === 'completed').length} completed</span>
                     <span>{tasks.reduce((s, t) => s + t.estimated_tokens, 0).toLocaleString()} tokens</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${hasChanges ? 'bg-amber-500' : 'bg-green-500'}`}></span>
+                    <span className={`w-2 h-2 rounded-full ${hasChanges ? 'bg-[var(--accent-amber)]' : 'bg-[var(--accent-green)]'}`}></span>
                     <span>{hasChanges ? 'Unsaved changes' : 'All changes saved'}</span>
                 </div>
             </div>

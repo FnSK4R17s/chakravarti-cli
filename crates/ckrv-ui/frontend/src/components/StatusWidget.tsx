@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type SystemStatus } from '../types';
 import { GitBranch, FolderGit, Settings, Loader2, AlertCircle, CheckCircle2, Play, GitBranchPlus } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const fetchStatus = async (): Promise<SystemStatus> => {
     const res = await fetch('/api/status');
@@ -39,6 +44,15 @@ export const StatusWidget: React.FC = () => {
     if (isLoading) return <StatusLoading />;
     if (error || !status) return <StatusError />;
 
+    const getModeVariant = (mode: string): "default" | "success" | "warning" | "info" | "secondary" => {
+        switch (mode.toLowerCase()) {
+            case 'running': return 'success';
+            case 'planning': return 'default';
+            case 'promoting': return 'info';
+            default: return 'secondary';
+        }
+    };
+
     const getModeLabel = (mode: string) => {
         switch (mode.toLowerCase()) {
             case 'running': return 'Running';
@@ -48,127 +62,60 @@ export const StatusWidget: React.FC = () => {
         }
     };
 
-    const getModeStyle = (mode: string) => {
-        switch (mode.toLowerCase()) {
-            case 'running': 
-                return { 
-                    bg: 'var(--accent-green-dim)', 
-                    color: 'var(--accent-green)',
-                    dot: 'running'
-                };
-            case 'planning': 
-                return { 
-                    bg: 'var(--accent-cyan-dim)', 
-                    color: 'var(--accent-cyan)',
-                    dot: 'planning'
-                };
-            case 'promoting': 
-                return { 
-                    bg: 'var(--accent-purple-dim)', 
-                    color: 'var(--accent-purple)',
-                    dot: 'promoting'
-                };
-            default: 
-                return { 
-                    bg: 'var(--bg-surface)', 
-                    color: 'var(--text-secondary)',
-                    dot: 'idle'
-                };
-        }
-    };
-
-    const modeStyle = getModeStyle(status.mode);
-    
     // Check if it's a git repo (if branch is "none" or empty, it's not)
     const isGitRepo = status.active_branch && status.active_branch !== 'none' && status.active_branch !== '';
 
     return (
-        <div 
-            className="rounded-lg overflow-hidden"
-            style={{ 
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-subtle)'
-            }}
-        >
-            {/* Header */}
-            <div 
-                className="px-4 py-3 flex items-center justify-between"
-                style={{ borderBottom: '1px solid var(--border-subtle)' }}
-            >
-                <h3 
-                    className="font-semibold text-sm"
-                    style={{ color: 'var(--text-primary)' }}
-                >
-                    Repository Status
-                </h3>
-                <div 
-                    className="flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium"
-                    style={{ 
-                        background: modeStyle.bg,
-                        color: modeStyle.color
-                    }}
-                >
-                    <div className={`status-dot ${modeStyle.dot}`}></div>
-                    {getModeLabel(status.mode)}
+        <Card>
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold">Repository Status</CardTitle>
+                    <Badge variant={getModeVariant(status.mode)}>
+                        {getModeLabel(status.mode)}
+                    </Badge>
                 </div>
-            </div>
+            </CardHeader>
 
-            {/* Content */}
-            <div className="p-4 space-y-3">
+            <CardContent className="space-y-3">
                 {/* Git Repository Status */}
                 {!isGitRepo ? (
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center justify-between">
-                            <div 
-                                className="flex items-center gap-2 text-sm"
-                                style={{ color: 'var(--text-muted)' }}
-                            >
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <GitBranchPlus size={16} />
                                 <span>Git Repository</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <AlertCircle size={14} style={{ color: 'var(--accent-amber)' }} />
-                                <span 
-                                    className="text-sm"
-                                    style={{ color: 'var(--accent-amber)' }}
-                                >
-                                    Not initialized
-                                </span>
-                            </div>
+                            <Badge variant="warning" className="flex items-center gap-1">
+                                <AlertCircle size={12} />
+                                Not initialized
+                            </Badge>
                         </div>
-                        <button
+                        <Button
                             onClick={runGitInit}
                             disabled={isRunningGitInit}
-                            className="flex items-center justify-center gap-2 px-3 py-2 rounded text-sm font-medium transition-all"
-                            style={{ 
-                                background: isRunningGitInit ? 'var(--bg-surface)' : 'var(--accent-cyan-dim)',
-                                color: isRunningGitInit ? 'var(--text-muted)' : 'var(--accent-cyan)',
-                                border: '1px solid var(--border-subtle)',
-                                cursor: isRunningGitInit ? 'not-allowed' : 'pointer'
-                            }}
+                            variant="secondary"
+                            size="sm"
+                            className="w-full"
                         >
                             {isRunningGitInit ? (
                                 <>
-                                    <Loader2 size={14} className="animate-spin" />
+                                    <Loader2 size={14} className="mr-2 animate-spin" />
                                     Initializing...
                                 </>
                             ) : (
                                 <>
-                                    <Play size={14} />
+                                    <Play size={14} className="mr-2" />
                                     Initialize Git Repository
                                 </>
                             )}
-                        </button>
+                        </Button>
                         {gitInitResult && (
-                            <div 
-                                className="text-xs px-2 py-1 rounded"
-                                style={{ 
-                                    background: gitInitResult.success ? 'var(--accent-green-dim)' : 'var(--accent-red-dim)',
-                                    color: gitInitResult.success ? 'var(--accent-green)' : 'var(--accent-red)'
-                                }}
+                            <Badge
+                                variant={gitInitResult.success ? 'success' : 'destructive'}
+                                className="text-xs justify-center"
                             >
                                 {gitInitResult.message}
-                            </div>
+                            </Badge>
                         )}
                     </div>
                 ) : (
@@ -201,21 +148,16 @@ export const StatusWidget: React.FC = () => {
                         mono
                     />
                 )}
-            </div>
+            </CardContent>
 
             {/* Quick Info Footer */}
-            <div 
-                className="px-4 py-2 text-xs font-mono truncate"
-                style={{ 
-                    background: 'var(--bg-tertiary)',
-                    color: 'var(--text-muted)',
-                    borderTop: '1px solid var(--border-subtle)'
-                }}
+            <div
+                className="px-4 py-2 text-xs font-mono truncate border-t border-border bg-muted/50"
                 title="$ ckrv --version"
             >
-                <span style={{ color: 'var(--accent-cyan)' }}>$</span> ckrv <span className="hidden sm:inline">--version</span>
+                <span className="text-primary">$</span> ckrv <span className="hidden sm:inline">--version</span>
             </div>
-        </div>
+        </Card>
     );
 };
 
@@ -229,44 +171,23 @@ interface StatusRowProps {
 }
 
 const StatusRow: React.FC<StatusRowProps> = ({ icon, label, value, status, mono, hint }) => {
-    const getStatusColor = () => {
-        switch (status) {
-            case 'success': return 'var(--accent-green)';
-            case 'warning': return 'var(--accent-amber)';
-            case 'error': return 'var(--accent-red)';
-            default: return 'var(--text-primary)';
-        }
-    };
-
     return (
         <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
-                <div 
-                    className="flex items-center gap-2 text-sm"
-                    style={{ color: 'var(--text-muted)' }}
-                >
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {icon}
                     <span>{label}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {status === 'success' && <CheckCircle2 size={14} style={{ color: 'var(--accent-green)' }} />}
-                    {status === 'warning' && <AlertCircle size={14} style={{ color: 'var(--accent-amber)' }} />}
-                    <span 
-                        className={`text-sm ${mono ? 'font-mono' : ''}`}
-                        style={{ color: getStatusColor() }}
-                    >
+                    {status === 'success' && <CheckCircle2 size={14} className="text-[var(--accent-green)]" />}
+                    {status === 'warning' && <AlertCircle size={14} className="text-[var(--accent-amber)]" />}
+                    <span className={`text-sm ${mono ? 'font-mono' : ''} ${status ? '' : 'text-foreground'}`}>
                         {value}
                     </span>
                 </div>
             </div>
             {hint && (
-                <code 
-                    className="text-xs font-mono px-2 py-1 rounded block"
-                    style={{ 
-                        color: 'var(--accent-cyan)',
-                        background: 'var(--bg-surface)'
-                    }}
-                >
+                <code className="text-xs font-mono px-2 py-1 rounded block bg-muted text-primary">
                     {hint}
                 </code>
             )}
@@ -275,31 +196,33 @@ const StatusRow: React.FC<StatusRowProps> = ({ icon, label, value, status, mono,
 };
 
 const StatusLoading: React.FC = () => (
-    <div 
-        className="rounded-lg p-6 flex items-center justify-center"
-        style={{ 
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-subtle)'
-        }}
-    >
-        <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
-    </div>
+    <Card>
+        <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-5 w-16" />
+            </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-16" />
+            </div>
+            <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-32" />
+            </div>
+        </CardContent>
+    </Card>
 );
 
 const StatusError: React.FC = () => (
-    <div 
-        className="rounded-lg p-6 flex flex-col items-center justify-center gap-2"
-        style={{ 
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--accent-red-dim)'
-        }}
-    >
-        <AlertCircle size={24} style={{ color: 'var(--accent-red)' }} />
-        <span 
-            className="text-sm"
-            style={{ color: 'var(--accent-red)' }}
-        >
-            Connection Error
-        </span>
-    </div>
+    <Card className="border-destructive">
+        <CardContent className="p-6">
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>Connection Error</AlertDescription>
+            </Alert>
+        </CardContent>
+    </Card>
 );

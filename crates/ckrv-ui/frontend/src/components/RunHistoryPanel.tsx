@@ -8,6 +8,12 @@ import {
     Clock, CheckCircle2, XCircle, Loader2,
     Slash, Circle, ChevronRight, Trash2, History
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Run, RunStatus } from '../types/history';
 import { formatElapsedTime, formatRelativeTime } from '../types/history';
 
@@ -26,40 +32,40 @@ interface RunHistoryPanelProps {
 function StatusIcon({ status }: { status: RunStatus }) {
     switch (status) {
         case 'completed':
-            return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+            return <CheckCircle2 className="w-4 h-4 text-[var(--accent-green)]" />;
         case 'failed':
-            return <XCircle className="w-4 h-4 text-red-500" />;
+            return <XCircle className="w-4 h-4 text-destructive" />;
         case 'running':
-            return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+            return <Loader2 className="w-4 h-4 text-[var(--accent-cyan)] animate-spin" />;
         case 'aborted':
-            return <Slash className="w-4 h-4 text-orange-500" />;
+            return <Slash className="w-4 h-4 text-[var(--accent-amber)]" />;
         case 'pending':
         default:
-            return <Circle className="w-4 h-4 text-gray-400" />;
+            return <Circle className="w-4 h-4 text-muted-foreground" />;
     }
 }
 
 /**
- * Get status label with color
+ * Get status badge using shadcn Badge
  */
 function StatusLabel({ status }: { status: RunStatus }) {
-    const colors: Record<RunStatus, string> = {
-        completed: 'text-green-600 bg-green-50',
-        failed: 'text-red-600 bg-red-50',
-        running: 'text-blue-600 bg-blue-50',
-        aborted: 'text-orange-600 bg-orange-50',
-        pending: 'text-gray-600 bg-gray-50',
+    const variants: Record<RunStatus, "success" | "destructive" | "info" | "warning" | "secondary"> = {
+        completed: 'success',
+        failed: 'destructive',
+        running: 'info',
+        aborted: 'warning',
+        pending: 'secondary',
     };
 
     return (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[status]}`}>
+        <Badge variant={variants[status]}>
             {status.charAt(0).toUpperCase() + status.slice(1)}
-        </span>
+        </Badge>
     );
 }
 
 /**
- * Single run item in the history list
+ * Single run item using Card
  */
 function RunItem({
     run,
@@ -73,67 +79,71 @@ function RunItem({
     onDelete?: () => void;
 }) {
     return (
-        <div
+        <Card
             className={`
-        group cursor-pointer p-3 rounded-lg border transition-all
-        ${isSelected
-                    ? 'border-purple-400 bg-purple-50/50 shadow-sm'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}
-      `}
+                group cursor-pointer transition-all
+                ${isSelected
+                    ? 'ring-1 ring-primary border-primary/50'
+                    : 'hover:border-muted-foreground/50 hover:bg-accent/50'}
+            `}
             onClick={onClick}
         >
-            <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                    <StatusIcon status={run.status} />
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-900 truncate">
-                                {run.dry_run ? '🧪 Dry Run' : 'Run'}
-                            </span>
-                            <StatusLabel status={run.status} />
+            <CardContent className="p-3">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <StatusIcon status={run.status} />
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-foreground truncate">
+                                    {run.dry_run ? '🧪 Dry Run' : 'Run'}
+                                </span>
+                                <StatusLabel status={run.status} />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                {formatRelativeTime(run.started_at)}
+                            </p>
                         </div>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                            {formatRelativeTime(run.started_at)}
-                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {onDelete && run.status !== 'running' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete();
+                                }}
+                                title="Delete run"
+                            >
+                                <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                        )}
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {onDelete && run.status !== 'running' && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDelete();
-                            }}
-                            className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 transition-opacity"
-                            title="Delete run"
-                        >
-                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                        </button>
-                    )}
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                </div>
-            </div>
-
-            {/* Summary stats */}
-            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    {run.summary.completed_batches}/{run.summary.total_batches}
-                </span>
-                {run.elapsed_seconds !== null && (
+                {/* Summary stats */}
+                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {formatElapsedTime(run.elapsed_seconds)}
+                        <CheckCircle2 className="w-3 h-3" />
+                        {run.summary.completed_batches}/{run.summary.total_batches}
                     </span>
-                )}
-                {run.summary.branches_merged > 0 && (
-                    <span className="text-green-600">
-                        {run.summary.branches_merged} merged
-                    </span>
-                )}
-            </div>
-        </div>
+                    {run.elapsed_seconds !== null && (
+                        <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatElapsedTime(run.elapsed_seconds)}
+                        </span>
+                    )}
+                    {run.summary.branches_merged > 0 && (
+                        <Badge variant="success" className="text-xs">
+                            {run.summary.branches_merged} merged
+                        </Badge>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -143,11 +153,11 @@ function RunItem({
 function EmptyState() {
     return (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                <History className="w-6 h-6 text-gray-400" />
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                <History className="w-6 h-6 text-muted-foreground" />
             </div>
-            <h3 className="text-sm font-medium text-gray-900 mb-1">No run history</h3>
-            <p className="text-xs text-gray-500 max-w-[200px]">
+            <h3 className="text-sm font-medium text-foreground mb-1">No run history</h3>
+            <p className="text-xs text-muted-foreground max-w-[200px]">
                 Run history will appear here after you execute your first run.
             </p>
         </div>
@@ -155,28 +165,30 @@ function EmptyState() {
 }
 
 /**
- * Loading skeleton
+ * Loading skeleton using shadcn Skeleton
  */
 function LoadingSkeleton() {
     return (
         <div className="space-y-2">
             {[1, 2, 3].map((i) => (
-                <div key={i} className="p-3 rounded-lg border border-gray-200 animate-pulse">
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded-full bg-gray-200" />
-                        <div className="flex-1">
-                            <div className="h-4 bg-gray-200 rounded w-24" />
-                            <div className="h-3 bg-gray-100 rounded w-16 mt-1" />
+                <Card key={i}>
+                    <CardContent className="p-3">
+                        <div className="flex items-center gap-2">
+                            <Skeleton className="w-4 h-4 rounded-full" />
+                            <div className="flex-1">
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-3 w-16 mt-1" />
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
             ))}
         </div>
     );
 }
 
 /**
- * Run History Panel
+ * Run History Panel using shadcn Card and ScrollArea
  */
 export function RunHistoryPanel({
     runs,
@@ -188,58 +200,73 @@ export function RunHistoryPanel({
 }: RunHistoryPanelProps) {
     if (isLoading) {
         return (
-            <div className="p-4">
-                <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <History className="w-4 h-4" />
-                    Run History
-                </h2>
-                <LoadingSkeleton />
-            </div>
+            <Card>
+                <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                        <History className="w-4 h-4" />
+                        Run History
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <LoadingSkeleton />
+                </CardContent>
+            </Card>
         );
     }
 
     if (error) {
         return (
-            <div className="p-4">
-                <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <History className="w-4 h-4" />
-                    Run History
-                </h2>
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600">
-                    Failed to load history: {error}
-                </div>
-            </div>
+            <Card>
+                <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                        <History className="w-4 h-4" />
+                        Run History
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Alert variant="destructive">
+                        <AlertDescription>
+                            Failed to load history: {error}
+                        </AlertDescription>
+                    </Alert>
+                </CardContent>
+            </Card>
         );
     }
 
     return (
-        <div className="p-4">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <History className="w-4 h-4" />
-                Run History
-                {runs.length > 0 && (
-                    <span className="text-xs font-normal text-gray-400">
-                        ({runs.length})
-                    </span>
+        <Card>
+            <CardHeader className="py-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                    <History className="w-4 h-4" />
+                    Run History
+                    {runs.length > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                            {runs.length}
+                        </Badge>
+                    )}
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {runs.length === 0 ? (
+                    <EmptyState />
+                ) : (
+                    <ScrollArea className="max-h-[400px]">
+                        <div className="space-y-2 pr-2">
+                            {runs.map((run) => (
+                                <RunItem
+                                    key={run.id}
+                                    run={run}
+                                    isSelected={run.id === selectedRunId}
+                                    onClick={() => onSelectRun(run)}
+                                    onDelete={onDeleteRun ? () => onDeleteRun(run.id) : undefined}
+                                />
+                            ))}
+                        </div>
+                    </ScrollArea>
                 )}
-            </h2>
-
-            {runs.length === 0 ? (
-                <EmptyState />
-            ) : (
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                    {runs.map((run) => (
-                        <RunItem
-                            key={run.id}
-                            run={run}
-                            isSelected={run.id === selectedRunId}
-                            onClick={() => onSelectRun(run)}
-                            onDelete={onDeleteRun ? () => onDeleteRun(run.id) : undefined}
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
+            </CardContent>
+        </Card>
     );
 }
 

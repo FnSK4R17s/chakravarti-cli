@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+import { Card } from '@/components/ui/card';
 
 interface LogTerminalProps {
     onMount?: (term: Terminal) => void;
@@ -149,12 +150,14 @@ export const LogTerminal: React.FC<LogTerminalProps> = ({ onMount, className }) 
     // Initial fit is now handled in the main useEffect with requestAnimationFrame
 
     return (
-        <div
-            ref={terminalRef}
-            className={`w-full h-full overflow-hidden ${className || ''}`}
-            style={{ background: '#1e1e1e' }}
-            data-testid="log-terminal"
-        />
+        <Card className={`w-full h-full overflow-hidden p-0 ${className || ''}`} data-testid="log-terminal-container">
+            <div
+                ref={terminalRef}
+                className="w-full h-full overflow-hidden"
+                style={{ background: 'hsl(var(--muted))' }}
+                data-testid="log-terminal"
+            />
+        </Card>
     );
 };
 
