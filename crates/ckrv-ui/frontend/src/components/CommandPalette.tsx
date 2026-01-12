@@ -318,7 +318,7 @@ export const CommandPalette: React.FC = () => {
 
     return (
         <>
-            <Card className="flex flex-col max-h-[500px]">
+            <Card className="flex flex-col flex-1 min-h-0">
                 <CardHeader className="pb-3 shrink-0">
                     <div className="flex items-center gap-2">
                         <Terminal size={16} className="text-primary" />
