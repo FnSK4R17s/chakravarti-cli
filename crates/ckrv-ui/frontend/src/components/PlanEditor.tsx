@@ -7,6 +7,10 @@ import {
     Network, Workflow, Box, Sparkles,
     Save
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Types
 interface ModelAssignment {
@@ -88,21 +92,15 @@ const fetchModels = async (): Promise<{ models: ModelInfo[] }> => {
 // Helper: Get model config with color and icon based on ID
 const getModelConfig = (modelId: string, modelInfoList: ModelInfo[]) => {
     const info = modelInfoList.find(m => m.id === modelId);
-    let color = 'slate';
+    let tier: 'light' | 'standard' | 'heavy' = 'standard';
     let icon = Cpu;
-    let tier = 'standard';
 
     if (modelId.includes('claude') || modelId.includes('gpt-4')) {
-        color = 'amber';
         icon = Brain;
         tier = 'heavy';
     } else if (modelId.includes('minimax') || modelId.includes('haiku') || modelId.includes('flash')) {
-        color = 'sky';
         icon = Zap;
         tier = 'light';
-    } else if (modelId.includes('glm') || modelId.includes('llama')) {
-        color = 'violet';
-        tier = 'standard';
     }
 
     // Default costs if not found (fallback)
@@ -111,52 +109,50 @@ const getModelConfig = (modelId: string, modelInfoList: ModelInfo[]) => {
     return {
         name: info?.name || modelId.split('/').pop() || modelId,
         tier,
-        color,
         icon,
         costPer1k,
         contextWindow: info?.context_length
     };
 };
 
-// Components
-
+// Components using shadcn Badge
 const ModelBadge: React.FC<{ model: string; size?: 'sm' | 'md' | 'lg'; models: ModelInfo[] }> = ({ model, size = 'md', models }) => {
     const config = getModelConfig(model, models);
     const Icon = config.icon;
-    const sizeClasses = {
-        sm: 'text-xs px-1.5 py-0.5 max-w-[140px]',
-        md: 'text-xs px-2 py-1 max-w-[180px]',
-        lg: 'text-sm px-3 py-1.5 max-w-[220px]'
+    const variants: Record<string, "info" | "warning" | "secondary"> = {
+        light: 'info',
+        standard: 'secondary',
+        heavy: 'warning'
     };
-    const colorClasses: Record<string, string> = {
-        sky: 'bg-sky-900/40 text-sky-300 border-sky-800',
-        violet: 'bg-violet-900/40 text-violet-300 border-violet-800',
-        amber: 'bg-amber-900/40 text-amber-300 border-amber-800',
-        slate: 'bg-slate-800 text-slate-300 border-slate-700'
+    const sizeClasses = {
+        sm: 'text-xs max-w-[140px]',
+        md: 'text-xs max-w-[180px]',
+        lg: 'text-sm max-w-[220px]'
     };
 
     return (
-        <span
-            className={`font-medium rounded border inline-flex items-center gap-1 ${sizeClasses[size]} ${colorClasses[config.color] || colorClasses.slate}`}
+        <Badge
+            variant={variants[config.tier]}
+            className={`inline-flex items-center gap-1 ${sizeClasses[size]}`}
             title={config.name}
         >
             <Icon size={size === 'sm' ? 10 : 12} className="shrink-0" />
             <span className="truncate">{config.name}</span>
-        </span>
+        </Badge>
     );
 };
 
 const StrategyBadge: React.FC<{ strategy: string }> = ({ strategy }) => {
     const isParallel = strategy === 'parallel';
     return (
-        <span className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 ${isParallel ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400 border border-slate-700'
-            }`}>
+        <Badge variant={isParallel ? 'success' : 'secondary'} className="flex items-center gap-1">
             {isParallel ? <GitBranch size={12} /> : <ArrowRight size={12} />}
             {strategy}
-        </span>
+        </Badge>
     );
 };
 
+// BatchCard using shadcn Card
 const BatchCard: React.FC<{
     batch: Batch;
     isSelected: boolean;
@@ -166,21 +162,20 @@ const BatchCard: React.FC<{
     const [expanded, setExpanded] = useState(false);
 
     return (
-        <div
-            className={`border rounded-lg bg-gray-900/40 shadow-sm hover:shadow-md transition-all cursor-pointer ${isSelected ? 'ring-1 ring-cyan-500 border-cyan-500/50' : 'border-gray-800 hover:border-gray-700'
-                }`}
+        <Card
+            className={`cursor-pointer transition-all ${isSelected ? 'ring-1 ring-primary border-primary/50' : 'hover:border-muted-foreground/50'}`}
             onClick={onClick}
         >
-            <div className="p-4">
+            <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                            <code className="text-xs bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 truncate">
+                            <Badge variant="secondary" className="font-mono text-xs truncate">
                                 {batch.id}
-                            </code>
+                            </Badge>
                             <StrategyBadge strategy={batch.execution_strategy} />
                         </div>
-                        <h4 className="font-medium text-gray-200 truncate">{batch.name}</h4>
+                        <h4 className="font-medium text-foreground truncate">{batch.name}</h4>
                     </div>
                     <ModelBadge model={batch.model_assignment.default} size="sm" models={models} />
                 </div>
@@ -190,39 +185,37 @@ const BatchCard: React.FC<{
                     {batch.task_ids.map(taskId => {
                         const override = batch.model_assignment.overrides[taskId];
                         return (
-                            <span
+                            <Badge
                                 key={taskId}
-                                className={`text-xs px-1.5 py-0.5 rounded font-mono ${override
-                                    ? 'bg-amber-900/30 text-amber-400 border border-amber-800/50'
-                                    : 'bg-gray-800 text-gray-400'
-                                    }`}
+                                variant={override ? 'warning' : 'secondary'}
+                                className="font-mono text-xs"
                                 title={override ? `Override: ${override}` : undefined}
                             >
                                 {taskId}
                                 {override && <Sparkles size={10} className="inline ml-0.5" />}
-                            </span>
+                            </Badge>
                         );
                     })}
                 </div>
 
                 {/* Dependencies */}
                 {batch.depends_on.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-800">
-                        <div className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                    <div className="mt-3 pt-3 border-t border-border">
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                             <Link2 size={12} /> Depends on:
                         </div>
                         <div className="flex flex-wrap gap-1">
                             {batch.depends_on.map(dep => (
-                                <code key={dep} className="text-xs bg-blue-900/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-900/30">
+                                <Badge key={dep} variant="info" className="font-mono text-xs">
                                     {dep}
-                                </code>
+                                </Badge>
                             ))}
                         </div>
                     </div>
                 )}
 
                 {/* Stats */}
-                <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                         <DollarSign size={12} />
                         ${batch.estimated_cost.toFixed(2)}
@@ -234,25 +227,27 @@ const BatchCard: React.FC<{
                 </div>
 
                 {/* Expand for reasoning */}
-                <button
+                <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
-                    className="text-xs text-gray-500 hover:text-gray-300 mt-2 flex items-center gap-1"
+                    className="mt-2 text-xs"
                 >
                     {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     Reasoning
-                </button>
+                </Button>
 
                 {expanded && (
-                    <p className="text-sm text-gray-400 mt-2 p-2 bg-gray-800/50 rounded border border-gray-800">
+                    <p className="text-sm text-muted-foreground mt-2 p-2 bg-muted rounded border border-border">
                         {batch.reasoning}
                     </p>
                 )}
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 };
 
-// DAG View
+// DAG View using Card
 const DagView: React.FC<{ batches: Batch[]; selectedBatch: string | null; onSelectBatch: (id: string) => void; models: ModelInfo[] }> = ({ batches, selectedBatch, onSelectBatch, models }) => {
     const levels = useMemo(() => {
         const batchMap = new Map(batches.map(b => [b.id, b]));
@@ -269,7 +264,7 @@ const DagView: React.FC<{ batches: Batch[]; selectedBatch: string | null; onSele
                 return 0;
             }
 
-            const maxDepLevel = Math.max(...batch.depends_on.map(dep => getLevel(dep, visited)), -1); // -1 ensures 0 if empty but caught above
+            const maxDepLevel = Math.max(...batch.depends_on.map(dep => getLevel(dep, visited)), -1);
             const level = maxDepLevel + 1;
             levelMap.set(batchId, level);
             return level;
@@ -291,48 +286,46 @@ const DagView: React.FC<{ batches: Batch[]; selectedBatch: string | null; onSele
         return grouped;
     }, [batches, levels, maxLevel]);
 
-    const modelColorClasses: Record<string, string> = {
-        sky: 'bg-sky-900/20 border-sky-800 hover:bg-sky-900/30',
-        violet: 'bg-violet-900/20 border-violet-800 hover:bg-violet-900/30',
-        amber: 'bg-amber-900/20 border-amber-800 hover:bg-amber-900/30',
-        slate: 'bg-gray-800/50 border-gray-700 hover:bg-gray-800'
-    };
-
     return (
-        <div className="bg-gray-900/30 rounded-lg border border-gray-800 p-6 overflow-x-auto">
+        <Card className="p-6 overflow-x-auto">
             <div className="flex gap-8 min-w-max">
                 {Object.entries(batchesByLevel).map(([level, levelBatches]) => (
                     <div key={level} className="flex flex-col gap-3">
-                        <div className="text-xs font-medium text-gray-500 text-center mb-2">
+                        <div className="text-xs font-medium text-muted-foreground text-center mb-2">
                             Stage {parseInt(level) + 1}
                         </div>
                         {levelBatches.map(batch => {
                             const config = getModelConfig(batch.model_assignment.default, models);
+                            const tierColors = {
+                                light: 'border-accent-cyan bg-accent-cyan-dim',
+                                standard: 'border-accent-purple bg-accent-purple-dim',
+                                heavy: 'border-accent-amber bg-accent-amber-dim'
+                            };
                             return (
-                                <div
+                                <Card
                                     key={batch.id}
                                     onClick={() => onSelectBatch(batch.id)}
                                     className={`
-                                      w-56 p-3 rounded-lg border-2 cursor-pointer transition-all
-                                      ${modelColorClasses[config.color] || modelColorClasses.slate}
-                                      ${selectedBatch === batch.id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-900' : ''}
+                                      w-56 p-3 cursor-pointer transition-all border-2
+                                      ${tierColors[config.tier]}
+                                      ${selectedBatch === batch.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
                                     `}
                                 >
-                                    <div className="font-medium text-sm text-gray-200 truncate">{batch.name}</div>
+                                    <div className="font-medium text-sm text-foreground truncate">{batch.name}</div>
                                     <div className="flex items-center gap-2 mt-1">
                                         <StrategyBadge strategy={batch.execution_strategy} />
-                                        <span className="text-xs text-gray-500">{batch.task_ids.length} tasks</span>
+                                        <span className="text-xs text-muted-foreground">{batch.task_ids.length} tasks</span>
                                     </div>
                                     <div className="mt-2">
                                         <ModelBadge model={batch.model_assignment.default} size="sm" models={models} />
                                     </div>
                                     {batch.depends_on.length > 0 && (
-                                        <div className="text-xs text-gray-600 mt-2 flex items-center gap-1">
+                                        <div className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                                             <ArrowRight size={10} />
                                             {batch.depends_on.length} deps
                                         </div>
                                     )}
-                                </div>
+                                </Card>
                             );
                         })}
                     </div>
@@ -340,26 +333,26 @@ const DagView: React.FC<{ batches: Batch[]; selectedBatch: string | null; onSele
             </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-4 mt-6 pt-4 border-t border-gray-800">
-                <span className="text-xs text-gray-500">Model Tiers:</span>
+            <div className="flex items-center gap-4 mt-6 pt-4 border-t border-border">
+                <span className="text-xs text-muted-foreground">Model Tiers:</span>
                 <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-sky-900/40 border border-sky-800"></span>
-                    <span className="text-xs text-gray-400">Light</span>
+                    <span className="w-3 h-3 rounded bg-accent-cyan-dim border border-accent-cyan"></span>
+                    <span className="text-xs text-muted-foreground">Light</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-violet-900/40 border border-violet-800"></span>
-                    <span className="text-xs text-gray-400">Standard</span>
+                    <span className="w-3 h-3 rounded bg-accent-purple-dim border border-accent-purple"></span>
+                    <span className="text-xs text-muted-foreground">Standard</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-amber-900/40 border border-amber-800"></span>
-                    <span className="text-xs text-gray-400">Heavy</span>
+                    <span className="w-3 h-3 rounded bg-accent-amber-dim border border-accent-amber"></span>
+                    <span className="text-xs text-muted-foreground">Heavy</span>
                 </div>
             </div>
-        </div>
+        </Card>
     );
 };
 
-// Spec List View
+// Spec List View using Card
 const SpecListView: React.FC<{
     specs: Spec[];
     onSelect: (name: string) => void;
@@ -370,17 +363,17 @@ const SpecListView: React.FC<{
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Workflow className="animate-spin text-gray-500" size={24} />
+                <Workflow className="animate-spin text-muted-foreground" size={24} />
             </div>
         );
     }
 
     if (specsWithPlan.length === 0) {
         return (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
                 <Workflow size={48} className="mx-auto mb-4 opacity-50" />
                 <p>No specs with execution plans found</p>
-                <p className="text-sm mt-2">Run <code className="bg-gray-800 px-2 py-0.5 rounded">ckrv plan</code> to generate an execution plan</p>
+                <p className="text-sm mt-2">Run <code className="bg-muted px-2 py-0.5 rounded">ckrv plan</code> to generate an execution plan</p>
             </div>
         );
     }
@@ -388,30 +381,30 @@ const SpecListView: React.FC<{
     return (
         <div className="space-y-2">
             {specsWithPlan.map((spec) => (
-                <button
+                <Card
                     key={spec.name}
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
                     onClick={() => onSelect(spec.name)}
-                    className="w-full text-left p-4 bg-gray-800/50 hover:bg-gray-800 rounded-lg border border-gray-700 transition-colors"
                 >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Workflow size={20} className="text-cyan-400" />
-                            <div>
-                                <h3 className="font-medium text-gray-200">{spec.name}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded">has plan</span>
-                                    <span className="text-xs text-gray-500">{spec.task_count} tasks</span>
-                                    {spec.has_implementation && (
-                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded">
-                                            implemented
-                                        </span>
-                                    )}
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Workflow size={20} className="text-primary" />
+                                <div>
+                                    <h3 className="font-medium text-foreground">{spec.name}</h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Badge variant="success">has plan</Badge>
+                                        <span className="text-xs text-muted-foreground">{spec.task_count} tasks</span>
+                                        {spec.has_implementation && (
+                                            <Badge variant="info">implemented</Badge>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
+                            <ChevronRight size={20} className="text-muted-foreground" />
                         </div>
-                        <ChevronRight size={20} className="text-gray-500" />
-                    </div>
-                </button>
+                    </CardContent>
+                </Card>
             ))}
         </div>
     );
@@ -472,7 +465,7 @@ export default function PlanEditor() {
     };
 
     if (isError) {
-        return <div className="p-8 text-red-400">Error loading plan: {(error as Error).message}</div>;
+        return <div className="p-8 text-destructive">Error loading plan: {(error as Error).message}</div>;
     }
 
     // Show spec list if nothing selected
@@ -480,8 +473,8 @@ export default function PlanEditor() {
         return (
             <div className="h-full overflow-auto p-4">
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-100">Execution Plan</h1>
-                    <p className="text-gray-500 mt-1">Select a spec to view its execution plan</p>
+                    <h1 className="text-2xl font-bold text-foreground">Execution Plan</h1>
+                    <p className="text-muted-foreground mt-1">Select a spec to view its execution plan</p>
                 </div>
                 <SpecListView
                     specs={specsData?.specs || []}
@@ -493,99 +486,99 @@ export default function PlanEditor() {
     }
 
     return (
-        <div className="h-full flex flex-col bg-gray-950 text-gray-100 font-sans">
+        <div className="h-full flex flex-col bg-background text-foreground font-sans">
             {/* Header */}
-            <div className="shrink-0 px-6 py-4 border-b border-gray-800 flex items-center justify-between bg-gray-900/50">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => setSelectedSpecName(null)}
-                        className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-                    >
-                        <ArrowRight size={20} className="text-gray-400 rotate-180" />
-                    </button>
-                    <div>
-                        <div className="text-sm text-gray-500 font-mono">plan.yaml</div>
-                        <h1 className="text-lg font-semibold text-gray-100">{selectedSpecName}</h1>
-                    </div>
-                    {lastSaved && <span className="text-xs text-gray-500">• Saved {lastSaved.toLocaleTimeString()}</span>}
-                </div>
-
-                <div className="flex items-center gap-4">
-                    {/* View Toggles */}
-                    <div className="flex bg-gray-800 rounded-lg p-1 gap-1">
-                        {[
-                            { id: 'dag', icon: Network, label: 'DAG' },
-                            { id: 'list', icon: List, label: 'List' },
-                            // { id: 'timeline', icon: BarChart3, label: 'Timeline' },
-                            // { id: 'cost', icon: DollarSign, label: 'Cost' },
-                            { id: 'code', icon: Code, label: 'YAML' }
-                        ].map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => setView(item.id as any)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-all ${view === item.id ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'
-                                    }`}
-                            >
-                                <item.icon size={16} />
-                                {item.label}
-                            </button>
-                        ))}
+            <Card className="shrink-0 rounded-none border-x-0 border-t-0">
+                <CardContent className="px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedSpecName(null)}
+                        >
+                            <ArrowRight size={20} className="rotate-180" />
+                        </Button>
+                        <div>
+                            <div className="text-sm text-muted-foreground font-mono">plan.yaml</div>
+                            <h1 className="text-lg font-semibold text-foreground">{selectedSpecName}</h1>
+                        </div>
+                        {lastSaved && <span className="text-xs text-muted-foreground">• Saved {lastSaved.toLocaleTimeString()}</span>}
                     </div>
 
-                    <div className="w-px h-6 bg-gray-800" />
+                    <div className="flex items-center gap-4">
+                        {/* View Toggles using Tabs */}
+                        <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>
+                            <TabsList>
+                                <TabsTrigger value="dag" className="gap-1.5">
+                                    <Network size={16} />
+                                    DAG
+                                </TabsTrigger>
+                                <TabsTrigger value="list" className="gap-1.5">
+                                    <List size={16} />
+                                    List
+                                </TabsTrigger>
+                                <TabsTrigger value="code" className="gap-1.5">
+                                    <Code size={16} />
+                                    YAML
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
 
-                    <button onClick={handleSave} className="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors" title="Save Plan">
-                        <Save size={20} />
-                    </button>
-                </div>
-            </div>
+                        <div className="w-px h-6 bg-border" />
+
+                        <Button onClick={handleSave} size="icon" title="Save Plan">
+                            <Save size={20} />
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Content */}
             <div className="flex-1 overflow-auto p-6">
                 {/* Stats Row */}
                 <div className="grid grid-cols-4 gap-4 mb-6">
-                    <div className="bg-gray-900/50 border border-gray-800 p-4 rounded-lg">
-                        <div className="flex items-center justify-between">
+                    <Card>
+                        <CardContent className="p-4 flex items-center justify-between">
                             <div>
-                                <div className="text-2xl font-bold text-gray-200">{stats.totalBatches}</div>
-                                <div className="text-xs text-gray-500">Batches</div>
+                                <div className="text-2xl font-bold text-foreground">{stats.totalBatches}</div>
+                                <div className="text-xs text-muted-foreground">Batches</div>
                             </div>
-                            <Layers className="text-gray-600" size={20} />
-                        </div>
-                    </div>
-                    <div className="bg-gray-900/50 border border-gray-800 p-4 rounded-lg">
-                        <div className="flex items-center justify-between">
+                            <Layers className="text-muted-foreground" size={20} />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4 flex items-center justify-between">
                             <div>
-                                <div className="text-2xl font-bold text-gray-200">{stats.totalTasks}</div>
-                                <div className="text-xs text-gray-500">Total Tasks</div>
+                                <div className="text-2xl font-bold text-foreground">{stats.totalTasks}</div>
+                                <div className="text-xs text-muted-foreground">Total Tasks</div>
                             </div>
-                            <Box className="text-blue-500/50" size={20} />
-                        </div>
-                    </div>
-                    <div className="bg-gray-900/50 border border-gray-800 p-4 rounded-lg">
-                        <div className="flex items-center justify-between">
+                            <Box className="text-accent-cyan" size={20} />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4 flex items-center justify-between">
                             <div>
-                                <div className="text-2xl font-bold text-gray-200">${stats.totalCost.toFixed(2)}</div>
-                                <div className="text-xs text-gray-500">Est. Cost</div>
+                                <div className="text-2xl font-bold text-foreground">${stats.totalCost.toFixed(2)}</div>
+                                <div className="text-xs text-muted-foreground">Est. Cost</div>
                             </div>
-                            <DollarSign className="text-amber-500/50" size={20} />
-                        </div>
-                    </div>
-                    <div className="bg-gray-900/50 border border-gray-800 p-4 rounded-lg">
-                        <div className="flex items-center justify-between">
+                            <DollarSign className="text-accent-amber" size={20} />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4 flex items-center justify-between">
                             <div>
-                                <div className="text-2xl font-bold text-gray-200">{stats.heavyTasks}</div>
-                                <div className="text-xs text-gray-500">Heavy Model Tasks</div>
+                                <div className="text-2xl font-bold text-foreground">{stats.heavyTasks}</div>
+                                <div className="text-xs text-muted-foreground">Heavy Model Tasks</div>
                             </div>
-                            <Brain className="text-violet-500/50" size={20} />
-                        </div>
-                    </div>
+                            <Brain className="text-accent-purple" size={20} />
+                        </CardContent>
+                    </Card>
                 </div>
 
                 {batches.length === 0 ? (
-                    <div className="flex items-center justify-center h-64 text-gray-500 border-2 border-dashed border-gray-800 rounded-lg">
+                    <Card className="flex items-center justify-center h-64 text-muted-foreground border-dashed">
                         No plan available for this spec. Run 'ckrv plan' to generate one.
-                    </div>
+                    </Card>
                 ) : (
                     <>
                         {view === 'dag' && (
@@ -612,32 +605,34 @@ export default function PlanEditor() {
                         )}
 
                         {view === 'code' && (
-                            <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
-                                <div className="px-4 py-2 border-b border-gray-800 bg-gray-900/50 flex items-center justify-between">
-                                    <span className="text-xs font-mono text-gray-500">plan.yaml</span>
-                                    <button className="text-xs text-gray-400 hover:text-white">Copy</button>
-                                </div>
-                                <pre className="p-4 text-xs font-mono text-gray-300 overflow-auto max-h-[600px]">
-                                    {planData?.raw_yaml}
-                                </pre>
-                            </div>
+                            <Card>
+                                <CardHeader className="py-2 px-4 flex flex-row items-center justify-between border-b border-border">
+                                    <CardTitle className="text-sm font-mono">plan.yaml</CardTitle>
+                                    <Button variant="ghost" size="sm">Copy</Button>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <pre className="p-4 text-xs font-mono text-foreground overflow-auto max-h-[600px] bg-muted">
+                                        {planData?.raw_yaml}
+                                    </pre>
+                                </CardContent>
+                            </Card>
                         )}
                     </>
                 )}
             </div>
 
-            {/* Model Pricing Footer (Pulled from API) */}
-            <div className="shrink-0 px-6 py-3 border-t border-gray-800 bg-gray-900/80 text-xs">
+            {/* Model Pricing Footer */}
+            <div className="shrink-0 px-6 py-3 border-t border-border bg-muted/50 text-xs">
                 <div className="flex items-center gap-6 overflow-x-auto">
-                    <span className="text-gray-500 font-medium whitespace-nowrap">Current Pricing (Configured Models):</span>
+                    <span className="text-muted-foreground font-medium whitespace-nowrap">Current Pricing (Configured Models):</span>
                     {models.filter(m => configuredModels.has(m.id))
                         .map(model => (
                             <div key={model.id} className="flex items-center gap-2 whitespace-nowrap">
-                                <span className="text-gray-400">{model.name}:</span>
-                                <span className="text-amber-500">${(model.cost_per_1k_prompt + model.cost_per_1k_completion).toFixed(4)}/1k</span>
+                                <span className="text-muted-foreground">{model.name}:</span>
+                                <span className="text-accent-amber">${(model.cost_per_1k_prompt + model.cost_per_1k_completion).toFixed(4)}/1k</span>
                             </div>
                         ))}
-                    {configuredModels.size === 0 && <span className="text-gray-600 italic">No configured models found</span>}
+                    {configuredModels.size === 0 && <span className="text-muted-foreground italic">No configured models found</span>}
                 </div>
             </div>
         </div>

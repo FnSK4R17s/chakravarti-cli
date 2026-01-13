@@ -9,7 +9,6 @@ import {
     Settings2,
     Zap,
     Check,
-    X,
     Loader2,
     ExternalLink,
     Key,
@@ -22,6 +21,32 @@ import {
     Terminal
 } from 'lucide-react';
 import { AgentCliModal } from './AgentCliModal';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 // Types
 type AgentType = 'claude' | 'claude_open_router' | 'gemini' | 'codex' | 'cursor' | 'amp' | 'qwen_code' | 'opencode' | 'factory_droid' | 'copilot';
@@ -118,18 +143,18 @@ const AGENT_TYPE_INFO: Record<AgentType, { label: string; icon: React.ReactNode;
     copilot: { label: 'GitHub Copilot', icon: <Bot size={16} />, color: 'var(--text-primary)' },
 };
 
-export const AgentManager: React.FC = () => {
+const AgentManager: React.FC = () => {
     const queryClient = useQueryClient();
-    const [showAddModal, setShowAddModal] = useState(false);
     const [editingAgent, setEditingAgent] = useState<AgentConfig | null>(null);
-    const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
+    const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
     const [cliAgent, setCliAgent] = useState<AgentConfig | null>(null);
-    const [testResult, setTestResult] = useState<{ agentId: string; success: boolean; message: string } | null>(null);
 
-    const { data: agentsData, isLoading } = useQuery({
+    // Queries
+    const { data: agentsData, isLoading: isLoadingAgents } = useQuery({
         queryKey: ['agents'],
         queryFn: fetchAgents,
-        refetchInterval: 5000,
     });
 
     const { data: modelsData } = useQuery({
@@ -137,12 +162,13 @@ export const AgentManager: React.FC = () => {
         queryFn: fetchModels,
     });
 
+    // Mutations
     const upsertMutation = useMutation({
         mutationFn: upsertAgent,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['agents'] });
-            setShowAddModal(false);
             setEditingAgent(null);
+            setShowAddModal(false);
         },
     });
 
@@ -163,120 +189,94 @@ export const AgentManager: React.FC = () => {
     const testMutation = useMutation({
         mutationFn: testAgent,
         onSuccess: (data, agent) => {
-            setTestResult({
-                agentId: agent.id,
-                success: data.success,
-                message: data.message,
-            });
-            setTimeout(() => setTestResult(null), 5000);
+            setTestResults((prev) => ({
+                ...prev,
+                [agent.id]: { success: data.success, message: data.message || (data.success ? 'OK' : 'Failed') },
+            }));
+            // Clear result after 5 seconds
+            setTimeout(() => {
+                setTestResults((prev) => {
+                    const { [agent.id]: _, ...rest } = prev;
+                    return rest;
+                });
+            }, 5000);
         },
     });
 
     const agents = agentsData?.agents || [];
     const models = modelsData?.models || [];
 
-    return (
-        <div className="flex flex-col h-full rounded-lg overflow-hidden" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }}>
-            {/* Header */}
-            <div
-                className="px-4 py-3 flex items-center justify-between shrink-0"
-                style={{ borderBottom: '1px solid var(--border-subtle)' }}
-            >
-                <div className="flex items-center gap-2">
-                    <Bot size={18} style={{ color: 'var(--accent-purple)' }} />
-                    <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        Agent Manager
-                    </h3>
-                    <span
-                        className="text-xs px-1.5 py-0.5 rounded"
-                        style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
-                    >
-                        {agents.length} agents
-                    </span>
-                </div>
-                <button
-                    onClick={() => {
-                        setEditingAgent(null);
-                        setShowAddModal(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all"
-                    style={{
-                        background: 'var(--accent-purple-dim)',
-                        color: 'var(--accent-purple)',
-                    }}
-                >
-                    <Plus size={14} />
-                    Add Agent
-                </button>
+    const toggleExpanded = (id: string) => {
+        setExpandedAgents((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    if (isLoadingAgents) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <Loader2 className="animate-spin text-muted-foreground" size={24} />
             </div>
+        );
+    }
+
+    return (
+        <div className="h-full flex flex-col bg-background text-foreground">
+            {/* Header */}
+            <Card className="shrink-0 rounded-none border-x-0 border-t-0">
+                <CardContent className="px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-lg font-semibold text-foreground">Agent Manager</h1>
+                        <p className="text-sm text-muted-foreground">
+                            Configure AI coding agents for task execution
+                        </p>
+                    </div>
+                    <Button onClick={() => setShowAddModal(true)}>
+                        <Plus size={16} className="mr-2" />
+                        Add Agent
+                    </Button>
+                </CardContent>
+            </Card>
 
             {/* Agent List */}
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-32">
-                        <Loader2 className="animate-spin" size={24} style={{ color: 'var(--text-muted)' }} />
-                    </div>
-                ) : agents.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-32 gap-2">
-                        <Bot size={32} style={{ color: 'var(--text-muted)' }} />
-                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No agents configured</p>
+            <div className="flex-1 overflow-auto p-4 space-y-3">
+                {agents.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                        <Bot size={48} className="mx-auto mb-4 opacity-50" />
+                        <p>No agents configured</p>
+                        <p className="text-sm mt-2">Click "Add Agent" to get started</p>
                     </div>
                 ) : (
-                    <div className="space-y-3">
-                        {agents.map((agent) => (
-                            <AgentCard
-                                key={agent.id}
-                                agent={agent}
-                                expanded={expandedAgent === agent.id}
-                                onToggleExpand={() => setExpandedAgent(expandedAgent === agent.id ? null : agent.id)}
-                                onEdit={() => {
-                                    setEditingAgent(agent);
-                                    setShowAddModal(true);
-                                }}
-                                onDelete={() => deleteMutation.mutate(agent.id)}
-                                onSetDefault={() => setDefaultMutation.mutate(agent.id)}
-                                onTest={() => testMutation.mutate(agent)}
-                                onCli={() => setCliAgent(agent)}
-                                isDeleting={deleteMutation.isPending}
-                                isTesting={testMutation.isPending}
-                                testResult={testResult?.agentId === agent.id ? testResult : null}
-                            />
-                        ))}
-                    </div>
+                    agents.map((agent) => (
+                        <AgentCard
+                            key={agent.id}
+                            agent={agent}
+                            expanded={expandedAgents.has(agent.id)}
+                            onToggleExpand={() => toggleExpanded(agent.id)}
+                            onEdit={() => setEditingAgent(agent)}
+                            onDelete={() => deleteMutation.mutate(agent.id)}
+                            onSetDefault={() => setDefaultMutation.mutate(agent.id)}
+                            onTest={() => testMutation.mutate(agent)}
+                            onCli={() => setCliAgent(agent)}
+                            isDeleting={deleteMutation.isPending}
+                            isTesting={testMutation.isPending && testMutation.variables?.id === agent.id}
+                            testResult={testResults[agent.id] || null}
+                        />
+                    ))
                 )}
             </div>
 
-            {/* Footer */}
-            <div
-                className="px-4 py-2 flex items-center justify-between text-xs shrink-0"
-                style={{
-                    borderTop: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-tertiary)',
-                    color: 'var(--text-muted)'
-                }}
-            >
-                <span className="font-mono truncate">
-                    OpenRouter models: {models.length}
-                </span>
-                <a
-                    href="https://openrouter.ai/models"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 hover:underline"
-                    style={{ color: 'var(--accent-cyan)' }}
-                >
-                    Browse models <ExternalLink size={10} />
-                </a>
-            </div>
-
             {/* Add/Edit Modal */}
-            {showAddModal && (
+            {(showAddModal || editingAgent) && (
                 <AgentModal
                     agent={editingAgent}
                     models={models}
                     onClose={() => {
-                        setShowAddModal(false);
                         setEditingAgent(null);
+                        setShowAddModal(false);
                     }}
                     onSave={(agent) => upsertMutation.mutate(agent)}
                     isLoading={upsertMutation.isPending}
@@ -294,7 +294,7 @@ export const AgentManager: React.FC = () => {
     );
 };
 
-// Agent Card Component
+// Agent Card Component using shadcn Card and Badge
 interface AgentCardProps {
     agent: AgentConfig;
     expanded: boolean;
@@ -325,189 +325,153 @@ const AgentCard: React.FC<AgentCardProps> = ({
     const typeInfo = AGENT_TYPE_INFO[agent.agent_type] || AGENT_TYPE_INFO.claude;
 
     return (
-        <div
-            className="rounded-lg overflow-hidden transition-all"
-            style={{
-                background: 'var(--bg-tertiary)',
-                border: agent.is_default ? `1px solid ${typeInfo.color}` : '1px solid var(--border-subtle)',
-            }}
-        >
-            {/* Main row */}
-            <div className="px-4 py-3 flex items-center gap-3">
-                <button
-                    onClick={onToggleExpand}
-                    className="shrink-0 p-1 rounded hover:bg-white/5 transition-colors"
-                >
-                    {expanded ? (
-                        <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
-                    ) : (
-                        <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
-                    )}
-                </button>
+        <Card className={agent.is_default ? 'border-primary' : ''}>
+            <Collapsible open={expanded} onOpenChange={onToggleExpand}>
+                {/* Main row */}
+                <CardContent className="p-3">
+                    <div className="flex items-center gap-3">
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                                {expanded ? (
+                                    <ChevronDown size={14} className="text-muted-foreground" />
+                                ) : (
+                                    <ChevronRight size={14} className="text-muted-foreground" />
+                                )}
+                            </Button>
+                        </CollapsibleTrigger>
 
-                <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ background: `${typeInfo.color}20`, color: typeInfo.color }}
-                >
-                    {typeInfo.icon}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
-                            {agent.name}
-                        </span>
-                        {/* Level Badge */}
-                        <span
-                            className="text-[10px] px-1.5 py-0.5 rounded font-bold"
-                            style={{
-                                background: 'var(--bg-tertiary)',
-                                color: agent.level >= 4 ? 'var(--accent-purple)' : 'var(--text-muted)'
-                            }}
+                        <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: `${typeInfo.color}20`, color: typeInfo.color }}
                         >
-                            L{agent.level || 3}
-                        </span>
-                        {agent.is_default && (
-                            <span
-                                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-                                style={{ background: `${typeInfo.color}20`, color: typeInfo.color }}
-                            >
-                                DEFAULT
-                            </span>
-                        )}
-                        {!agent.enabled && (
-                            <span
-                                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-                                style={{ background: 'var(--accent-red-dim)', color: 'var(--accent-red)' }}
-                            >
-                                DISABLED
-                            </span>
-                        )}
-                    </div>
-                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                        {typeInfo.label}
-                        {agent.agent_type === 'claude_open_router' && agent.openrouter && (
-                            <> • {agent.openrouter.model}</>
-                        )}
-                    </p>
-                </div>
+                            {typeInfo.icon}
+                        </div>
 
-                {/* Test Result */}
-                {testResult && (
-                    <div
-                        className="flex items-center gap-1.5 px-2 py-1 rounded text-xs animate-fade-in"
-                        style={{
-                            background: testResult.success ? 'var(--accent-green-dim)' : 'var(--accent-red-dim)',
-                            color: testResult.success ? 'var(--accent-green)' : 'var(--accent-red)',
-                        }}
-                    >
-                        {testResult.success ? <Check size={12} /> : <AlertCircle size={12} />}
-                        <span className="truncate max-w-[100px]">{testResult.message}</span>
-                    </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                    <button
-                        onClick={onCli}
-                        className="p-1.5 rounded hover:bg-white/5 transition-colors"
-                        title="Open Interactive CLI"
-                    >
-                        <Terminal size={14} style={{ color: 'var(--text-muted)' }} />
-                    </button>
-                    <button
-                        onClick={onTest}
-                        disabled={isTesting}
-                        className="p-1.5 rounded hover:bg-white/5 transition-colors"
-                        title="Test agent"
-                    >
-                        {isTesting ? (
-                            <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
-                        ) : (
-                            <TestTube size={14} style={{ color: 'var(--text-muted)' }} />
-                        )}
-                    </button>
-                    <button
-                        onClick={onSetDefault}
-                        className="p-1.5 rounded hover:bg-white/5 transition-colors"
-                        title={agent.is_default ? 'Default agent' : 'Set as default'}
-                    >
-                        {agent.is_default ? (
-                            <Star size={14} style={{ color: typeInfo.color }} />
-                        ) : (
-                            <StarOff size={14} style={{ color: 'var(--text-muted)' }} />
-                        )}
-                    </button>
-                    <button
-                        onClick={onEdit}
-                        className="p-1.5 rounded hover:bg-white/5 transition-colors"
-                        title="Edit agent"
-                    >
-                        <Settings2 size={14} style={{ color: 'var(--text-muted)' }} />
-                    </button>
-                    <button
-                        onClick={onDelete}
-                        disabled={isDeleting || agent.is_default}
-                        className="p-1.5 rounded hover:bg-white/5 transition-colors disabled:opacity-50"
-                        title={agent.is_default ? 'Cannot delete default agent' : 'Delete agent'}
-                    >
-                        <Trash2 size={14} style={{ color: 'var(--accent-red)' }} />
-                    </button>
-                </div>
-            </div>
-
-            {/* Expanded details */}
-            {expanded && (
-                <div
-                    className="px-4 py-3 border-t text-xs space-y-2"
-                    style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-secondary)' }}
-                >
-                    {agent.description && (
-                        <p style={{ color: 'var(--text-secondary)' }}>{agent.description}</p>
-                    )}
-
-                    {agent.agent_type === 'claude_open_router' && agent.openrouter && (
-                        <div className="space-y-1">
+                        <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                                <span style={{ color: 'var(--text-muted)' }}>Model:</span>
-                                <code className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-tertiary)', color: 'var(--accent-cyan)' }}>
-                                    {agent.openrouter.model}
+                                <span className="font-medium text-sm truncate text-foreground">
+                                    {agent.name}
+                                </span>
+                                {/* Level Badge */}
+                                <Badge
+                                    variant={agent.level >= 4 ? 'info' : 'secondary'}
+                                    className="text-[10px] font-bold"
+                                >
+                                    L{agent.level || 3}
+                                </Badge>
+                                {agent.is_default && (
+                                    <Badge variant="warning" className="text-[10px]">
+                                        DEFAULT
+                                    </Badge>
+                                )}
+                                {!agent.enabled && (
+                                    <Badge variant="destructive" className="text-[10px]">
+                                        DISABLED
+                                    </Badge>
+                                )}
+                            </div>
+                            <p className="text-xs truncate text-muted-foreground">
+                                {typeInfo.label}
+                                {agent.agent_type === 'claude_open_router' && agent.openrouter && (
+                                    <> • {agent.openrouter.model}</>
+                                )}
+                            </p>
+                        </div>
+
+                        {/* Test Result */}
+                        {testResult && (
+                            <Badge variant={testResult.success ? 'success' : 'destructive'} className="animate-fade-in">
+                                {testResult.success ? <Check size={12} /> : <AlertCircle size={12} />}
+                                <span className="truncate max-w-[100px] ml-1">{testResult.message}</span>
+                            </Badge>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onCli} title="Open Interactive CLI">
+                                <Terminal size={14} className="text-muted-foreground" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onTest} disabled={isTesting} title="Test agent">
+                                {isTesting ? (
+                                    <Loader2 size={14} className="animate-spin text-muted-foreground" />
+                                ) : (
+                                    <TestTube size={14} className="text-muted-foreground" />
+                                )}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onSetDefault} title={agent.is_default ? 'Default agent' : 'Set as default'}>
+                                {agent.is_default ? (
+                                    <Star size={14} style={{ color: typeInfo.color }} />
+                                ) : (
+                                    <StarOff size={14} className="text-muted-foreground" />
+                                )}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit} title="Edit agent">
+                                <Settings2 size={14} className="text-muted-foreground" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={onDelete}
+                                disabled={isDeleting || agent.is_default}
+                                title={agent.is_default ? 'Cannot delete default agent' : 'Delete agent'}
+                            >
+                                <Trash2 size={14} className="text-destructive" />
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+
+                {/* Expanded details */}
+                <CollapsibleContent>
+                    <div className="px-4 py-3 border-t border-border text-xs space-y-2 bg-muted/50">
+                        {agent.description && (
+                            <p className="text-muted-foreground">{agent.description}</p>
+                        )}
+
+                        {agent.agent_type === 'claude_open_router' && agent.openrouter && (
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">Model:</span>
+                                    <code className="px-1.5 py-0.5 rounded bg-muted text-accent-cyan">
+                                        {agent.openrouter.model}
+                                    </code>
+                                </div>
+                                {agent.openrouter.api_key && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-muted-foreground">API Key:</span>
+                                        <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                            ••••••••{agent.openrouter.api_key.slice(-4)}
+                                        </code>
+                                    </div>
+                                )}
+                                {agent.openrouter.base_url && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-muted-foreground">Base URL:</span>
+                                        <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground truncate">
+                                            {agent.openrouter.base_url}
+                                        </code>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {agent.binary_path && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground">Binary:</span>
+                                <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                    {agent.binary_path}
                                 </code>
                             </div>
-                            {agent.openrouter.api_key && (
-                                <div className="flex items-center gap-2">
-                                    <span style={{ color: 'var(--text-muted)' }}>API Key:</span>
-                                    <code className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
-                                        ••••••••{agent.openrouter.api_key.slice(-4)}
-                                    </code>
-                                </div>
-                            )}
-                            {agent.openrouter.base_url && (
-                                <div className="flex items-center gap-2">
-                                    <span style={{ color: 'var(--text-muted)' }}>Base URL:</span>
-                                    <code className="px-1.5 py-0.5 rounded truncate" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
-                                        {agent.openrouter.base_url}
-                                    </code>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {agent.binary_path && (
-                        <div className="flex items-center gap-2">
-                            <span style={{ color: 'var(--text-muted)' }}>Binary:</span>
-                            <code className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
-                                {agent.binary_path}
-                            </code>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+                        )}
+                    </div>
+                </CollapsibleContent>
+            </Collapsible>
+        </Card>
     );
 };
 
-// Agent Modal Component
+// Agent Modal Component using shadcn Dialog
 interface AgentModalProps {
     agent: AgentConfig | null;
     models: OpenRouterModel[];
@@ -610,113 +574,76 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
     }, [selectedProvider, filteredModels.length, isOpenRouter]);
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.7)' }}
-            onClick={onClose}
-        >
-            <div
-                className="w-full max-w-lg rounded-xl overflow-hidden shadow-2xl"
-                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-default)' }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <form onSubmit={handleSubmit}>
+        <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
+                <form onSubmit={handleSubmit} className="flex flex-col h-full">
                     {/* Header */}
-                    <div
-                        className="px-6 py-4 flex items-center justify-between"
-                        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-                    >
-                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            {agent ? 'Edit Agent' : 'Add New Agent'}
-                        </h3>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="p-1 rounded hover:bg-white/5 transition-colors"
-                        >
-                            <X size={18} style={{ color: 'var(--text-muted)' }} />
-                        </button>
-                    </div>
+                    <DialogHeader className="px-6 py-4 border-b border-border">
+                        <DialogTitle>{agent ? 'Edit Agent' : 'Add New Agent'}</DialogTitle>
+                    </DialogHeader>
 
                     {/* Body */}
-                    <div className="px-6 py-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                         {/* Name */}
-                        <div>
-                            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                Name
-                            </label>
-                            <input
-                                type="text"
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Name</Label>
+                            <Input
+                                id="name"
                                 value={form.name}
                                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                                 placeholder="My Custom Agent"
                                 required
-                                className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all focus:ring-2"
-                                style={{
-                                    background: 'var(--bg-tertiary)',
-                                    border: '1px solid var(--border-subtle)',
-                                    color: 'var(--text-primary)',
-                                }}
                             />
                         </div>
 
                         {/* Agent Type */}
-                        <div>
-                            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                Agent Type
-                            </label>
-                            <select
+                        <div className="space-y-2">
+                            <Label>Agent Type</Label>
+                            <Select
                                 value={form.agent_type}
-                                onChange={(e) => setForm({
+                                onValueChange={(value) => setForm({
                                     ...form,
-                                    agent_type: e.target.value as AgentType,
-                                    openrouter: e.target.value === 'claude_open_router' ? form.openrouter || { model: 'anthropic/claude-sonnet-4' } : undefined,
+                                    agent_type: value as AgentType,
+                                    openrouter: value === 'claude_open_router' ? form.openrouter || { model: 'anthropic/claude-sonnet-4' } : undefined,
                                 })}
-                                className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all focus:ring-2"
-                                style={{
-                                    background: 'var(--bg-tertiary)',
-                                    border: '1px solid var(--border-subtle)',
-                                    color: 'var(--text-primary)',
-                                }}
                             >
-                                <option value="claude">Claude Code (Default CLI)</option>
-                                <option value="claude_open_router">Claude Code + OpenRouter</option>
-                                <option value="gemini">Gemini CLI</option>
-                                <option value="codex">OpenAI Codex</option>
-                                <option value="cursor">Cursor CLI</option>
-                                <option value="amp">Amp</option>
-                                <option value="qwen_code">Qwen Code</option>
-                                <option value="opencode">Opencode</option>
-                                <option value="copilot">GitHub Copilot</option>
-                            </select>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="claude">Claude Code (Default CLI)</SelectItem>
+                                    <SelectItem value="claude_open_router">Claude Code + OpenRouter</SelectItem>
+                                    <SelectItem value="gemini">Gemini CLI</SelectItem>
+                                    <SelectItem value="codex">OpenAI Codex</SelectItem>
+                                    <SelectItem value="cursor">Cursor CLI</SelectItem>
+                                    <SelectItem value="amp">Amp</SelectItem>
+                                    <SelectItem value="qwen_code">Qwen Code</SelectItem>
+                                    <SelectItem value="opencode">Opencode</SelectItem>
+                                    <SelectItem value="copilot">GitHub Copilot</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         {/* Capability Level */}
-                        <div>
-                            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="space-y-2">
+                            <Label>
                                 Capability Level
-                                <span className="ml-2 text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>
-                                    (1=lightest, 5=strongest)
-                                </span>
-                            </label>
+                                <span className="ml-2 text-xs text-muted-foreground">(1=lightest, 5=strongest)</span>
+                            </Label>
                             <div className="flex items-center gap-2">
                                 {[1, 2, 3, 4, 5].map((level) => (
-                                    <button
+                                    <Button
                                         key={level}
                                         type="button"
+                                        variant={form.level === level ? 'default' : 'outline'}
+                                        className="flex-1"
                                         onClick={() => setForm({ ...form, level })}
-                                        className="flex-1 py-2 rounded-lg text-sm font-bold transition-all"
-                                        style={{
-                                            background: form.level === level ? 'var(--accent-purple)' : 'var(--bg-tertiary)',
-                                            color: form.level === level ? 'var(--bg-primary)' : 'var(--text-secondary)',
-                                            border: form.level === level ? 'none' : '1px solid var(--border-subtle)',
-                                        }}
                                     >
                                         {level}
-                                    </button>
+                                    </Button>
                                 ))}
                             </div>
-                            <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                            <p className="text-xs text-muted-foreground">
                                 {form.level === 1 && '📄 Simple files, boilerplate, configs'}
                                 {form.level === 2 && '🔧 Basic implementations, CRUD'}
                                 {form.level === 3 && '⚙️ Standard development tasks'}
@@ -727,32 +654,24 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
 
                         {/* OpenRouter Config */}
                         {isOpenRouter && (
-                            <div
-                                className="p-4 rounded-lg space-y-4"
-                                style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)' }}
-                            >
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Key size={14} style={{ color: 'var(--accent-purple)' }} />
-                                    <span className="text-xs font-medium" style={{ color: 'var(--accent-purple)' }}>
-                                        OpenRouter Configuration
-                                    </span>
+                            <Card className="p-4 space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <Key size={14} className="text-primary" />
+                                    <span className="text-xs font-medium text-primary">OpenRouter Configuration</span>
                                 </div>
 
                                 {/* Model Selection - Provider + Model */}
                                 <div className="space-y-3">
-                                    <div className="flex gap-3">
+                                    <div className="grid grid-cols-3 gap-3">
                                         {/* Provider Selector */}
-                                        <div className="flex-1">
-                                            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Provider
-                                            </label>
-                                            <select
+                                        <div className="space-y-2">
+                                            <Label>Provider</Label>
+                                            <Select
                                                 value={selectedProvider}
-                                                onChange={(e) => {
-                                                    const newProvider = e.target.value;
-                                                    setSelectedProvider(newProvider);
+                                                onValueChange={(value) => {
+                                                    setSelectedProvider(value);
                                                     // Auto-select first model from new provider
-                                                    const firstModel = models.find(m => m.id.startsWith(newProvider + '/'));
+                                                    const firstModel = models.find(m => m.id.startsWith(value + '/'));
                                                     if (firstModel) {
                                                         setForm({
                                                             ...form,
@@ -760,90 +679,77 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                                         });
                                                     }
                                                 }}
-                                                className="w-full px-3 py-2.5 rounded-lg text-sm font-medium outline-none transition-all cursor-pointer hover:border-[var(--accent-purple)]"
-                                                style={{
-                                                    background: 'var(--bg-primary)',
-                                                    border: '1px solid var(--border-default)',
-                                                    color: 'var(--text-primary)',
-                                                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)',
-                                                }}
                                             >
-                                                {providers.map((provider) => (
-                                                    <option key={provider} value={provider}>
-                                                        {formatProvider(provider)}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {providers.map((provider) => (
+                                                        <SelectItem key={provider} value={provider}>
+                                                            {formatProvider(provider)}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
 
                                         {/* Model Selector */}
-                                        <div className="flex-[2]">
-                                            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                                Model
-                                            </label>
-                                            <select
+                                        <div className="col-span-2 space-y-2">
+                                            <Label>Model</Label>
+                                            <Select
                                                 value={form.openrouter?.model || ''}
-                                                onChange={(e) => setForm({
+                                                onValueChange={(value) => setForm({
                                                     ...form,
-                                                    openrouter: { ...form.openrouter!, model: e.target.value },
+                                                    openrouter: { ...form.openrouter!, model: value },
                                                 })}
-                                                className="w-full px-3 py-2.5 rounded-lg text-sm font-medium outline-none transition-all cursor-pointer hover:border-[var(--accent-purple)]"
-                                                style={{
-                                                    background: 'var(--bg-primary)',
-                                                    border: '1px solid var(--border-default)',
-                                                    color: 'var(--text-primary)',
-                                                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)',
-                                                }}
                                             >
-                                                {filteredModels.map((model) => (
-                                                    <option key={model.id} value={model.id}>
-                                                        {model.name.replace(/^[^:]+:\s*/, '')}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {filteredModels.map((model) => (
+                                                        <SelectItem key={model.id} value={model.id}>
+                                                            {model.name.replace(/^[^:]+:\s*/, '')}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
 
                                     {/* Model info card */}
                                     {models.find(m => m.id === form.openrouter?.model) && (
-                                        <div
-                                            className="text-xs p-3 rounded-lg space-y-2"
-                                            style={{
-                                                background: 'var(--bg-primary)',
-                                                border: '1px solid var(--border-subtle)',
-                                            }}
-                                        >
+                                        <Card className="p-3 text-xs space-y-2">
                                             <div className="flex items-center justify-between">
-                                                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-tertiary)', color: 'var(--accent-cyan)' }}>
+                                                <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-accent-cyan">
                                                     {form.openrouter?.model}
-                                                </span>
+                                                </code>
                                                 {models.find(m => m.id === form.openrouter?.model)?.pricing && (
-                                                    <span style={{ color: 'var(--accent-green)' }}>
+                                                    <span className="text-accent-green">
                                                         {models.find(m => m.id === form.openrouter?.model)?.pricing}
                                                     </span>
                                                 )}
                                             </div>
-                                            <p style={{ color: 'var(--text-muted)' }}>
+                                            <p className="text-muted-foreground">
                                                 {models.find(m => m.id === form.openrouter?.model)?.description || 'No description available'}
                                             </p>
                                             {models.find(m => m.id === form.openrouter?.model)?.context_length && (
-                                                <div className="flex items-center gap-2 pt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                                                    <span style={{ color: 'var(--text-muted)' }}>Context window:</span>
-                                                    <span className="font-medium" style={{ color: 'var(--accent-purple)' }}>
+                                                <div className="flex items-center gap-2 pt-1 border-t border-border">
+                                                    <span className="text-muted-foreground">Context window:</span>
+                                                    <span className="font-medium text-primary">
                                                         {(models.find(m => m.id === form.openrouter?.model)?.context_length || 0).toLocaleString()} tokens
                                                     </span>
                                                 </div>
                                             )}
-                                        </div>
+                                        </Card>
                                     )}
                                 </div>
 
                                 {/* API Key */}
-                                <div>
-                                    <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                        OpenRouter API Key
-                                    </label>
-                                    <input
+                                <div className="space-y-2">
+                                    <Label htmlFor="api-key">OpenRouter API Key</Label>
+                                    <Input
+                                        id="api-key"
                                         type="password"
                                         value={form.openrouter?.api_key || ''}
                                         onChange={(e) => setForm({
@@ -851,21 +757,15 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                             openrouter: { ...form.openrouter!, api_key: e.target.value },
                                         })}
                                         placeholder="sk-or-..."
-                                        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none transition-all focus:ring-2"
-                                        style={{
-                                            background: 'var(--bg-secondary)',
-                                            border: '1px solid var(--border-subtle)',
-                                            color: 'var(--text-primary)',
-                                        }}
+                                        className="font-mono"
                                     />
-                                    <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
                                         Get your key from{' '}
                                         <a
                                             href="https://openrouter.ai/keys"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center gap-0.5 hover:underline"
-                                            style={{ color: 'var(--accent-cyan)' }}
+                                            className="flex items-center gap-0.5 text-primary hover:underline"
                                         >
                                             openrouter.ai/keys <ExternalLink size={10} />
                                         </a>
@@ -873,11 +773,12 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                 </div>
 
                                 {/* Custom Base URL (optional) */}
-                                <div>
-                                    <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                        Custom Base URL <span style={{ color: 'var(--text-muted)' }}>(optional)</span>
-                                    </label>
-                                    <input
+                                <div className="space-y-2">
+                                    <Label htmlFor="base-url">
+                                        Custom Base URL <span className="text-muted-foreground">(optional)</span>
+                                    </Label>
+                                    <Input
+                                        id="base-url"
                                         type="url"
                                         value={form.openrouter?.base_url || ''}
                                         onChange={(e) => setForm({
@@ -885,118 +786,67 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                             openrouter: { ...form.openrouter!, base_url: e.target.value || undefined },
                                         })}
                                         placeholder="https://openrouter.ai/api"
-                                        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none transition-all focus:ring-2"
-                                        style={{
-                                            background: 'var(--bg-secondary)',
-                                            border: '1px solid var(--border-subtle)',
-                                            color: 'var(--text-primary)',
-                                        }}
+                                        className="font-mono"
                                     />
                                 </div>
-                            </div>
+                            </Card>
                         )}
 
                         {/* Description */}
-                        <div>
-                            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                Description <span style={{ color: 'var(--text-muted)' }}>(optional)</span>
-                            </label>
-                            <textarea
+                        <div className="space-y-2">
+                            <Label htmlFor="description">
+                                Description <span className="text-muted-foreground">(optional)</span>
+                            </Label>
+                            <Textarea
+                                id="description"
                                 value={form.description || ''}
-                                onChange={(e) => setForm({ ...form, description: e.target.value || undefined })}
+                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm({ ...form, description: e.target.value || undefined })}
                                 placeholder="My agent for..."
                                 rows={2}
-                                className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all focus:ring-2 resize-none"
-                                style={{
-                                    background: 'var(--bg-tertiary)',
-                                    border: '1px solid var(--border-subtle)',
-                                    color: 'var(--text-primary)',
-                                }}
                             />
                         </div>
 
                         {/* Custom Binary Path (for non-OpenRouter) */}
                         {!isOpenRouter && (
-                            <div>
-                                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                                    Custom Binary Path <span style={{ color: 'var(--text-muted)' }}>(optional)</span>
-                                </label>
-                                <input
-                                    type="text"
+                            <div className="space-y-2">
+                                <Label htmlFor="binary-path">
+                                    Custom Binary Path <span className="text-muted-foreground">(optional)</span>
+                                </Label>
+                                <Input
+                                    id="binary-path"
                                     value={form.binary_path || ''}
                                     onChange={(e) => setForm({ ...form, binary_path: e.target.value || undefined })}
                                     placeholder="/usr/local/bin/claude"
-                                    className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none transition-all focus:ring-2"
-                                    style={{
-                                        background: 'var(--bg-tertiary)',
-                                        border: '1px solid var(--border-subtle)',
-                                        color: 'var(--text-primary)',
-                                    }}
+                                    className="font-mono"
                                 />
                             </div>
                         )}
 
                         {/* Enabled Toggle */}
-                        <label className="flex items-center gap-3 cursor-pointer">
-                            <input
-                                type="checkbox"
+                        <div className="flex items-center space-x-2">
+                            <Switch
+                                id="enabled"
                                 checked={form.enabled}
-                                onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-                                className="sr-only"
+                                onCheckedChange={(checked: boolean) => setForm({ ...form, enabled: checked })}
                             />
-                            <div
-                                className="w-10 h-5 rounded-full relative transition-colors"
-                                style={{ background: form.enabled ? 'var(--accent-green)' : 'var(--bg-tertiary)' }}
-                            >
-                                <div
-                                    className="absolute top-0.5 w-4 h-4 rounded-full transition-transform"
-                                    style={{
-                                        background: 'var(--text-primary)',
-                                        left: form.enabled ? 'calc(100% - 18px)' : '2px',
-                                    }}
-                                />
-                            </div>
-                            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                Agent enabled
-                            </span>
-                        </label>
+                            <Label htmlFor="enabled">Agent enabled</Label>
+                        </div>
                     </div>
 
                     {/* Footer */}
-                    <div
-                        className="px-6 py-4 flex items-center justify-end gap-3"
-                        style={{ borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-tertiary)' }}
-                    >
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                            style={{
-                                background: 'transparent',
-                                color: 'var(--text-secondary)',
-                                border: '1px solid var(--border-subtle)',
-                            }}
-                        >
+                    <DialogFooter className="px-6 py-4 border-t border-border bg-muted/50">
+                        <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isLoading || !form.name}
-                            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
-                            style={{
-                                background: 'var(--accent-purple)',
-                                color: 'var(--bg-primary)',
-                            }}
-                        >
-                            {isLoading && <Loader2 size={14} className="animate-spin" />}
+                        </Button>
+                        <Button type="submit" disabled={isLoading || !form.name}>
+                            {isLoading && <Loader2 size={14} className="animate-spin mr-2" />}
                             {agent ? 'Save Changes' : 'Add Agent'}
-                        </button>
-                    </div>
+                        </Button>
+                    </DialogFooter>
                 </form>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };
 
 export default AgentManager;
-
