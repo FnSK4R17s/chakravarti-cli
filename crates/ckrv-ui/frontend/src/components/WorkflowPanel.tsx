@@ -1,6 +1,9 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, ListChecks, Play, ArrowRight, CheckCircle2, Circle, Loader2, GitBranch, CheckCheck, GitPullRequest, ShieldCheck, GitCompare } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Spec {
     name: string;
@@ -56,40 +59,23 @@ export const WorkflowPanel: React.FC = () => {
     const tasks = tasksData?.tasks || [];
     const completedTasks = tasks.filter(t => t.status === 'completed').length;
     const inProgressTasks = tasks.filter(t => t.status === 'in_progress').length;
-    
+
     // Check for completed implementation
     const implementedSpec = specs.find(s => s.has_implementation);
     const hasImplementation = !!implementedSpec;
 
     return (
-        <div 
-            className="rounded-lg"
-            style={{ 
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-subtle)'
-            }}
-        >
-            {/* Header */}
-            <div 
-                className="px-4 py-3 flex items-center justify-between"
-                style={{ borderBottom: '1px solid var(--border-subtle)' }}
-            >
-                <h3 
-                    className="font-semibold text-sm"
-                    style={{ color: 'var(--text-primary)' }}
-                >
-                    Workflow Pipeline
-                </h3>
-                <span 
-                    className="text-xs font-mono"
-                    style={{ color: 'var(--text-muted)' }}
-                >
-                    spec → tasks → run → review
-                </span>
-            </div>
+        <Card>
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold">Workflow Pipeline</CardTitle>
+                    <span className="text-xs font-mono text-muted-foreground">
+                        spec → tasks → run → review
+                    </span>
+                </div>
+            </CardHeader>
 
-            {/* Pipeline Visualization */}
-            <div className="p-4 overflow-x-auto">
+            <CardContent className="overflow-x-auto">
                 <div className="flex items-stretch gap-3 min-w-fit">
                     {/* Specs Stage */}
                     <PipelineStage
@@ -113,7 +99,7 @@ export const WorkflowPanel: React.FC = () => {
 
                     {/* Arrow */}
                     <div className="flex items-center">
-                        <ArrowRight size={16} style={{ color: 'var(--text-muted)' }} />
+                        <ArrowRight size={16} className="text-muted-foreground" />
                     </div>
 
                     {/* Tasks Stage */}
@@ -139,7 +125,7 @@ export const WorkflowPanel: React.FC = () => {
 
                     {/* Arrow */}
                     <div className="flex items-center">
-                        <ArrowRight size={16} style={{ color: 'var(--text-muted)' }} />
+                        <ArrowRight size={16} className="text-muted-foreground" />
                     </div>
 
                     {/* Jobs Stage */}
@@ -152,17 +138,14 @@ export const WorkflowPanel: React.FC = () => {
                         subtitle={hasImplementation ? 'Complete' : undefined}
                     >
                         {hasImplementation ? (
-                            <ImplementationDetails 
-                                branch={implementedSpec?.implementation_branch ?? ''} 
+                            <ImplementationDetails
+                                branch={implementedSpec?.implementation_branch ?? ''}
                                 tasksCompleted={completedTasks}
                             />
                         ) : inProgressTasks === 0 ? (
                             <EmptyState text="Ready to run" hint="ckrv run" />
                         ) : (
-                            <div 
-                                className="flex items-center gap-2 text-sm"
-                                style={{ color: 'var(--accent-purple)' }}
-                            >
+                            <div className="flex items-center gap-2 text-sm text-accent-purple">
                                 <Loader2 size={14} className="animate-spin" />
                                 <span>{inProgressTasks} running</span>
                             </div>
@@ -171,7 +154,7 @@ export const WorkflowPanel: React.FC = () => {
 
                     {/* Arrow */}
                     <div className="flex items-center">
-                        <ArrowRight size={16} style={{ color: 'var(--text-muted)' }} />
+                        <ArrowRight size={16} className="text-muted-foreground" />
                     </div>
 
                     {/* Review Stage */}
@@ -190,8 +173,8 @@ export const WorkflowPanel: React.FC = () => {
                         )}
                     </PipelineStage>
                 </div>
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 };
 
@@ -206,8 +189,8 @@ interface PipelineStageProps {
     children: React.ReactNode;
 }
 
-const PipelineStage: React.FC<PipelineStageProps> = ({ 
-    icon, title, count, status, color, loading, subtitle, children 
+const PipelineStage: React.FC<PipelineStageProps> = ({
+    icon, title, count, status, color, loading, subtitle, children
 }) => {
     const colorMap = {
         cyan: 'var(--accent-cyan)',
@@ -227,11 +210,10 @@ const PipelineStage: React.FC<PipelineStageProps> = ({
     const dimColor = dimColorMap[color];
 
     return (
-        <div 
-            className="flex-1 rounded-lg p-3"
-            style={{ 
-                background: 'var(--bg-tertiary)',
-                border: status === 'running' ? `1px solid ${accentColor}` : '1px solid var(--border-subtle)',
+        <Card
+            className="flex-1 p-3"
+            style={{
+                borderColor: status === 'running' ? accentColor : undefined,
                 boxShadow: status === 'running' ? `0 0 20px ${dimColor}` : 'none',
                 minWidth: '180px',
             }}
@@ -239,9 +221,9 @@ const PipelineStage: React.FC<PipelineStageProps> = ({
             {/* Stage Header */}
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                    <div 
+                    <div
                         className="p-1.5 rounded"
-                        style={{ 
+                        style={{
                             background: dimColor,
                             color: accentColor
                         }}
@@ -249,23 +231,17 @@ const PipelineStage: React.FC<PipelineStageProps> = ({
                         {icon}
                     </div>
                     <div>
-                        <div 
-                            className="text-sm font-medium"
-                            style={{ color: 'var(--text-primary)' }}
-                        >
+                        <div className="text-sm font-medium text-foreground">
                             {title}
                         </div>
                         {subtitle && (
-                            <div 
-                                className="text-xs"
-                                style={{ color: 'var(--text-muted)' }}
-                            >
+                            <div className="text-xs text-muted-foreground">
                                 {subtitle}
                             </div>
                         )}
                     </div>
                 </div>
-                <div 
+                <div
                     className="text-lg font-mono font-bold"
                     style={{ color: count > 0 ? accentColor : 'var(--text-muted)' }}
                 >
@@ -274,48 +250,33 @@ const PipelineStage: React.FC<PipelineStageProps> = ({
             </div>
 
             {/* Stage Content */}
-            <div className="min-h-[80px] max-h-[140px] overflow-y-auto custom-scrollbar">
+            <ScrollArea className="h-[100px]">
                 {children}
-            </div>
-        </div>
+            </ScrollArea>
+        </Card>
     );
 };
 
 const SpecItem: React.FC<{ spec: Spec }> = ({ spec }) => {
-    // Determine status: implemented > has_tasks > pending
-    const getStatusColor = () => {
-        if (spec.has_implementation) return 'var(--accent-cyan)';
-        if (spec.has_tasks) return 'var(--accent-green)';
-        return 'var(--accent-amber)';
-    };
-
     return (
-        <div 
-            className="flex items-center gap-2 text-xs py-1.5 px-2 rounded"
-            style={{ background: 'var(--bg-surface)' }}
-        >
-            <div 
+        <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
+            <div
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ background: getStatusColor() }}
+                style={{
+                    background: spec.has_implementation
+                        ? 'var(--accent-cyan)'
+                        : spec.has_tasks
+                            ? 'var(--accent-green)'
+                            : 'var(--accent-amber)'
+                }}
             />
-            <span 
-                className="font-mono truncate flex-1"
-                style={{ color: 'var(--text-secondary)' }}
-            >
+            <span className="font-mono truncate flex-1 text-secondary-foreground">
                 {spec.name}
             </span>
             {spec.has_implementation ? (
-                <span 
-                    className="text-[10px] px-1 rounded"
-                    style={{ 
-                        background: 'var(--accent-cyan-dim)', 
-                        color: 'var(--accent-cyan)' 
-                    }}
-                >
-                    merged
-                </span>
+                <Badge variant="default" className="text-[10px] h-4 px-1">merged</Badge>
             ) : spec.has_tasks ? (
-                <CheckCircle2 size={12} style={{ color: 'var(--accent-green)' }} />
+                <CheckCircle2 size={12} className="text-accent-green" />
             ) : null}
         </div>
     );
@@ -325,32 +286,25 @@ const TaskItem: React.FC<{ task: Task }> = ({ task }) => {
     const getStatusIcon = () => {
         switch (task.status) {
             case 'completed':
-                return <CheckCircle2 size={12} style={{ color: 'var(--accent-green)' }} />;
+                return <CheckCircle2 size={12} className="text-accent-green" />;
             case 'in_progress':
-                return <Loader2 size={12} className="animate-spin" style={{ color: 'var(--accent-cyan)' }} />;
+                return <Loader2 size={12} className="animate-spin text-accent-cyan" />;
             default:
-                return <Circle size={12} style={{ color: 'var(--text-muted)' }} />;
+                return <Circle size={12} className="text-muted-foreground" />;
         }
     };
 
     return (
-        <div 
-            className="flex items-center gap-2 text-xs py-1.5 px-2 rounded"
-            style={{ background: 'var(--bg-surface)' }}
-        >
+        <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
             {getStatusIcon()}
-            <span 
-                className="font-mono"
-                style={{ color: 'var(--text-muted)' }}
-            >
+            <span className="font-mono text-muted-foreground">
                 {task.id}
             </span>
-            <span 
-                className="truncate flex-1"
-                style={{ 
-                    color: task.status === 'completed' ? 'var(--text-muted)' : 'var(--text-secondary)',
-                    textDecoration: task.status === 'completed' ? 'line-through' : 'none'
-                }}
+            <span
+                className={`truncate flex-1 ${task.status === 'completed'
+                    ? 'text-muted-foreground line-through'
+                    : 'text-secondary-foreground'
+                    }`}
             >
                 {task.title}
             </span>
@@ -360,19 +314,10 @@ const TaskItem: React.FC<{ task: Task }> = ({ task }) => {
 
 const EmptyState: React.FC<{ text: string; hint: string }> = ({ text, hint }) => (
     <div className="text-center py-2">
-        <div 
-            className="text-xs mb-1"
-            style={{ color: 'var(--text-muted)' }}
-        >
+        <div className="text-xs mb-1 text-muted-foreground">
             {text}
         </div>
-        <code 
-            className="text-xs font-mono px-1.5 py-0.5 rounded"
-            style={{ 
-                background: 'var(--bg-surface)',
-                color: 'var(--text-muted)'
-            }}
-        >
+        <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
             {hint}
         </code>
     </div>
@@ -386,47 +331,32 @@ interface ImplementationDetailsProps {
 const ImplementationDetails: React.FC<ImplementationDetailsProps> = ({ branch, tasksCompleted }) => (
     <div className="space-y-2">
         {/* Success indicator */}
-        <div 
-            className="flex items-center gap-2 text-xs py-1.5 px-2 rounded"
-            style={{ background: 'var(--accent-green-dim)' }}
-        >
-            <CheckCheck size={14} style={{ color: 'var(--accent-green)' }} />
-            <span style={{ color: 'var(--accent-green)' }}>
-                All code merged
-            </span>
-        </div>
-        
+        <Badge variant="success" className="flex items-center gap-2 w-full justify-center">
+            <CheckCheck size={14} />
+            All code merged
+        </Badge>
+
         {/* Branch info */}
-        <div 
-            className="flex items-center gap-2 text-xs py-1.5 px-2 rounded"
-            style={{ background: 'var(--bg-surface)' }}
-        >
-            <GitBranch size={12} style={{ color: 'var(--accent-cyan)' }} />
-            <span 
-                className="font-mono truncate"
-                style={{ color: 'var(--text-secondary)' }}
+        <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
+            <GitBranch size={12} className="text-accent-cyan" />
+            <span
+                className="font-mono truncate text-secondary-foreground"
                 title={branch}
             >
                 {branch}
             </span>
         </div>
-        
+
         {/* Tasks count */}
-        <div 
-            className="flex items-center gap-2 text-xs py-1.5 px-2 rounded"
-            style={{ background: 'var(--bg-surface)' }}
-        >
-            <CheckCircle2 size={12} style={{ color: 'var(--accent-green)' }} />
-            <span style={{ color: 'var(--text-secondary)' }}>
+        <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
+            <CheckCircle2 size={12} className="text-accent-green" />
+            <span className="text-secondary-foreground">
                 {tasksCompleted} tasks completed
             </span>
         </div>
-        
+
         {/* Ready for review hint */}
-        <div 
-            className="text-[10px] text-center pt-1"
-            style={{ color: 'var(--text-muted)' }}
-        >
+        <div className="text-[10px] text-center pt-1 text-muted-foreground">
             Ready for code review
         </div>
     </div>
@@ -435,63 +365,35 @@ const ImplementationDetails: React.FC<ImplementationDetailsProps> = ({ branch, t
 const ReviewSteps: React.FC = () => (
     <div className="space-y-2">
         {/* Diff */}
-        <div 
-            className="flex items-center gap-2 text-xs py-1.5 px-2 rounded"
-            style={{ background: 'var(--bg-surface)' }}
-        >
-            <GitCompare size={12} style={{ color: 'var(--accent-cyan)' }} />
-            <span style={{ color: 'var(--text-secondary)' }}>
-                View Diff
-            </span>
-            <code 
-                className="ml-auto text-[10px] font-mono"
-                style={{ color: 'var(--text-muted)' }}
-            >
+        <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
+            <GitCompare size={12} className="text-accent-cyan" />
+            <span className="text-secondary-foreground">View Diff</span>
+            <code className="ml-auto text-[10px] font-mono text-muted-foreground">
                 ckrv diff
             </code>
         </div>
-        
+
         {/* Verify */}
-        <div 
-            className="flex items-center gap-2 text-xs py-1.5 px-2 rounded"
-            style={{ background: 'var(--bg-surface)' }}
-        >
-            <ShieldCheck size={12} style={{ color: 'var(--accent-amber)' }} />
-            <span style={{ color: 'var(--text-secondary)' }}>
-                Verify
-            </span>
-            <code 
-                className="ml-auto text-[10px] font-mono"
-                style={{ color: 'var(--text-muted)' }}
-            >
+        <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
+            <ShieldCheck size={12} className="text-accent-amber" />
+            <span className="text-secondary-foreground">Verify</span>
+            <code className="ml-auto text-[10px] font-mono text-muted-foreground">
                 ckrv verify
             </code>
         </div>
-        
+
         {/* Promote */}
-        <div 
-            className="flex items-center gap-2 text-xs py-1.5 px-2 rounded"
-            style={{ background: 'var(--bg-surface)' }}
-        >
-            <GitPullRequest size={12} style={{ color: 'var(--accent-green)' }} />
-            <span style={{ color: 'var(--text-secondary)' }}>
-                Create PR
-            </span>
-            <code 
-                className="ml-auto text-[10px] font-mono"
-                style={{ color: 'var(--text-muted)' }}
-            >
+        <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
+            <GitPullRequest size={12} className="text-accent-green" />
+            <span className="text-secondary-foreground">Create PR</span>
+            <code className="ml-auto text-[10px] font-mono text-muted-foreground">
                 ckrv promote
             </code>
         </div>
-        
+
         {/* Hint */}
-        <div 
-            className="text-[10px] text-center pt-1"
-            style={{ color: 'var(--text-muted)' }}
-        >
+        <div className="text-[10px] text-center pt-1 text-muted-foreground">
             Use commands panel →
         </div>
     </div>
 );
-

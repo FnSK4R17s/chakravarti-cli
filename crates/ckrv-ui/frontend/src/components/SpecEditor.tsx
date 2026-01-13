@@ -5,6 +5,13 @@ import {
     Code, LayoutGrid, List, AlertCircle, CheckCircle2, Circle,
     FileText, ArrowLeft, Save, Loader2, RotateCcw
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 // Types matching backend
 interface UserStoryAcceptance {
@@ -70,7 +77,7 @@ const saveSpec = async (name: string, spec: SpecDetail): Promise<{ success: bool
     return res.json();
 };
 
-// Collapsible Section Component
+// Collapsible Section Component using shadcn Collapsible
 const Section: React.FC<{
     title: string;
     count?: number;
@@ -80,29 +87,34 @@ const Section: React.FC<{
 }> = ({ title, count, children, defaultOpen = true, color = 'slate' }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
     const colorClasses = {
-        slate: 'border-gray-600 bg-gray-800/50',
-        blue: 'border-blue-600 bg-blue-900/30',
-        green: 'border-green-600 bg-green-900/30',
-        amber: 'border-amber-600 bg-amber-900/30',
-        purple: 'border-purple-600 bg-purple-900/30'
+        slate: 'border-border bg-muted/50',
+        blue: 'border-accent-cyan bg-accent-cyan-dim',
+        green: 'border-accent-green bg-accent-green-dim',
+        amber: 'border-accent-amber bg-accent-amber-dim',
+        purple: 'border-accent-purple bg-accent-purple-dim'
     };
 
     return (
-        <div className={`border rounded-lg mb-3 ${colorClasses[color]}`}>
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full px-4 py-3 flex items-center justify-between text-left font-medium text-gray-200 hover:bg-white/5 transition-colors rounded-t-lg"
-            >
-                <div className="flex items-center gap-2">
-                    {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    <span>{title}</span>
-                    {count !== undefined && (
-                        <span className="text-xs bg-gray-700 px-2 py-0.5 rounded-full text-gray-300">{count}</span>
-                    )}
-                </div>
-            </button>
-            {isOpen && <div className="px-4 pb-4 bg-gray-900/50 rounded-b-lg border-t border-gray-700">{children}</div>}
-        </div>
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+            <Card className={`mb-3 ${colorClasses[color]}`}>
+                <CollapsibleTrigger asChild>
+                    <button className="w-full px-4 py-3 flex items-center justify-between text-left font-medium text-foreground hover:bg-accent/50 transition-colors rounded-t-lg">
+                        <div className="flex items-center gap-2">
+                            {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                            <span>{title}</span>
+                            {count !== undefined && (
+                                <Badge variant="secondary" className="text-xs">{count}</Badge>
+                            )}
+                        </div>
+                    </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                    <CardContent className="pt-0 border-t border-border bg-background/50 rounded-b-lg">
+                        {children}
+                    </CardContent>
+                </CollapsibleContent>
+            </Card>
+        </Collapsible>
     );
 };
 
@@ -132,22 +144,26 @@ const EditableText: React.FC<{
         return (
             <div className="flex gap-2 items-start">
                 {multiline ? (
-                    <textarea
+                    <Textarea
                         value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        className="flex-1 p-2 border rounded text-sm min-h-[80px] bg-gray-800 border-gray-600 text-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditValue(e.target.value)}
+                        className="flex-1 min-h-[80px]"
                         autoFocus
                     />
                 ) : (
-                    <input
+                    <Input
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
-                        className="flex-1 p-2 border rounded text-sm bg-gray-800 border-gray-600 text-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+                        className="flex-1"
                         autoFocus
                     />
                 )}
-                <button onClick={save} className="p-1.5 text-green-400 hover:bg-green-900/50 rounded"><Check size={16} /></button>
-                <button onClick={cancel} className="p-1.5 text-red-400 hover:bg-red-900/50 rounded"><X size={16} /></button>
+                <Button variant="ghost" size="icon" onClick={save} className="h-8 w-8 text-accent-green">
+                    <Check size={16} />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={cancel} className="h-8 w-8 text-destructive">
+                    <X size={16} />
+                </Button>
             </div>
         );
     }
@@ -155,29 +171,29 @@ const EditableText: React.FC<{
     return (
         <div
             onClick={() => setIsEditing(true)}
-            className={`cursor-pointer hover:bg-gray-800 p-2 rounded border border-transparent hover:border-gray-600 transition-all group ${className}`}
+            className={`cursor-pointer hover:bg-accent p-2 rounded border border-transparent hover:border-border transition-all group ${className}`}
         >
-            <span className="text-sm text-gray-300 whitespace-pre-wrap">{value}</span>
-            <Edit3 size={14} className="inline ml-2 text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="text-sm text-secondary-foreground whitespace-pre-wrap">{value}</span>
+            <Edit3 size={14} className="inline ml-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
     );
 };
 
-// Priority Badge
+// Priority Badge using shadcn Badge
 const PriorityBadge: React.FC<{ priority: string }> = ({ priority }) => {
-    const colors: Record<string, string> = {
-        P1: 'bg-red-900/50 text-red-300 border-red-700',
-        P2: 'bg-amber-900/50 text-amber-300 border-amber-700',
-        P3: 'bg-green-900/50 text-green-300 border-green-700'
+    const variants: Record<string, "destructive" | "warning" | "success"> = {
+        P1: 'destructive',
+        P2: 'warning',
+        P3: 'success'
     };
     return (
-        <span className={`text-xs font-medium px-2 py-0.5 rounded border ${colors[priority] || colors.P3}`}>
+        <Badge variant={variants[priority] || 'secondary'}>
             {priority}
-        </span>
+        </Badge>
     );
 };
 
-// User Story Card
+// User Story Card using shadcn Card
 const UserStoryCard: React.FC<{
     story: UserStory;
     onUpdate: (story: UserStory) => void;
@@ -185,25 +201,27 @@ const UserStoryCard: React.FC<{
     const [expanded, setExpanded] = useState(false);
 
     return (
-        <div className="border border-gray-700 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors">
-            <div className="p-4">
+        <Card className="hover:bg-accent/50 transition-colors">
+            <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-gray-500">{story.id}</span>
+                        <span className="text-xs font-mono text-muted-foreground">{story.id}</span>
                         <PriorityBadge priority={story.priority} />
                     </div>
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
                         onClick={() => setExpanded(!expanded)}
-                        className="text-gray-500 hover:text-gray-300"
                     >
                         {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                    </button>
+                    </Button>
                 </div>
-                <h4 className="font-medium text-gray-200 mt-2">{story.title}</h4>
+                <h4 className="font-medium text-foreground mt-2">{story.title}</h4>
                 {expanded && (
-                    <div className="mt-3 pt-3 border-t border-gray-700 space-y-3">
+                    <div className="mt-3 pt-3 border-t border-border space-y-3">
                         <div>
-                            <label className="text-xs text-gray-500 uppercase tracking-wide">Description</label>
+                            <label className="text-xs text-muted-foreground uppercase tracking-wide">Description</label>
                             <EditableText
                                 value={story.description}
                                 onChange={(v) => onUpdate({ ...story, description: v })}
@@ -212,20 +230,20 @@ const UserStoryCard: React.FC<{
                         </div>
                         {story.acceptance && story.acceptance.length > 0 && (
                             <div>
-                                <label className="text-xs text-gray-500 uppercase tracking-wide">Acceptance Criteria</label>
+                                <label className="text-xs text-muted-foreground uppercase tracking-wide">Acceptance Criteria</label>
                                 {story.acceptance.map((ac, i) => (
-                                    <div key={i} className="ml-2 mt-2 text-sm text-gray-400 space-y-1">
-                                        <div><span className="text-purple-400">Given:</span> {ac.given}</div>
-                                        <div><span className="text-cyan-400">When:</span> {ac.when}</div>
-                                        <div><span className="text-green-400">Then:</span> {ac.then}</div>
+                                    <div key={i} className="ml-2 mt-2 text-sm text-muted-foreground space-y-1">
+                                        <div><span className="text-accent-purple">Given:</span> {ac.given}</div>
+                                        <div><span className="text-accent-cyan">When:</span> {ac.when}</div>
+                                        <div><span className="text-accent-green">Then:</span> {ac.then}</div>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
                 )}
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 };
 
@@ -237,14 +255,16 @@ const ListItem: React.FC<{
     icon?: React.ElementType;
 }> = ({ value, onUpdate, onDelete, icon: Icon = Circle }) => (
     <div className="flex items-start gap-2 group py-1">
-        <Icon size={16} className="text-gray-500 mt-1.5 flex-shrink-0" />
+        <Icon size={16} className="text-muted-foreground mt-1.5 flex-shrink-0" />
         <EditableText value={value} onChange={onUpdate} className="flex-1" />
-        <button
+        <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
             onClick={onDelete}
-            className="p-1 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
         >
             <Trash2 size={14} />
-        </button>
+        </Button>
     </div>
 );
 
@@ -253,8 +273,8 @@ const RequirementRow: React.FC<{
     req: Requirement;
     onUpdate: (req: Requirement) => void;
 }> = ({ req, onUpdate }) => (
-    <div className="flex items-start gap-3 py-2 border-b border-gray-700 last:border-0">
-        <span className="font-mono text-xs text-cyan-400 bg-cyan-900/30 px-2 py-1 rounded flex-shrink-0">{req.id}</span>
+    <div className="flex items-start gap-3 py-2 border-b border-border last:border-0">
+        <Badge variant="info" className="font-mono text-xs flex-shrink-0">{req.id}</Badge>
         <EditableText
             value={req.description}
             onChange={(v) => onUpdate({ ...req, description: v })}
@@ -263,53 +283,50 @@ const RequirementRow: React.FC<{
     </div>
 );
 
-// View Mode Toggle
+// View Mode Toggle using shadcn Tabs
 const ViewToggle: React.FC<{
     view: string;
     setView: (v: string) => void;
 }> = ({ view, setView }) => (
-    <div className="flex bg-gray-800 rounded-lg p-1 gap-1">
-        {[
-            { id: 'visual', icon: LayoutGrid, label: 'Visual' },
-            { id: 'outline', icon: List, label: 'Outline' },
-            { id: 'code', icon: Code, label: 'YAML' }
-        ].map(({ id, icon: Icon, label }) => (
-            <button
-                key={id}
-                onClick={() => setView(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-all ${view === id
-                    ? 'bg-gray-700 text-white shadow-sm'
-                    : 'text-gray-400 hover:text-gray-200'
-                    }`}
-            >
-                <Icon size={16} />
-                {label}
-            </button>
-        ))}
-    </div>
+    <Tabs value={view} onValueChange={setView}>
+        <TabsList>
+            <TabsTrigger value="visual" className="gap-1.5">
+                <LayoutGrid size={16} />
+                Visual
+            </TabsTrigger>
+            <TabsTrigger value="outline" className="gap-1.5">
+                <List size={16} />
+                Outline
+            </TabsTrigger>
+            <TabsTrigger value="code" className="gap-1.5">
+                <Code size={16} />
+                YAML
+            </TabsTrigger>
+        </TabsList>
+    </Tabs>
 );
 
 // Outline View
 const OutlineView: React.FC<{ spec: SpecDetail }> = ({ spec }) => (
     <div className="font-mono text-sm space-y-1">
-        <div className="text-gray-500">spec:</div>
+        <div className="text-muted-foreground">spec:</div>
         <div className="pl-4">
-            <div><span className="text-purple-400">id:</span> <span className="text-gray-300">{spec.id}</span></div>
-            <div><span className="text-purple-400">goal:</span> <span className="text-gray-400 truncate inline-block max-w-md">{spec.goal.slice(0, 80)}...</span></div>
+            <div><span className="text-accent-purple">id:</span> <span className="text-foreground">{spec.id}</span></div>
+            <div><span className="text-accent-purple">goal:</span> <span className="text-muted-foreground truncate inline-block max-w-md">{spec.goal.slice(0, 80)}...</span></div>
             <div className="mt-2">
-                <span className="text-purple-400">constraints:</span> <span className="text-gray-500">({spec.constraints.length})</span>
+                <span className="text-accent-purple">constraints:</span> <span className="text-muted-foreground">({spec.constraints.length})</span>
             </div>
             <div className="mt-2">
-                <span className="text-purple-400">acceptance:</span> <span className="text-gray-500">({spec.acceptance.length})</span>
+                <span className="text-accent-purple">acceptance:</span> <span className="text-muted-foreground">({spec.acceptance.length})</span>
             </div>
             <div className="mt-2">
-                <span className="text-purple-400">user_stories:</span> <span className="text-gray-500">({spec.user_stories.length})</span>
+                <span className="text-accent-purple">user_stories:</span> <span className="text-muted-foreground">({spec.user_stories.length})</span>
                 {spec.user_stories.map(s => (
-                    <div key={s.id} className="pl-4 text-gray-400">- {s.id}: {s.title}</div>
+                    <div key={s.id} className="pl-4 text-muted-foreground">- {s.id}: {s.title}</div>
                 ))}
             </div>
             <div className="mt-2">
-                <span className="text-purple-400">requirements:</span> <span className="text-gray-500">({spec.requirements.length})</span>
+                <span className="text-accent-purple">requirements:</span> <span className="text-muted-foreground">({spec.requirements.length})</span>
             </div>
         </div>
     </div>
@@ -317,12 +334,12 @@ const OutlineView: React.FC<{ spec: SpecDetail }> = ({ spec }) => (
 
 // YAML View
 const YamlView: React.FC<{ rawYaml?: string }> = ({ rawYaml }) => (
-    <pre className="font-mono text-sm bg-gray-900 text-gray-100 p-4 rounded-lg overflow-auto max-h-[60vh]">
+    <pre className="font-mono text-sm bg-muted text-foreground p-4 rounded-lg overflow-auto max-h-[60vh]">
         <code>{rawYaml || '# No YAML content'}</code>
     </pre>
 );
 
-// Spec List View (when no spec is selected)
+// Spec List View using shadcn Card
 const SpecListView: React.FC<{
     specs: SpecListItem[];
     onSelect: (name: string) => void;
@@ -331,17 +348,17 @@ const SpecListView: React.FC<{
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin text-gray-500" size={24} />
+                <Loader2 className="animate-spin text-muted-foreground" size={24} />
             </div>
         );
     }
 
     if (specs.length === 0) {
         return (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
                 <FileText size={48} className="mx-auto mb-4 opacity-50" />
                 <p>No specifications found</p>
-                <p className="text-sm mt-2">Run <code className="bg-gray-800 px-2 py-0.5 rounded">ckrv spec new</code> to create one</p>
+                <p className="text-sm mt-2">Run <code className="bg-muted px-2 py-0.5 rounded">ckrv spec new</code> to create one</p>
             </div>
         );
     }
@@ -349,31 +366,33 @@ const SpecListView: React.FC<{
     return (
         <div className="space-y-2">
             {specs.map((spec) => (
-                <button
+                <Card
                     key={spec.name}
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
                     onClick={() => onSelect(spec.name)}
-                    className="w-full text-left p-4 bg-gray-800/50 hover:bg-gray-800 rounded-lg border border-gray-700 transition-colors"
                 >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <FileText size={20} className="text-cyan-400" />
-                            <div>
-                                <h3 className="font-medium text-gray-200">{spec.name}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                    {spec.has_tasks && (
-                                        <span className="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded">has tasks</span>
-                                    )}
-                                    {spec.has_implementation && (
-                                        <span className="text-xs bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded">
-                                            implemented: {spec.implementation_branch}
-                                        </span>
-                                    )}
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <FileText size={20} className="text-primary" />
+                                <div>
+                                    <h3 className="font-medium text-foreground">{spec.name}</h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        {spec.has_tasks && (
+                                            <Badge variant="success">has tasks</Badge>
+                                        )}
+                                        {spec.has_implementation && (
+                                            <Badge variant="info">
+                                                implemented: {spec.implementation_branch}
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
+                            <ChevronRight size={20} className="text-muted-foreground" />
                         </div>
-                        <ChevronRight size={20} className="text-gray-500" />
-                    </div>
-                </button>
+                    </CardContent>
+                </Card>
             ))}
         </div>
     );
@@ -465,8 +484,8 @@ export const SpecEditor: React.FC = () => {
         return (
             <div className="h-full overflow-auto p-4">
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-100">Specifications</h1>
-                    <p className="text-gray-500 mt-1">Select a spec to view and edit</p>
+                    <h1 className="text-2xl font-bold text-foreground">Specifications</h1>
+                    <p className="text-muted-foreground mt-1">Select a spec to view and edit</p>
                 </div>
                 <SpecListView
                     specs={specsData?.specs || []}
@@ -480,7 +499,7 @@ export const SpecEditor: React.FC = () => {
     if (isLoadingDetail || !spec) {
         return (
             <div className="flex items-center justify-center h-full">
-                <Loader2 className="animate-spin text-gray-500" size={32} />
+                <Loader2 className="animate-spin text-muted-foreground" size={32} />
             </div>
         );
     }
@@ -488,55 +507,49 @@ export const SpecEditor: React.FC = () => {
     return (
         <div className="h-full flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="shrink-0 px-4 py-3 border-b border-gray-700 flex items-center justify-between bg-gray-900/50">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => setSelectedSpecName(null)}
-                        className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-                    >
-                        <ArrowLeft size={20} className="text-gray-400" />
-                    </button>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm bg-gray-800 px-2 py-0.5 rounded text-gray-400">{spec.id}</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <ViewToggle view={view} setView={(v) => setView(v as typeof view)} />
-                    {hasChanges && (
-                        <button
-                            onClick={() => {
-                                if (specDetailData?.spec) {
-                                    setSpec(specDetailData.spec);
-                                    setRawYaml(specDetailData.raw_yaml);
-                                    setHasChanges(false);
-                                }
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-gray-700 hover:bg-gray-600 text-gray-200"
-                            title="Discard all changes"
+            <Card className="shrink-0 rounded-none border-x-0 border-t-0">
+                <CardContent className="px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedSpecName(null)}
                         >
-                            <RotateCcw size={16} />
-                            Discard
-                        </button>
-                    )}
-                    <button
-                        onClick={() => saveMutation.mutate()}
-                        disabled={!hasChanges || saveMutation.isPending}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${hasChanges
-                            ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                            : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                            }`}
-                    >
-                        {saveMutation.isPending ? (
-                            <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                            <Save size={16} />
+                            <ArrowLeft size={20} />
+                        </Button>
+                        <Badge variant="secondary" className="font-mono">{spec.id}</Badge>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <ViewToggle view={view} setView={(v) => setView(v as typeof view)} />
+                        {hasChanges && (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    if (specDetailData?.spec) {
+                                        setSpec(specDetailData.spec);
+                                        setRawYaml(specDetailData.raw_yaml);
+                                        setHasChanges(false);
+                                    }
+                                }}
+                            >
+                                <RotateCcw size={16} className="mr-2" />
+                                Discard
+                            </Button>
                         )}
-                        Save
-                    </button>
-                </div>
-            </div>
+                        <Button
+                            onClick={() => saveMutation.mutate()}
+                            disabled={!hasChanges || saveMutation.isPending}
+                        >
+                            {saveMutation.isPending ? (
+                                <Loader2 size={16} className="mr-2 animate-spin" />
+                            ) : (
+                                <Save size={16} className="mr-2" />
+                            )}
+                            Save
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Content */}
             <div className="flex-1 overflow-auto p-4">
@@ -563,12 +576,14 @@ export const SpecEditor: React.FC = () => {
                                         icon={AlertCircle}
                                     />
                                 ))}
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => updateSpec({ constraints: [...spec.constraints, 'New constraint'] })}
-                                    className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-300 mt-2 py-1"
+                                    className="mt-2"
                                 >
-                                    <Plus size={16} /> Add constraint
-                                </button>
+                                    <Plus size={16} className="mr-2" /> Add constraint
+                                </Button>
                             </div>
                         </Section>
 
@@ -584,12 +599,14 @@ export const SpecEditor: React.FC = () => {
                                         icon={CheckCircle2}
                                     />
                                 ))}
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => updateSpec({ acceptance: [...spec.acceptance, 'New acceptance criterion'] })}
-                                    className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-300 mt-2 py-1"
+                                    className="mt-2"
                                 >
-                                    <Plus size={16} /> Add criterion
-                                </button>
+                                    <Plus size={16} className="mr-2" /> Add criterion
+                                </Button>
                             </div>
                         </Section>
 
@@ -624,7 +641,7 @@ export const SpecEditor: React.FC = () => {
                             <Section title="Assumptions" count={spec.assumptions.length} color="slate">
                                 <div className="space-y-1 mt-2">
                                     {spec.assumptions.map((a, i) => (
-                                        <div key={i} className="flex items-start gap-2 py-1 text-sm text-gray-400">
+                                        <div key={i} className="flex items-start gap-2 py-1 text-sm text-muted-foreground">
                                             <Circle size={8} className="mt-2 flex-shrink-0" />
                                             {a}
                                         </div>
@@ -636,31 +653,35 @@ export const SpecEditor: React.FC = () => {
                 )}
 
                 {view === 'outline' && (
-                    <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
-                        <OutlineView spec={spec} />
-                    </div>
+                    <Card>
+                        <CardContent className="p-6">
+                            <OutlineView spec={spec} />
+                        </CardContent>
+                    </Card>
                 )}
 
                 {view === 'code' && (
-                    <div className="rounded-lg overflow-hidden border border-gray-700">
-                        <div className="bg-gray-800 px-4 py-2 flex items-center justify-between border-b border-gray-700">
-                            <span className="text-gray-400 text-sm">spec.yaml</span>
-                            <button className="text-xs text-gray-400 hover:text-white">Copy</button>
-                        </div>
-                        <YamlView rawYaml={rawYaml} />
-                    </div>
+                    <Card>
+                        <CardHeader className="py-2 px-4 flex flex-row items-center justify-between border-b border-border">
+                            <CardTitle className="text-sm">spec.yaml</CardTitle>
+                            <Button variant="ghost" size="sm">Copy</Button>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <YamlView rawYaml={rawYaml} />
+                        </CardContent>
+                    </Card>
                 )}
             </div>
 
             {/* Status Bar */}
-            <div className="shrink-0 px-4 py-2 border-t border-gray-700 flex items-center justify-between text-sm text-gray-500 bg-gray-900/50">
+            <div className="shrink-0 px-4 py-2 border-t border-border flex items-center justify-between text-sm text-muted-foreground bg-muted/50">
                 <div className="flex items-center gap-4">
                     <span>{spec.user_stories.length} stories</span>
                     <span>{spec.requirements.length} requirements</span>
                     <span>{spec.constraints.length} constraints</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${hasChanges ? 'bg-amber-500' : 'bg-green-500'}`}></span>
+                    <span className={`w-2 h-2 rounded-full ${hasChanges ? 'bg-accent-amber' : 'bg-accent-green'}`}></span>
                     <span>{hasChanges ? 'Unsaved changes' : 'All changes saved'}</span>
                 </div>
             </div>
