@@ -16,11 +16,11 @@ const badgeVariants = cva(
           "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
         outline: "text-foreground",
         success:
-          "border-transparent bg-[var(--accent-green-dim)] text-[var(--accent-green)]",
+          "border-transparent bg-accent-green-dim text-accent-green",
         warning:
-          "border-transparent bg-[var(--accent-amber-dim)] text-[var(--accent-amber)]",
+          "border-transparent bg-accent-amber-dim text-accent-amber",
         info:
-          "border-transparent bg-[var(--accent-purple-dim)] text-[var(--accent-purple)]",
+          "border-transparent bg-accent-purple-dim text-accent-purple",
       },
     },
     defaultVariants: {

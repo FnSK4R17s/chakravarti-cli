@@ -175,7 +175,7 @@ const TaskCard: React.FC<{
                 <h4 className="font-medium text-foreground mt-2 text-sm">{task.title}</h4>
 
                 {task.file && (
-                    <code className="text-xs text-[var(--accent-cyan)] bg-[var(--accent-cyan-dim)] px-2 py-0.5 rounded mt-2 inline-block">
+                    <code className="text-xs text-accent-cyan bg-accent-cyan-dim px-2 py-0.5 rounded mt-2 inline-block">
                         {task.file}
                     </code>
                 )}
@@ -232,15 +232,15 @@ const PhaseGroup: React.FC<{
     const totalTokens = tasks.reduce((sum, t) => sum + t.estimated_tokens, 0);
 
     const phaseColors: Record<string, string> = {
-        'Setup': 'border-l-[var(--accent-green)] bg-[var(--accent-green-dim)]',
-        'Foundation': 'border-l-[var(--accent-cyan)] bg-[var(--accent-cyan-dim)]',
-        'User Story 1': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
-        'User Story 2': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
-        'User Story 3': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
-        'User Story 4': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
-        'User Story 5': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
-        'User Story 6': 'border-l-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
-        'Polish': 'border-l-[var(--accent-amber)] bg-[var(--accent-amber-dim)]',
+        'Setup': 'border-l-accent-green bg-accent-green-dim',
+        'Foundation': 'border-l-accent-cyan bg-accent-cyan-dim',
+        'User Story 1': 'border-l-accent-purple bg-accent-purple-dim',
+        'User Story 2': 'border-l-accent-purple bg-accent-purple-dim',
+        'User Story 3': 'border-l-accent-purple bg-accent-purple-dim',
+        'User Story 4': 'border-l-accent-purple bg-accent-purple-dim',
+        'User Story 5': 'border-l-accent-purple bg-accent-purple-dim',
+        'User Story 6': 'border-l-accent-purple bg-accent-purple-dim',
+        'Polish': 'border-l-accent-amber bg-accent-amber-dim',
     };
 
     return (
@@ -259,7 +259,7 @@ const PhaseGroup: React.FC<{
                             <span>{totalTokens.toLocaleString()} tokens</span>
                             <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-[var(--accent-green)] transition-all"
+                                    className="h-full bg-accent-green transition-all"
                                     style={{ width: `${(completedCount / tasks.length) * 100}%` }}
                                 />
                             </div>
@@ -288,8 +288,8 @@ const PhaseGroup: React.FC<{
 const SummaryStats: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
     const stats = [
         { label: 'Total Tasks', value: tasks.length, color: 'bg-muted-foreground' },
-        { label: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'bg-[var(--accent-green)]' },
-        { label: 'Parallelizable', value: tasks.filter(t => t.parallel).length, color: 'bg-[var(--accent-cyan)]' },
+        { label: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'bg-accent-green' },
+        { label: 'Parallelizable', value: tasks.filter(t => t.parallel).length, color: 'bg-accent-cyan' },
         { label: 'Critical Risk', value: tasks.filter(t => t.risk === 'critical').length, color: 'bg-destructive' }
     ];
 
@@ -446,7 +446,7 @@ const KanbanColumn: React.FC<{
                         <CardContent className="p-3">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="font-mono text-xs text-muted-foreground">{task.id}</span>
-                                {task.parallel && <GitBranch size={12} className="text-[var(--accent-green)]" />}
+                                {task.parallel && <GitBranch size={12} className="text-accent-green" />}
                             </div>
                             <p className="text-sm font-medium text-foreground line-clamp-2">{task.title}</p>
                             <div className="flex items-center gap-2 mt-2">
@@ -760,7 +760,7 @@ export const TaskEditor: React.FC = () => {
                     <span>{tasks.reduce((s, t) => s + t.estimated_tokens, 0).toLocaleString()} tokens</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${hasChanges ? 'bg-[var(--accent-amber)]' : 'bg-[var(--accent-green)]'}`}></span>
+                    <span className={`w-2 h-2 rounded-full ${hasChanges ? 'bg-accent-amber' : 'bg-accent-green'}`}></span>
                     <span>{hasChanges ? 'Unsaved changes' : 'All changes saved'}</span>
                 </div>
             </div>

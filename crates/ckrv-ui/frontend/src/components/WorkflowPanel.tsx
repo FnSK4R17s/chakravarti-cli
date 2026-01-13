@@ -145,7 +145,7 @@ export const WorkflowPanel: React.FC = () => {
                         ) : inProgressTasks === 0 ? (
                             <EmptyState text="Ready to run" hint="ckrv run" />
                         ) : (
-                            <div className="flex items-center gap-2 text-sm text-[var(--accent-purple)]">
+                            <div className="flex items-center gap-2 text-sm text-accent-purple">
                                 <Loader2 size={14} className="animate-spin" />
                                 <span>{inProgressTasks} running</span>
                             </div>
@@ -276,7 +276,7 @@ const SpecItem: React.FC<{ spec: Spec }> = ({ spec }) => {
             {spec.has_implementation ? (
                 <Badge variant="default" className="text-[10px] h-4 px-1">merged</Badge>
             ) : spec.has_tasks ? (
-                <CheckCircle2 size={12} className="text-[var(--accent-green)]" />
+                <CheckCircle2 size={12} className="text-accent-green" />
             ) : null}
         </div>
     );
@@ -286,9 +286,9 @@ const TaskItem: React.FC<{ task: Task }> = ({ task }) => {
     const getStatusIcon = () => {
         switch (task.status) {
             case 'completed':
-                return <CheckCircle2 size={12} className="text-[var(--accent-green)]" />;
+                return <CheckCircle2 size={12} className="text-accent-green" />;
             case 'in_progress':
-                return <Loader2 size={12} className="animate-spin text-[var(--accent-cyan)]" />;
+                return <Loader2 size={12} className="animate-spin text-accent-cyan" />;
             default:
                 return <Circle size={12} className="text-muted-foreground" />;
         }
@@ -338,7 +338,7 @@ const ImplementationDetails: React.FC<ImplementationDetailsProps> = ({ branch, t
 
         {/* Branch info */}
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
-            <GitBranch size={12} className="text-[var(--accent-cyan)]" />
+            <GitBranch size={12} className="text-accent-cyan" />
             <span
                 className="font-mono truncate text-secondary-foreground"
                 title={branch}
@@ -349,7 +349,7 @@ const ImplementationDetails: React.FC<ImplementationDetailsProps> = ({ branch, t
 
         {/* Tasks count */}
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
-            <CheckCircle2 size={12} className="text-[var(--accent-green)]" />
+            <CheckCircle2 size={12} className="text-accent-green" />
             <span className="text-secondary-foreground">
                 {tasksCompleted} tasks completed
             </span>
@@ -366,7 +366,7 @@ const ReviewSteps: React.FC = () => (
     <div className="space-y-2">
         {/* Diff */}
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
-            <GitCompare size={12} className="text-[var(--accent-cyan)]" />
+            <GitCompare size={12} className="text-accent-cyan" />
             <span className="text-secondary-foreground">View Diff</span>
             <code className="ml-auto text-[10px] font-mono text-muted-foreground">
                 ckrv diff
@@ -375,7 +375,7 @@ const ReviewSteps: React.FC = () => (
 
         {/* Verify */}
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
-            <ShieldCheck size={12} className="text-[var(--accent-amber)]" />
+            <ShieldCheck size={12} className="text-accent-amber" />
             <span className="text-secondary-foreground">Verify</span>
             <code className="ml-auto text-[10px] font-mono text-muted-foreground">
                 ckrv verify
@@ -384,7 +384,7 @@ const ReviewSteps: React.FC = () => (
 
         {/* Promote */}
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
-            <GitPullRequest size={12} className="text-[var(--accent-green)]" />
+            <GitPullRequest size={12} className="text-accent-green" />
             <span className="text-secondary-foreground">Create PR</span>
             <code className="ml-auto text-[10px] font-mono text-muted-foreground">
                 ckrv promote

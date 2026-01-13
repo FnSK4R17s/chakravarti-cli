@@ -179,8 +179,8 @@ const StatusRow: React.FC<StatusRowProps> = ({ icon, label, value, status, mono,
                     <span>{label}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {status === 'success' && <CheckCircle2 size={14} className="text-[var(--accent-green)]" />}
-                    {status === 'warning' && <AlertCircle size={14} className="text-[var(--accent-amber)]" />}
+                    {status === 'success' && <CheckCircle2 size={14} className="text-accent-green" />}
+                    {status === 'warning' && <AlertCircle size={14} className="text-accent-amber" />}
                     <span className={`text-sm ${mono ? 'font-mono' : ''} ${status ? '' : 'text-foreground'}`}>
                         {value}
                     </span>

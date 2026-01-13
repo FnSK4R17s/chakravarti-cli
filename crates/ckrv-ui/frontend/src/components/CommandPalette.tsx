@@ -389,8 +389,8 @@ const SpecNewDialog: React.FC<SpecNewDialogProps> = ({ open, onOpenChange, onSub
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-[var(--accent-green-dim)]">
-                            <Sparkles size={20} className="text-[var(--accent-green)]" />
+                        <div className="p-2 rounded-lg bg-accent-green-dim">
+                            <Sparkles size={20} className="text-accent-green" />
                         </div>
                         <div>
                             <DialogTitle>New Specification</DialogTitle>
@@ -471,17 +471,17 @@ const CommandButton: React.FC<CommandButtonProps> = ({
     icon, label, description, command, action, disabled, loading, color
 }) => {
     const colorClasses = {
-        cyan: 'bg-[var(--accent-cyan-dim)] text-[var(--accent-cyan)] hover:border-[var(--accent-cyan)] hover:shadow-[0_0_20px_var(--accent-cyan-dim)]',
-        green: 'bg-[var(--accent-green-dim)] text-[var(--accent-green)] hover:border-[var(--accent-green)] hover:shadow-[0_0_20px_var(--accent-green-dim)]',
-        amber: 'bg-[var(--accent-amber-dim)] text-[var(--accent-amber)] hover:border-[var(--accent-amber)] hover:shadow-[0_0_20px_var(--accent-amber-dim)]',
-        purple: 'bg-[var(--accent-purple-dim)] text-[var(--accent-purple)] hover:border-[var(--accent-purple)] hover:shadow-[0_0_20px_var(--accent-purple-dim)]',
+        cyan: 'bg-accent-cyan-dim text-accent-cyan hover:border-accent-cyan hover:glow-cyan',
+        green: 'bg-accent-green-dim text-accent-green hover:border-accent-green hover:glow-green',
+        amber: 'bg-accent-amber-dim text-accent-amber hover:border-accent-amber hover:glow-amber',
+        purple: 'bg-accent-purple-dim text-accent-purple hover:border-accent-purple hover:glow-purple',
     };
 
     const arrowColors = {
-        cyan: 'text-[var(--accent-cyan)]',
-        green: 'text-[var(--accent-green)]',
-        amber: 'text-[var(--accent-amber)]',
-        purple: 'text-[var(--accent-purple)]',
+        cyan: 'text-accent-cyan',
+        green: 'text-accent-green',
+        amber: 'text-accent-amber',
+        purple: 'text-accent-purple',
     };
 
     return (

@@ -297,9 +297,9 @@ const DagView: React.FC<{ batches: Batch[]; selectedBatch: string | null; onSele
                         {levelBatches.map(batch => {
                             const config = getModelConfig(batch.model_assignment.default, models);
                             const tierColors = {
-                                light: 'border-[var(--accent-cyan)] bg-[var(--accent-cyan-dim)]',
-                                standard: 'border-[var(--accent-purple)] bg-[var(--accent-purple-dim)]',
-                                heavy: 'border-[var(--accent-amber)] bg-[var(--accent-amber-dim)]'
+                                light: 'border-accent-cyan bg-accent-cyan-dim',
+                                standard: 'border-accent-purple bg-accent-purple-dim',
+                                heavy: 'border-accent-amber bg-accent-amber-dim'
                             };
                             return (
                                 <Card
@@ -336,15 +336,15 @@ const DagView: React.FC<{ batches: Batch[]; selectedBatch: string | null; onSele
             <div className="flex items-center gap-4 mt-6 pt-4 border-t border-border">
                 <span className="text-xs text-muted-foreground">Model Tiers:</span>
                 <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-[var(--accent-cyan-dim)] border border-[var(--accent-cyan)]"></span>
+                    <span className="w-3 h-3 rounded bg-accent-cyan-dim border border-accent-cyan"></span>
                     <span className="text-xs text-muted-foreground">Light</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-[var(--accent-purple-dim)] border border-[var(--accent-purple)]"></span>
+                    <span className="w-3 h-3 rounded bg-accent-purple-dim border border-accent-purple"></span>
                     <span className="text-xs text-muted-foreground">Standard</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-[var(--accent-amber-dim)] border border-[var(--accent-amber)]"></span>
+                    <span className="w-3 h-3 rounded bg-accent-amber-dim border border-accent-amber"></span>
                     <span className="text-xs text-muted-foreground">Heavy</span>
                 </div>
             </div>
@@ -552,7 +552,7 @@ export default function PlanEditor() {
                                 <div className="text-2xl font-bold text-foreground">{stats.totalTasks}</div>
                                 <div className="text-xs text-muted-foreground">Total Tasks</div>
                             </div>
-                            <Box className="text-[var(--accent-cyan)]" size={20} />
+                            <Box className="text-accent-cyan" size={20} />
                         </CardContent>
                     </Card>
                     <Card>
@@ -561,7 +561,7 @@ export default function PlanEditor() {
                                 <div className="text-2xl font-bold text-foreground">${stats.totalCost.toFixed(2)}</div>
                                 <div className="text-xs text-muted-foreground">Est. Cost</div>
                             </div>
-                            <DollarSign className="text-[var(--accent-amber)]" size={20} />
+                            <DollarSign className="text-accent-amber" size={20} />
                         </CardContent>
                     </Card>
                     <Card>
@@ -570,7 +570,7 @@ export default function PlanEditor() {
                                 <div className="text-2xl font-bold text-foreground">{stats.heavyTasks}</div>
                                 <div className="text-xs text-muted-foreground">Heavy Model Tasks</div>
                             </div>
-                            <Brain className="text-[var(--accent-purple)]" size={20} />
+                            <Brain className="text-accent-purple" size={20} />
                         </CardContent>
                     </Card>
                 </div>
@@ -629,7 +629,7 @@ export default function PlanEditor() {
                         .map(model => (
                             <div key={model.id} className="flex items-center gap-2 whitespace-nowrap">
                                 <span className="text-muted-foreground">{model.name}:</span>
-                                <span className="text-[var(--accent-amber)]">${(model.cost_per_1k_prompt + model.cost_per_1k_completion).toFixed(4)}/1k</span>
+                                <span className="text-accent-amber">${(model.cost_per_1k_prompt + model.cost_per_1k_completion).toFixed(4)}/1k</span>
                             </div>
                         ))}
                     {configuredModels.size === 0 && <span className="text-muted-foreground italic">No configured models found</span>}
