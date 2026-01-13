@@ -169,7 +169,7 @@ const AgentSelector: React.FC<{
 
     if (agents.length === 0) {
         return (
-            <div className="text-[var(--accent-amber)] text-sm flex items-center gap-2">
+            <div className="text-accent-amber text-sm flex items-center gap-2">
                 <AlertTriangle size={16} />
                 No agents configured. Add one in Agent Manager.
             </div>
@@ -202,7 +202,7 @@ const AgentSelector: React.FC<{
                         <SelectItem key={agent.id} value={agent.id}>
                             <div className="flex items-center justify-between w-full gap-4">
                                 <div className="flex items-center gap-2">
-                                    <Bot size={16} className={agent.is_default ? 'text-[var(--accent-amber)]' : 'text-muted-foreground'} />
+                                    <Bot size={16} className={agent.is_default ? 'text-accent-amber' : 'text-muted-foreground'} />
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <span className="font-medium">{agent.name}</span>
@@ -363,8 +363,8 @@ const EmbeddedTerminal: React.FC<{
                 <div className="flex items-center gap-3">
                     <TerminalIcon size={16} className="text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">Task Execution</span>
-                    <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-[var(--accent-green)]' :
-                        status === 'connecting' ? 'bg-[var(--accent-amber)] animate-pulse' :
+                    <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-accent-green' :
+                        status === 'connecting' ? 'bg-accent-amber animate-pulse' :
                             status === 'error' ? 'bg-destructive' : 'bg-muted-foreground'
                         }`} />
                 </div>
@@ -491,7 +491,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                             {task.file && (
                                 <div className="mb-6">
                                     <h3 className="text-sm font-medium text-muted-foreground mb-2">Target File</h3>
-                                    <code className="text-sm text-[var(--accent-cyan)] bg-[var(--accent-cyan-dim)] px-3 py-2 rounded block">
+                                    <code className="text-sm text-accent-cyan bg-accent-cyan-dim px-3 py-2 rounded block">
                                         {task.file}
                                     </code>
                                 </div>
@@ -576,7 +576,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                                 </>
                             )}
                             {task.status === 'completed' && (
-                                <div className="text-[var(--accent-green)] flex items-center gap-2">
+                                <div className="text-accent-green flex items-center gap-2">
                                     <CheckCircle2 size={18} />
                                     Task completed
                                 </div>

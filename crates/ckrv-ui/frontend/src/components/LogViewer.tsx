@@ -218,7 +218,7 @@ export const LogViewer: React.FC = () => {
                             size="sm"
                             onClick={() => fixMutation.mutate()}
                             disabled={fixMutation.isPending}
-                            className="h-7 text-xs bg-[var(--accent-purple-dim)] text-[var(--accent-purple)] border-[var(--accent-purple)] hover:bg-[var(--accent-purple)] hover:text-background"
+                            className="h-7 text-xs bg-accent-purple-dim text-accent-purple border-accent-purple hover:bg-accent-purple hover:text-background"
                         >
                             {fixMutation.isPending ? (
                                 <Loader2 size={12} className="mr-1.5 animate-spin" />
@@ -248,15 +248,15 @@ const LogLine: React.FC<{ log: OrchestrationEvent }> = ({ log }) => {
     const getTypeStyle = (type: string) => {
         switch (type.toLowerCase()) {
             case 'error':
-                return { color: 'text-[var(--accent-red)]', icon: <AlertCircle size={12} /> };
+                return { color: 'text-accent-red', icon: <AlertCircle size={12} /> };
             case 'success':
-                return { color: 'text-[var(--accent-green)]', icon: <CheckCircle2 size={12} /> };
+                return { color: 'text-accent-green', icon: <CheckCircle2 size={12} /> };
             case 'warning':
-                return { color: 'text-[var(--accent-amber)]', icon: <AlertCircle size={12} /> };
+                return { color: 'text-accent-amber', icon: <AlertCircle size={12} /> };
             case 'step_start':
-                return { color: 'text-[var(--accent-cyan)]', icon: <ChevronRight size={12} /> };
+                return { color: 'text-accent-cyan', icon: <ChevronRight size={12} /> };
             case 'step_end':
-                return { color: 'text-[var(--accent-purple)]', icon: <CheckCircle2 size={12} /> };
+                return { color: 'text-accent-purple', icon: <CheckCircle2 size={12} /> };
             default:
                 return { color: 'text-muted-foreground', icon: null };
         }

@@ -88,10 +88,10 @@ const Section: React.FC<{
     const [isOpen, setIsOpen] = useState(defaultOpen);
     const colorClasses = {
         slate: 'border-border bg-muted/50',
-        blue: 'border-[var(--accent-cyan)] bg-[var(--accent-cyan-dim)]',
-        green: 'border-[var(--accent-green)] bg-[var(--accent-green-dim)]',
-        amber: 'border-[var(--accent-amber)] bg-[var(--accent-amber-dim)]',
-        purple: 'border-[var(--accent-purple)] bg-[var(--accent-purple-dim)]'
+        blue: 'border-accent-cyan bg-accent-cyan-dim',
+        green: 'border-accent-green bg-accent-green-dim',
+        amber: 'border-accent-amber bg-accent-amber-dim',
+        purple: 'border-accent-purple bg-accent-purple-dim'
     };
 
     return (
@@ -158,7 +158,7 @@ const EditableText: React.FC<{
                         autoFocus
                     />
                 )}
-                <Button variant="ghost" size="icon" onClick={save} className="h-8 w-8 text-[var(--accent-green)]">
+                <Button variant="ghost" size="icon" onClick={save} className="h-8 w-8 text-accent-green">
                     <Check size={16} />
                 </Button>
                 <Button variant="ghost" size="icon" onClick={cancel} className="h-8 w-8 text-destructive">
@@ -233,9 +233,9 @@ const UserStoryCard: React.FC<{
                                 <label className="text-xs text-muted-foreground uppercase tracking-wide">Acceptance Criteria</label>
                                 {story.acceptance.map((ac, i) => (
                                     <div key={i} className="ml-2 mt-2 text-sm text-muted-foreground space-y-1">
-                                        <div><span className="text-[var(--accent-purple)]">Given:</span> {ac.given}</div>
-                                        <div><span className="text-[var(--accent-cyan)]">When:</span> {ac.when}</div>
-                                        <div><span className="text-[var(--accent-green)]">Then:</span> {ac.then}</div>
+                                        <div><span className="text-accent-purple">Given:</span> {ac.given}</div>
+                                        <div><span className="text-accent-cyan">When:</span> {ac.when}</div>
+                                        <div><span className="text-accent-green">Then:</span> {ac.then}</div>
                                     </div>
                                 ))}
                             </div>
@@ -311,22 +311,22 @@ const OutlineView: React.FC<{ spec: SpecDetail }> = ({ spec }) => (
     <div className="font-mono text-sm space-y-1">
         <div className="text-muted-foreground">spec:</div>
         <div className="pl-4">
-            <div><span className="text-[var(--accent-purple)]">id:</span> <span className="text-foreground">{spec.id}</span></div>
-            <div><span className="text-[var(--accent-purple)]">goal:</span> <span className="text-muted-foreground truncate inline-block max-w-md">{spec.goal.slice(0, 80)}...</span></div>
+            <div><span className="text-accent-purple">id:</span> <span className="text-foreground">{spec.id}</span></div>
+            <div><span className="text-accent-purple">goal:</span> <span className="text-muted-foreground truncate inline-block max-w-md">{spec.goal.slice(0, 80)}...</span></div>
             <div className="mt-2">
-                <span className="text-[var(--accent-purple)]">constraints:</span> <span className="text-muted-foreground">({spec.constraints.length})</span>
+                <span className="text-accent-purple">constraints:</span> <span className="text-muted-foreground">({spec.constraints.length})</span>
             </div>
             <div className="mt-2">
-                <span className="text-[var(--accent-purple)]">acceptance:</span> <span className="text-muted-foreground">({spec.acceptance.length})</span>
+                <span className="text-accent-purple">acceptance:</span> <span className="text-muted-foreground">({spec.acceptance.length})</span>
             </div>
             <div className="mt-2">
-                <span className="text-[var(--accent-purple)]">user_stories:</span> <span className="text-muted-foreground">({spec.user_stories.length})</span>
+                <span className="text-accent-purple">user_stories:</span> <span className="text-muted-foreground">({spec.user_stories.length})</span>
                 {spec.user_stories.map(s => (
                     <div key={s.id} className="pl-4 text-muted-foreground">- {s.id}: {s.title}</div>
                 ))}
             </div>
             <div className="mt-2">
-                <span className="text-[var(--accent-purple)]">requirements:</span> <span className="text-muted-foreground">({spec.requirements.length})</span>
+                <span className="text-accent-purple">requirements:</span> <span className="text-muted-foreground">({spec.requirements.length})</span>
             </div>
         </div>
     </div>
@@ -681,7 +681,7 @@ export const SpecEditor: React.FC = () => {
                     <span>{spec.constraints.length} constraints</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${hasChanges ? 'bg-[var(--accent-amber)]' : 'bg-[var(--accent-green)]'}`}></span>
+                    <span className={`w-2 h-2 rounded-full ${hasChanges ? 'bg-accent-amber' : 'bg-accent-green'}`}></span>
                     <span>{hasChanges ? 'Unsaved changes' : 'All changes saved'}</span>
                 </div>
             </div>

@@ -41,13 +41,13 @@ function StatCard({
     color: 'emerald' | 'blue' | 'purple' | 'teal' | 'red' | 'gray' | 'orange';
 }) {
     const colorClasses = {
-        emerald: 'border-[var(--accent-green)]/30 text-[var(--accent-green)]',
-        blue: 'border-[var(--accent-cyan)]/30 text-[var(--accent-cyan)]',
-        purple: 'border-[var(--accent-purple)]/30 text-[var(--accent-purple)]',
-        teal: 'border-[var(--accent-cyan)]/30 text-[var(--accent-cyan)]',
+        emerald: 'border-accent-green/30 text-accent-green',
+        blue: 'border-accent-cyan/30 text-accent-cyan',
+        purple: 'border-accent-purple/30 text-accent-purple',
+        teal: 'border-accent-cyan/30 text-accent-cyan',
         red: 'border-destructive/30 text-destructive',
         gray: 'border-border text-muted-foreground',
-        orange: 'border-[var(--accent-amber)]/30 text-[var(--accent-amber)]',
+        orange: 'border-accent-amber/30 text-accent-amber',
     };
 
     return (
@@ -78,17 +78,17 @@ function SuccessSummary({
     mergedBranches?: string[];
 }) {
     return (
-        <Card className="border-[var(--accent-green)]/40 bg-[var(--accent-green-dim)]">
+        <Card className="border-accent-green/40 bg-accent-green-dim">
             <CardContent className="p-6">
                 <div className="flex items-center gap-4 mb-4">
-                    <div className="w-14 h-14 rounded-full bg-[var(--accent-green)]/20 flex items-center justify-center">
-                        <Trophy className="w-7 h-7 text-[var(--accent-green)]" />
+                    <div className="w-14 h-14 rounded-full bg-accent-green/20 flex items-center justify-center">
+                        <Trophy className="w-7 h-7 text-accent-green" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-[var(--accent-green)]">
+                        <h2 className="text-xl font-bold text-accent-green">
                             {dryRun ? '🧪 Dry Run Complete' : 'Execution Complete!'}
                         </h2>
-                        <p className="text-[var(--accent-green)]/80 text-sm">
+                        <p className="text-accent-green/80 text-sm">
                             All {summary.total_batches} batches completed successfully
                         </p>
                     </div>
@@ -154,15 +154,15 @@ function PartialSuccessSummary({
     error?: string | null;
 }) {
     return (
-        <Card className="border-[var(--accent-amber)]/40 bg-[var(--accent-amber-dim)]">
+        <Card className="border-accent-amber/40 bg-accent-amber-dim">
             <CardContent className="p-6">
                 <div className="flex items-center gap-4 mb-4">
-                    <div className="w-14 h-14 rounded-full bg-[var(--accent-amber)]/20 flex items-center justify-center">
-                        <AlertTriangle className="w-7 h-7 text-[var(--accent-amber)]" />
+                    <div className="w-14 h-14 rounded-full bg-accent-amber/20 flex items-center justify-center">
+                        <AlertTriangle className="w-7 h-7 text-accent-amber" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-[var(--accent-amber)]">Partial Success</h2>
-                        <p className="text-[var(--accent-amber)]/80 text-sm">
+                        <h2 className="text-xl font-bold text-accent-amber">Partial Success</h2>
+                        <p className="text-accent-amber/80 text-sm">
                             {summary.completed_batches} of {summary.total_batches} batches completed
                         </p>
                     </div>

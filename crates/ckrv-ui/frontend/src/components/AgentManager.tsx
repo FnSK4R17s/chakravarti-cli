@@ -433,7 +433,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <span className="text-muted-foreground">Model:</span>
-                                    <code className="px-1.5 py-0.5 rounded bg-muted text-[var(--accent-cyan)]">
+                                    <code className="px-1.5 py-0.5 rounded bg-muted text-accent-cyan">
                                         {agent.openrouter.model}
                                     </code>
                                 </div>
@@ -721,11 +721,11 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                     {models.find(m => m.id === form.openrouter?.model) && (
                                         <Card className="p-3 text-xs space-y-2">
                                             <div className="flex items-center justify-between">
-                                                <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-[var(--accent-cyan)]">
+                                                <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-accent-cyan">
                                                     {form.openrouter?.model}
                                                 </code>
                                                 {models.find(m => m.id === form.openrouter?.model)?.pricing && (
-                                                    <span className="text-[var(--accent-green)]">
+                                                    <span className="text-accent-green">
                                                         {models.find(m => m.id === form.openrouter?.model)?.pricing}
                                                     </span>
                                                 )}
