@@ -17,13 +17,30 @@ use crate::services::history::HistoryService;
 use crate::models::history::{Run, RunStatus, HistoryBatchStatus};
 
 /// Status of a batch in the execution plan
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BatchStatus {
     Pending,
     Running,
     Completed,
     Failed,
+}
+
+// Custom deserializer that handles empty strings as Pending
+impl<'de> serde::Deserialize<'de> for BatchStatus {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.to_lowercase().as_str() {
+            "" | "pending" => Ok(BatchStatus::Pending),
+            "running" => Ok(BatchStatus::Running),
+            "completed" => Ok(BatchStatus::Completed),
+            "failed" => Ok(BatchStatus::Failed),
+            _ => Ok(BatchStatus::Pending), // Default to pending for unknown values
+        }
+    }
 }
 
 /// Execution plan structure (plan.yaml)
@@ -516,43 +533,86 @@ impl ExecutionEngine {
             batch_run_id.clone(),
         ];
         
-        if let Some(m) = executor_model.or(batch.model_assignment.default) {
+        // Determine the model to use
+        let model = executor_model.or(batch.model_assignment.default.clone());
+        
+        if let Some(ref m) = model {
             task_args.push("--agent".to_string());
-            task_args.push(m);
+            task_args.push(m.clone());
         }
 
         if use_sandbox {
             // Docker sandbox execution using Claude Code CLI
             let _ = sender.send(LogMessage::new("info", "Executing in Docker sandbox with Claude Code...")).await;
             
+            // Determine if this is an OpenRouter model or native Claude
+            let is_openrouter = model.as_ref().map(|m| {
+                m.contains('/') && !m.starts_with("claude")
+            }).unwrap_or(false);
+            
             // Try to create Docker sandbox, fall back to local if unavailable
             match DockerSandbox::with_defaults() {
                 Ok(sandbox) => {
                     // Build the Claude Code command
-                    // claude --print "<prompt>" runs non-interactively
+                    // Use --print and --dangerously-skip-permissions for non-interactive execution
                     let claude_prompt = format!(
                         "You are implementing code changes in a project. Follow these instructions exactly:\n\n{}\n\nMake all changes to the files in /workspace. Do not ask questions - implement the code directly.",
                         description
                     );
                     
-                    // Configure execution with claude CLI
-                    let mut config = ExecuteConfig::new(
+                    let escaped_prompt = claude_prompt.replace("\"", "\\\"");
+                    
+                    // Base command is the same for both paths
+                    let cmd = format!(
+                        "claude --print --dangerously-skip-permissions \"{}\"",
+                        escaped_prompt
+                    );
+                    
+                    let mut cfg = ExecuteConfig::new(
                         "claude",
                         worktree.path.clone()
-                    ).shell(&format!("claude --print \"{}\"", claude_prompt.replace("\"", "\\\"")))
-                     .with_timeout(Duration::from_secs(900)); // 15 minute timeout for AI
+                    ).shell(&cmd)
+                     .with_timeout(Duration::from_secs(900)); // 15 minute timeout
                     
-                    // Pass ANTHROPIC_API_KEY for Claude Code authentication
-                    if let Ok(api_key) = std::env::var("ANTHROPIC_API_KEY") {
-                        config = config.env("ANTHROPIC_API_KEY", api_key);
+                    // Configure execution with claude CLI
+                    let config = if is_openrouter {
+                        // OpenRouter path: Use Claude Code CLI with OpenRouter env vars
+                        // Per https://openrouter.ai/docs/guides/guides/claude-code-integration
+                        let model_name = model.as_ref().unwrap();
+                        let _ = sender.send(LogMessage::new("info", &format!("Using OpenRouter model: {}", model_name))).await;
+                        
+                        // Get OpenRouter API key from environment or agent config
+                        let api_key = if let Ok(key) = std::env::var("OPENROUTER_API_KEY") {
+                            Some(key)
+                        } else {
+                            let agents_dir = root.join(".agents");
+                            Self::find_openrouter_key(&agents_dir, model_name)
+                        };
+                        
+                        if let Some(key) = api_key {
+                            // Required env vars for OpenRouter (same as runner.rs)
+                            cfg = cfg.env("ANTHROPIC_BASE_URL", "https://openrouter.ai/api");
+                            cfg = cfg.env("ANTHROPIC_AUTH_TOKEN", key);
+                            cfg = cfg.env("ANTHROPIC_API_KEY", ""); // Must be explicitly empty!
+                            
+                            // Set model for all tiers
+                            cfg = cfg.env("ANTHROPIC_DEFAULT_SONNET_MODEL", model_name);
+                            cfg = cfg.env("ANTHROPIC_DEFAULT_OPUS_MODEL", model_name);
+                            cfg = cfg.env("ANTHROPIC_DEFAULT_HAIKU_MODEL", model_name);
+                        } else {
+                            let _ = sender.send(LogMessage::new("warning", "No OPENROUTER_API_KEY found, execution may fail")).await;
+                        }
+                        
+                        cfg
                     } else {
-                        let _ = sender.send(LogMessage::new("error", "ANTHROPIC_API_KEY not set")).await;
-                        return Err(anyhow!("ANTHROPIC_API_KEY environment variable required for Claude Code"));
-                    }
+                        // Claude subscription path: Use native Claude Code auth via ~/.claude
+                        let _ = sender.send(LogMessage::new("info", "Using Claude subscription")).await;
+                        cfg
+                    };
                     
                     // Set HOME for Claude Code config
-                    config = config.env("HOME", "/home/claude");
-                    config = config.env("NO_COLOR", "1");
+                    let config = config.env("HOME", "/home/claude");
+                    let config = config.env("NO_COLOR", "1");
                     
                     // Execute in sandbox
                     match sandbox.execute(config).await {
@@ -787,5 +847,63 @@ impl ExecutionEngine {
             std::fs::write(tasks_path, serde_yaml::to_string(&file)?)?;
         }
         Ok(())
+    }
+    
+    /// Find OpenRouter API key from agent config files
+    /// Checks global config at ~/.config/chakravarti/agents.yaml
+    fn find_openrouter_key(_agents_dir: &Path, model: &str) -> Option<String> {
+        // Agent config structures matching the actual format
+        #[derive(serde::Deserialize)]
+        struct AgentsFile {
+            agents: Vec<AgentEntry>,
+        }
+        
+        #[derive(serde::Deserialize)]
+        struct AgentEntry {
+            #[allow(dead_code)]
+            id: String,
+            #[allow(dead_code)]
+            agent_type: String,
+            openrouter: Option<OpenRouterConfig>,
+        }
+        
+        #[derive(serde::Deserialize)]
+        struct OpenRouterConfig {
+            api_key: Option<String>,
+            model: Option<String>,
+        }
+        
+        // Check global config path first (same as task.rs)
+        let agents_path = dirs::config_dir()
+            .map(|d| d.join("chakravarti").join("agents.yaml"))
+            .filter(|p| p.exists());
+        
+        if let Some(path) = agents_path {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Ok(file) = serde_yaml::from_str::<AgentsFile>(&content) {
+                    // First try to find the specific agent matching the model
+                    for agent in &file.agents {
+                        if let Some(ref or) = agent.openrouter {
+                            if or.model.as_ref().map(|m| m == model).unwrap_or(false) {
+                                if let Some(ref key) = or.api_key {
+                                    return Some(key.clone());
+                                }
+                            }
+                        }
+                    }
+                    
+                    // If no specific match, return any OpenRouter key we find
+                    for agent in &file.agents {
+                        if let Some(ref or) = agent.openrouter {
+                            if let Some(ref key) = or.api_key {
+                                return Some(key.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        None
     }
 }

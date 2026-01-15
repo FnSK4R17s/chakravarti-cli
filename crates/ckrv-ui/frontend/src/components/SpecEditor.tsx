@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-    ChevronDown, ChevronRight, Edit3, Check, X, Plus, Trash2,
-    Code, LayoutGrid, List, AlertCircle, CheckCircle2, Circle,
-    FileText, ArrowLeft, Save, Loader2, RotateCcw
+    ChevronDown, ChevronRight, Code, LayoutGrid, List,
+    FileText, ArrowLeft, Loader2, AlertCircle, CheckCircle2,
+    Circle, Lightbulb, X, GitBranch, Calendar, Tag
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { SpecWorkflow } from './SpecWorkflow';
+import { ClarifyModal } from './ClarifyModal';
+import { useClarifications, useSubmitClarifications, type Clarification } from '../hooks/useSpec';
 
-// Types matching backend
-interface UserStoryAcceptance {
+// Types matching the NEW spec.yaml format
+interface AcceptanceScenario {
     given: string;
     when: string;
     then: string;
@@ -25,34 +26,54 @@ interface UserStory {
     title: string;
     priority: string;
     description: string;
-    acceptance: UserStoryAcceptance[];
+    why_priority?: string;
+    independent_test?: string;
+    acceptance_scenarios?: AcceptanceScenario[];
 }
 
-interface Requirement {
+interface FunctionalRequirement {
     id: string;
     description: string;
+    category?: string;
+}
+
+interface Requirements {
+    functional?: FunctionalRequirement[];
 }
 
 interface SuccessCriterion {
     id: string;
     metric: string;
+    measurement?: string;
+}
+
+interface SpecClarification {
+    topic: string;
+    question: string;
+    options: { label: string; answer: string; implications?: string }[];
+    resolved: string | null;
 }
 
 interface SpecDetail {
     id: string;
-    goal: string;
-    constraints: string[];
-    acceptance: string[];
+    branch?: string;
+    created?: string;
+    status?: string;
+    overview: string;
     user_stories: UserStory[];
-    requirements: Requirement[];
+    requirements: Requirements;
     success_criteria: SuccessCriterion[];
-    assumptions: string[];
+    edge_cases?: string[];
+    assumptions?: string[];
+    clarifications?: SpecClarification[];
 }
 
 interface SpecListItem {
     name: string;
     path: string;
     has_tasks: boolean;
+    has_plan: boolean;
+    has_design: boolean;
     has_implementation: boolean;
     implementation_branch: string | null;
 }
@@ -68,30 +89,23 @@ const fetchSpecDetail = async (name: string): Promise<{ success: boolean; spec?:
     return res.json();
 };
 
-const saveSpec = async (name: string, spec: SpecDetail): Promise<{ success: boolean; message?: string }> => {
-    const res = await fetch('/api/specs/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, spec }),
-    });
-    return res.json();
-};
-
-// Collapsible Section Component using shadcn Collapsible
+// Collapsible Section Component
 const Section: React.FC<{
     title: string;
     count?: number;
     children: React.ReactNode;
     defaultOpen?: boolean;
-    color?: 'slate' | 'blue' | 'green' | 'amber' | 'purple';
-}> = ({ title, count, children, defaultOpen = true, color = 'slate' }) => {
+    color?: 'slate' | 'blue' | 'green' | 'amber' | 'purple' | 'cyan';
+    icon?: React.ReactNode;
+}> = ({ title, count, children, defaultOpen = true, color = 'slate', icon }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
     const colorClasses = {
         slate: 'border-border bg-muted/50',
         blue: 'border-accent-cyan bg-accent-cyan-dim',
         green: 'border-accent-green bg-accent-green-dim',
         amber: 'border-accent-amber bg-accent-amber-dim',
-        purple: 'border-accent-purple bg-accent-purple-dim'
+        purple: 'border-accent-purple bg-accent-purple-dim',
+        cyan: 'border-cyan-500/30 bg-cyan-500/5'
     };
 
     return (
@@ -101,6 +115,7 @@ const Section: React.FC<{
                     <button className="w-full px-4 py-3 flex items-center justify-between text-left font-medium text-foreground hover:bg-accent/50 transition-colors rounded-t-lg">
                         <div className="flex items-center gap-2">
                             {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                            {icon}
                             <span>{title}</span>
                             {count !== undefined && (
                                 <Badge variant="secondary" className="text-xs">{count}</Badge>
@@ -118,68 +133,7 @@ const Section: React.FC<{
     );
 };
 
-// Editable Text Component
-const EditableText: React.FC<{
-    value: string;
-    onChange: (value: string) => void;
-    multiline?: boolean;
-    className?: string;
-}> = ({ value, onChange, multiline = false, className = '' }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [editValue, setEditValue] = useState(value);
-
-    useEffect(() => setEditValue(value), [value]);
-
-    const save = () => {
-        onChange(editValue);
-        setIsEditing(false);
-    };
-
-    const cancel = () => {
-        setEditValue(value);
-        setIsEditing(false);
-    };
-
-    if (isEditing) {
-        return (
-            <div className="flex gap-2 items-start">
-                {multiline ? (
-                    <Textarea
-                        value={editValue}
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditValue(e.target.value)}
-                        className="flex-1 min-h-[80px]"
-                        autoFocus
-                    />
-                ) : (
-                    <Input
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        className="flex-1"
-                        autoFocus
-                    />
-                )}
-                <Button variant="ghost" size="icon" onClick={save} className="h-8 w-8 text-accent-green">
-                    <Check size={16} />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={cancel} className="h-8 w-8 text-destructive">
-                    <X size={16} />
-                </Button>
-            </div>
-        );
-    }
-
-    return (
-        <div
-            onClick={() => setIsEditing(true)}
-            className={`cursor-pointer hover:bg-accent p-2 rounded border border-transparent hover:border-border transition-all group ${className}`}
-        >
-            <span className="text-sm text-secondary-foreground whitespace-pre-wrap">{value}</span>
-            <Edit3 size={14} className="inline ml-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-    );
-};
-
-// Priority Badge using shadcn Badge
+// Priority Badge
 const PriorityBadge: React.FC<{ priority: string }> = ({ priority }) => {
     const variants: Record<string, "destructive" | "warning" | "success"> = {
         P1: 'destructive',
@@ -193,11 +147,8 @@ const PriorityBadge: React.FC<{ priority: string }> = ({ priority }) => {
     );
 };
 
-// User Story Card using shadcn Card
-const UserStoryCard: React.FC<{
-    story: UserStory;
-    onUpdate: (story: UserStory) => void;
-}> = ({ story, onUpdate }) => {
+// User Story Card
+const UserStoryCard: React.FC<{ story: UserStory }> = ({ story }) => {
     const [expanded, setExpanded] = useState(false);
 
     return (
@@ -222,20 +173,28 @@ const UserStoryCard: React.FC<{
                     <div className="mt-3 pt-3 border-t border-border space-y-3">
                         <div>
                             <label className="text-xs text-muted-foreground uppercase tracking-wide">Description</label>
-                            <EditableText
-                                value={story.description}
-                                onChange={(v) => onUpdate({ ...story, description: v })}
-                                multiline
-                            />
+                            <p className="text-sm text-secondary-foreground mt-1 whitespace-pre-wrap">{story.description}</p>
                         </div>
-                        {story.acceptance && story.acceptance.length > 0 && (
+                        {story.why_priority && (
                             <div>
-                                <label className="text-xs text-muted-foreground uppercase tracking-wide">Acceptance Criteria</label>
-                                {story.acceptance.map((ac, i) => (
-                                    <div key={i} className="ml-2 mt-2 text-sm text-muted-foreground space-y-1">
-                                        <div><span className="text-accent-purple">Given:</span> {ac.given}</div>
-                                        <div><span className="text-accent-cyan">When:</span> {ac.when}</div>
-                                        <div><span className="text-accent-green">Then:</span> {ac.then}</div>
+                                <label className="text-xs text-muted-foreground uppercase tracking-wide">Why Priority</label>
+                                <p className="text-sm text-secondary-foreground mt-1">{story.why_priority}</p>
+                            </div>
+                        )}
+                        {story.independent_test && (
+                            <div>
+                                <label className="text-xs text-muted-foreground uppercase tracking-wide">Independent Test</label>
+                                <p className="text-sm text-secondary-foreground mt-1">{story.independent_test}</p>
+                            </div>
+                        )}
+                        {story.acceptance_scenarios && story.acceptance_scenarios.length > 0 && (
+                            <div>
+                                <label className="text-xs text-muted-foreground uppercase tracking-wide">Acceptance Scenarios</label>
+                                {story.acceptance_scenarios.map((ac, i) => (
+                                    <div key={i} className="ml-2 mt-2 text-sm text-muted-foreground space-y-1 p-2 bg-muted/30 rounded">
+                                        <div><span className="text-accent-purple font-medium">Given:</span> {ac.given}</div>
+                                        <div><span className="text-accent-cyan font-medium">When:</span> {ac.when}</div>
+                                        <div><span className="text-accent-green font-medium">Then:</span> {ac.then}</div>
                                     </div>
                                 ))}
                             </div>
@@ -247,43 +206,7 @@ const UserStoryCard: React.FC<{
     );
 };
 
-// List Item with inline edit
-const ListItem: React.FC<{
-    value: string;
-    onUpdate: (value: string) => void;
-    onDelete: () => void;
-    icon?: React.ElementType;
-}> = ({ value, onUpdate, onDelete, icon: Icon = Circle }) => (
-    <div className="flex items-start gap-2 group py-1">
-        <Icon size={16} className="text-muted-foreground mt-1.5 flex-shrink-0" />
-        <EditableText value={value} onChange={onUpdate} className="flex-1" />
-        <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-            onClick={onDelete}
-        >
-            <Trash2 size={14} />
-        </Button>
-    </div>
-);
-
-// Requirement Row
-const RequirementRow: React.FC<{
-    req: Requirement;
-    onUpdate: (req: Requirement) => void;
-}> = ({ req, onUpdate }) => (
-    <div className="flex items-start gap-3 py-2 border-b border-border last:border-0">
-        <Badge variant="info" className="font-mono text-xs flex-shrink-0">{req.id}</Badge>
-        <EditableText
-            value={req.description}
-            onChange={(v) => onUpdate({ ...req, description: v })}
-            className="flex-1"
-        />
-    </div>
-);
-
-// View Mode Toggle using shadcn Tabs
+// View Mode Toggle
 const ViewToggle: React.FC<{
     view: string;
     setView: (v: string) => void;
@@ -312,22 +235,26 @@ const OutlineView: React.FC<{ spec: SpecDetail }> = ({ spec }) => (
         <div className="text-muted-foreground">spec:</div>
         <div className="pl-4">
             <div><span className="text-accent-purple">id:</span> <span className="text-foreground">{spec.id}</span></div>
-            <div><span className="text-accent-purple">goal:</span> <span className="text-muted-foreground truncate inline-block max-w-md">{spec.goal.slice(0, 80)}...</span></div>
+            {spec.branch && <div><span className="text-accent-purple">branch:</span> <span className="text-muted-foreground">{spec.branch}</span></div>}
+            {spec.status && <div><span className="text-accent-purple">status:</span> <span className="text-muted-foreground">{spec.status}</span></div>}
+            <div><span className="text-accent-purple">overview:</span> <span className="text-muted-foreground truncate inline-block max-w-md">{spec.overview?.slice(0, 80)}...</span></div>
             <div className="mt-2">
-                <span className="text-accent-purple">constraints:</span> <span className="text-muted-foreground">({spec.constraints.length})</span>
-            </div>
-            <div className="mt-2">
-                <span className="text-accent-purple">acceptance:</span> <span className="text-muted-foreground">({spec.acceptance.length})</span>
-            </div>
-            <div className="mt-2">
-                <span className="text-accent-purple">user_stories:</span> <span className="text-muted-foreground">({spec.user_stories.length})</span>
-                {spec.user_stories.map(s => (
+                <span className="text-accent-purple">user_stories:</span> <span className="text-muted-foreground">({spec.user_stories?.length || 0})</span>
+                {spec.user_stories?.map(s => (
                     <div key={s.id} className="pl-4 text-muted-foreground">- {s.id}: {s.title}</div>
                 ))}
             </div>
             <div className="mt-2">
-                <span className="text-accent-purple">requirements:</span> <span className="text-muted-foreground">({spec.requirements.length})</span>
+                <span className="text-accent-purple">requirements.functional:</span> <span className="text-muted-foreground">({spec.requirements?.functional?.length || 0})</span>
             </div>
+            <div className="mt-2">
+                <span className="text-accent-purple">success_criteria:</span> <span className="text-muted-foreground">({spec.success_criteria?.length || 0})</span>
+            </div>
+            {spec.clarifications && spec.clarifications.length > 0 && (
+                <div className="mt-2">
+                    <span className="text-accent-purple">clarifications:</span> <span className="text-yellow-400">({spec.clarifications.filter(c => !c.resolved).length} unresolved)</span>
+                </div>
+            )}
         </div>
     </div>
 );
@@ -339,7 +266,7 @@ const YamlView: React.FC<{ rawYaml?: string }> = ({ rawYaml }) => (
     </pre>
 );
 
-// Spec List View using shadcn Card
+// Spec List View
 const SpecListView: React.FC<{
     specs: SpecListItem[];
     onSelect: (name: string) => void;
@@ -381,8 +308,11 @@ const SpecListView: React.FC<{
                                         {spec.has_tasks && (
                                             <Badge variant="success">has tasks</Badge>
                                         )}
+                                        {spec.has_plan && (
+                                            <Badge variant="info">has plan</Badge>
+                                        )}
                                         {spec.has_implementation && (
-                                            <Badge variant="info">
+                                            <Badge variant="secondary">
                                                 implemented: {spec.implementation_branch}
                                             </Badge>
                                         )}
@@ -405,7 +335,8 @@ export const SpecEditor: React.FC = () => {
     const [spec, setSpec] = useState<SpecDetail | null>(null);
     const [rawYaml, setRawYaml] = useState<string | undefined>();
     const [view, setView] = useState<'visual' | 'outline' | 'code'>('visual');
-    const [hasChanges, setHasChanges] = useState(false);
+    const [showClarifyModal, setShowClarifyModal] = useState(false);
+    const [showWorkflowPanel, setShowWorkflowPanel] = useState(true);
 
     // Fetch specs list
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({
@@ -425,58 +356,22 @@ export const SpecEditor: React.FC = () => {
         if (specDetailData?.success && specDetailData.spec) {
             setSpec(specDetailData.spec);
             setRawYaml(specDetailData.raw_yaml);
-            setHasChanges(false);
         }
     }, [specDetailData]);
 
-    // Save mutation
-    const saveMutation = useMutation({
-        mutationFn: () => saveSpec(selectedSpecName!, spec!),
-        onSuccess: (data: { success: boolean; message?: string }) => {
-            if (data.success) {
-                setHasChanges(false);
-                queryClient.invalidateQueries({ queryKey: ['specs'] });
-            }
-        },
-    });
+    // Fetch clarifications for selected spec
+    const { data: clarificationsData } = useClarifications(selectedSpecName);
+    const clarifications: Clarification[] = clarificationsData?.clarifications ?? [];
+    const unresolvedCount = clarificationsData?.unresolved_count ?? 0;
 
-    const updateSpec = (updates: Partial<SpecDetail>) => {
-        if (spec) {
-            setSpec({ ...spec, ...updates });
-            setHasChanges(true);
-        }
-    };
+    // Submit clarifications mutation
+    const submitClarificationsMutation = useSubmitClarifications();
 
-    const updateConstraint = (index: number, value: string) => {
-        if (spec) {
-            const newConstraints = [...spec.constraints];
-            newConstraints[index] = value;
-            updateSpec({ constraints: newConstraints });
-        }
-    };
-
-    const updateAcceptance = (index: number, value: string) => {
-        if (spec) {
-            const newAcceptance = [...spec.acceptance];
-            newAcceptance[index] = value;
-            updateSpec({ acceptance: newAcceptance });
-        }
-    };
-
-    const updateStory = (index: number, story: UserStory) => {
-        if (spec) {
-            const newStories = [...spec.user_stories];
-            newStories[index] = story;
-            updateSpec({ user_stories: newStories });
-        }
-    };
-
-    const updateRequirement = (index: number, req: Requirement) => {
-        if (spec) {
-            const newReqs = [...spec.requirements];
-            newReqs[index] = req;
-            updateSpec({ requirements: newReqs });
-        }
+    const handleSubmitClarifications = async (answers: { topic: string; answer: string }[]) => {
+        if (!selectedSpecName) return;
+        await submitClarificationsMutation.mutateAsync({ name: selectedSpecName, answers });
+        queryClient.invalidateQueries({ queryKey: ['spec', selectedSpecName] });
+        queryClient.invalidateQueries({ queryKey: ['clarifications', selectedSpecName] });
     };
 
     // Show spec list if nothing selected
@@ -504,6 +399,8 @@ export const SpecEditor: React.FC = () => {
         );
     }
 
+    const functionalReqs = spec.requirements?.functional || [];
+
     return (
         <div className="h-full flex flex-col overflow-hidden">
             {/* Header */}
@@ -518,171 +415,245 @@ export const SpecEditor: React.FC = () => {
                             <ArrowLeft size={20} />
                         </Button>
                         <Badge variant="secondary" className="font-mono">{spec.id}</Badge>
+                        {spec.status && (
+                            <Badge variant={spec.status === 'draft' ? 'warning' : 'success'}>
+                                <Tag size={12} className="mr-1" />
+                                {spec.status}
+                            </Badge>
+                        )}
+                        {spec.branch && (
+                            <Badge variant="outline" className="text-muted-foreground">
+                                <GitBranch size={12} className="mr-1" />
+                                {spec.branch}
+                            </Badge>
+                        )}
+                        {spec.created && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Calendar size={12} />
+                                {spec.created}
+                            </span>
+                        )}
                     </div>
                     <div className="flex items-center gap-3">
                         <ViewToggle view={view} setView={(v) => setView(v as typeof view)} />
-                        {hasChanges && (
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    if (specDetailData?.spec) {
-                                        setSpec(specDetailData.spec);
-                                        setRawYaml(specDetailData.raw_yaml);
-                                        setHasChanges(false);
-                                    }
-                                }}
-                            >
-                                <RotateCcw size={16} className="mr-2" />
-                                Discard
-                            </Button>
-                        )}
-                        <Button
-                            onClick={() => saveMutation.mutate()}
-                            disabled={!hasChanges || saveMutation.isPending}
-                        >
-                            {saveMutation.isPending ? (
-                                <Loader2 size={16} className="mr-2 animate-spin" />
-                            ) : (
-                                <Save size={16} className="mr-2" />
-                            )}
-                            Save
-                        </Button>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Content */}
-            <div className="flex-1 overflow-auto p-4">
-                {view === 'visual' && (
-                    <>
-                        {/* Goal Section */}
-                        <Section title="Goal" color="blue" defaultOpen={true}>
-                            <EditableText
-                                value={spec.goal}
-                                onChange={(v) => updateSpec({ goal: v })}
-                                multiline
-                            />
-                        </Section>
-
-                        {/* Constraints */}
-                        <Section title="Constraints" count={spec.constraints.length} color="amber">
-                            <div className="space-y-1 mt-2">
-                                {spec.constraints.map((c, i) => (
-                                    <ListItem
-                                        key={i}
-                                        value={c}
-                                        onUpdate={(v) => updateConstraint(i, v)}
-                                        onDelete={() => updateSpec({ constraints: spec.constraints.filter((_, j) => j !== i) })}
-                                        icon={AlertCircle}
-                                    />
-                                ))}
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => updateSpec({ constraints: [...spec.constraints, 'New constraint'] })}
-                                    className="mt-2"
-                                >
-                                    <Plus size={16} className="mr-2" /> Add constraint
-                                </Button>
+            {/* Clarifications Alert */}
+            {unresolvedCount > 0 && (
+                <div className="shrink-0 mx-4 mt-2">
+                    <Card className="border-yellow-500/50 bg-yellow-500/5">
+                        <CardContent className="p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-yellow-400">
+                                <Lightbulb size={18} />
+                                <span className="text-sm font-medium">
+                                    {unresolvedCount} clarification{unresolvedCount > 1 ? 's' : ''} needed
+                                </span>
                             </div>
-                        </Section>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
+                                onClick={() => setShowClarifyModal(true)}
+                            >
+                                Resolve Now
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
 
-                        {/* Acceptance Criteria */}
-                        <Section title="Acceptance Criteria" count={spec.acceptance.length} color="green">
-                            <div className="space-y-1 mt-2">
-                                {spec.acceptance.map((a, i) => (
-                                    <ListItem
-                                        key={i}
-                                        value={a}
-                                        onUpdate={(v) => updateAcceptance(i, v)}
-                                        onDelete={() => updateSpec({ acceptance: spec.acceptance.filter((_, j) => j !== i) })}
-                                        icon={CheckCircle2}
-                                    />
-                                ))}
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => updateSpec({ acceptance: [...spec.acceptance, 'New acceptance criterion'] })}
-                                    className="mt-2"
-                                >
-                                    <Plus size={16} className="mr-2" /> Add criterion
-                                </Button>
-                            </div>
-                        </Section>
+            {/* Content with optional workflow panel */}
+            <div className="flex-1 flex overflow-hidden">
+                <div className="flex-1 overflow-auto p-4">
+                    {view === 'visual' && (
+                        <>
+                            {/* Overview Section */}
+                            <Section title="Overview" color="blue" defaultOpen={true}>
+                                <p className="text-sm text-secondary-foreground whitespace-pre-wrap p-2">
+                                    {spec.overview}
+                                </p>
+                            </Section>
 
-                        {/* User Stories */}
-                        <Section title="User Stories" count={spec.user_stories.length} color="purple">
-                            <div className="grid gap-3 mt-2">
-                                {spec.user_stories.map((story, i) => (
-                                    <UserStoryCard
-                                        key={story.id}
-                                        story={story}
-                                        onUpdate={(s) => updateStory(i, s)}
-                                    />
-                                ))}
-                            </div>
-                        </Section>
+                            {/* User Stories */}
+                            <Section title="User Stories" count={spec.user_stories?.length || 0} color="purple">
+                                <div className="space-y-2 mt-2">
+                                    {spec.user_stories?.map((story) => (
+                                        <UserStoryCard key={story.id} story={story} />
+                                    ))}
+                                </div>
+                            </Section>
 
-                        {/* Requirements */}
-                        <Section title="Requirements" count={spec.requirements.length} color="slate">
-                            <div className="mt-2">
-                                {spec.requirements.map((req, i) => (
-                                    <RequirementRow
-                                        key={req.id}
-                                        req={req}
-                                        onUpdate={(r) => updateRequirement(i, r)}
-                                    />
-                                ))}
-                            </div>
-                        </Section>
-
-                        {/* Assumptions */}
-                        {spec.assumptions && spec.assumptions.length > 0 && (
-                            <Section title="Assumptions" count={spec.assumptions.length} color="slate">
-                                <div className="space-y-1 mt-2">
-                                    {spec.assumptions.map((a, i) => (
-                                        <div key={i} className="flex items-start gap-2 py-1 text-sm text-muted-foreground">
-                                            <Circle size={8} className="mt-2 flex-shrink-0" />
-                                            {a}
+                            {/* Requirements */}
+                            <Section title="Functional Requirements" count={functionalReqs.length} color="green">
+                                <div className="space-y-2 mt-2">
+                                    {functionalReqs.map((req) => (
+                                        <div key={req.id} className="flex items-start gap-3 py-2 border-b border-border last:border-0">
+                                            <Badge variant="info" className="font-mono text-xs flex-shrink-0">{req.id}</Badge>
+                                            <span className="text-sm text-secondary-foreground">{req.description}</span>
                                         </div>
                                     ))}
                                 </div>
                             </Section>
-                        )}
-                    </>
-                )}
 
-                {view === 'outline' && (
-                    <Card>
-                        <CardContent className="p-6">
-                            <OutlineView spec={spec} />
-                        </CardContent>
-                    </Card>
-                )}
+                            {/* Success Criteria */}
+                            <Section title="Success Criteria" count={spec.success_criteria?.length || 0} color="cyan">
+                                <div className="space-y-3 mt-2">
+                                    {spec.success_criteria?.map((sc) => (
+                                        <div key={sc.id} className="py-2 border-b border-border last:border-0">
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="secondary" className="font-mono text-xs">{sc.id}</Badge>
+                                                <CheckCircle2 size={14} className="text-accent-green" />
+                                            </div>
+                                            <p className="text-sm text-secondary-foreground mt-1">{sc.metric}</p>
+                                            {sc.measurement && (
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    <span className="font-medium">Measurement:</span> {sc.measurement}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </Section>
 
-                {view === 'code' && (
-                    <Card>
-                        <CardHeader className="py-2 px-4 flex flex-row items-center justify-between border-b border-border">
-                            <CardTitle className="text-sm">spec.yaml</CardTitle>
-                            <Button variant="ghost" size="sm">Copy</Button>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <YamlView rawYaml={rawYaml} />
-                        </CardContent>
-                    </Card>
+                            {/* Edge Cases */}
+                            {spec.edge_cases && spec.edge_cases.length > 0 && (
+                                <Section title="Edge Cases" count={spec.edge_cases.length} color="amber">
+                                    <div className="space-y-1 mt-2">
+                                        {spec.edge_cases.map((ec, i) => (
+                                            <div key={i} className="flex items-start gap-2 py-1 text-sm text-muted-foreground">
+                                                <AlertCircle size={14} className="mt-1 flex-shrink-0 text-accent-amber" />
+                                                {ec}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Section>
+                            )}
+
+                            {/* Assumptions */}
+                            {spec.assumptions && spec.assumptions.length > 0 && (
+                                <Section title="Assumptions" count={spec.assumptions.length} color="slate">
+                                    <div className="space-y-1 mt-2">
+                                        {spec.assumptions.map((a, i) => (
+                                            <div key={i} className="flex items-start gap-2 py-1 text-sm text-muted-foreground">
+                                                <Circle size={8} className="mt-2 flex-shrink-0" />
+                                                {a}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Section>
+                            )}
+
+                            {/* Clarifications */}
+                            {spec.clarifications && spec.clarifications.length > 0 && (
+                                <Section
+                                    title="Clarifications"
+                                    count={spec.clarifications.filter(c => !c.resolved).length}
+                                    color="amber"
+                                    icon={<Lightbulb size={16} className="text-yellow-400" />}
+                                >
+                                    <div className="space-y-3 mt-2">
+                                        {spec.clarifications.map((cl, i) => (
+                                            <div key={i} className={`p-3 rounded-lg border ${cl.resolved ? 'border-green-500/30 bg-green-500/5' : 'border-yellow-500/30 bg-yellow-500/5'}`}>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Badge variant={cl.resolved ? 'success' : 'warning'}>{cl.topic}</Badge>
+                                                    {cl.resolved && <CheckCircle2 size={14} className="text-green-400" />}
+                                                </div>
+                                                <p className="text-sm text-foreground">{cl.question}</p>
+                                                {cl.resolved && (
+                                                    <p className="text-sm text-green-400 mt-2">
+                                                        <span className="font-medium">Answer:</span> {cl.resolved}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Section>
+                            )}
+                        </>
+                    )}
+
+                    {view === 'outline' && (
+                        <Card>
+                            <CardContent className="p-6">
+                                <OutlineView spec={spec} />
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {view === 'code' && (
+                        <Card>
+                            <CardHeader className="py-2 px-4 flex flex-row items-center justify-between border-b border-border">
+                                <CardTitle className="text-sm">spec.yaml</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <YamlView rawYaml={rawYaml} />
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+
+                {/* Workflow Panel (collapsible sidebar) */}
+                {showWorkflowPanel && selectedSpecName && (
+                    <div className="w-80 shrink-0 border-l border-border overflow-auto p-4 bg-muted/20">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-semibold text-foreground">Workflow</h3>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => setShowWorkflowPanel(false)}
+                            >
+                                <X size={14} />
+                            </Button>
+                        </div>
+                        <SpecWorkflow
+                            specName={selectedSpecName}
+                            unresolvedClarifications={unresolvedCount}
+                            hasDesign={specsData?.specs.find(s => s.name === selectedSpecName)?.has_design ?? false}
+                            hasTasks={specsData?.specs.find(s => s.name === selectedSpecName)?.has_tasks ?? false}
+                            onClarifyClick={() => setShowClarifyModal(true)}
+                            onDesignComplete={() => queryClient.invalidateQueries({ queryKey: ['specs'] })}
+                            onTasksComplete={() => queryClient.invalidateQueries({ queryKey: ['specs'] })}
+                        />
+                    </div>
                 )}
             </div>
+
+            {/* Toggle workflow panel button when closed */}
+            {!showWorkflowPanel && (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="absolute right-4 top-20"
+                    onClick={() => setShowWorkflowPanel(true)}
+                >
+                    <Lightbulb size={14} className="mr-1" />
+                    Workflow
+                </Button>
+            )}
+
+            {/* Clarify Modal */}
+            <ClarifyModal
+                open={showClarifyModal}
+                onOpenChange={setShowClarifyModal}
+                specName={selectedSpecName || ''}
+                clarifications={clarifications}
+                onSubmit={handleSubmitClarifications}
+                isSubmitting={submitClarificationsMutation.isPending}
+            />
 
             {/* Status Bar */}
             <div className="shrink-0 px-4 py-2 border-t border-border flex items-center justify-between text-sm text-muted-foreground bg-muted/50">
                 <div className="flex items-center gap-4">
-                    <span>{spec.user_stories.length} stories</span>
-                    <span>{spec.requirements.length} requirements</span>
-                    <span>{spec.constraints.length} constraints</span>
+                    <span>{spec.user_stories?.length || 0} stories</span>
+                    <span>{functionalReqs.length} requirements</span>
+                    <span>{spec.success_criteria?.length || 0} success criteria</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${hasChanges ? 'bg-accent-amber' : 'bg-accent-green'}`}></span>
-                    <span>{hasChanges ? 'Unsaved changes' : 'All changes saved'}</span>
+                    <span className="w-2 h-2 rounded-full bg-accent-green"></span>
+                    <span>Read-only view</span>
                 </div>
             </div>
         </div>

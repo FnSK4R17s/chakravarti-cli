@@ -1,6 +1,7 @@
 import { useState, createContext, useContext } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { Toaster } from '@/components/ui/sonner';
 import { DashboardLayout } from './layouts/Dashboard';
 import { StatusWidget } from './components/StatusWidget';
 import { LogViewer } from './components/LogViewer';
@@ -134,6 +135,7 @@ function App() {
                             </CommandResultContext.Provider>
                         </NavigationContext.Provider>
                     </TooltipProvider>
+                    <Toaster />
                 </div>
             </QueryClientProvider>
         </ErrorBoundary>

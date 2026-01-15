@@ -1,6 +1,7 @@
 //! Acceptance criteria checking.
 //!
-//! Compares spec.acceptance against execution results.
+//! For the new spec format, acceptance is handled via user_stories with acceptance_scenarios.
+//! This module provides a simple pass/fail check based on test verification results.
 
 use ckrv_core::Spec;
 
@@ -36,60 +37,47 @@ impl AcceptanceChecker {
         Self
     }
 
-    /// Check if verification results meet spec acceptance criteria.
+    /// Check if verification results meet acceptance criteria.
+    /// For new format specs, this checks if all tests pass.
     #[must_use]
     pub fn check(&self, spec: &Spec, verdict: &Verdict) -> AcceptanceResult {
         let mut criteria = Vec::new();
 
-        for acceptance in &spec.acceptance {
-            let (met, evidence) = self.evaluate_criterion(acceptance, verdict);
-            criteria.push(CriterionResult {
-                criterion: acceptance.clone(),
-                met,
-                evidence,
-            });
-        }
+        // Basic criterion: all tests should pass
+        let tests_criterion = CriterionResult {
+            criterion: "All tests pass".to_string(),
+            met: verdict.passed,
+            evidence: if verdict.passed {
+                format!("All {} tests passed", verdict.passed_count())
+            } else {
+                format!("{} tests failed", verdict.failed_count())
+            },
+        };
+        criteria.push(tests_criterion);
+
+        // Check for errors in logs
+        let has_errors = verdict
+            .logs
+            .iter()
+            .any(|l| l.to_lowercase().contains("error"));
+        
+        let errors_criterion = CriterionResult {
+            criterion: "No errors in output".to_string(),
+            met: !has_errors,
+            evidence: if has_errors {
+                "Errors found in logs".to_string()
+            } else {
+                "No errors in logs".to_string()
+            },
+        };
+        criteria.push(errors_criterion);
+
+        // Include spec overview for context (not as a criterion)
+        let _overview = spec.description();
 
         let passed = criteria.iter().all(|c| c.met);
 
         AcceptanceResult { passed, criteria }
-    }
-
-    fn evaluate_criterion(&self, criterion: &str, verdict: &Verdict) -> (bool, String) {
-        let criterion_lower = criterion.to_lowercase();
-
-        // Check common patterns
-        if criterion_lower.contains("tests pass") || criterion_lower.contains("all tests") {
-            if verdict.passed {
-                (true, format!("All {} tests passed", verdict.passed_count()))
-            } else {
-                (false, format!("{} tests failed", verdict.failed_count()))
-            }
-        } else if criterion_lower.contains("no errors") || criterion_lower.contains("error-free") {
-            let has_errors = verdict
-                .logs
-                .iter()
-                .any(|l| l.to_lowercase().contains("error"));
-            if has_errors {
-                (false, "Errors found in logs".to_string())
-            } else {
-                (true, "No errors in logs".to_string())
-            }
-        } else if criterion_lower.contains("compiles") || criterion_lower.contains("builds") {
-            // Assume if tests ran, it compiled
-            if !verdict.test_results.is_empty() {
-                (true, "Build succeeded (tests executed)".to_string())
-            } else {
-                (false, "Unable to verify build status".to_string())
-            }
-        } else {
-            // For unrecognized criteria, check if tests passed as a proxy
-            if verdict.passed {
-                (true, "Assumed met (tests passed)".to_string())
-            } else {
-                (false, "Cannot verify (tests failed)".to_string())
-            }
-        }
     }
 }
 
@@ -106,13 +94,12 @@ mod tests {
 
     fn create_test_spec() -> Spec {
         Spec {
-            id: "test".to_string(),
-            goal: "Test goal".to_string(),
+            id: "001-test-feature".to_string(),
+            branch: None,
+            created: None,
+            status: None,
+            overview: Some("Test feature overview".to_string()),
             constraints: vec![],
-            acceptance: vec![
-                "All tests pass".to_string(),
-                "No errors in output".to_string(),
-            ],
             verify: None,
             source_path: None,
         }
