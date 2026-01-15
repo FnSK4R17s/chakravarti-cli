@@ -44,14 +44,16 @@ Given that feature description, do this:
       git fetch --all --prune
       ```
 
-   b. Find the highest feature number across all sources for the short-name:
-      - Remote branches: `git ls-remote --heads origin | grep -E 'refs/heads/[0-9]+-<short-name>$'`
-      - Local branches: `git branch | grep -E '^[* ]*[0-9]+-<short-name>$'`
-      - Specs directories: Check for directories matching `specs/[0-9]+-<short-name>`
+   b. Find the highest feature number across ALL branches and specs (not filtered by short-name):
+      - Remote branches: `git ls-remote --heads origin | grep -E 'refs/heads/[0-9]{3}-'`
+      - Local branches: `git branch -a | grep -E '^[* ]*[0-9]{3}-'`
+      - Specs directories: Check for directories matching `specs/[0-9]*-*`
+      
+      **IMPORTANT**: Branch numbers are GLOBALLY unique across ALL features. Do NOT filter by short-name when finding the highest number.
 
    c. Determine the next available number:
-      - Extract all numbers from all three sources
-      - Find the highest number N
+      - Extract all 3-digit numbers from all three sources (e.g., 001, 002, 009, 010)
+      - Find the highest number N (treating as decimal, e.g., 009 = 9, 010 = 10)
       - Use N+1 for the new branch number
 
    d. Run the script `.specify/scripts/bash/create-new-feature.sh --json "$ARGUMENTS"` with the calculated number and short-name:
@@ -61,8 +63,8 @@ Given that feature description, do this:
 
    **IMPORTANT**:
    - Check all three sources (remote branches, local branches, specs directories) to find the highest number
-   - Only match branches/directories with the exact short-name pattern
-   - If no existing branches/directories found with this short-name, start with number 1
+   - Do NOT filter by short-name - branch numbers are GLOBALLY unique across ALL features
+   - If no existing branches/directories found at all, start with number 1
    - You must only ever run this script once per feature
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
    - The JSON output will contain BRANCH_NAME and SPEC_FILE paths
