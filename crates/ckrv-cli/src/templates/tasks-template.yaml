@@ -1,0 +1,75 @@
+# Tasks Template
+# This template defines the structure for AI-generated tasks.yaml files
+
+spec_id: "{spec_id}"
+generated: "{date}"
+total_tasks: 0
+
+phases:
+  - name: "Setup"
+    description: "Project initialization and basic structure"
+    tasks: []
+
+  - name: "Foundational"
+    description: "Core infrastructure that blocks all user stories"
+    tasks: []
+
+  - name: "User Story 1"
+    user_story: "US1"
+    priority: "P1"
+    goal: "[Brief description from spec]"
+    independent_test: "[How to verify this story]"
+    tasks: []
+
+  - name: "User Story 2"
+    user_story: "US2"
+    priority: "P2"
+    goal: "[Brief description from spec]"
+    independent_test: "[How to verify this story]"
+    tasks: []
+
+  - name: "User Story 3"
+    user_story: "US3"
+    priority: "P3"
+    goal: "[Brief description from spec]"
+    independent_test: "[How to verify this story]"
+    tasks: []
+
+  - name: "Polish"
+    description: "Cross-cutting concerns and cleanup"
+    tasks: []
+
+# Task structure:
+# - id: "T001"
+#   phase: "Setup"
+#   title: "Create project structure"
+#   description: "Create directory structure per implementation plan"
+#   file: "src/main.rs"
+#   user_story: null  # or "US1", "US2", etc.
+#   parallel: false   # true if can run in parallel
+#   complexity: 1     # 1-5 scale
+#   model_tier: "light"  # light | standard | heavy | reasoning
+#   estimated_tokens: 500
+#   risk: "low"       # low | medium | high | critical
+#   context_required: []
+#   status: "pending" # pending | running | completed | failed | skipped
+
+dependencies:
+  phase_order:
+    - "Setup"
+    - "Foundational"
+    - "User Story 1"
+    - "User Story 2"
+    - "User Story 3"
+    - "Polish"
+  user_story_dependencies: []
+  # Format:
+  # - story: "US2"
+  #   depends_on: ["US1"]
+  #   reason: "Uses output from US1"
+
+parallel_opportunities: []
+# Format:
+# - phase: "Setup"
+#   task_ids: ["T002", "T003", "T004"]
+#   reason: "Different files, no dependencies"

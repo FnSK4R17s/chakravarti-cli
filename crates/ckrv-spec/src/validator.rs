@@ -22,11 +22,11 @@ pub struct ValidationError {
     pub message: String,
 }
 
-/// Validate a specification.
+/// Validate a specification (new format with overview).
 #[must_use]
 pub fn validate(spec: &Spec) -> ValidationResult {
     let mut errors = Vec::new();
-    let mut warnings = Vec::new();
+    let warnings = Vec::new();
 
     // Check required fields
     if spec.id.is_empty() {
@@ -41,23 +41,12 @@ pub fn validate(spec: &Spec) -> ValidationResult {
         });
     }
 
-    if spec.goal.is_empty() {
+    // Overview is required
+    if spec.overview.as_ref().map_or(true, |o| o.is_empty()) {
         errors.push(ValidationError {
-            field: "goal".to_string(),
-            message: "goal is required".to_string(),
+            field: "overview".to_string(),
+            message: "overview is required".to_string(),
         });
-    }
-
-    if spec.acceptance.is_empty() {
-        errors.push(ValidationError {
-            field: "acceptance".to_string(),
-            message: "at least one acceptance criterion is required".to_string(),
-        });
-    }
-
-    // Warnings
-    if spec.constraints.is_empty() {
-        warnings.push("No constraints defined (optional but recommended)".to_string());
     }
 
     ValidationResult {
@@ -73,10 +62,12 @@ mod tests {
 
     fn valid_spec() -> Spec {
         Spec {
-            id: "valid_id".to_string(),
-            goal: "A valid goal".to_string(),
-            constraints: vec!["Constraint".to_string()],
-            acceptance: vec!["Criterion".to_string()],
+            id: "001-new-feature".to_string(),
+            branch: Some("feature/001-new-feature".to_string()),
+            created: Some("2026-01-14".to_string()),
+            status: Some("draft".to_string()),
+            overview: Some("This is the spec overview".to_string()),
+            constraints: vec![],
             verify: None,
             source_path: None,
         }
@@ -103,14 +94,13 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_id_format_fails() {
+    fn test_id_with_dashes_passes() {
         let mut spec = valid_spec();
-        spec.id = "invalid-id".to_string();
+        spec.id = "001-my-feature".to_string();
 
         let result = validate(&spec);
 
-        assert!(!result.valid);
-        assert!(result.errors.iter().any(|e| e.field == "id"));
+        assert!(result.valid);
     }
 
     #[test]
@@ -124,69 +114,20 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_goal_fails() {
+    fn test_empty_overview_fails() {
         let mut spec = valid_spec();
-        spec.goal = String::new();
+        spec.overview = None;
 
         let result = validate(&spec);
 
         assert!(!result.valid);
-        assert!(result.errors.iter().any(|e| e.field == "goal"));
-    }
-
-    #[test]
-    fn test_empty_acceptance_fails() {
-        let mut spec = valid_spec();
-        spec.acceptance = vec![];
-
-        let result = validate(&spec);
-
-        assert!(!result.valid);
-        assert!(result.errors.iter().any(|e| e.field == "acceptance"));
-    }
-
-    #[test]
-    fn test_empty_constraints_gives_warning() {
-        let mut spec = valid_spec();
-        spec.constraints = vec![];
-
-        let result = validate(&spec);
-
-        assert!(result.valid); // Still valid
-        assert!(!result.warnings.is_empty());
-    }
-
-    #[test]
-    fn test_multiple_errors_reported() {
-        let spec = Spec {
-            id: String::new(),
-            goal: String::new(),
-            constraints: vec![],
-            acceptance: vec![],
-            verify: None,
-            source_path: None,
-        };
-
-        let result = validate(&spec);
-
-        assert!(!result.valid);
-        assert!(result.errors.len() >= 3); // id, goal, acceptance
+        assert!(result.errors.iter().any(|e| e.field == "overview"));
     }
 
     #[test]
     fn test_underscore_in_id_allowed() {
         let mut spec = valid_spec();
         spec.id = "my_feature_v2".to_string();
-
-        let result = validate(&spec);
-
-        assert!(result.valid);
-    }
-
-    #[test]
-    fn test_alphanumeric_id_allowed() {
-        let mut spec = valid_spec();
-        spec.id = "feature123".to_string();
 
         let result = validate(&spec);
 

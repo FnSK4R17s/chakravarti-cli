@@ -6,6 +6,7 @@ use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 
 mod cloud;
 mod commands;
+mod prompts;
 pub mod ui;
 
 use ui::components::Banner;

@@ -4,7 +4,7 @@ import {
     ChevronDown, ChevronRight, Play,
     CheckCircle2, Circle, AlertTriangle, GitBranch,
     Layers, LayoutGrid, Code, Filter, Zap, Brain, Cpu,
-    Link2, FileText, ArrowLeft, Save, Loader2, RotateCcw
+    Link2, FileText, ArrowLeft, Save, Loader2, RotateCcw, ClipboardList
 } from 'lucide-react';
 import { TaskDetailModal } from './TaskDetailModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from 'sonner';
 
 // Types matching backend
 interface Task {
@@ -42,6 +43,7 @@ interface SpecListItem {
     name: string;
     path: string;
     has_tasks: boolean;
+    has_plan: boolean;
     has_implementation: boolean;
 }
 
@@ -70,6 +72,15 @@ const updateTaskStatus = async (spec: string, taskId: string, status: string): P
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ spec, task_id: taskId, status }),
+    });
+    return res.json();
+};
+
+const generatePlan = async (): Promise<{ success: boolean; message?: string }> => {
+    const res = await fetch('/api/command/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
     });
     return res.json();
 };
@@ -579,6 +590,28 @@ export const TaskEditor: React.FC = () => {
         },
     });
 
+    // Plan generation mutation
+    const planMutation = useMutation({
+        mutationFn: generatePlan,
+        onSuccess: (data) => {
+            if (data.success) {
+                toast.success('Plan Generated', {
+                    description: 'Execution plan has been created successfully',
+                });
+                queryClient.invalidateQueries({ queryKey: ['specs'] });
+            } else {
+                toast.error('Plan Generation Failed', {
+                    description: data.message || 'Unknown error',
+                });
+            }
+        },
+        onError: (error) => {
+            toast.error('Plan Generation Failed', {
+                description: error instanceof Error ? error.message : 'Unknown error',
+            });
+        },
+    });
+
     const handleStatusChange = (taskId: string, status: string) => {
         // Update local state immediately
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t));
@@ -697,6 +730,19 @@ export const TaskEditor: React.FC = () => {
                                 <Save size={16} className="mr-2" />
                             )}
                             Save
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => planMutation.mutate()}
+                            disabled={planMutation.isPending || specsData?.specs.find(s => s.name === selectedSpecName)?.has_plan}
+                            className="gap-2"
+                        >
+                            {planMutation.isPending ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                                <ClipboardList size={16} />
+                            )}
+                            {specsData?.specs.find(s => s.name === selectedSpecName)?.has_plan ? 'Plan Generated' : 'Generate Plan'}
                         </Button>
                     </div>
                 </CardContent>

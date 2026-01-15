@@ -131,3 +131,5 @@ CKRV_MODEL_ENDPOINT     # Custom endpoint URL
 - N/A (frontend-only) (009-shadcn-ui-migration)
 - TypeScript 5.x, CSS (Tailwind 4) + Tailwind CSS v4, React 18, Vite (001-css-theme-consolidation)
 - N/A (CSS files only) (001-css-theme-consolidation)
+- Rust (current CLI) + Claude Code (AI execution) + ckrv-sandbox (Docker execution), ckrv-git, clap (CLI), serde_yaml (001-spec-setup)
+- Files in `.specs/<spec-id>/` directory (YAML + Markdown) (001-spec-setup)
