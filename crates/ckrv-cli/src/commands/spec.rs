@@ -24,6 +24,25 @@ pub enum SpecCommand {
         #[arg(short, long)]
         name: Option<String>,
     },
+    /// Resolve clarifications in an existing spec
+    Clarify {
+        /// Path to the spec file (optional - auto-detects from current branch if not provided)
+        spec: Option<PathBuf>,
+    },
+    /// Generate technical design document from a specification
+    Design {
+        /// Path to the spec file (optional - auto-detects from current branch if not provided)
+        spec: Option<PathBuf>,
+
+        /// Force regeneration of design even if it exists
+        #[arg(short, long)]
+        force: bool,
+    },
+    /// Initialize an empty spec directory with templates
+    Init {
+        /// Name for the new spec directory
+        name: String,
+    },
     /// Generate implementation tasks from a specification
     Tasks {
         /// Path to the spec file (optional - auto-detects from current branch if not provided)
@@ -35,8 +54,8 @@ pub enum SpecCommand {
     },
     /// Validate a specification file
     Validate {
-        /// Path to the spec file
-        path: PathBuf,
+        /// Path to the spec file (optional - auto-detects from current branch if not provided)
+        path: Option<PathBuf>,
     },
     /// List all specifications
     List,
@@ -74,8 +93,11 @@ pub async fn execute(args: SpecArgs, json: bool, ui: &UiContext) -> anyhow::Resu
         SpecCommand::New { description, name } => {
             execute_generate(&description, name.as_deref(), json).await
         }
+        SpecCommand::Clarify { spec } => execute_clarify(spec.as_ref(), json).await,
+        SpecCommand::Design { spec, force } => execute_design(spec.as_ref(), force, json).await,
+        SpecCommand::Init { name } => execute_init(&name, json),
         SpecCommand::Tasks { spec, force } => execute_tasks(spec.as_ref(), force, json, ui).await,
-        SpecCommand::Validate { path } => execute_validate(&path, json),
+        SpecCommand::Validate { path } => execute_validate(path.as_ref(), json),
         SpecCommand::List => execute_list(json),
     }
 }
@@ -154,59 +176,8 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
         eprintln!();
     }
 
-    // Build the prompt for Claude
-    let prompt = format!(
-        r#"Generate a YAML specification for this feature:
-
-FEATURE DESCRIPTION:
-{}
-
-OUTPUT FORMAT:
-Create a YAML file with this exact structure:
-
-id: {}
-goal: |
-  [Clear description of what this feature achieves - based on the description above]
-
-constraints:
-  - [Constraint 1 - infer from description or use reasonable defaults]
-  - [Constraint 2]
-
-acceptance:
-  - [Acceptance criterion 1 - must be testable]
-  - [Acceptance criterion 2]
-
-user_stories:
-  - id: US1
-    title: "[Brief title]"
-    priority: P1
-    description: |
-      [User journey in plain language]
-    acceptance:
-      - given: "[Initial state]"
-        when: "[Action]"
-        then: "[Expected outcome]"
-
-requirements:
-  - id: FR-001
-    description: "System MUST [specific capability]"
-  - id: FR-002  
-    description: "Users MUST be able to [specific action]"
-
-success_criteria:
-  - id: SC-001
-    metric: "[Measurable outcome]"
-
-assumptions:
-  - "[Any assumptions made]"
-
-IMPORTANT:
-- Focus on WHAT and WHY, not HOW to implement
-- Keep it technology-agnostic (no specific languages, frameworks, or tools)
-- Make requirements testable and measurable
-- Output ONLY valid YAML, no markdown code fences, no explanations"#,
-        description, numbered_name
-    );
+    // Build the rich prompt for Claude using the prompts module
+    let prompt = crate::prompts::build_spec_prompt(description, &numbered_name);
 
     // Run Claude in Docker sandbox
     let result = {
@@ -243,8 +214,35 @@ IMPORTANT:
 
     // Write the generated spec (strip any markdown code fences)
     let spec_content = result.stdout.trim();
-    let spec_content = strip_code_fences(spec_content);
-    std::fs::write(&spec_path, &spec_content)?;
+    let spec_content = crate::prompts::strip_yaml_fences(spec_content);
+    
+    // Validate the generated YAML before writing
+    let parsed: Result<super::spec_structs::SpecOutput, _> = serde_yaml::from_str(&spec_content);
+    let (final_content, has_clarifications) = match parsed {
+        Ok(spec) => {
+            let has_clarifications = spec.has_unresolved_clarifications();
+            let user_story_count = spec.user_story_count();
+            let requirement_count = spec.requirement_count();
+            
+            if !json {
+                eprintln!("✓ Generated spec with {} user stories, {} requirements", 
+                    user_story_count, requirement_count);
+                if has_clarifications {
+                    eprintln!("⚠ Spec has unresolved clarifications - run 'ckrv spec clarify' to resolve");
+                }
+            }
+            (spec_content, has_clarifications)
+        }
+        Err(e) => {
+            if !json {
+                eprintln!("Warning: Generated YAML may have formatting issues: {}", e);
+                eprintln!("Writing raw output - manual review recommended");
+            }
+            (spec_content, false)
+        }
+    };
+    
+    std::fs::write(&spec_path, &final_content)?;
 
     // Create a new git branch with the spec name
     let repo_root = ckrv_git::repo_root(&cwd).unwrap_or_else(|_| cwd.clone());
@@ -289,13 +287,21 @@ IMPORTANT:
     };
 
     if json {
+        // Try to parse spec for detailed output
+        let spec_details = serde_yaml::from_str::<super::spec_structs::SpecOutput>(&final_content).ok();
         let output = serde_json::json!({
             "success": true,
             "spec_folder": spec_folder,
             "spec_path": spec_path,
             "id": numbered_name,
             "branch": if branch_created { Some(&numbered_name) } else { None },
-            "message": "Spec generated with AI"
+            "message": "Spec generated with AI",
+            "spec": {
+                "user_story_count": spec_details.as_ref().map(|s| s.user_story_count()).unwrap_or(0),
+                "requirement_count": spec_details.as_ref().map(|s| s.requirement_count()).unwrap_or(0),
+                "has_clarifications": has_clarifications,
+                "status": spec_details.as_ref().map(|s| s.status.to_string()).unwrap_or_else(|| "unknown".to_string()),
+            }
         });
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
@@ -304,12 +310,432 @@ IMPORTANT:
             println!("✓ On branch: {}", numbered_name);
         }
         println!();
-        println!("Next steps:");
-        println!("  1. Review:   cat {}/spec.yaml", spec_folder.display());
-        println!("  2. Tasks:    ckrv spec tasks");
+        if has_clarifications {
+            println!("Next steps:");
+            println!("  1. Clarify: ckrv spec clarify");
+            println!("  2. Then:    ckrv spec tasks");
+        } else {
+            println!("Next steps:");
+            println!("  1. Review:   cat {}/spec.yaml", spec_folder.display());
+            println!("  2. Tasks:    ckrv spec tasks");
+        }
     }
 
     Ok(())
+}
+
+/// Resolve clarifications in an existing spec
+async fn execute_clarify(spec_path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
+    use std::io::{self, Write};
+
+    let cwd = std::env::current_dir()?;
+    
+    // Resolve spec path - auto-detect from current branch if not provided
+    let spec_path = resolve_spec_path(spec_path, &cwd)?;
+    
+    // Read the spec file
+    let spec_content = std::fs::read_to_string(&spec_path)?;
+    let mut spec: super::spec_structs::SpecOutput = serde_yaml::from_str(&spec_content)
+        .map_err(|e| anyhow::anyhow!("Failed to parse spec: {}", e))?;
+    
+    // Check for unresolved clarifications - collect indices first
+    let unresolved_indices: Vec<usize> = spec.clarifications
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.resolved.is_none())
+        .map(|(idx, _)| idx)
+        .collect();
+    
+    if unresolved_indices.is_empty() {
+        if json {
+            let output = serde_json::json!({
+                "success": true,
+                "message": "No clarifications needed",
+                "clarifications_resolved": 0
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            println!("✓ No clarifications needed - spec is ready");
+            println!();
+            println!("Next steps:");
+            println!("  1. Design:   ckrv spec design");
+            println!("  2. Or Tasks: ckrv spec tasks");
+        }
+        return Ok(());
+    }
+    
+    if !json {
+        println!("Found {} clarification(s) to resolve:\n", unresolved_indices.len());
+    }
+    
+    let mut resolved_count = 0;
+    
+    for idx in unresolved_indices {
+        let clarification = &spec.clarifications[idx];
+        if !json {
+            println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            println!("Topic: {}", clarification.topic);
+            println!("Question: {}", clarification.question);
+            println!();
+            
+            for (i, option) in clarification.options.iter().enumerate() {
+                let label = (b'A' + i as u8) as char;
+                println!("  {}) {}", label, option.answer);
+                if let Some(impl_) = &option.implications {
+                    println!("     → {}", impl_);
+                }
+            }
+            println!();
+            print!("Choose an option (A, B, ...): ");
+            io::stdout().flush()?;
+            
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            let input = input.trim().to_uppercase();
+            
+            if let Some(choice_idx) = input.chars().next().map(|c| (c as u8 - b'A') as usize) {
+                if choice_idx < spec.clarifications[idx].options.len() {
+                    let answer = spec.clarifications[idx].options[choice_idx].answer.clone();
+                    spec.clarifications[idx].resolved = Some(answer.clone());
+                    resolved_count += 1;
+                    println!("✓ Selected: {}\n", answer);
+                } else {
+                    println!("⚠ Invalid option, skipping\n");
+                }
+            } else {
+                println!("⚠ Invalid input, skipping\n");
+            }
+        }
+    }
+    
+    // Update the spec file if any clarifications were resolved
+    if resolved_count > 0 {
+        // Update status if all clarifications are now resolved
+        if !spec.has_unresolved_clarifications() {
+            spec.status = super::spec_structs::SpecStatus::Ready;
+        }
+        
+        let updated_yaml = serde_yaml::to_string(&spec)?;
+        std::fs::write(&spec_path, &updated_yaml)?;
+    }
+    
+    if json {
+        let output = serde_json::json!({
+            "success": true,
+            "clarifications_resolved": resolved_count,
+            "remaining": spec.clarifications.iter().filter(|c| c.resolved.is_none()).count(),
+            "status": spec.status.to_string()
+        });
+        println!("{}", serde_json::to_string_pretty(&output)?);
+    } else {
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        println!("✓ Resolved {} clarification(s)", resolved_count);
+        println!("✓ Updated: {}", spec_path.display());
+        
+        if spec.has_unresolved_clarifications() {
+            println!("\n⚠ Some clarifications still unresolved - run 'ckrv spec clarify' again");
+        } else {
+            println!("\nNext steps:");
+            println!("  1. Design:   ckrv spec design");
+            println!("  2. Or Tasks: ckrv spec tasks");
+        }
+    }
+    
+    Ok(())
+}
+
+/// Generate technical design document from a specification
+async fn execute_design(spec_path: Option<&PathBuf>, force: bool, json: bool) -> anyhow::Result<()> {
+    use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox};
+    use std::time::Duration;
+
+    let cwd = std::env::current_dir()?;
+    
+    // Resolve spec path - auto-detect from current branch if not provided
+    let spec_path = resolve_spec_path(spec_path, &cwd)?;
+    let spec_folder = spec_path.parent().unwrap().to_path_buf();
+    
+    // Check if design already exists
+    let design_path = spec_folder.join("design.md");
+    let research_path = spec_folder.join("research.md");
+    
+    if design_path.exists() && !force {
+        if json {
+            let output = serde_json::json!({
+                "success": false,
+                "error": "Design already exists. Use --force to regenerate.",
+                "code": "DESIGN_EXISTS"
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            eprintln!("Error: design.md already exists at {}", design_path.display());
+            eprintln!("Use --force to regenerate");
+        }
+        return Ok(());
+    }
+    
+    // Read the spec file
+    let spec_content = std::fs::read_to_string(&spec_path)?;
+    let spec: super::spec_structs::SpecOutput = serde_yaml::from_str(&spec_content)
+        .map_err(|e| anyhow::anyhow!("Failed to parse spec: {}", e))?;
+    
+    // Check for unresolved clarifications
+    if spec.has_unresolved_clarifications() {
+        if json {
+            let output = serde_json::json!({
+                "success": false,
+                "error": "Spec has unresolved clarifications. Run 'ckrv spec clarify' first.",
+                "code": "NEEDS_CLARIFICATION"
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            eprintln!("Error: Spec has unresolved clarifications");
+            eprintln!("Run 'ckrv spec clarify' first");
+        }
+        return Ok(());
+    }
+    
+    if !json {
+        eprintln!("Generating design document for: {}", spec.id);
+        eprintln!();
+    }
+    
+    // Build the design prompt
+    let prompt = crate::prompts::build_design_prompt(&spec_content, &spec.id);
+    
+    // Run Claude in Docker sandbox
+    let result = {
+        let sandbox = DockerSandbox::new(ckrv_sandbox::DefaultAllowList::default())
+            .map_err(|e| anyhow::anyhow!("Failed to create sandbox: {}", e))?;
+
+        let command = format!(
+            "claude -p {} --dangerously-skip-permissions --output-format text --tools \"\"",
+            shell_escape::escape(prompt.clone().into())
+        );
+
+        let config = ExecuteConfig::new("", spec_folder.clone())
+            .shell(&command)
+            .with_timeout(Duration::from_secs(300));
+
+        sandbox.execute(config).await
+            .map_err(|e| anyhow::anyhow!("Sandbox execution failed: {}", e))
+    }?;
+
+    if !result.success() {
+        if json {
+            let output = serde_json::json!({
+                "success": false,
+                "error": format!("AI generation failed: {}", result.stderr),
+                "code": "GENERATION_FAILED"
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            eprintln!("Error: AI generation failed");
+            eprintln!("{}", result.stderr);
+        }
+        std::process::exit(1);
+    }
+
+    // Write the design document
+    let design_content = result.stdout.trim();
+    std::fs::write(&design_path, design_content)?;
+    
+    // Create a basic research.md if it doesn't exist
+    if !research_path.exists() {
+        let research_content = format!(r#"# Research: {}
+
+**Generated**: {}
+**Status**: Auto-generated during design phase
+
+## Technical Decisions
+
+(Extract from design.md or add manually)
+
+## Dependencies
+
+(List external dependencies identified during design)
+
+## Risks & Mitigations
+
+(Document any risks identified during design)
+"#, spec.id, chrono::Local::now().format("%Y-%m-%d"));
+        std::fs::write(&research_path, research_content)?;
+    }
+    
+    if json {
+        let output = serde_json::json!({
+            "success": true,
+            "design_path": design_path,
+            "research_path": research_path,
+            "message": "Design generated successfully"
+        });
+        println!("{}", serde_json::to_string_pretty(&output)?);
+    } else {
+        println!("✓ Generated: {}", design_path.display());
+        println!("✓ Generated: {}", research_path.display());
+        println!();
+        println!("Next steps:");
+        println!("  1. Review:   cat {}", design_path.display());
+        println!("  2. Tasks:    ckrv spec tasks");
+    }
+    
+    Ok(())
+}
+
+/// Initialize an empty spec directory with templates
+fn execute_init(name: &str, json: bool) -> anyhow::Result<()> {
+    let cwd = std::env::current_dir()?;
+    
+    // Check if initialized
+    if !ckrv_git::is_initialized(&cwd) {
+        if json {
+            let output = serde_json::json!({
+                "success": false,
+                "error": "Not initialized. Run 'ckrv init' first.",
+                "code": "NOT_INITIALIZED"
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            eprintln!("Error: Not initialized. Run 'ckrv init' first.");
+        }
+        return Ok(());
+    }
+    
+    let specs_dir = cwd.join(".specs");
+    
+    // Generate a numbered name
+    let existing_count = if specs_dir.exists() {
+        std::fs::read_dir(&specs_dir)
+            .map(|entries| entries.filter_map(|e| e.ok()).count())
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    
+    let numbered_name = format!("{:03}-{}", existing_count + 1, name);
+    let spec_folder = specs_dir.join(&numbered_name);
+    
+    if spec_folder.exists() {
+        if json {
+            let output = serde_json::json!({
+                "success": false,
+                "error": format!("Spec folder already exists: {}", spec_folder.display()),
+                "code": "FOLDER_EXISTS"
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            eprintln!("Error: Spec folder already exists: {}", spec_folder.display());
+        }
+        return Ok(());
+    }
+    
+    // Create the directory structure
+    std::fs::create_dir_all(&spec_folder)?;
+    std::fs::create_dir_all(spec_folder.join("checklists"))?;
+    
+    // Create empty template files
+    let spec_yaml = format!(r#"id: "{}"
+branch: "{}"
+created: "{}"
+status: draft
+
+overview: |
+  [Brief description - replace this with your feature description]
+
+user_stories: []
+
+requirements:
+  functional: []
+  non_functional: []
+  security: []
+
+success_criteria: []
+
+edge_cases: []
+
+assumptions: []
+
+clarifications: []
+"#, numbered_name, numbered_name, chrono::Local::now().format("%Y-%m-%d"));
+    
+    std::fs::write(spec_folder.join("spec.yaml"), spec_yaml)?;
+    
+    // Create empty checklist
+    let checklist = r#"# Requirements Checklist
+
+## Specification Quality
+
+- [ ] Overview clearly describes feature purpose
+- [ ] At least one user story defined
+- [ ] User stories have acceptance criteria
+- [ ] Functional requirements are testable
+- [ ] Success criteria are measurable
+"#;
+    std::fs::write(spec_folder.join("checklists").join("requirements.md"), checklist)?;
+    
+    if json {
+        let output = serde_json::json!({
+            "success": true,
+            "spec_folder": spec_folder,
+            "id": numbered_name,
+            "message": "Spec folder initialized with templates"
+        });
+        println!("{}", serde_json::to_string_pretty(&output)?);
+    } else {
+        println!("✓ Created: {}", spec_folder.display());
+        println!("✓ Created: {}/spec.yaml", spec_folder.display());
+        println!("✓ Created: {}/checklists/requirements.md", spec_folder.display());
+        println!();
+        println!("Next steps:");
+        println!("  1. Edit:   {} {}/spec.yaml", std::env::var("EDITOR").unwrap_or_else(|_| "nano".to_string()), spec_folder.display());
+        println!("  2. Or use: ckrv spec new \"description\" --name {}", name);
+    }
+    
+    Ok(())
+}
+
+/// Helper function to resolve spec path from current branch if not provided
+fn resolve_spec_path(spec_path: Option<&PathBuf>, cwd: &std::path::Path) -> anyhow::Result<PathBuf> {
+    match spec_path {
+        Some(path) => {
+            if path.is_absolute() {
+                Ok(path.clone())
+            } else {
+                Ok(cwd.join(path))
+            }
+        }
+        None => {
+            // Get current branch name
+            let branch_output = std::process::Command::new("git")
+                .args(["rev-parse", "--abbrev-ref", "HEAD"])
+                .current_dir(cwd)
+                .output();
+
+            match branch_output {
+                Ok(output) if output.status.success() => {
+                    let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    
+                    let specs_dir = cwd.join(".specs");
+                    let spec_folder = specs_dir.join(&branch);
+                    let spec_file = spec_folder.join("spec.yaml");
+                    let spec_file_yml = spec_folder.join("spec.yml");
+                    
+                    if spec_file.exists() {
+                        Ok(spec_file)
+                    } else if spec_file_yml.exists() {
+                        Ok(spec_file_yml)
+                    } else {
+                        Err(anyhow::anyhow!(
+                            "No spec found for branch '{}'. Expected at: {}",
+                            branch,
+                            spec_file.display()
+                        ))
+                    }
+                }
+                _ => Err(anyhow::anyhow!("Failed to detect current branch. Provide spec path explicitly."))
+            }
+        }
+    }
 }
 
 /// Generate implementation tasks from a spec file.
@@ -657,15 +1083,84 @@ fn strip_code_fences(content: &str) -> String {
     result.join("\n")
 }
 
-fn execute_validate(path: &PathBuf, json: bool) -> anyhow::Result<()> {
+fn execute_validate(path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    let full_path = if path.is_absolute() {
-        path.clone()
-    } else {
-        cwd.join(path)
+    
+    // Resolve spec path - auto-detect from current branch if not provided
+    let full_path = match path {
+        Some(p) => {
+            if p.is_absolute() {
+                p.clone()
+            } else {
+                cwd.join(p)
+            }
+        }
+        None => resolve_spec_path(None, &cwd)?
     };
 
-    // Load spec
+    // Try to load as rich SpecOutput first for additional validation
+    let spec_content = std::fs::read_to_string(&full_path)?;
+    let rich_spec: Option<super::spec_structs::SpecOutput> = serde_yaml::from_str(&spec_content).ok();
+    
+    // Additional validation for rich spec
+    let mut additional_errors: Vec<ValidationErrorOutput> = Vec::new();
+    let mut additional_warnings: Vec<String> = Vec::new();
+    
+    if let Some(ref spec) = rich_spec {
+        // Check for unresolved clarifications
+        if spec.has_unresolved_clarifications() {
+            additional_errors.push(ValidationErrorOutput {
+                field: "clarifications".to_string(),
+                message: "Spec has unresolved clarifications. Run 'ckrv spec clarify' first.".to_string(),
+            });
+        }
+        
+        // Check for at least one user story
+        if spec.user_stories.is_empty() {
+            additional_errors.push(ValidationErrorOutput {
+                field: "user_stories".to_string(),
+                message: "Spec must have at least one user story.".to_string(),
+            });
+        }
+        
+        // Check user stories have acceptance scenarios
+        for story in &spec.user_stories {
+            if story.acceptance_scenarios.is_empty() {
+                additional_warnings.push(format!(
+                    "User story '{}' has no acceptance scenarios",
+                    story.id
+                ));
+            }
+        }
+        
+        // Check for at least one requirement
+        if spec.requirement_count() == 0 {
+            additional_errors.push(ValidationErrorOutput {
+                field: "requirements".to_string(),
+                message: "Spec must have at least one requirement.".to_string(),
+            });
+        }
+        
+        // Check success criteria are measurable (contain numbers)
+        for criteria in &spec.success_criteria {
+            let has_number = criteria.metric.chars().any(|c| c.is_ascii_digit());
+            if !has_number {
+                additional_warnings.push(format!(
+                    "Success criterion '{}' may not be measurable (no numeric target)",
+                    criteria.id
+                ));
+            }
+        }
+        
+        // Check overview is not placeholder
+        if let Some(ref overview) = spec.overview {
+            if overview.contains("[") && overview.contains("]") {
+                additional_warnings.push("Overview appears to contain placeholder text".to_string());
+            }
+        }
+    }
+
+    // Load spec using original loader
     let loader = ckrv_spec::loader::YamlSpecLoader;
     let spec = match ckrv_spec::loader::SpecLoader::load(&loader, &full_path) {
         Ok(s) => s,
@@ -687,39 +1182,52 @@ fn execute_validate(path: &PathBuf, json: bool) -> anyhow::Result<()> {
         }
     };
 
-    // Validate
+    // Validate using original validator
     let result = ckrv_spec::validator::validate(&spec);
+
+    // Combine errors and warnings
+    let all_errors: Vec<ValidationErrorOutput> = result
+        .errors
+        .iter()
+        .map(|e| ValidationErrorOutput {
+            field: e.field.clone(),
+            message: e.message.clone(),
+        })
+        .chain(additional_errors)
+        .collect();
+    
+    let all_warnings: Vec<String> = result.warnings.iter().cloned()
+        .chain(additional_warnings)
+        .collect();
+    
+    let is_valid = result.valid && all_errors.len() == result.errors.len();
 
     if json {
         let output = SpecValidateOutput {
-            valid: result.valid,
-            errors: result
-                .errors
-                .iter()
-                .map(|e| ValidationErrorOutput {
-                    field: e.field.clone(),
-                    message: e.message.clone(),
-                })
-                .collect(),
-            warnings: result.warnings,
+            valid: is_valid,
+            errors: all_errors,
+            warnings: all_warnings,
         };
         println!("{}", serde_json::to_string_pretty(&output)?);
-    } else if result.valid {
-        println!("✓ Spec is valid: {}", path.display());
-        for warning in &result.warnings {
+    } else if is_valid {
+        println!("✓ Spec is valid: {}", full_path.display());
+        for warning in &all_warnings {
             println!("  ⚠ {warning}");
         }
+        println!();
+        println!("Next steps:");
+        println!("  1. Tasks:    ckrv spec tasks");
     } else {
-        eprintln!("✗ Spec validation failed: {}", path.display());
-        for error in &result.errors {
+        eprintln!("✗ Spec validation failed: {}", full_path.display());
+        for error in &all_errors {
             eprintln!("  • {}: {}", error.field, error.message);
         }
-        for warning in &result.warnings {
+        for warning in &all_warnings {
             eprintln!("  ⚠ {warning}");
         }
     }
 
-    if !result.valid {
+    if !is_valid {
         std::process::exit(1);
     }
 

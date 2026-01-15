@@ -1,0 +1,102 @@
+# Rich Specification Template
+# This template defines the structure for AI-generated spec.yaml files
+
+id: "{spec_id}"
+branch: "{branch_name}"
+created: "{date}"
+status: draft
+
+overview: |
+  [Brief description of what this feature achieves - 2-3 sentences]
+
+user_stories:
+  - id: US1
+    title: "[User Story Title]"
+    priority: P1
+    description: |
+      [User journey in plain language - what the user wants to accomplish]
+    why_priority: "[Explain why this is the highest priority]"
+    independent_test: "[How to verify this story works independently]"
+    acceptance_scenarios:
+      - given: "[Initial state/context]"
+        when: "[User action]"
+        then: "[Expected outcome]"
+      - given: "[Initial state/context]"
+        when: "[User action]"
+        then: "[Expected outcome]"
+
+  - id: US2
+    title: "[User Story Title]"
+    priority: P2
+    description: |
+      [User journey in plain language]
+    why_priority: "[Explain why this is P2 priority]"
+    independent_test: "[How to verify this story works independently]"
+    acceptance_scenarios:
+      - given: "[Initial state/context]"
+        when: "[User action]"
+        then: "[Expected outcome]"
+
+  - id: US3
+    title: "[User Story Title]"
+    priority: P3
+    description: |
+      [User journey in plain language]
+    why_priority: "[Explain why this is P3 priority]"
+    independent_test: "[How to verify this story works independently]"
+    acceptance_scenarios:
+      - given: "[Initial state/context]"
+        when: "[User action]"
+        then: "[Expected outcome]"
+
+requirements:
+  functional:
+    - id: FR-001
+      description: "System MUST [specific capability]"
+      category: functional
+    - id: FR-002
+      description: "System MUST [specific capability]"
+      category: functional
+    - id: FR-003
+      description: "Users MUST be able to [specific action]"
+      category: functional
+    - id: FR-004
+      description: "System MUST [behavior or constraint]"
+      category: functional
+    - id: FR-005
+      description: "System MUST [data requirement]"
+      category: functional
+
+success_criteria:
+  - id: SC-001
+    metric: "[Measurable outcome with specific target]"
+    measurement: "[How to measure this]"
+  - id: SC-002
+    metric: "[Measurable outcome with specific target]"
+    measurement: "[How to measure this]"
+  - id: SC-003
+    metric: "[User satisfaction or business metric]"
+    measurement: "[How to measure this]"
+
+edge_cases:
+  - "What happens when [boundary condition]?"
+  - "How does system handle [error scenario]?"
+  - "What if [unusual user behavior]?"
+
+assumptions:
+  - "[Technical assumption about environment]"
+  - "[Business assumption about users]"
+  - "[Constraint or dependency]"
+
+clarifications: []
+# Format for clarifications (populated during spec generation if needed):
+# - topic: "[Topic name]"
+#   question: "[Specific question needing user input]"
+#   options:
+#     - label: "A"
+#       answer: "[First option]"
+#       implications: "[What this choice means]"
+#     - label: "B"
+#       answer: "[Second option]"
+#       implications: "[What this choice means]"
+#   resolved: null  # or the chosen answer
