@@ -151,10 +151,12 @@ mod tests {
 
     fn create_test_spec() -> Spec {
         Spec {
-            id: "test".to_string(),
-            goal: "Test goal".to_string(),
+            id: "001-test-feature".to_string(),
+            branch: None,
+            created: None,
+            status: None,
+            overview: Some("Test feature overview".to_string()),
             constraints: vec![],
-            acceptance: vec!["Tests pass".to_string()],
             verify: None,
             source_path: None,
         }

@@ -1,16 +1,32 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     ChevronDown, ChevronRight,
     GitBranch, Layers, List, Code,
     Zap, Brain, Cpu, ArrowRight, Link2, DollarSign, Timer,
     Network, Workflow, Box, Sparkles,
-    Save
+    Save, Settings2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { toast } from 'sonner';
 
 // Types
 interface ModelAssignment {
@@ -54,6 +70,12 @@ interface Spec {
 }
 
 interface AgentConfig {
+    id: string;
+    name: string;
+    agent_type: string;
+    is_default: boolean;
+    level: number;
+    enabled: boolean;
     openrouter?: {
         model: string;
     };
@@ -65,7 +87,7 @@ const fetchSpecs = async (): Promise<{ specs: Spec[] }> => {
     return res.json();
 };
 
-const fetchAgents = async (): Promise<{ agents: Record<string, AgentConfig> }> => {
+const fetchAgents = async (): Promise<{ agents: AgentConfig[] }> => {
     const res = await fetch('/api/agents');
     return res.json();
 };
@@ -152,13 +174,147 @@ const StrategyBadge: React.FC<{ strategy: string }> = ({ strategy }) => {
     );
 };
 
+// Batch Edit Modal
+const BatchEditModal: React.FC<{
+    batch: Batch | null;
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (batchId: string, modelAssignment: ModelAssignment) => void;
+    agents: AgentConfig[];
+}> = ({ batch, isOpen, onClose, onSave, agents }) => {
+    const [selectedAgent, setSelectedAgent] = useState<string>('');
+
+    // Initialize with batch's current model when modal opens
+    React.useEffect(() => {
+        if (batch) {
+            // Find which agent matches the current model
+            const currentModel = batch.model_assignment.default;
+            const matchingAgent = agents.find(a =>
+                a.openrouter?.model === currentModel ||
+                (a.agent_type === 'claude' && currentModel === 'claude-code')
+            );
+            setSelectedAgent(matchingAgent?.id || agents.find(a => a.is_default)?.id || '');
+        }
+    }, [batch, agents]);
+
+    if (!batch) return null;
+
+    // Get the model ID for a given agent
+    const getModelIdForAgent = (agentId: string): string => {
+        const agent = agents.find(a => a.id === agentId);
+        if (!agent) return batch.model_assignment.default;
+        if (agent.agent_type === 'claude') return 'claude-code';
+        return agent.openrouter?.model || batch.model_assignment.default;
+    };
+
+    const handleSave = () => {
+        const modelId = getModelIdForAgent(selectedAgent);
+        onSave(batch.id, {
+            default: modelId,
+            overrides: batch.model_assignment.overrides
+        });
+        onClose();
+    };
+
+    const getCurrentAgentName = () => {
+        const currentModel = batch.model_assignment.default;
+        const matchingAgent = agents.find(a =>
+            a.openrouter?.model === currentModel ||
+            (a.agent_type === 'claude' && currentModel === 'claude-code')
+        );
+        return matchingAgent?.name || currentModel;
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Settings2 size={18} />
+                        Edit Stage: {batch.name}
+                    </DialogTitle>
+                    <DialogDescription>
+                        Configure the agent/model for this execution stage
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">
+                            Select Agent
+                        </label>
+                        <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select an agent" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {agents
+                                    .filter(a => a.enabled)
+                                    .sort((a, b) => b.level - a.level)
+                                    .map(agent => (
+                                        <SelectItem key={agent.id} value={agent.id}>
+                                            <div className="flex items-center gap-2">
+                                                <span>{agent.name}</span>
+                                                {agent.is_default && (
+                                                    <span className="text-xs text-muted-foreground">(default)</span>
+                                                )}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            Current: {getCurrentAgentName()}
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">
+                            Tasks in this stage
+                        </label>
+                        <div className="flex flex-wrap gap-1">
+                            {batch.task_ids.map(taskId => (
+                                <Badge key={taskId} variant="secondary" className="font-mono text-xs">
+                                    {taskId}
+                                </Badge>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
+                        <div>
+                            <span className="text-xs text-muted-foreground">Estimated Cost</span>
+                            <div className="font-medium">${batch.estimated_cost.toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <span className="text-xs text-muted-foreground">Estimated Time</span>
+                            <div className="font-medium">{batch.estimated_time}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleSave}>
+                        <Save size={16} className="mr-2" />
+                        Save Changes
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 // BatchCard using shadcn Card
 const BatchCard: React.FC<{
     batch: Batch;
     isSelected: boolean;
     onClick: () => void;
+    onEdit?: () => void;
     models: ModelInfo[]
-}> = ({ batch, isSelected, onClick, models }) => {
+}> = ({ batch, isSelected, onClick, onEdit, models }) => {
     const [expanded, setExpanded] = useState(false);
 
     return (
@@ -177,7 +333,20 @@ const BatchCard: React.FC<{
                         </div>
                         <h4 className="font-medium text-foreground truncate">{batch.name}</h4>
                     </div>
-                    <ModelBadge model={batch.model_assignment.default} size="sm" models={models} />
+                    <div className="flex items-center gap-2">
+                        <ModelBadge model={batch.model_assignment.default} size="sm" models={models} />
+                        {onEdit && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                                title="Edit stage configuration"
+                            >
+                                <Settings2 size={14} />
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Tasks */}
@@ -248,7 +417,13 @@ const BatchCard: React.FC<{
 };
 
 // DAG View using Card
-const DagView: React.FC<{ batches: Batch[]; selectedBatch: string | null; onSelectBatch: (id: string) => void; models: ModelInfo[] }> = ({ batches, selectedBatch, onSelectBatch, models }) => {
+const DagView: React.FC<{
+    batches: Batch[];
+    selectedBatch: string | null;
+    onSelectBatch: (id: string) => void;
+    onEditBatch?: (batch: Batch) => void;
+    models: ModelInfo[]
+}> = ({ batches, selectedBatch, onSelectBatch, onEditBatch, models }) => {
     const levels = useMemo(() => {
         const batchMap = new Map(batches.map(b => [b.id, b]));
         const levelMap = new Map<string, number>();
@@ -259,7 +434,7 @@ const DagView: React.FC<{ batches: Batch[]; selectedBatch: string | null; onSele
 
             visited.add(batchId);
             const batch = batchMap.get(batchId);
-            if (!batch || batch.depends_on.length === 0) {
+            if (!batch) {
                 levelMap.set(batchId, 0);
                 return 0;
             }
@@ -311,7 +486,20 @@ const DagView: React.FC<{ batches: Batch[]; selectedBatch: string | null; onSele
                                       ${selectedBatch === batch.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
                                     `}
                                 >
-                                    <div className="font-medium text-sm text-foreground truncate">{batch.name}</div>
+                                    <div className="flex items-start justify-between">
+                                        <div className="font-medium text-sm text-foreground truncate flex-1">{batch.name}</div>
+                                        {onEditBatch && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 -mt-1 -mr-1"
+                                                onClick={(e) => { e.stopPropagation(); onEditBatch(batch); }}
+                                                title="Edit stage"
+                                            >
+                                                <Settings2 size={12} />
+                                            </Button>
+                                        )}
+                                    </div>
                                     <div className="flex items-center gap-2 mt-1">
                                         <StrategyBadge strategy={batch.execution_strategy} />
                                         <span className="text-xs text-muted-foreground">{batch.task_ids.length} tasks</span>
@@ -417,6 +605,9 @@ export default function PlanEditor() {
     const [view, setView] = useState<'dag' | 'list' | 'timeline' | 'cost' | 'code'>('dag');
     const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+    const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
+    const [editableBatches, setEditableBatches] = useState<Batch[]>([]);
+    const [hasChanges, setHasChanges] = useState(false);
 
     // Data Fetching
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({ queryKey: ['specs'], queryFn: fetchSpecs });
@@ -428,7 +619,15 @@ export default function PlanEditor() {
         enabled: !!selectedSpecName
     });
 
-    const batches = useMemo(() => planData?.batches || [], [planData]);
+    // Initialize editable batches when plan data loads
+    useEffect(() => {
+        if (planData?.batches) {
+            setEditableBatches(planData.batches);
+            setHasChanges(false);
+        }
+    }, [planData]);
+
+    const batches = editableBatches.length > 0 ? editableBatches : (planData?.batches || []);
     const models = useMemo(() => modelsData?.models || [], [modelsData]);
 
     // Configured models from agents
@@ -458,10 +657,30 @@ export default function PlanEditor() {
         try {
             await savePlan(selectedSpecName, batches);
             setLastSaved(new Date());
+            setHasChanges(false);
             queryClient.invalidateQueries({ queryKey: ['plan', selectedSpecName] });
+            toast.success('Plan Saved', {
+                description: 'Execution plan has been saved successfully',
+            });
         } catch (e) {
             console.error(e);
+            toast.error('Save Failed', {
+                description: e instanceof Error ? e.message : 'Unknown error',
+            });
         }
+    };
+
+    // Handler for updating a batch's model assignment
+    const handleBatchUpdate = (batchId: string, modelAssignment: ModelAssignment) => {
+        setEditableBatches(prev => prev.map(b =>
+            b.id === batchId
+                ? { ...b, model_assignment: modelAssignment }
+                : b
+        ));
+        setHasChanges(true);
+        toast.success('Stage Updated', {
+            description: `Model assignment for ${batchId} changed`,
+        });
     };
 
     if (isError) {
@@ -526,7 +745,13 @@ export default function PlanEditor() {
 
                         <div className="w-px h-6 bg-border" />
 
-                        <Button onClick={handleSave} size="icon" title="Save Plan">
+                        <Button
+                            onClick={handleSave}
+                            size="icon"
+                            title="Save Plan"
+                            disabled={!hasChanges}
+                            className={hasChanges ? '' : 'opacity-50'}
+                        >
                             <Save size={20} />
                         </Button>
                     </div>
@@ -586,6 +811,7 @@ export default function PlanEditor() {
                                 batches={batches}
                                 selectedBatch={selectedBatch}
                                 onSelectBatch={setSelectedBatch}
+                                onEditBatch={setEditingBatch}
                                 models={models}
                             />
                         )}
@@ -598,6 +824,7 @@ export default function PlanEditor() {
                                         batch={batch}
                                         isSelected={selectedBatch === batch.id}
                                         onClick={() => setSelectedBatch(batch.id)}
+                                        onEdit={() => setEditingBatch(batch)}
                                         models={models}
                                     />
                                 ))}
@@ -635,6 +862,15 @@ export default function PlanEditor() {
                     {configuredModels.size === 0 && <span className="text-muted-foreground italic">No configured models found</span>}
                 </div>
             </div>
+
+            {/* Batch Edit Modal */}
+            <BatchEditModal
+                batch={editingBatch}
+                isOpen={!!editingBatch}
+                onClose={() => setEditingBatch(null)}
+                onSave={handleBatchUpdate}
+                agents={agentsData?.agents || []}
+            />
         </div>
     );
 }
