@@ -109,7 +109,7 @@ struct ExecutionPlan {
 }
 
 /// Batch execution status
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Debug, Clone, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
 enum BatchStatus {
     #[default]
@@ -117,6 +117,23 @@ enum BatchStatus {
     Running,
     Completed,
     Failed,
+}
+
+// Custom deserializer that handles empty strings as Pending
+impl<'de> serde::Deserialize<'de> for BatchStatus {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.to_lowercase().as_str() {
+            "" | "pending" => Ok(BatchStatus::Pending),
+            "running" => Ok(BatchStatus::Running),
+            "completed" => Ok(BatchStatus::Completed),
+            "failed" => Ok(BatchStatus::Failed),
+            _ => Ok(BatchStatus::Pending), // Default to pending for unknown values
+        }
+    }
 }
 
 /// Model assignment for a batch
