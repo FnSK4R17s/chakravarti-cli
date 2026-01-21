@@ -12,7 +12,6 @@ import {
     Loader2,
     ExternalLink,
     Key,
-    Cpu,
     ChevronDown,
     ChevronRight,
     Sparkles,
@@ -50,8 +49,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
-// Types
-type AgentType = 'claude' | 'claude_open_router' | 'gemini' | 'codex' | 'cursor' | 'amp' | 'qwen_code' | 'opencode' | 'factory_droid' | 'copilot';
+// Types - Only currently supported agent types
+type AgentType = 'claude' | 'claude_open_router' | 'claude_glm' | 'codex';
 
 interface OpenRouterConfig {
     api_key?: string;
@@ -59,6 +58,12 @@ interface OpenRouterConfig {
     base_url?: string;
     max_tokens?: number;
     temperature?: number;
+}
+
+interface GLMConfig {
+    api_key?: string;
+    model: string;
+    timeout_ms?: number;
 }
 
 export interface AgentConfig {
@@ -72,6 +77,7 @@ export interface AgentConfig {
     enabled: boolean;
     description?: string;
     openrouter?: OpenRouterConfig;
+    glm?: GLMConfig;
     binary_path?: string;
     extra_args?: string[];
     env_vars?: Record<string, string>;
@@ -151,18 +157,12 @@ const testAgent = async (agent: AgentConfig) => {
 };
 
 
-// Agent type display info
+// Agent type display info - Only supported types
 const AGENT_TYPE_INFO: Record<AgentType, { label: string; icon: React.ReactNode; color: string }> = {
     claude: { label: 'Claude Code', icon: <Bot size={16} />, color: 'var(--accent-amber)' },
     claude_open_router: { label: 'Claude + OpenRouter', icon: <Sparkles size={16} />, color: 'var(--accent-purple)' },
-    gemini: { label: 'Gemini CLI', icon: <Cpu size={16} />, color: 'var(--accent-cyan)' },
+    claude_glm: { label: 'GLM Coding Plan', icon: <Zap size={16} />, color: 'var(--accent-cyan)' },
     codex: { label: 'OpenAI Codex', icon: <Zap size={16} />, color: 'var(--accent-green)' },
-    cursor: { label: 'Cursor CLI', icon: <Bot size={16} />, color: 'var(--accent-pink)' },
-    amp: { label: 'Amp', icon: <Zap size={16} />, color: 'var(--accent-amber)' },
-    qwen_code: { label: 'Qwen Code', icon: <Bot size={16} />, color: 'var(--accent-cyan)' },
-    opencode: { label: 'Opencode', icon: <Bot size={16} />, color: 'var(--accent-green)' },
-    factory_droid: { label: 'Factory Droid', icon: <Bot size={16} />, color: 'var(--accent-purple)' },
-    copilot: { label: 'GitHub Copilot', icon: <Bot size={16} />, color: 'var(--text-primary)' },
 };
 
 const AgentManager: React.FC = () => {
@@ -427,6 +427,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
                                 {agent.agent_type === 'claude_open_router' && agent.openrouter && (
                                     <> • {agent.openrouter.model}</>
                                 )}
+                                {agent.agent_type === 'claude_glm' && agent.glm && (
+                                    <> • {agent.glm.model}</>
+                                )}
                             </p>
                         </div>
 
@@ -511,6 +514,31 @@ const AgentCard: React.FC<AgentCardProps> = ({
                                         </code>
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {agent.agent_type === 'claude_glm' && agent.glm && (
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">Model:</span>
+                                    <code className="px-1.5 py-0.5 rounded bg-muted text-accent-cyan">
+                                        {agent.glm.model}
+                                    </code>
+                                </div>
+                                {agent.glm.api_key && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-muted-foreground">Z.AI API Key:</span>
+                                        <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                            ••••••••{agent.glm.api_key.slice(-4)}
+                                        </code>
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">Base URL:</span>
+                                    <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                        https://api.z.ai/api/anthropic
+                                    </code>
+                                </div>
                             </div>
                         )}
 
@@ -633,15 +661,15 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
 
     return (
         <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
-                <form onSubmit={handleSubmit} className="flex flex-col h-full">
+            <DialogContent className="max-w-lg max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+                <form onSubmit={handleSubmit} className="flex flex-col min-h-0 h-full">
                     {/* Header */}
-                    <DialogHeader className="px-6 py-4 border-b border-border">
+                    <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
                         <DialogTitle>{agent ? 'Edit Agent' : 'Add New Agent'}</DialogTitle>
                     </DialogHeader>
 
-                    {/* Body */}
-                    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                    {/* Body - scrollable */}
+                    <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
                         {/* Name */}
                         <div className="space-y-2">
                             <Label htmlFor="name">Name</Label>
@@ -663,6 +691,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                     ...form,
                                     agent_type: value as AgentType,
                                     openrouter: value === 'claude_open_router' ? form.openrouter || { model: 'anthropic/claude-sonnet-4' } : undefined,
+                                    glm: value === 'claude_glm' ? form.glm || { model: 'glm-4.7' } : undefined,
                                 })}
                             >
                                 <SelectTrigger>
@@ -670,14 +699,9 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="claude">Claude Code (Default CLI)</SelectItem>
-                                    <SelectItem value="claude_open_router">Claude Code + OpenRouter</SelectItem>
-                                    <SelectItem value="gemini">Gemini CLI</SelectItem>
+                                    <SelectItem value="claude_open_router">Claude + OpenRouter</SelectItem>
+                                    <SelectItem value="claude_glm">GLM Coding Plan (Z.AI)</SelectItem>
                                     <SelectItem value="codex">OpenAI Codex</SelectItem>
-                                    <SelectItem value="cursor">Cursor CLI</SelectItem>
-                                    <SelectItem value="amp">Amp</SelectItem>
-                                    <SelectItem value="qwen_code">Qwen Code</SelectItem>
-                                    <SelectItem value="opencode">Opencode</SelectItem>
-                                    <SelectItem value="copilot">GitHub Copilot</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -850,6 +874,63 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                             </Card>
                         )}
 
+                        {/* GLM Coding Plan Config */}
+                        {form.agent_type === 'claude_glm' && (
+                            <Card className="p-4 space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <Zap size={14} className="text-accent-cyan" />
+                                    <span className="text-xs font-medium text-accent-cyan">GLM Coding Plan Configuration</span>
+                                </div>
+
+                                {/* Model Selection */}
+                                <div className="space-y-2">
+                                    <Label>Model</Label>
+                                    <Select
+                                        value={form.glm?.model || 'glm-4.7'}
+                                        onValueChange={(value) => setForm({
+                                            ...form,
+                                            glm: { ...form.glm!, model: value },
+                                        })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="glm-4.7">GLM-4.7 (Recommended)</SelectItem>
+                                            <SelectItem value="glm-4.5-air">GLM-4.5-Air (Faster)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* API Key */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="glm-api-key">Z.AI API Key</Label>
+                                    <Input
+                                        id="glm-api-key"
+                                        type="password"
+                                        value={form.glm?.api_key || ''}
+                                        onChange={(e) => setForm({
+                                            ...form,
+                                            glm: { ...form.glm!, api_key: e.target.value },
+                                        })}
+                                        placeholder="Your Z.AI API key"
+                                        className="font-mono"
+                                    />
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                        Get your key from{' '}
+                                        <a
+                                            href="https://z.ai/manage-apikey/apikey-list"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-0.5 text-primary hover:underline"
+                                        >
+                                            z.ai/manage-apikey <ExternalLink size={10} />
+                                        </a>
+                                    </p>
+                                </div>
+                            </Card>
+                        )}
+
                         {/* Description */}
                         <div className="space-y-2">
                             <Label htmlFor="description">
@@ -892,7 +973,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                     </div>
 
                     {/* Footer */}
-                    <DialogFooter className="px-6 py-4 border-t border-border bg-muted/50">
+                    <DialogFooter className="px-6 py-4 border-t border-border bg-muted/50 shrink-0">
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
                         </Button>

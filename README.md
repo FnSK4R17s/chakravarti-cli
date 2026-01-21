@@ -110,13 +110,26 @@ See [Architecture Documentation](crates/docs/architecture.md) for diagrams and d
 
 Chakravarti uses Claude Code CLI as the execution interface, with support for multiple AI backends:
 
+### Currently Supported
+
 | Agent Type | Description |
 |------------|-------------|
 | Claude Code (Native) | Default - uses Anthropic's Claude directly |
+| Claude + OpenRouter | Use 12+ models via Claude Code CLI (Gemini, Kimi K2, DeepSeek, etc.) |
+| GLM Coding Plan | Z.AI's GLM-4.7 and GLM-4.5-Air via Claude Code CLI |
 | OpenAI Codex | Native Codex CLI integration |
-| OpenRouter Models | Plug in 12+ models via Claude Code CLI |
 
-OpenRouter integration allows using models like Gemini, Kimi K2, DeepSeek, Qwen, and others through the Claude Code interface.
+### Future Integrations
+
+The following agents are planned for future releases:
+
+- **Gemini CLI** - Google's Gemini models
+- **Cursor CLI** - Cursor's AI coding assistant
+- **Amp** - Sourcegraph's Amp agent
+- **Qwen Code** - Alibaba's Qwen coding models
+- **Opencode** - Open source coding CLI
+- **Factory Droid** - Factory's autonomous developer
+- **GitHub Copilot** - GitHub Copilot via CLI
 
 See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 

@@ -655,10 +655,21 @@ impl ExecutionEngine {
             
             // Determine if this is an OpenRouter model or native Claude
             let is_openrouter = model.as_ref().map(|m| {
-                m.contains('/') && !m.starts_with("claude") && !is_codex
+                m.contains('/') && !m.starts_with("claude") && !m.starts_with("glm") && !is_codex
             }).unwrap_or(false);
             
-            let agent_name = if is_codex { "OpenAI Codex" } else { "Claude Code" };
+            // Determine if this is a GLM Coding Plan model
+            let is_glm = model.as_ref().map(|m| {
+                m.starts_with("glm-") || m.starts_with("glm_")
+            }).unwrap_or(false);
+            
+            let agent_name = if is_codex { 
+                "OpenAI Codex" 
+            } else if is_glm { 
+                "GLM Coding Plan" 
+            } else { 
+                "Claude Code" 
+            };
             let _ = sender.send(LogMessage::new("info", &format!("Executing in Docker sandbox with {}...", agent_name)).with_batch(&batch.id, &batch.name)).await;
             
             // Try to create Docker sandbox, fall back to local if unavailable
@@ -704,6 +715,34 @@ impl ExecutionEngine {
                         // Set model if specified
                         if let Some(ref model_name) = model {
                             cfg = cfg.env("OPENAI_MODEL", model_name);
+                        }
+                        
+                        cfg
+                    } else if is_glm {
+                        // GLM Coding Plan path: Use Claude Code CLI with Z.AI env vars
+                        // Per https://docs.z.ai/devpack/tool/claude#manual-configuration
+                        let model_name = model.as_ref().unwrap();
+                        let _ = sender.send(LogMessage::new("info", &format!("Using GLM Coding Plan model: {}", model_name)).with_batch(&batch.id, &batch.name)).await;
+                        
+                        // Get GLM API key from environment or agent config
+                        let api_key = std::env::var("ZAI_API_KEY")
+                            .or_else(|_| std::env::var("GLM_API_KEY"))
+                            .ok()
+                            .or_else(|| Self::find_glm_key(model_name));
+                        
+                        if let Some(key) = api_key {
+                            // Required env vars for Z.AI GLM Coding Plan
+                            cfg = cfg.env("ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic");
+                            cfg = cfg.env("ANTHROPIC_AUTH_TOKEN", key);
+                            cfg = cfg.env("ANTHROPIC_API_KEY", ""); // Must be explicitly empty!
+                            cfg = cfg.env("API_TIMEOUT_MS", "3000000"); // Extended timeout for GLM
+                            
+                            // Set model for all tiers
+                            cfg = cfg.env("ANTHROPIC_DEFAULT_SONNET_MODEL", model_name);
+                            cfg = cfg.env("ANTHROPIC_DEFAULT_OPUS_MODEL", model_name);
+                            cfg = cfg.env("ANTHROPIC_DEFAULT_HAIKU_MODEL", model_name);
+                        } else {
+                            let _ = sender.send(LogMessage::new("warning", "No ZAI_API_KEY or GLM_API_KEY found, execution may fail").with_batch(&batch.id, &batch.name)).await;
                         }
                         
                         cfg
@@ -1102,6 +1141,64 @@ impl ExecutionEngine {
                     for agent in &file.agents {
                         if let Some(ref or) = agent.openrouter {
                             if let Some(ref key) = or.api_key {
+                                return Some(key.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        None
+    }
+    
+    /// Find GLM API key from agent config files
+    /// Checks global config at ~/.config/chakravarti/agents.yaml
+    fn find_glm_key(model: &str) -> Option<String> {
+        // Agent config structures matching the actual format
+        #[derive(serde::Deserialize)]
+        struct AgentsFile {
+            agents: Vec<AgentEntry>,
+        }
+        
+        #[derive(serde::Deserialize)]
+        struct AgentEntry {
+            #[allow(dead_code)]
+            id: String,
+            #[allow(dead_code)]
+            agent_type: String,
+            glm: Option<GLMConfig>,
+        }
+        
+        #[derive(serde::Deserialize)]
+        struct GLMConfig {
+            api_key: Option<String>,
+            model: Option<String>,
+        }
+        
+        // Check global config path
+        let agents_path = dirs::config_dir()
+            .map(|d| d.join("chakravarti").join("agents.yaml"))
+            .filter(|p| p.exists());
+        
+        if let Some(path) = agents_path {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Ok(file) = serde_yaml::from_str::<AgentsFile>(&content) {
+                    // First try to find the specific agent matching the model
+                    for agent in &file.agents {
+                        if let Some(ref glm) = agent.glm {
+                            if glm.model.as_ref().map(|m| m == model).unwrap_or(false) {
+                                if let Some(ref key) = glm.api_key {
+                                    return Some(key.clone());
+                                }
+                            }
+                        }
+                    }
+                    
+                    // If no specific match, return any GLM key we find
+                    for agent in &file.agents {
+                        if let Some(ref glm) = agent.glm {
+                            if let Some(ref key) = glm.api_key {
                                 return Some(key.clone());
                             }
                         }
