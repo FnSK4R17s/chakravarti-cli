@@ -84,22 +84,49 @@ pub async fn start_terminal_session(
     // Create a container that stays alive with a shell
     let cwd = state.project_root.to_string_lossy().to_string();
     
-    // Get host home for Claude config
+    // Get host home for config mounting
     let host_home = std::env::var("HOME").unwrap_or_default();
-    let container_home = "/home/claude";
     
     let mut binds = vec![
         format!("{}:/workspace", cwd),
     ];
     
-    // Build environment variables based on agent type
-    let mut env_vars = vec![format!("HOME={}", container_home)];
-    
     let is_openrouter = payload.agent.as_ref()
         .map(|a| matches!(a.agent_type, AgentType::ClaudeOpenRouter))
         .unwrap_or(false);
     
-    if is_openrouter {
+    // Check if this is a Codex agent
+    let is_codex = payload.agent.as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Codex))
+        .unwrap_or(false);
+    
+    // Set container home based on agent type
+    let container_home = if is_codex { "/home/codex" } else { "/home/claude" };
+    
+    // Build environment variables based on agent type
+    let mut env_vars = vec![format!("HOME={}", container_home)];
+    
+    // Select Docker image based on agent type
+    let docker_image = if is_codex {
+        "ckrv-codex:latest".to_string()
+    } else {
+        "ckrv-claude:latest".to_string()
+    };
+    
+    if is_codex {
+        // Codex configuration - mount logged-in credentials (similar to Claude)
+        // Codex CLI stores auth in ~/.codex directory
+        let codex_dir = format!("{}/.codex", host_home);
+        if std::path::Path::new(&codex_dir).exists() {
+            binds.push(format!("{}:/home/codex/.codex", codex_dir));
+        }
+        let openai_config = format!("{}/.config/openai", host_home);
+        if std::path::Path::new(&openai_config).exists() {
+            binds.push(format!("{}:/home/codex/.config/openai", openai_config));
+        }
+        
+        println!("Terminal session using OpenAI Codex with mounted credentials");
+    } else if is_openrouter {
         // OpenRouter configuration for Claude Code
         // See: https://openrouter.ai/docs/guides/guides/claude-code-integration
         if let Some(ref agent) = payload.agent {
@@ -155,7 +182,7 @@ pub async fn start_terminal_session(
     let container_name = format!("ckrv-term-{}", uuid::Uuid::new_v4());
     
     let config = bollard::container::Config {
-        image: Some("ckrv-agent:latest".to_string()),
+        image: Some(docker_image),
         cmd: Some(vec!["tail".to_string(), "-f".to_string(), "/dev/null".to_string()]),
         working_dir: Some("/workspace".to_string()),
         env: Some(env_vars),

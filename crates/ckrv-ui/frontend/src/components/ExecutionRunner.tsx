@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     Square, RotateCcw, CheckCircle2, Circle, Clock,
     AlertTriangle, Loader2, Terminal as TerminalIcon, ChevronRight, Maximize2, Minimize2,
-    ArrowRight, Zap, Brain, Cpu,
+    ArrowRight, Zap, Brain, Cpu, Bot,
     Layers, Timer, DollarSign, Rocket, GitMerge, ArrowDown
 } from 'lucide-react';
 import { LogTerminal } from './LogTerminal';
@@ -81,11 +81,11 @@ const fetchPlan = async (spec: string): Promise<{ success: boolean; batches: Bat
     return res.json();
 };
 
-const startExecution = async (spec: string, runId: string, dryRun = false): Promise<{ success: boolean; message?: string }> => {
+const startExecution = async (spec: string, runId: string, agent: string = 'claude', dryRun = false): Promise<{ success: boolean; message?: string }> => {
     const res = await fetch('/api/execution/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spec, run_id: runId, dry_run: dryRun }),
+        body: JSON.stringify({ spec, run_id: runId, agent, dry_run: dryRun }),
     });
     return res.json();
 };
@@ -437,6 +437,8 @@ export default function ExecutionRunner() {
     const [orchestratorMinimized, setOrchestratorMinimized] = useState(false);
     // T046: View mode toggle - 'terminal' for classic view, 'carousel' for new batch carousel
     const [logViewMode, setLogViewMode] = useState<'terminal' | 'carousel'>('carousel');
+    // Agent selection for execution (claude or codex)
+    const [selectedAgent, setSelectedAgent] = useState<'claude' | 'codex'>('claude');
     const [unmergedBranches, setUnmergedBranches] = useState<UnmergedBranch[]>([]);
     const [isMerging, setIsMerging] = useState(false);
     const [mergeResult, setMergeResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -514,20 +516,20 @@ export default function ExecutionRunner() {
     useEffect(() => {
         const loadHistoricalLogs = async () => {
             if (!runHistoryData?.runs?.length || !planData?.batches?.length) return;
-            
+
             const hasCompletedBatches = planData.batches.some(b => b.status === 'completed');
             if (!hasCompletedBatches) return;
-            
+
             if (executionStatus === 'running' || executionStatus === 'starting') return;
 
-            const recentRun = runHistoryData.runs.find(r => 
+            const recentRun = runHistoryData.runs.find(r =>
                 r.status === 'completed' || r.status === 'failed'
             );
             if (!recentRun) return;
 
             try {
                 const logsResponse = await fetchLogs(recentRun.id, { limit: 10000 });
-                
+
                 if (logsResponse.logs.length > 0) {
                     const batchNameToId: Record<string, string> = {};
                     planData.batches.forEach(b => {
@@ -539,11 +541,11 @@ export default function ExecutionRunner() {
 
                     for (const log of logsResponse.logs) {
                         let batchId: string | undefined;
-                        
+
                         if (log.source) {
                             const sourceLower = log.source.toLowerCase();
                             batchId = batchNameToId[sourceLower];
-                            
+
                             if (!batchId) {
                                 for (const [name, id] of Object.entries(batchNameToId)) {
                                     if (sourceLower.includes(name) || name.includes(sourceLower)) {
@@ -558,7 +560,7 @@ export default function ExecutionRunner() {
                             const spawnMatch = log.message.match(/Spawning batch:\s*(.+)/i);
                             const completeMatch = log.message.match(/Mission completed:\s*(.+)/i);
                             const batchMatch = spawnMatch || completeMatch;
-                            
+
                             if (batchMatch) {
                                 const batchName = batchMatch[1].trim().toLowerCase();
                                 batchId = batchNameToId[batchName];
@@ -992,7 +994,7 @@ export default function ExecutionRunner() {
         addLog('🚀 Starting execution...', 'start');
 
         try {
-            const res = await startExecution(selectedSpecName, runId);
+            const res = await startExecution(selectedSpecName, runId, selectedAgent);
             if (res.success) {
                 connectWebSocket(runId);
             } else {
@@ -1003,7 +1005,7 @@ export default function ExecutionRunner() {
             addLog(`Error: ${e}`, 'error');
             setExecutionStatus('failed');
         }
-    }, [selectedSpecName, addLog, connectWebSocket]);
+    }, [selectedSpecName, selectedAgent, addLog, connectWebSocket]);
 
     const handlePlan = useCallback(async () => {
         if (!selectedSpecName) return;
@@ -1226,6 +1228,19 @@ export default function ExecutionRunner() {
                                     <Layers size={14} />
                                     {selectedSpecHasPlan ? 'Plan Exists' : 'Generate Plan'}
                                 </button>
+                                {/* Agent Selector */}
+                                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-800/50 border border-gray-700">
+                                    <Bot size={12} className="text-gray-400" />
+                                    <select
+                                        value={selectedAgent}
+                                        onChange={(e) => setSelectedAgent(e.target.value as 'claude' | 'codex')}
+                                        className="bg-transparent text-xs text-gray-300 border-none outline-none cursor-pointer"
+                                        title="Select AI agent for execution"
+                                    >
+                                        <option value="claude" className="bg-gray-900">Claude</option>
+                                        <option value="codex" className="bg-gray-900">Codex</option>
+                                    </select>
+                                </div>
                                 <button
                                     onClick={handleRun}
                                     disabled={batches.length > 0 && completedBatches.size === batches.length}
@@ -1235,7 +1250,7 @@ export default function ExecutionRunner() {
                                         }`}
                                     data-testid="run-button"
                                     aria-label="Start execution"
-                                    title={batches.length > 0 && completedBatches.size === batches.length ? 'All batches completed' : 'Run execution'}
+                                    title={batches.length > 0 && completedBatches.size === batches.length ? 'All batches completed' : `Run execution with ${selectedAgent === 'claude' ? 'Claude Code' : 'OpenAI Codex'}`}
                                 >
                                     <Zap size={14} fill="currentColor" />
                                     {batches.length > 0 && completedBatches.size === batches.length ? 'Completed' : 'Run Execution'}
