@@ -58,7 +58,14 @@ pub struct StartExecutionRequest {
     #[serde(default)]
     pub dry_run: bool,
     pub executor_model: Option<String>,
+    /// Agent to use: "claude" or "codex"
+    #[serde(default = "default_agent")]
+    pub agent: String,
     pub resume_run_id: Option<String>, // T032: Resume specific run
+}
+
+fn default_agent() -> String {
+    "claude".to_string()
 }
 
 /// Response from starting execution
@@ -129,11 +136,12 @@ pub async fn start_execution(
     let resume_run_id = payload.resume_run_id.clone(); // T032: Resume support
     
     let error_tx = log_mpsc_tx.clone();
+    let agent = payload.agent.clone();
 
     // Spawn Execution Task
     let handle = tokio::spawn(async move {
         // T032: Pass resume_run_id to run_spec for resuming
-        if let Err(e) = engine.run_spec(spec_name, dry_run, executor_model, resume_run_id).await {
+        if let Err(e) = engine.run_spec(spec_name, dry_run, executor_model, agent, resume_run_id).await {
             eprintln!("Execution failed: {:?}", e);
             let _ = error_tx.send(LogMessage::new("error", &format!("Execution failed: {:?}", e))).await;
         }

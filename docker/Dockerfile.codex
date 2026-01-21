@@ -1,0 +1,34 @@
+# Chakravarti Codex Agent Container
+# Contains OpenAI Codex CLI for sandboxed agent execution
+
+FROM node:22-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install OpenAI Codex CLI globally
+RUN npm install -g @openai/codex
+
+# Create /home/codex directory with open permissions
+# This allows the container to run as any host user while using this home directory
+RUN mkdir -p /home/codex/.codex && \
+    mkdir -p /home/codex/.config/openai && \
+    chmod -R 777 /home/codex
+
+# Create workspace directory with open permissions
+RUN mkdir -p /workspace && chmod 777 /workspace
+
+WORKDIR /workspace
+
+# Set HOME environment variable
+ENV HOME=/home/codex
+
+# Verify Codex is installed
+RUN codex --version || true
+
+# Default command
+CMD ["/bin/bash"]

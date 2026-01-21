@@ -44,6 +44,10 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub executor_model: Option<String>,
 
+    /// Agent to use for execution: claude or codex.
+    #[arg(long, default_value = "claude")]
+    pub agent: String,
+
     /// Execute job in Chakravarti Cloud instead of locally.
     #[arg(long)]
     pub cloud: bool,

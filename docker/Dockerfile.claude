@@ -1,9 +1,9 @@
-# Chakravarti Agent Container
-# Contains Claude Code CLI and OpenAI Codex CLI for sandboxed agent execution
+# Chakravarti Claude Agent Container
+# Contains Claude Code CLI for sandboxed agent execution
 
 FROM node:22-slim
 
-# Install dependencies and agent CLIs
+# Install dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -13,27 +13,21 @@ RUN apt-get update && apt-get install -y \
 # Install Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
 
-# Install OpenAI Codex CLI globally
-RUN npm install -g @openai/codex
-
 # Create /home/claude directory with open permissions
 # This allows the container to run as any host user while using this home directory
 RUN mkdir -p /home/claude/.claude && \
     chmod -R 777 /home/claude
-
-# Create Codex config directory
-RUN mkdir -p /home/claude/.codex && \
-    mkdir -p /home/claude/.config/openai && \
-    chmod -R 777 /home/claude/.codex /home/claude/.config
 
 # Create workspace directory with open permissions
 RUN mkdir -p /workspace && chmod 777 /workspace
 
 WORKDIR /workspace
 
-# Verify both CLIs are installed (as root, before switching)
+# Set HOME environment variable
+ENV HOME=/home/claude
+
+# Verify Claude is installed
 RUN claude --version || true
-RUN codex --version || true
 
 # Default command
 CMD ["/bin/bash"]
