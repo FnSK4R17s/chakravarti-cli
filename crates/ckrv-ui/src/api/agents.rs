@@ -72,6 +72,12 @@ pub struct AgentConfig {
     /// Whether this is the default agent
     #[serde(default)]
     pub is_default: bool,
+    /// Whether this is the QA/testing agent
+    #[serde(default)]
+    pub is_qa_agent: bool,
+    /// Whether this is the test writer agent
+    #[serde(default)]
+    pub is_test_writer: bool,
     /// Whether this agent is enabled
     #[serde(default = "default_enabled")]
     pub enabled: bool,
@@ -119,6 +125,8 @@ fn ensure_defaults(agents: &mut AgentsFile) {
             agent_type: AgentType::Claude,
             level: 5, // Default Claude is strongest
             is_default: true,
+            is_qa_agent: false,
+            is_test_writer: false,
             enabled: true,
             description: Some("Default Claude Code CLI agent".to_string()),
             openrouter: None,
@@ -489,6 +497,78 @@ pub async fn set_default_agent(
             found = true;
         } else {
             agent.is_default = false;
+        }
+    }
+    
+    if !found {
+        return Json(serde_json::json!({
+            "success": false,
+            "message": "Agent not found"
+        }));
+    }
+    
+    match save_agents(&state, &agents) {
+        Ok(()) => Json(serde_json::json!({
+            "success": true
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "message": e
+        })),
+    }
+}
+
+/// Set QA agent
+pub async fn set_qa_agent(
+    State(state): State<AppState>,
+    Json(payload): Json<SetDefaultPayload>,
+) -> impl IntoResponse {
+    let mut agents = load_agents(&state);
+    
+    // Unset all QA agents, then set the new one
+    let mut found = false;
+    for agent in &mut agents.agents {
+        if agent.id == payload.id {
+            agent.is_qa_agent = true;
+            found = true;
+        } else {
+            agent.is_qa_agent = false;
+        }
+    }
+    
+    if !found {
+        return Json(serde_json::json!({
+            "success": false,
+            "message": "Agent not found"
+        }));
+    }
+    
+    match save_agents(&state, &agents) {
+        Ok(()) => Json(serde_json::json!({
+            "success": true
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "message": e
+        })),
+    }
+}
+
+/// Set test writer agent
+pub async fn set_test_writer_agent(
+    State(state): State<AppState>,
+    Json(payload): Json<SetDefaultPayload>,
+) -> impl IntoResponse {
+    let mut agents = load_agents(&state);
+    
+    // Unset all test writer agents, then set the new one
+    let mut found = false;
+    for agent in &mut agents.agents {
+        if agent.id == payload.id {
+            agent.is_test_writer = true;
+            found = true;
+        } else {
+            agent.is_test_writer = false;
         }
     }
     

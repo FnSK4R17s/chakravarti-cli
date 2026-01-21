@@ -283,6 +283,7 @@ impl ExecutionEngine {
         spec_name: String,
         dry_run: bool,
         executor_model: Option<String>,
+        agent: String, // Agent to use: "claude" or "codex"
         existing_run_id: Option<String>, // T032: Resume existing run
     ) -> Result<()> {
         let spec_path = self.project_root.join(".specs").join(&spec_name).join("spec.yaml");
@@ -447,6 +448,7 @@ impl ExecutionEngine {
                      let exe_path = ckrv_exe.clone();
                      let project_root = self.project_root.clone();
                      let executor_model = executor_model.clone();
+                     let agent = agent.clone();
                      let sender = self.sender.clone();
                      let execution_id = self.current_execution_id.lock().unwrap().clone();
                      
@@ -460,6 +462,7 @@ impl ExecutionEngine {
                              dry_run,
                              true, // use_sandbox: always use Docker
                              executor_model,
+                             agent,
                              sender,
                              execution_id,
                          ).await
@@ -589,6 +592,7 @@ impl ExecutionEngine {
         dry_run: bool,
         use_sandbox: bool, // NEW: Use Docker sandbox for execution
         executor_model: Option<String>,
+        agent: String, // Agent to use: "claude" or "codex"
         sender: mpsc::Sender<LogMessage>,
         execution_id: Option<String>, // For log persistence
     ) -> Result<(String, String)> { // Returns (batch_id, branch_name)
@@ -646,41 +650,64 @@ impl ExecutionEngine {
         }
 
         if use_sandbox {
-            // Docker sandbox execution using Claude Code CLI
-            let _ = sender.send(LogMessage::new("info", "Executing in Docker sandbox with Claude Code...").with_batch(&batch.id, &batch.name)).await;
+            // Determine agent type from the passed agent parameter
+            let is_codex = agent == "codex";
             
             // Determine if this is an OpenRouter model or native Claude
             let is_openrouter = model.as_ref().map(|m| {
-                m.contains('/') && !m.starts_with("claude")
+                m.contains('/') && !m.starts_with("claude") && !is_codex
             }).unwrap_or(false);
+            
+            let agent_name = if is_codex { "OpenAI Codex" } else { "Claude Code" };
+            let _ = sender.send(LogMessage::new("info", &format!("Executing in Docker sandbox with {}...", agent_name)).with_batch(&batch.id, &batch.name)).await;
             
             // Try to create Docker sandbox, fall back to local if unavailable
             match DockerSandbox::with_defaults() {
                 Ok(sandbox) => {
-                    // Build the Claude Code command
-                    // Use --print and --dangerously-skip-permissions for non-interactive execution
-                    let claude_prompt = format!(
+                    // Build the agent command
+                    // Use --print and appropriate flags for non-interactive execution
+                    let agent_prompt = format!(
                         "You are implementing code changes in a project. Follow these instructions exactly:\n\n{}\n\nMake all changes to the files in /workspace. Do not ask questions - implement the code directly.",
                         description
                     );
                     
-                    let escaped_prompt = claude_prompt.replace("\"", "\\\"");
+                    let escaped_prompt = agent_prompt.replace("\"", "\\\"");
                     
-                    // Base command with streaming JSON output for real-time logs
-                    // Note: --verbose is required when using --output-format stream-json
-                    let cmd = format!(
-                        "claude --print --verbose --output-format stream-json --dangerously-skip-permissions \"{}\"",
-                        escaped_prompt
-                    );
+                    // Base command based on agent type
+                    let (cmd, agent_binary) = if is_codex {
+                        // Codex CLI command
+                        let cmd = format!(
+                            "codex --print --full-auto --quiet \"{}\"",
+                            escaped_prompt
+                        );
+                        (cmd, "codex")
+                    } else {
+                        // Claude Code CLI command with streaming JSON output
+                        let cmd = format!(
+                            "claude --print --verbose --output-format stream-json --dangerously-skip-permissions \"{}\"",
+                            escaped_prompt
+                        );
+                        (cmd, "claude")
+                    };
                     
                     let mut cfg = ExecuteConfig::new(
-                        "claude",
+                        agent_binary,
                         worktree.path.clone()
                     ).shell(&cmd)
                      .with_timeout(Duration::from_secs(900)); // 15 minute timeout
                     
-                    // Configure execution with claude CLI
-                    let config = if is_openrouter {
+                    // Configure execution based on agent type
+                    let config = if is_codex {
+                        // Codex path: Use mounted credentials from ~/.codex
+                        let _ = sender.send(LogMessage::new("info", "Using OpenAI Codex with mounted credentials").with_batch(&batch.id, &batch.name)).await;
+                        
+                        // Set model if specified
+                        if let Some(ref model_name) = model {
+                            cfg = cfg.env("OPENAI_MODEL", model_name);
+                        }
+                        
+                        cfg
+                    } else if is_openrouter {
                         // OpenRouter path: Use Claude Code CLI with OpenRouter env vars
                         // Per https://openrouter.ai/docs/guides/guides/claude-code-integration
                         let model_name = model.as_ref().unwrap();

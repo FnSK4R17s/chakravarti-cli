@@ -101,6 +101,8 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
         .route("/api/agents/upsert", axum::routing::post(crate::api::agents::upsert_agent))
         .route("/api/agents/delete", axum::routing::post(crate::api::agents::delete_agent))
         .route("/api/agents/set-default", axum::routing::post(crate::api::agents::set_default_agent))
+        .route("/api/agents/set-qa", axum::routing::post(crate::api::agents::set_qa_agent))
+        .route("/api/agents/set-test-writer", axum::routing::post(crate::api::agents::set_test_writer_agent))
         .route("/api/agents/test", axum::routing::post(crate::api::agents::test_agent))
         .route("/api/agents/cli", axum::routing::post(crate::api::console::execute_command))
         // Session management routes

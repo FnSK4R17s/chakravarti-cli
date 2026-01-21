@@ -2,6 +2,7 @@
 //!
 //! This crate provides sandboxed command execution using Docker/Podman.
 
+pub mod agent;
 pub mod allowlist;
 pub mod docker;
 pub mod env;
@@ -13,3 +14,4 @@ pub use docker::DockerClient;
 pub use env::{detect_env, EnvConfig};
 pub use error::SandboxError;
 pub use executor::{DockerSandbox, ExecuteConfig, ExecuteResult, LocalSandbox, Sandbox};
+pub use agent::{AgentConfig, AgentOutput, AgentProvider, AgentType, create_agent, default_agent};
