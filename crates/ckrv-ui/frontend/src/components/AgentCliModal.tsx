@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Terminal as TerminalIcon, Circle } from 'lucide-react';
+import { Terminal as TerminalIcon, Circle, X } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -7,6 +7,7 @@ import type { AgentConfig } from './AgentManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 // API functions
 const startTerminalSession = async (sessionId: string, agent: AgentConfig) => {
@@ -58,11 +59,16 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                 return;
             }
 
-            // Create xterm instance
+            // Create xterm instance with full terminal support
             const term = new Terminal({
                 cursorBlink: true,
                 fontSize: 14,
                 fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
+                scrollback: 1000,
+                cols: 120,
+                rows: 30,
+                convertEol: true,
+                allowProposedApi: true,
                 theme: {
                     background: '#1e1e1e',
                     foreground: '#d4d4d4',
@@ -156,6 +162,8 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                     if (agent.agent_type === 'claude_open_router' && agent.openrouter) {
                         term.writeln(`\x1b[35m# Mode: OpenRouter\x1b[0m`);
                         term.writeln(`\x1b[35m# Model: ${agent.openrouter.model}\x1b[0m`);
+                    } else if (agent.agent_type === 'codex') {
+                        term.writeln(`\x1b[32m# Mode: OpenAI Codex\x1b[0m`);
                     } else {
                         term.writeln(`\x1b[36m# Mode: Native Claude\x1b[0m`);
                     }
@@ -272,6 +280,17 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                                 {containerId.slice(0, 12)}
                             </span>
                         )}
+                        {/* Close button */}
+                        <div className="flex-1" />
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleClose}
+                            className="h-7 w-7 shrink-0"
+                            title="Close terminal"
+                        >
+                            <X size={16} />
+                        </Button>
                     </div>
                 </DialogHeader>
 

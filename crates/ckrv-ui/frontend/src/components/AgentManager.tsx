@@ -18,7 +18,9 @@ import {
     Sparkles,
     TestTube,
     AlertCircle,
-    Terminal
+    Terminal,
+    Shield,
+    FileCode
 } from 'lucide-react';
 import { AgentCliModal } from './AgentCliModal';
 import { Card, CardContent } from '@/components/ui/card';
@@ -65,6 +67,8 @@ export interface AgentConfig {
     agent_type: AgentType;
     level: number;          // 1-5, capability level (5 = strongest)
     is_default: boolean;
+    is_qa_agent?: boolean;
+    is_test_writer?: boolean;
     enabled: boolean;
     description?: string;
     openrouter?: OpenRouterConfig;
@@ -112,6 +116,24 @@ const deleteAgent = async (id: string) => {
 
 const setDefaultAgent = async (id: string) => {
     const res = await fetch('/api/agents/set-default', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+    });
+    return res.json();
+};
+
+const setQaAgent = async (id: string) => {
+    const res = await fetch('/api/agents/set-qa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+    });
+    return res.json();
+};
+
+const setTestWriterAgent = async (id: string) => {
+    const res = await fetch('/api/agents/set-test-writer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
@@ -181,6 +203,20 @@ const AgentManager: React.FC = () => {
 
     const setDefaultMutation = useMutation({
         mutationFn: setDefaultAgent,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['agents'] });
+        },
+    });
+
+    const setQaMutation = useMutation({
+        mutationFn: setQaAgent,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['agents'] });
+        },
+    });
+
+    const setTestWriterMutation = useMutation({
+        mutationFn: setTestWriterAgent,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['agents'] });
         },
@@ -259,6 +295,8 @@ const AgentManager: React.FC = () => {
                             onEdit={() => setEditingAgent(agent)}
                             onDelete={() => deleteMutation.mutate(agent.id)}
                             onSetDefault={() => setDefaultMutation.mutate(agent.id)}
+                            onSetQa={() => setQaMutation.mutate(agent.id)}
+                            onSetTestWriter={() => setTestWriterMutation.mutate(agent.id)}
                             onTest={() => testMutation.mutate(agent)}
                             onCli={() => setCliAgent(agent)}
                             isDeleting={deleteMutation.isPending}
@@ -302,6 +340,8 @@ interface AgentCardProps {
     onEdit: () => void;
     onDelete: () => void;
     onSetDefault: () => void;
+    onSetQa: () => void;
+    onSetTestWriter: () => void;
     onTest: () => void;
     onCli: () => void;
     isDeleting: boolean;
@@ -316,6 +356,8 @@ const AgentCard: React.FC<AgentCardProps> = ({
     onEdit,
     onDelete,
     onSetDefault,
+    onSetQa,
+    onSetTestWriter,
     onTest,
     onCli,
     isDeleting,
@@ -364,6 +406,16 @@ const AgentCard: React.FC<AgentCardProps> = ({
                                         DEFAULT
                                     </Badge>
                                 )}
+                                {agent.is_qa_agent && (
+                                    <Badge variant="success" className="text-[10px]">
+                                        QA
+                                    </Badge>
+                                )}
+                                {agent.is_test_writer && (
+                                    <Badge variant="info" className="text-[10px]">
+                                        TESTS
+                                    </Badge>
+                                )}
                                 {!agent.enabled && (
                                     <Badge variant="destructive" className="text-[10px]">
                                         DISABLED
@@ -404,6 +456,12 @@ const AgentCard: React.FC<AgentCardProps> = ({
                                 ) : (
                                     <StarOff size={14} className="text-muted-foreground" />
                                 )}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onSetQa} title={agent.is_qa_agent ? 'QA Agent' : 'Set as QA agent'}>
+                                <Shield size={14} className={agent.is_qa_agent ? 'text-green-500' : 'text-muted-foreground'} />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onSetTestWriter} title={agent.is_test_writer ? 'Test Writer' : 'Set as Test Writer'}>
+                                <FileCode size={14} className={agent.is_test_writer ? 'text-blue-500' : 'text-muted-foreground'} />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit} title="Edit agent">
                                 <Settings2 size={14} className="text-muted-foreground" />

@@ -135,3 +135,5 @@ CKRV_MODEL_ENDPOINT     # Custom endpoint URL
 - Files in `.specs/<spec-id>/` directory (YAML + Markdown) (001-spec-setup)
 - Rust 1.75 (backend), TypeScript/React (frontend) + Axum (web server), tokio (async), React Query, WebSocket (010-persistent-runner-logs)
 - File-based (dedicated `.ckrv/logs/` folder with `.gitkeep`) (010-persistent-runner-logs)
+- Rust 1.75 (workspace already configured) + bollard (Docker), tokio (async), serde (config) (011-openai-codex-agent)
+- YAML configuration files in `.chakravarti/` and environment variables (011-openai-codex-agent)
