@@ -14,7 +14,9 @@ use ckrv_git::{WorktreeManager, DefaultWorktreeManager};
 use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox, DefaultAllowList};
 
 use crate::services::history::HistoryService;
+use crate::services::log_store::LogStore;
 use crate::models::history::{Run, RunStatus, HistoryBatchStatus};
+use crate::models::log::{LogEntry, LogLevel};
 
 /// Status of a batch in the execution plan
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -43,6 +45,14 @@ impl<'de> serde::Deserialize<'de> for BatchStatus {
     }
 }
 
+// Default implementation for serde(default) - returns Pending
+impl Default for BatchStatus {
+    fn default() -> Self {
+        BatchStatus::Pending
+    }
+}
+
+
 /// Execution plan structure (plan.yaml)
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExecutionPlan {
@@ -58,12 +68,14 @@ pub struct Batch {
     pub task_ids: Vec<String>,
     #[serde(default)]
     pub depends_on: Vec<String>,
+    #[serde(default)]
     pub status: BatchStatus,
     #[serde(default)]
     pub branch: Option<String>,
     pub reasoning: String,
     pub model_assignment: ModelAssignment,
 }
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ModelAssignment {
@@ -168,25 +180,96 @@ impl LogMessage {
         self.error = Some(error.to_string());
         self
     }
+    
+    /// Set batch id and name (for batch-attributed logs)
+    pub fn with_batch(mut self, batch_id: &str, batch_name: &str) -> Self {
+        self.batch_id = Some(batch_id.to_string());
+        self.batch_name = Some(batch_name.to_string());
+        self
+    }
 }
 
 pub struct ExecutionEngine {
     project_root: PathBuf,
     sender: mpsc::Sender<LogMessage>,
+    /// T012: LogStore for persisting logs to disk
+    log_store: LogStore,
+    /// Current execution ID for log persistence
+    current_execution_id: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
 impl ExecutionEngine {
     pub fn new(project_root: PathBuf, sender: mpsc::Sender<LogMessage>) -> Self {
         Self {
+            log_store: LogStore::new(&project_root),
             project_root,
             sender,
+            current_execution_id: std::sync::Arc::new(std::sync::Mutex::new(None)),
         }
     }
 
+    /// Set the current execution ID for log persistence
+    fn set_execution_id(&self, execution_id: &str) {
+        let mut guard = self.current_execution_id.lock().unwrap();
+        *guard = Some(execution_id.to_string());
+    }
+
+    /// T013: Modified log method that persists logs via LogStore
     async fn log(&self, type_: &str, message: &str) {
         let _ = self.sender.send(LogMessage::new(type_, message)).await;
         // Also print to server stdout for debugging
         println!("[ExecutionEngine] {}: {}", type_, message);
+
+        // T013: Persist to disk if execution ID is set
+        if let Some(execution_id) = self.current_execution_id.lock().unwrap().clone() {
+            let level = match type_ {
+                "info" => LogLevel::Info,
+                "warning" => LogLevel::Warning,
+                "error" => LogLevel::Error,
+                "log" => LogLevel::Log,
+                "start" => LogLevel::Start,
+                "batch_start" => LogLevel::BatchStart,
+                "batch_complete" => LogLevel::BatchComplete,
+                "batch_error" => LogLevel::BatchError,
+                "success" => LogLevel::Success,
+                "status" => LogLevel::Status,
+                _ => LogLevel::Info,
+            };
+
+            let entry = LogEntry::new(&execution_id, level, message);
+            if let Err(e) = self.log_store.append(&execution_id, &entry) {
+                eprintln!("Warning: Failed to persist log entry: {}", e);
+            }
+        }
+    }
+
+    /// T013: Log method for batch-attributed logs that persists with batch info
+    async fn log_with_batch(&self, type_: &str, message: &str, batch_id: &str, batch_name: &str) {
+        let _ = self.sender.send(LogMessage::new(type_, message).with_batch(batch_id, batch_name)).await;
+        // Also print to server stdout for debugging
+        println!("[ExecutionEngine] {}/{}: {}", batch_name, type_, message);
+
+        // T013: Persist to disk if execution ID is set
+        if let Some(execution_id) = self.current_execution_id.lock().unwrap().clone() {
+            let level = match type_ {
+                "info" => LogLevel::Info,
+                "warning" => LogLevel::Warning,
+                "error" => LogLevel::Error,
+                "log" => LogLevel::Log,
+                "start" => LogLevel::Start,
+                "batch_start" => LogLevel::BatchStart,
+                "batch_complete" => LogLevel::BatchComplete,
+                "batch_error" => LogLevel::BatchError,
+                "success" => LogLevel::Success,
+                "status" => LogLevel::Status,
+                _ => LogLevel::Info,
+            };
+
+            let entry = LogEntry::with_batch(&execution_id, level, message, batch_id, batch_name);
+            if let Err(e) = self.log_store.append(&execution_id, &entry) {
+                eprintln!("Warning: Failed to persist log entry: {}", e);
+            }
+        }
     }
 
     fn save_plan(&self, plan_path: &Path, plan: &ExecutionPlan) -> Result<()> {
@@ -295,6 +378,9 @@ impl ExecutionEngine {
             id
         };
 
+        // T012: Set execution ID for log persistence
+        self.set_execution_id(&run_id);
+
         // Initialize Worktree Manager
         let mut manager = DefaultWorktreeManager::new(&self.project_root).context("Failed to init worktree manager")?;
         let exe = std::env::current_exe()?; // Self-reference for spawning tasks?
@@ -362,6 +448,7 @@ impl ExecutionEngine {
                      let project_root = self.project_root.clone();
                      let executor_model = executor_model.clone();
                      let sender = self.sender.clone();
+                     let execution_id = self.current_execution_id.lock().unwrap().clone();
                      
                      // Spawn the batch execution
                      running_futures.push(tokio::spawn(async move {
@@ -373,7 +460,8 @@ impl ExecutionEngine {
                              dry_run,
                              true, // use_sandbox: always use Docker
                              executor_model,
-                             sender
+                             sender,
+                             execution_id,
                          ).await
                      }));
                  } else {
@@ -473,6 +561,21 @@ impl ExecutionEngine {
             self.log("info", &format!("Run history entry completed: {}", run_id)).await;
         }
         
+        // Create implementation.yaml to mark the spec as implemented
+        // This enables the View Diff, Verify, and Create PR buttons in the UI
+        let impl_yaml_path = self.project_root.join(".specs").join(&spec_name).join("implementation.yaml");
+        let impl_content = format!(
+            "status: completed\nbranch: {}\ncompleted_at: {}\nrun_id: {}\n",
+            spec_name, // The spec name is used as the implementation branch
+            chrono::Utc::now().to_rfc3339(),
+            run_id
+        );
+        if let Err(e) = std::fs::write(&impl_yaml_path, impl_content) {
+            self.log("warning", &format!("Failed to create implementation.yaml: {}", e)).await;
+        } else {
+            self.log("info", &format!("Created implementation.yaml for spec {}", spec_name)).await;
+        }
+        
         self.log("success", "All batches completed successfully.").await;
         Ok(())
     }
@@ -487,6 +590,7 @@ impl ExecutionEngine {
         use_sandbox: bool, // NEW: Use Docker sandbox for execution
         executor_model: Option<String>,
         sender: mpsc::Sender<LogMessage>,
+        execution_id: Option<String>, // For log persistence
     ) -> Result<(String, String)> { // Returns (batch_id, branch_name)
         
         // Construct description
@@ -543,7 +647,7 @@ impl ExecutionEngine {
 
         if use_sandbox {
             // Docker sandbox execution using Claude Code CLI
-            let _ = sender.send(LogMessage::new("info", "Executing in Docker sandbox with Claude Code...")).await;
+            let _ = sender.send(LogMessage::new("info", "Executing in Docker sandbox with Claude Code...").with_batch(&batch.id, &batch.name)).await;
             
             // Determine if this is an OpenRouter model or native Claude
             let is_openrouter = model.as_ref().map(|m| {
@@ -562,9 +666,10 @@ impl ExecutionEngine {
                     
                     let escaped_prompt = claude_prompt.replace("\"", "\\\"");
                     
-                    // Base command is the same for both paths
+                    // Base command with streaming JSON output for real-time logs
+                    // Note: --verbose is required when using --output-format stream-json
                     let cmd = format!(
-                        "claude --print --dangerously-skip-permissions \"{}\"",
+                        "claude --print --verbose --output-format stream-json --dangerously-skip-permissions \"{}\"",
                         escaped_prompt
                     );
                     
@@ -579,7 +684,7 @@ impl ExecutionEngine {
                         // OpenRouter path: Use Claude Code CLI with OpenRouter env vars
                         // Per https://openrouter.ai/docs/guides/guides/claude-code-integration
                         let model_name = model.as_ref().unwrap();
-                        let _ = sender.send(LogMessage::new("info", &format!("Using OpenRouter model: {}", model_name))).await;
+                        let _ = sender.send(LogMessage::new("info", &format!("Using OpenRouter model: {}", model_name)).with_batch(&batch.id, &batch.name)).await;
                         
                         // Get OpenRouter API key from environment or agent config
                         let api_key = if let Ok(key) = std::env::var("OPENROUTER_API_KEY") {
@@ -600,13 +705,13 @@ impl ExecutionEngine {
                             cfg = cfg.env("ANTHROPIC_DEFAULT_OPUS_MODEL", model_name);
                             cfg = cfg.env("ANTHROPIC_DEFAULT_HAIKU_MODEL", model_name);
                         } else {
-                            let _ = sender.send(LogMessage::new("warning", "No OPENROUTER_API_KEY found, execution may fail")).await;
+                            let _ = sender.send(LogMessage::new("warning", "No OPENROUTER_API_KEY found, execution may fail").with_batch(&batch.id, &batch.name)).await;
                         }
                         
                         cfg
                     } else {
                         // Claude subscription path: Use native Claude Code auth via ~/.claude
-                        let _ = sender.send(LogMessage::new("info", "Using Claude subscription")).await;
+                        let _ = sender.send(LogMessage::new("info", "Using Claude subscription").with_batch(&batch.id, &batch.name)).await;
                         cfg
                     };
                     
@@ -614,37 +719,104 @@ impl ExecutionEngine {
                     let config = config.env("HOME", "/home/claude");
                     let config = config.env("NO_COLOR", "1");
                     
-                    // Execute in sandbox
-                    match sandbox.execute(config).await {
-                        Ok(result) => {
-                            // Log stdout
-                            for line in result.stdout.lines() {
-                                let _ = sender.send(LogMessage::new("log", line)).await;
-                            }
-                            // Log stderr
-                            for line in result.stderr.lines() {
-                                let _ = sender.send(LogMessage::new("error", line)).await;
-                            }
+                    // Execute in sandbox with real-time streaming
+                    // Create a channel to forward log messages from the callback
+                    let (log_tx, mut log_rx) = tokio::sync::mpsc::channel::<(String, bool)>(100);
+                    
+                    // Clone sender for forwarding task
+                    let sender_clone = sender.clone();
+                    let batch_id_clone = batch.id.clone();
+                    let batch_name_clone = batch.name.clone();
+                    
+                    // Clone log_store path for persistence in spawned task
+                    let log_store_path = root.clone();
+                    let execution_id_clone = execution_id.clone();
+                    
+                    // Spawn a task to forward logs to the WebSocket sender AND persist to disk
+                    let forward_handle = tokio::spawn(async move {
+                        let log_store = LogStore::new(&log_store_path);
+                        
+                        while let Some((line, is_stderr)) = log_rx.recv().await {
+                            // Parse streaming JSON if possible, otherwise forward as-is
+                            let log_type = if is_stderr { "error" } else { "log" };
                             
+                            // Determine the message to send and log level
+                            let (msg, level_str): (String, &str) = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line) {
+                                // Extract text content from Claude's JSON output
+                                if let Some(content) = json.get("result") {
+                                    if let Some(text) = content.as_str() {
+                                        (text.to_string(), "log")
+                                    } else {
+                                        (line.clone(), log_type)
+                                    }
+                                } else if let Some(tool_name) = json.pointer("/type").and_then(|v| v.as_str()) {
+                                    if tool_name == "tool_use" {
+                                        if let Some(name) = json.pointer("/content/0/name").and_then(|v| v.as_str()) {
+                                            (format!("🔧 Using tool: {}", name), "info")
+                                        } else {
+                                            (line.clone(), log_type)
+                                        }
+                                    } else {
+                                        (line.clone(), log_type)
+                                    }
+                                } else {
+                                    (line.clone(), log_type)
+                                }
+                            } else {
+                                // Not JSON, forward as plain text
+                                (line.clone(), log_type)
+                            };
+                            
+                            // Send to WebSocket
+                            let _ = sender_clone.send(LogMessage::new(level_str, &msg).with_batch(&batch_id_clone, &batch_name_clone)).await;
+                            
+                            // Persist to disk
+                            if let Some(ref exec_id) = execution_id_clone {
+                                let level = match level_str {
+                                    "info" => LogLevel::Info,
+                                    "error" => LogLevel::Error,
+                                    "log" => LogLevel::Log,
+                                    _ => LogLevel::Log,
+                                };
+                                let entry = LogEntry::with_batch(exec_id, level, &msg, &batch_id_clone, &batch_name_clone);
+                                let _ = log_store.append(exec_id, &entry);
+                            }
+                        }
+                    });
+                    
+                    // Execute with streaming callback
+                    let execute_result = sandbox.execute_streaming(config, |line, is_stderr| {
+                        // Send log line to the forwarder (non-blocking)
+                        let _ = log_tx.try_send((line.to_string(), is_stderr));
+                    }).await;
+                    
+                    // Drop the sender to signal the forwarder to stop
+                    drop(log_tx);
+                    
+                    // Wait for forwarder to finish
+                    let _ = forward_handle.await;
+                    
+                    match execute_result {
+                        Ok(result) => {
                             if !result.success() {
                                 return Err(anyhow!("Claude Code execution failed with exit code {}", result.exit_code));
                             }
                         }
                         Err(e) => {
-                            let _ = sender.send(LogMessage::new("error", &format!("Sandbox execution error: {}", e))).await;
+                            let _ = sender.send(LogMessage::new("error", &format!("Sandbox execution error: {}", e)).with_batch(&batch.id, &batch.name)).await;
                             return Err(anyhow!("Sandbox execution failed: {}", e));
                         }
                     }
                 }
                 Err(e) => {
                     // Fall back to local execution if Docker is not available
-                    let _ = sender.send(LogMessage::new("warning", &format!("Docker unavailable ({}), falling back to local execution", e))).await;
-                    Self::execute_local(&exe, &task_args, &sender).await?;
+                    let _ = sender.send(LogMessage::new("warning", &format!("Docker unavailable ({}), falling back to local execution", e)).with_batch(&batch.id, &batch.name)).await;
+                    Self::execute_local(&exe, &task_args, &batch.id, &batch.name, &sender).await?;
                 }
             }
         } else {
             // Local execution (no sandbox) - uses ckrv task
-            Self::execute_local(&exe, &task_args, &sender).await?;
+            Self::execute_local(&exe, &task_args, &batch.id, &batch.name, &sender).await?;
         }
         
         // Commit changes inside the worktree
@@ -666,6 +838,8 @@ impl ExecutionEngine {
     async fn execute_local(
         exe: &Path,
         args: &[String],
+        batch_id: &str,
+        batch_name: &str,
         sender: &mpsc::Sender<LogMessage>,
     ) -> Result<()> {
         use std::process::Stdio;
@@ -685,6 +859,10 @@ impl ExecutionEngine {
         
         let sender_out = sender.clone();
         let sender_err = sender.clone();
+        let batch_id_out = batch_id.to_string();
+        let batch_name_out = batch_name.to_string();
+        let batch_id_err = batch_id.to_string();
+        let batch_name_err = batch_name.to_string();
         
         // Spawn stdout reader
         let stdout_handle = if let Some(out) = stdout {
@@ -692,7 +870,7 @@ impl ExecutionEngine {
                 use tokio::io::{AsyncBufReadExt, BufReader};
                 let mut reader = BufReader::new(out).lines();
                 while let Ok(Some(line)) = reader.next_line().await {
-                    let _ = sender_out.send(LogMessage::new("log", &line)).await;
+                    let _ = sender_out.send(LogMessage::new("log", &line).with_batch(&batch_id_out, &batch_name_out)).await;
                 }
             }))
         } else {
@@ -705,7 +883,7 @@ impl ExecutionEngine {
                 use tokio::io::{AsyncBufReadExt, BufReader};
                 let mut reader = BufReader::new(err).lines();
                 while let Ok(Some(line)) = reader.next_line().await {
-                    let _ = sender_err.send(LogMessage::new("error", &line)).await;
+                    let _ = sender_err.send(LogMessage::new("error", &line).with_batch(&batch_id_err, &batch_name_err)).await;
                 }
             }))
         } else {
@@ -724,6 +902,7 @@ impl ExecutionEngine {
         
         Ok(())
     }
+
     
     async fn merge_batch(&self, branch: &str, spec_path: &Path) -> Result<()> {
         self.log("info", &format!("Merging branch {}", branch)).await;

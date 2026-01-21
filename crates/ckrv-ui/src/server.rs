@@ -118,6 +118,10 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
         .route("/api/execution/branches", axum::routing::post(crate::api::execution::list_unmerged_branches))
         .route("/api/execution/merge", axum::routing::post(crate::api::execution::merge_branch))
         .route("/api/execution/merge-all", axum::routing::post(crate::api::execution::merge_all_branches))
+        // T016: Log history routes for persistent runner logs
+        .route("/api/execution/{id}/logs", axum::routing::get(crate::api::execution::get_execution_logs))
+        .route("/api/execution/{id}/logs/tail", axum::routing::get(crate::api::execution::get_execution_logs_tail))
+        .route("/api/execution/{id}/logs", axum::routing::delete(crate::api::execution::delete_execution_logs))
         // Run history routes
         .route("/api/history/{spec}", axum::routing::get(crate::api::history::list_runs))
         .route("/api/history/{spec}", axum::routing::post(crate::api::history::create_run))

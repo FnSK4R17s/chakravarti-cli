@@ -17,8 +17,12 @@ use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 use tokio::sync::{broadcast, mpsc};
 
+use axum::extract::Path;
+
 use crate::state::AppState;
 use crate::services::engine::{ExecutionEngine, LogMessage};
+use crate::services::log_store::LogStore;
+use crate::models::log::{LogHistoryRequest, LogHistoryResponse, LogTailResponse, LogDeleteResponse};
 
 // Active execution state
 struct ExecutionState {
@@ -41,6 +45,9 @@ static EXECUTIONS: Lazy<Mutex<HashMap<String, ExecutionState>>> = Lazy::new(|| {
 #[derive(Debug, Deserialize)]
 pub struct ExecutionQuery {
     pub run_id: String,
+    /// T017: Optional timestamp to resume from (ISO 8601 format)
+    /// If provided, only logs after this timestamp will be sent during backfill
+    pub last_timestamp: Option<String>,
 }
 
 /// Request to start execution
@@ -160,21 +167,26 @@ pub async fn execution_ws(
     State(state): State<AppState>,
     Query(query): Query<ExecutionQuery>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_execution(socket, state, query.run_id))
+    ws.on_upgrade(move |socket| handle_execution(socket, state, query.run_id, query.last_timestamp))
 }
 
-/// Handle WebSocket connection and stream execution output
-async fn handle_execution(socket: WebSocket, _state: AppState, run_id: String) {
+/// T017-T019: Handle WebSocket connection with history backfill support
+async fn handle_execution(socket: WebSocket, state: AppState, run_id: String, last_timestamp: Option<String>) {
     let (mut ws_sender, mut ws_receiver) = socket.split();
 
+    // T017: Parse last_timestamp if provided for reconnection filtering
+    let filter_timestamp = last_timestamp.and_then(|ts| {
+        chrono::DateTime::parse_from_rfc3339(&ts).ok().map(|dt| dt.with_timezone(&chrono::Utc))
+    });
+
     // Subscribe to logs
-    let mut rx = {
+    let rx = {
         let executions = EXECUTIONS.lock().unwrap();
-        if let Some(state) = executions.get(&run_id) {
+        if let Some(exec_state) = executions.get(&run_id) {
              // Send history first
-             let history = state.history.lock().unwrap().clone();
-             let tx = state.log_tx.clone();
-             
+             let history = exec_state.history.lock().unwrap().clone();
+             let tx = exec_state.log_tx.clone();
+
              // We can't send on WS inside lock, so we clone history and send after.
              // Also subscribe to new messages.
              (Some(history), Some(tx.subscribe()))
@@ -182,10 +194,43 @@ async fn handle_execution(socket: WebSocket, _state: AppState, run_id: String) {
              (None, None)
         }
     };
-    
-    let (history, mut broadcast_rx) = rx;
 
-    if history.is_none() {
+    let (memory_history, broadcast_rx) = rx;
+
+    // T018: If no active execution found, try to load from disk-persisted logs
+    if memory_history.is_none() {
+        // Check if there are persisted logs for this execution ID
+        let log_store = LogStore::new(&state.project_root);
+
+        if log_store.exists(&run_id) {
+            // Load persisted logs and send them
+            let persisted_logs = if let Some(since) = filter_timestamp {
+                log_store.read_since(&run_id, since).unwrap_or_default()
+            } else {
+                log_store.read_all(&run_id).unwrap_or_default()
+            };
+
+            let logs_sent = persisted_logs.len();
+
+            // Send persisted log entries
+            for entry in persisted_logs {
+                let msg = LogMessage::new(&entry.level.to_string(), &entry.message);
+                let _ = ws_sender.send(Message::Text(serde_json::to_string(&msg).unwrap().into())).await;
+            }
+
+            // T019: Send history_complete message
+            let _ = ws_sender.send(Message::Text(
+                serde_json::json!({
+                    "type": "history_complete",
+                    "total_logs_sent": logs_sent,
+                    "source": "disk"
+                }).to_string().into()
+            )).await;
+
+            // No live execution to subscribe to, just close
+            return;
+        }
+
         let _ = ws_sender.send(Message::Text(
             serde_json::json!({
                 "type": "error",
@@ -195,25 +240,44 @@ async fn handle_execution(socket: WebSocket, _state: AppState, run_id: String) {
         return;
     }
 
-    // Send history
-    if let Some(msgs) = history {
+    // T018: Send in-memory history (filtered by timestamp if reconnecting)
+    let mut logs_sent = 0;
+    if let Some(msgs) = memory_history {
         for msg in msgs {
+            // T017: Filter by timestamp if reconnecting
+            if let Some(filter_ts) = filter_timestamp {
+                if let Ok(msg_ts) = chrono::DateTime::parse_from_rfc3339(&msg.timestamp) {
+                    if msg_ts.with_timezone(&chrono::Utc) <= filter_ts {
+                        continue; // Skip messages before the filter timestamp
+                    }
+                }
+            }
             let _ = ws_sender.send(Message::Text(serde_json::to_string(&msg).unwrap().into())).await;
+            logs_sent += 1;
         }
     }
 
+    // T019: Send history_complete message
+    let _ = ws_sender.send(Message::Text(
+        serde_json::json!({
+            "type": "history_complete",
+            "total_logs_sent": logs_sent,
+            "source": "memory"
+        }).to_string().into()
+    )).await;
+
     // Stream new messages
     let mut broadcast_rx = broadcast_rx.unwrap();
-    
+
     // Task to forward broadcast -> WS
-    let mut forward_handle = tokio::spawn(async move {
+    let forward_handle = tokio::spawn(async move {
         while let Ok(msg) = broadcast_rx.recv().await {
             if ws_sender.send(Message::Text(serde_json::to_string(&msg).unwrap().into())).await.is_err() {
                 break;
             }
         }
     });
-    
+
     // Listen for client commands (like abort) shouldn't really happen here anymore?
     // Or we keep it for "Stop" button in UI that might send message via WS
     // Current UI calls HTTP endpoint for stop execution, so we might just wait for close.
@@ -499,12 +563,26 @@ pub async fn merge_all_branches(
     }
     
     let success = failed.is_empty();
+
+    // T051: Clean up execution logs when all worktrees are successfully merged
+    if success && !merged.is_empty() {
+        let log_store = LogStore::new(&project_root);
+        // Get all execution IDs and clean up their logs
+        if let Ok(execution_ids) = log_store.list_executions() {
+            for exec_id in execution_ids {
+                if let Err(e) = log_store.delete(&exec_id) {
+                    eprintln!("Warning: Failed to clean up logs for {}: {}", exec_id, e);
+                }
+            }
+        }
+    }
+
     let message = if success {
         format!("Successfully merged {} branches", merged.len())
     } else {
         format!("Merged {} branches, {} failed", merged.len(), failed.len())
     };
-    
+
     Json(MergeAllResponse {
         success,
         merged,
@@ -518,4 +596,129 @@ pub async fn merge_branch(
      Json(_req): Json<serde_json::Value>,
 ) -> impl IntoResponse {
      Json(serde_json::json!({"success": true}))
+}
+
+// ============================================================================
+// T014-T019: Log History API Endpoints for Persistent Runner Logs
+// ============================================================================
+
+/// T014: GET /api/execution/{id}/logs - Fetch paginated log history
+pub async fn get_execution_logs(
+    State(state): State<AppState>,
+    Path(execution_id): Path<String>,
+    Query(params): Query<LogHistoryRequest>,
+) -> impl IntoResponse {
+    let log_store = LogStore::new(&state.project_root);
+
+    let offset = params.offset;
+    let limit = params.limit;
+
+    // If `since` is provided, use read_since instead
+    if let Some(since) = params.since {
+        match log_store.read_since(&execution_id, since) {
+            Ok(logs) => {
+                let total_count = logs.len();
+                Json(LogHistoryResponse {
+                    execution_id,
+                    logs,
+                    total_count,
+                    offset: 0,
+                    has_more: false,
+                })
+            }
+            Err(e) => {
+                Json(LogHistoryResponse {
+                    execution_id,
+                    logs: Vec::new(),
+                    total_count: 0,
+                    offset: 0,
+                    has_more: false,
+                })
+            }
+        }
+    } else {
+        match log_store.read_range(&execution_id, offset, limit) {
+            Ok((logs, total_count)) => {
+                let has_more = offset + logs.len() < total_count;
+                Json(LogHistoryResponse {
+                    execution_id,
+                    logs,
+                    total_count,
+                    offset,
+                    has_more,
+                })
+            }
+            Err(e) => {
+                eprintln!("Failed to read logs for {}: {}", execution_id, e);
+                Json(LogHistoryResponse {
+                    execution_id,
+                    logs: Vec::new(),
+                    total_count: 0,
+                    offset: 0,
+                    has_more: false,
+                })
+            }
+        }
+    }
+}
+
+/// T015: GET /api/execution/{id}/logs/tail - Fetch last N log entries
+pub async fn get_execution_logs_tail(
+    State(state): State<AppState>,
+    Path(execution_id): Path<String>,
+    Query(params): Query<TailQuery>,
+) -> impl IntoResponse {
+    let log_store = LogStore::new(&state.project_root);
+    let count = params.count.unwrap_or(10);
+
+    match log_store.read_tail(&execution_id, count) {
+        Ok((logs, total_count)) => {
+            Json(LogTailResponse {
+                execution_id,
+                logs,
+                total_count,
+            })
+        }
+        Err(e) => {
+            eprintln!("Failed to read tail logs for {}: {}", execution_id, e);
+            Json(LogTailResponse {
+                execution_id,
+                logs: Vec::new(),
+                total_count: 0,
+            })
+        }
+    }
+}
+
+/// Query params for tail endpoint
+#[derive(Debug, Deserialize)]
+pub struct TailQuery {
+    /// Number of log lines to return (default 10)
+    pub count: Option<usize>,
+}
+
+/// T049: DELETE /api/execution/{id}/logs - Delete logs for an execution
+pub async fn delete_execution_logs(
+    State(state): State<AppState>,
+    Path(execution_id): Path<String>,
+) -> impl IntoResponse {
+    let log_store = LogStore::new(&state.project_root);
+
+    match log_store.delete(&execution_id) {
+        Ok(deleted_lines) => {
+            Json(LogDeleteResponse {
+                success: true,
+                execution_id,
+                deleted_lines,
+            })
+        }
+        Err(e) => {
+            eprintln!("Failed to delete logs for {}: {}", execution_id, e);
+            Json(LogDeleteResponse {
+                success: false,
+                execution_id,
+                deleted_lines: 0,
+            })
+        }
+    }
 }

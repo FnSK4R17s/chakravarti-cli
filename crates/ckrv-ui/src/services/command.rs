@@ -1260,6 +1260,7 @@ mod tests {
     use crate::state::{AppState, SystemStatus};
     use crate::hub::Hub;
     use std::sync::Arc;
+    use std::path::PathBuf;
     use tokio::sync::RwLock;
 
     #[tokio::test]
@@ -1267,6 +1268,7 @@ mod tests {
         let state = AppState {
             status: Arc::new(RwLock::new(SystemStatus::default())),
             hub: Arc::new(Hub::new()),
+            project_root: PathBuf::from("/tmp"),
         };
         
         // This test may fail if not in a git repo, but that's expected

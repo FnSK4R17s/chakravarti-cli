@@ -306,6 +306,209 @@ impl DockerClient {
             duration_ms: duration.as_millis() as u64,
         })
     }
+
+    /// Execute a command in a container with real-time log streaming.
+    /// 
+    /// Unlike `execute()`, this method calls `on_log` for each line of output
+    /// as it arrives, enabling real-time streaming to the UI.
+    pub async fn execute_streaming<F>(
+        &self,
+        command: Vec<String>,
+        workdir: &str,
+        mount_source: &str,
+        mount_target: &str,
+        env: HashMap<String, String>,
+        timeout: Duration,
+        keep_container: bool,
+        mut on_log: F,
+    ) -> Result<ExecutionOutput, SandboxError>
+    where
+        F: FnMut(&str, bool) + Send, // (line, is_stderr)
+    {
+        let image = &self.default_image;
+        self.ensure_image(image).await?;
+
+        let container_name = format!("ckrv-{}", uuid::Uuid::new_v4());
+
+        tracing::info!(
+            container_name = %container_name,
+            image = %image,
+            "Creating Docker container with streaming"
+        );
+
+        // Convert env to Docker format
+        let mut env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
+
+        // Mount Claude credentials if they exist
+        let host_home = std::env::var("HOME").unwrap_or_default();
+        let container_home = "/home/claude".to_string();
+        env_vec.push(format!("HOME={}", container_home));
+
+        // Create mounts: workspace + Claude credentials
+        let mut mounts = vec![
+            Mount {
+                target: Some(mount_target.to_string()),
+                source: Some(mount_source.to_string()),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false),
+                ..Default::default()
+            },
+        ];
+
+        let claude_config = format!("{}/.claude.json", host_home);
+        if std::path::Path::new(&claude_config).exists() {
+            mounts.push(Mount {
+                target: Some(format!("{}/.claude.json", container_home)),
+                source: Some(claude_config),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false),
+                ..Default::default()
+            });
+        }
+
+        let claude_dir = format!("{}/.claude", host_home);
+        if std::path::Path::new(&claude_dir).exists() {
+            mounts.push(Mount {
+                target: Some(format!("{}/.claude", container_home)),
+                source: Some(claude_dir),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false),
+                ..Default::default()
+            });
+        }
+
+        let uid_gid = std::process::Command::new("id")
+            .args(["-u"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "1000".to_string());
+
+        let gid = std::process::Command::new("id")
+            .args(["-g"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "1000".to_string());
+
+        let user_spec = format!("{}:{}", uid_gid, gid);
+
+        let config = Config {
+            image: Some(image.to_string()),
+            cmd: Some(command),
+            working_dir: Some(workdir.to_string()),
+            user: Some(user_spec),
+            env: Some(env_vec),
+            host_config: Some(HostConfig {
+                mounts: Some(mounts),
+                network_mode: Some("host".to_string()),
+                memory: Some(1024 * 1024 * 1024),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let options = Some(CreateContainerOptions {
+            name: container_name.clone(),
+            platform: None,
+        });
+
+        let container = self
+            .client
+            .create_container(options, config)
+            .await
+            .map_err(|e| SandboxError::ContainerCreateFailed(e.to_string()))?;
+
+        self.client
+            .start_container(&container.id, None::<StartContainerOptions<String>>)
+            .await
+            .map_err(|e| SandboxError::ContainerStartFailed(e.to_string()))?;
+        
+        let start_time = std::time::Instant::now();
+
+        let log_options = Some(LogsOptions::<String> {
+            follow: true,
+            stdout: true,
+            stderr: true,
+            ..Default::default()
+        });
+
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+
+        let client_clone = self.client.clone();
+        let container_id_clone = container.id.clone();
+        
+        let wait_handle = tokio::spawn(async move {
+            let wait_options = Some(WaitContainerOptions {
+                 condition: "not-running",
+            });
+            let mut stream = client_clone.wait_container(&container_id_clone, wait_options);
+            if let Some(Ok(response)) = stream.next().await {
+                 response.status_code
+            } else {
+                 -1
+            }
+        });
+
+        let mut log_stream = self.client.logs(&container.id, log_options);
+        
+        let log_collection = async {
+            while let Some(Ok(log)) = log_stream.next().await {
+                match log {
+                    LogOutput::StdOut { message } => {
+                        let s = String::from_utf8_lossy(&message);
+                        for line in s.lines() {
+                            on_log(line, false);
+                        }
+                        stdout.push_str(&s);
+                    }
+                    LogOutput::StdErr { message } => {
+                        let s = String::from_utf8_lossy(&message);
+                        for line in s.lines() {
+                            on_log(line, true);
+                        }
+                        stderr.push_str(&s);
+                    }
+                    _ => {}
+                }
+            }
+        };
+
+        if tokio::time::timeout(timeout, log_collection).await.is_err() {
+            let _ = self.client.kill_container::<String>(&container.id, None).await;
+        }
+        
+        let exit_code = match tokio::time::timeout(Duration::from_secs(5), wait_handle).await {
+            Ok(Ok(code)) => code,
+            _ => {
+                let _ = self.client.kill_container::<String>(&container.id, None).await;
+                -1
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        if keep_container {
+            tracing::info!(container_id = %container.id, "Keeping container for debugging");
+        } else {
+            let remove_options = Some(RemoveContainerOptions {
+                force: true,
+                ..Default::default()
+            });
+            let _ = self.client.remove_container(&container.id, remove_options).await;
+        }
+
+        Ok(ExecutionOutput {
+            exit_code: exit_code as i32,
+            stdout,
+            stderr,
+            duration_ms: duration.as_millis() as u64,
+        })
+    }
+
     pub async fn create_session(
         &self,
         workdir: &str,

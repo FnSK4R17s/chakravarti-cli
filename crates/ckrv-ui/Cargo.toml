@@ -32,5 +32,8 @@ ckrv-metrics = { workspace = true }
 futures = "0.3"
 shell-escape = "0.1"
 
+[dev-dependencies]
+tempfile = "3.19"
+
 [lints]
 workspace = true
