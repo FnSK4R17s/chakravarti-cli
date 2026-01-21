@@ -90,6 +90,7 @@ pub async fn get_status(
 mod tests {
     use super::*;
     use std::sync::Arc;
+    use std::path::PathBuf;
     use tokio::sync::RwLock;
     use crate::hub::Hub;
 
@@ -98,6 +99,7 @@ mod tests {
         let state = AppState {
             status: Arc::new(RwLock::new(SystemStatus::default())),
             hub: Arc::new(Hub::new()),
+            project_root: PathBuf::from("/tmp"),
         };
 
         let result = get_status(State(state)).await.into_response();

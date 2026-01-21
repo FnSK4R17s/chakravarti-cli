@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { type OrchestrationEvent } from '../types';
 import { useMutation } from '@tanstack/react-query';
 import {
     Terminal, AlertCircle, CheckCircle2, ChevronRight,
-    Play, Pause, Trash2, Download, Filter, Sparkles, Loader2, X
+    Play, Pause, Trash2, Download, Filter, Sparkles, Loader2, X, ArrowDown
 } from 'lucide-react';
 import { useCommandResult } from './CommandPalette';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,8 +24,43 @@ export const LogViewer: React.FC = () => {
     const [filter, setFilter] = useState<string>('');
     const [autoScroll, setAutoScroll] = useState(true);
     const [typeFilter, setTypeFilter] = useState<string>('all');
+    // T034: Track if user has manually paused auto-scroll
+    const [userPausedScroll, setUserPausedScroll] = useState(false);
     const viewportRef = useRef<HTMLDivElement>(null);
+    const lastScrollTopRef = useRef(0);
     const { lastResult, setLastResult } = useCommandResult();
+
+    // T032/T034/T035: Scroll detection for auto-scroll lock and resume
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        const { scrollTop, scrollHeight, clientHeight } = target;
+
+        // Check if at bottom (within 50px threshold)
+        const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+
+        // T034: If user scrolled up (not at bottom), pause auto-scroll
+        if (!isAtBottom && scrollTop < lastScrollTopRef.current) {
+            setAutoScroll(false);
+            setUserPausedScroll(true);
+        }
+
+        // T035: If user scrolls back to bottom, resume auto-scroll
+        if (isAtBottom && userPausedScroll) {
+            setAutoScroll(true);
+            setUserPausedScroll(false);
+        }
+
+        lastScrollTopRef.current = scrollTop;
+    }, [userPausedScroll]);
+
+    // T035: Scroll to bottom and resume auto-scroll
+    const scrollToBottom = useCallback(() => {
+        if (viewportRef.current) {
+            viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+            setAutoScroll(true);
+            setUserPausedScroll(false);
+        }
+    }, []);
 
     // Fix with AI mutation
     const fixMutation = useMutation({
@@ -166,9 +201,13 @@ export const LogViewer: React.FC = () => {
             </CardHeader>
 
             {/* Log Content */}
-            <CardContent className="flex-1 p-0 min-h-0">
-                <ScrollArea className="h-full" ref={viewportRef}>
-                    <div className="p-2 font-mono text-xs leading-relaxed">
+            <CardContent className="flex-1 p-0 min-h-0 relative">
+                <ScrollArea className="h-full">
+                    <div
+                        ref={viewportRef}
+                        className="p-2 font-mono text-xs leading-relaxed h-full overflow-auto"
+                        onScroll={handleScroll}
+                    >
                         {filteredLogs.length === 0 ? (
                             <EmptyLogs />
                         ) : (
@@ -178,6 +217,19 @@ export const LogViewer: React.FC = () => {
                         )}
                     </div>
                 </ScrollArea>
+
+                {/* T033/T035: Scroll to bottom button when auto-scroll is paused */}
+                {userPausedScroll && (
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={scrollToBottom}
+                        className="absolute bottom-4 right-4 shadow-lg flex items-center gap-1.5 h-8 text-xs"
+                    >
+                        <ArrowDown size={14} />
+                        Scroll to bottom
+                    </Button>
+                )}
             </CardContent>
 
             {/* Status Bar */}

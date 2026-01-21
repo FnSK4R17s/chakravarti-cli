@@ -1,6 +1,6 @@
-use clap::Args;
-use ckrv_ui::start_server;
 use crate::ui::UiContext;
+use ckrv_ui::start_server;
+use clap::Args;
 
 #[derive(Args, Debug)]
 pub struct UiArgs {
@@ -13,21 +13,18 @@ pub async fn execute(args: UiArgs, json: bool, ui: &UiContext) -> anyhow::Result
     if !json {
         ui.success("Web UI", &format!("Starting on port {}...", args.port));
         ui.markdown("**Press Ctrl+C to stop**");
-
-        // Attempt to open the browser
-        let url = format!("http://localhost:{}", args.port);
-        if let Err(e) = open::that(&url) {
-            ui.markdown(&format!("*Failed to open browser automatically: {}*", e));
-            ui.markdown(&format!("Please visit **{}** manually", url));
-        } else {
-             ui.success("Browser", "Opened automatically");
-        }
+        ui.markdown(&format!(
+            "Visit **http://localhost:{}** in your browser",
+            args.port
+        ));
     } else {
         println!(r#"{{"status": "starting", "port": {}}}"#, args.port);
     }
 
     // This will block until the server stops
-    start_server(args.port).await.map_err(|e| anyhow::anyhow!("UI Server error: {}", e))?;
+    start_server(args.port)
+        .await
+        .map_err(|e| anyhow::anyhow!("UI Server error: {}", e))?;
 
     Ok(())
 }
