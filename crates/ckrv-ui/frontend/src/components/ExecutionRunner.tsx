@@ -8,9 +8,13 @@ import {
 } from 'lucide-react';
 import { LogTerminal } from './LogTerminal';
 import { CompletionSummary } from './CompletionSummary';
+import { BatchLogCarousel, type BatchData } from './BatchLogCarousel';
 import type { Terminal } from '@xterm/xterm';
 import { useTimeout } from '../hooks/useTimeout';
+import { useToast } from '../hooks/use-toast';
 import type { RunStatus } from '../types/history';
+import { useRunHistory } from '../hooks/useRunHistory';
+import { fetchLogs } from '../services/logService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -431,6 +435,8 @@ export default function ExecutionRunner() {
     const [elapsedTime, setElapsedTime] = useState(0);
     const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
     const [orchestratorMinimized, setOrchestratorMinimized] = useState(false);
+    // T046: View mode toggle - 'terminal' for classic view, 'carousel' for new batch carousel
+    const [logViewMode, setLogViewMode] = useState<'terminal' | 'carousel'>('carousel');
     const [unmergedBranches, setUnmergedBranches] = useState<UnmergedBranch[]>([]);
     const [isMerging, setIsMerging] = useState(false);
     const [mergeResult, setMergeResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -444,6 +450,12 @@ export default function ExecutionRunner() {
     // T024: WebSocket reconnection state (BUG-002)
     const [wsRetryCount, setWsRetryCount] = useState(0);
     const [wsRetryCountdown, setWsRetryCountdown] = useState(0);
+
+    // T022: Track last seen timestamp for WebSocket reconnection
+    const lastSeenTimestampRef = useRef<string | null>(null);
+
+    // T027: Toast for reconnection notification
+    const { toast } = useToast();
 
     // T021: Use transition for non-urgent state updates (BUG-001)
     const [isPending, startTransition] = useTransition();
@@ -474,6 +486,9 @@ export default function ExecutionRunner() {
         enabled: !!selectedSpecName,
     });
 
+    // Fetch run history to get the latest run ID for loading historical logs
+    const { data: runHistoryData } = useRunHistory(selectedSpecName);
+
     // Update batches when plan data changes
     useEffect(() => {
         if (planData?.batches) {
@@ -494,6 +509,97 @@ export default function ExecutionRunner() {
             setCompletedBatches(completed);
         }
     }, [planData]);
+
+    // T052: Load historical logs for completed executions from persistent storage
+    useEffect(() => {
+        const loadHistoricalLogs = async () => {
+            if (!runHistoryData?.runs?.length || !planData?.batches?.length) return;
+            
+            const hasCompletedBatches = planData.batches.some(b => b.status === 'completed');
+            if (!hasCompletedBatches) return;
+            
+            if (executionStatus === 'running' || executionStatus === 'starting') return;
+
+            const recentRun = runHistoryData.runs.find(r => 
+                r.status === 'completed' || r.status === 'failed'
+            );
+            if (!recentRun) return;
+
+            try {
+                const logsResponse = await fetchLogs(recentRun.id, { limit: 10000 });
+                
+                if (logsResponse.logs.length > 0) {
+                    const batchNameToId: Record<string, string> = {};
+                    planData.batches.forEach(b => {
+                        batchNameToId[b.name.toLowerCase()] = b.id;
+                    });
+
+                    const historicalLogMap: Record<string, LogEntry[]> = {};
+                    planData.batches.forEach(b => { historicalLogMap[b.id] = []; });
+
+                    for (const log of logsResponse.logs) {
+                        let batchId: string | undefined;
+                        
+                        if (log.source) {
+                            const sourceLower = log.source.toLowerCase();
+                            batchId = batchNameToId[sourceLower];
+                            
+                            if (!batchId) {
+                                for (const [name, id] of Object.entries(batchNameToId)) {
+                                    if (sourceLower.includes(name) || name.includes(sourceLower)) {
+                                        batchId = id;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!batchId && log.message) {
+                            const spawnMatch = log.message.match(/Spawning batch:\s*(.+)/i);
+                            const completeMatch = log.message.match(/Mission completed:\s*(.+)/i);
+                            const batchMatch = spawnMatch || completeMatch;
+                            
+                            if (batchMatch) {
+                                const batchName = batchMatch[1].trim().toLowerCase();
+                                batchId = batchNameToId[batchName];
+                            }
+                        }
+
+                        if (batchId && historicalLogMap[batchId]) {
+                            const timestamp = new Date(log.timestamp);
+                            const time = timestamp.toLocaleTimeString('en-US', {
+                                hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
+                            });
+
+                            let type: LogEntry['type'] = 'info';
+                            if (log.level === 'error') type = 'error';
+                            else if (log.level === 'success') type = 'success';
+                            else if (log.level === 'batch_start') type = 'batch_start';
+                            else if (log.level === 'batch_complete') type = 'batch_complete';
+                            else if (log.level === 'batch_error') type = 'batch_error';
+                            else if (log.level === 'start') type = 'start';
+
+                            historicalLogMap[batchId].push({
+                                time,
+                                message: log.message,
+                                type,
+                                batchId,
+                            });
+                        }
+                    }
+
+                    const hasLogs = Object.values(historicalLogMap).some(logs => logs.length > 0);
+                    if (hasLogs) {
+                        setBatchLogs(historicalLogMap);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load historical logs:', error);
+            }
+        };
+
+        loadHistoricalLogs();
+    }, [runHistoryData, planData, executionStatus]);
 
     // Check if the selected spec already has a plan
     const selectedSpecHasPlan = useMemo(() => {
@@ -704,6 +810,19 @@ export default function ExecutionRunner() {
                         return b;
                     }));
                 }
+                // T019/T025/T027: Handle history_complete message from WebSocket
+                else if (data.type === 'history_complete') {
+                    const logsSent = (data as unknown as { total_logs_sent?: number }).total_logs_sent || 0;
+                    if (logsSent > 0 && wsRetryCount > 0) {
+                        // T027: Show toast notification when reconnecting with missed logs
+                        toast({
+                            title: 'Reconnected',
+                            description: `Loaded ${logsSent} missed log entries`,
+                            duration: 3000,
+                        });
+                    }
+                    addLog(`History sync complete (${logsSent} entries)`, 'info');
+                }
                 // T007: Fallback handling for 'start' type to set running status
                 else if (data.type === 'start') {
                     setExecutionStatus('running');
@@ -724,16 +843,27 @@ export default function ExecutionRunner() {
                 // Handle regular log messages
                 else if (data.message) {
                     const logType = (data.type as LogEntry['type']) || 'info';
-                    addLog(data.message, logType);
+                    // Use batch_id from message if available for proper log attribution
+                    addLog(data.message, logType, data.batch_id);
                     updateBatchFromLog(data.message, data.type);
+
+                    // T022: Update lastSeenTimestamp for reconnection
+                    if (data.timestamp) {
+                        lastSeenTimestampRef.current = data.timestamp;
+                    }
                 }
             });
         });
-    }, [addLog, updateBatchFromLog, startTransition]);
+    }, [addLog, updateBatchFromLog, startTransition, toast, wsRetryCount]);
 
-    const connectWebSocket = useCallback((runId: string, retryCount: number = 0) => {
+    // T024: Modified connectWebSocket to support last_timestamp for history backfill
+    const connectWebSocket = useCallback((runId: string, retryCount: number = 0, lastTimestamp?: string | null) => {
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.host}/api/execution/ws?run_id=${runId}`;
+        // T017: Include last_timestamp in URL if reconnecting
+        let wsUrl = `${wsProtocol}//${window.location.host}/api/execution/ws?run_id=${runId}`;
+        if (lastTimestamp) {
+            wsUrl += `&last_timestamp=${encodeURIComponent(lastTimestamp)}`;
+        }
 
         // T024: Maximum retry configuration (BUG-002)
         const MAX_RETRIES = 3;
@@ -807,10 +937,10 @@ export default function ExecutionRunner() {
                         }
                     }, 1000);
 
-                    // Schedule reconnection using managed timeout
+                    // T024: Schedule reconnection with last_timestamp for history backfill
                     setTimeout(() => {
                         clearInterval(countdownInterval);
-                        connectWebSocket(runId, retryCount + 1);
+                        connectWebSocket(runId, retryCount + 1, lastSeenTimestampRef.current);
                     }, delay);
                 } else {
                     // All retries exhausted
@@ -971,6 +1101,29 @@ export default function ExecutionRunner() {
             return false;
         });
     }, [batches, batchCompletedAt]);
+
+    // T046: Prepare batch data for carousel view
+    const carouselBatches: BatchData[] = useMemo(() => {
+        return batches.map(batch => ({
+            id: batch.id,
+            name: batch.name,
+            status: batch.status || 'pending',
+            logs: (batchLogs[batch.id] || []).map(log => ({
+                time: log.time,
+                message: log.message,
+                type: log.type,
+            })),
+            branch: undefined, // Could be populated from execution data if available
+            model: batch.model_assignment?.default, // Pass model to show in chip
+        }));
+    }, [batches, batchLogs]);
+
+
+    // T046: Track which batch is currently running for auto-navigation
+    const activeBatchId = useMemo(() => {
+        const running = batches.find(b => b.status === 'running');
+        return running?.id || null;
+    }, [batches]);
 
     const loadUnmergedBranches = useCallback(async () => {
         if (!selectedSpecName) return;
@@ -1180,17 +1333,47 @@ export default function ExecutionRunner() {
                         </div>
                     )}
 
-                    {/* Bottom Section: Orchestrator Log (Always visible) */}
+                    {/* Bottom Section: Orchestrator Log with View Toggle */}
                     <div className={`
                          rounded-xl border border-gray-700 overflow-hidden shrink-0 flex flex-col
                          transition-all duration-300 shadow-xl
-                         ${orchestratorMinimized ? 'h-10' : 'h-64'}
+                         ${orchestratorMinimized ? 'h-10' : 'h-80'}
                      `} style={{ background: '#1e1e1e' }}>
                         <div className="px-4 py-2 bg-[#252526] border-b border-[#333] flex items-center justify-between shrink-0 h-10">
-                            <h3 className="font-semibold flex items-center gap-2 text-sm text-gray-300">
-                                <TerminalIcon size={14} className="text-emerald-400" />
-                                Orchestrator Log
-                            </h3>
+                            <div className="flex items-center gap-3">
+                                <h3 className="font-semibold flex items-center gap-2 text-sm text-gray-300">
+                                    <TerminalIcon size={14} className="text-emerald-400" />
+                                    {logViewMode === 'carousel' ? 'Batch Logs' : 'Orchestrator Log'}
+                                </h3>
+                                {/* T046: View mode toggle buttons */}
+                                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+                                    <button
+                                        onClick={() => setLogViewMode('carousel')}
+                                        className={`px-2 py-1 text-xs rounded transition-colors ${logViewMode === 'carousel'
+                                            ? 'bg-emerald-600 text-white'
+                                            : 'text-gray-400 hover:text-gray-200'
+                                            }`}
+                                        title="Carousel view - swipe between batches"
+                                    >
+                                        Batches
+                                    </button>
+                                    <button
+                                        onClick={() => setLogViewMode('terminal')}
+                                        className={`px-2 py-1 text-xs rounded transition-colors ${logViewMode === 'terminal'
+                                            ? 'bg-emerald-600 text-white'
+                                            : 'text-gray-400 hover:text-gray-200'
+                                            }`}
+                                        title="Terminal view - all logs in one stream"
+                                    >
+                                        Terminal
+                                    </button>
+                                </div>
+                                {logViewMode === 'carousel' && carouselBatches.length > 0 && (
+                                    <span className="text-xs text-gray-500">
+                                        {carouselBatches.filter(b => b.status === 'completed').length}/{carouselBatches.length} complete
+                                    </span>
+                                )}
+                            </div>
                             <button
                                 onClick={() => setOrchestratorMinimized(!orchestratorMinimized)}
                                 className="p-1 hover:bg-white/10 rounded transition-colors text-gray-400"
@@ -1199,13 +1382,21 @@ export default function ExecutionRunner() {
                             </button>
                         </div>
                         <div className={`flex-1 relative ${orchestratorMinimized ? 'hidden' : 'block'}`}>
-                            <LogTerminal
-                                onMount={(term) => { terminalRef.current = term; }}
-                            />
+                            {logViewMode === 'carousel' ? (
+                                <BatchLogCarousel
+                                    batches={carouselBatches}
+                                    activeBatchId={activeBatchId}
+                                />
+                            ) : (
+                                <LogTerminal
+                                    onMount={(term) => { terminalRef.current = term; }}
+                                />
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
+
 
             {/* T030: Completion Summary Overlay */}
             {showCompletionSummary && (executionStatus === 'completed' || executionStatus === 'failed' || executionStatus === 'aborted') && (

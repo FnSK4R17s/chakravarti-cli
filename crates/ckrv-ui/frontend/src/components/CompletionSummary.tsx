@@ -78,8 +78,8 @@ function SuccessSummary({
     mergedBranches?: string[];
 }) {
     return (
-        <Card className="border-accent-green/40 bg-accent-green-dim">
-            <CardContent className="p-6">
+        <Card className="border-accent-green/40 bg-card">
+            <CardContent className="p-6 bg-accent-green-dim rounded-lg">
                 <div className="flex items-center gap-4 mb-4">
                     <div className="w-14 h-14 rounded-full bg-accent-green/20 flex items-center justify-center">
                         <Trophy className="w-7 h-7 text-accent-green" />
@@ -154,8 +154,8 @@ function PartialSuccessSummary({
     error?: string | null;
 }) {
     return (
-        <Card className="border-accent-amber/40 bg-accent-amber-dim">
-            <CardContent className="p-6">
+        <Card className="border-accent-amber/40 bg-card">
+            <CardContent className="p-6 bg-accent-amber-dim rounded-lg">
                 <div className="flex items-center gap-4 mb-4">
                     <div className="w-14 h-14 rounded-full bg-accent-amber/20 flex items-center justify-center">
                         <AlertTriangle className="w-7 h-7 text-accent-amber" />
@@ -219,8 +219,8 @@ function FailureSummary({
     error?: string | null;
 }) {
     return (
-        <Card className="border-destructive/40 bg-destructive/10">
-            <CardContent className="p-6">
+        <Card className="border-destructive/40 bg-card">
+            <CardContent className="p-6 bg-destructive/10 rounded-lg">
                 <div className="flex items-center gap-4 mb-4">
                     <div className="w-14 h-14 rounded-full bg-destructive/20 flex items-center justify-center">
                         <XCircle className="w-7 h-7 text-destructive" />

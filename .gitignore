@@ -45,6 +45,8 @@ coverage/
 .worktrees/
 .chakravarti/runs/
 .ckrv/tasks/
+.ckrv/logs/*
+!.ckrv/logs/.gitkeep
 
 # Node (for any tooling)
 node_modules/
