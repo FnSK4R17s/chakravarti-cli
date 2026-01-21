@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>Spec-driven Agent Orchestration Engine</strong><br>
-  <em>Code like an Architect, not a Typist.</em>
+  <em>The Universal Orchestrator for AI Coding.</em>
 </p>
 
 <p align="center">
