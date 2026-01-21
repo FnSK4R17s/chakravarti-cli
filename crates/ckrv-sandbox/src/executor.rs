@@ -145,6 +145,48 @@ impl DockerSandbox {
     pub fn inner_client(&self) -> &DockerClient {
         &self.client
     }
+
+    /// Execute a command with real-time log streaming.
+    /// 
+    /// Unlike `execute()`, this method calls `on_log` for each line of output
+    /// as it arrives, enabling real-time streaming to the UI.
+    pub async fn execute_streaming<F>(
+        &self,
+        config: ExecuteConfig,
+        on_log: F,
+    ) -> Result<ExecuteResult, SandboxError>
+    where
+        F: FnMut(&str, bool) + Send, // (line, is_stderr)
+    {
+        // Check allowlist
+        if !self.allowlist.is_allowed(&config.command) {
+            return Err(SandboxError::CommandNotAllowed(config.command.join(" ")));
+        }
+
+        let workdir = config.workdir.to_string_lossy().to_string();
+        let mount_source = config.mount.to_string_lossy().to_string();
+
+        let output = self
+            .client
+            .execute_streaming(
+                config.command,
+                &workdir,
+                &mount_source,
+                &workdir,
+                config.env,
+                config.timeout,
+                config.keep_container,
+                on_log,
+            )
+            .await?;
+
+        Ok(ExecuteResult {
+            exit_code: output.exit_code,
+            stdout: output.stdout,
+            stderr: output.stderr,
+            duration_ms: output.duration_ms,
+        })
+    }
 }
 
 #[async_trait]
