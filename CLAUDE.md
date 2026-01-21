@@ -1,44 +1,61 @@
 # Chakravarti CLI Development Guidelines
 
-Last updated: 2025-12-25
+Last updated: 2026-01-21
 
 ## Overview
 
-Chakravarti is a spec-driven autonomous code editing CLI. It takes structured YAML/JSON specifications and uses LLMs to generate and apply code changes.
+Chakravarti is a spec-driven autonomous agent orchestration engine. It transforms high-level specifications into shipping code by orchestrating AI agents across isolated Git worktrees and Docker sandboxes.
+
+## Documentation
+
+**Before making code changes, consult these docs:**
+
+| Document | Purpose |
+|----------|---------|
+| [Architecture](crates/docs/architecture.md) | Crate dependencies, execution flow, key abstractions |
+| [Getting Started](crates/docs/getting-started.md) | Setup, build commands, first contribution |
+| [CLI Commands](crates/docs/cli-commands.md) | All commands with options and exit codes |
+| [Agent Guide](crates/docs/agent-guide.md) | Adding new AI agent integrations |
+
+**Per-crate documentation** is in `crates/<crate>/docs/README.md`.
 
 ## Technologies
 
 - **Rust 1.75+** - Core language
 - **clap** - CLI argument parsing
 - **tokio** - Async runtime
-- **serde** - Serialization (JSON/YAML)
+- **axum** - Web server (for UI)
 - **bollard** - Docker API client
 - **git2** - Git operations
-- **reqwest** - HTTP client for LLM APIs
 
 ## Project Structure
 
 ```text
 chakravarti-cli/
-├── Cargo.toml              # Workspace root
 ├── crates/
-│   ├── ckrv-cli/           # Binary - CLI commands
-│   ├── ckrv-core/          # Library - Job, Plan, Orchestrator
-│   ├── ckrv-spec/          # Library - Spec parsing/validation
-│   ├── ckrv-model/         # Library - LLM providers (OpenAI, Anthropic)
-│   ├── ckrv-git/           # Library - Git worktrees, branches, diffs
-│   ├── ckrv-sandbox/       # Library - Docker/local execution
-│   ├── ckrv-verify/        # Library - Test/lint verification
-│   └── ckrv-metrics/       # Library - Cost/timing tracking
-├── docs/                   # Documentation
+│   ├── ckrv-cli/           # CLI entry point, commands
+│   ├── ckrv-core/          # Orchestration engine, domain types
+│   ├── ckrv-git/           # Git worktrees, branches, diffs
+│   ├── ckrv-sandbox/       # Docker execution, agent providers
+│   ├── ckrv-spec/          # Spec parsing/validation
+│   ├── ckrv-model/         # LLM provider routing
+│   ├── ckrv-metrics/       # Cost/timing tracking
+│   ├── ckrv-verify/        # Test/lint verification
+│   ├── ckrv-integrations/  # External services (GitHub)
+│   └── ckrv-ui/            # Web dashboard server + frontend
+│       └── docs/           # Per-crate documentation
+├── crates/docs/            # Cross-crate documentation
 ├── specs/                  # Feature specifications
-└── .github/workflows/      # CI configuration
+└── npm/                    # npm package for distribution
 ```
 
 ## Commands
 
 ```bash
-# Build
+# Build and install
+make install
+
+# Build only
 cargo build --workspace
 
 # Test
@@ -50,8 +67,8 @@ cargo clippy --workspace -- -D warnings
 # Format
 cargo fmt --all
 
-# Coverage
-cargo tarpaulin --workspace
+# Generate docs
+cargo doc --open --no-deps
 
 # Run CLI
 cargo run -p ckrv-cli -- --help
@@ -60,80 +77,58 @@ cargo run -p ckrv-cli -- --help
 ## CLI Usage
 
 ```bash
-ckrv init                              # Initialize repository
-ckrv spec .specs/feature.yaml          # Validate spec
-ckrv run .specs/feature.yaml           # Execute spec
-ckrv status <job_id>                   # Check job status
-ckrv diff <job_id>                     # View changes
-ckrv report <job_id>                   # View metrics
-ckrv promote <job_id> --branch name    # Promote to branch
+ckrv init                    # Initialize repository
+ckrv spec new "description"  # Create spec
+ckrv spec tasks              # Generate tasks
+ckrv plan                    # Generate execution plan
+ckrv run                     # Execute orchestration
+ckrv diff                    # View changes
+ckrv verify                  # Run tests/lint
+ckrv fix                     # AI-powered fixes
+ckrv promote --push --open   # Create PR
+ckrv ui                      # Launch Web UI
 ```
 
-## Environment Variables
+## Agents
 
-```bash
-OPENAI_API_KEY          # OpenAI API key
-ANTHROPIC_API_KEY       # Anthropic API key
-CKRV_MODEL_API_KEY      # Custom endpoint key
-CKRV_MODEL_ENDPOINT     # Custom endpoint URL
-```
+Chakravarti uses Claude Code CLI as the execution interface:
+
+- **Claude Code (Native)** - Default agent
+- **OpenAI Codex** - Native CLI integration  
+- **OpenRouter Models** - 12+ models via Claude Code CLI
+
+See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 
 ## Code Style
 
 - Follow Rust standard conventions
 - Use `rustfmt` for formatting
 - Pass `clippy` with no warnings
-- Document public APIs with doc comments
+- Document public APIs with doc comments (`///`)
+- Add crate-level docs (`//!`) to each `lib.rs`
 - Add tests for new functionality
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `crates/ckrv-core/src/orchestrator.rs` | Execution orchestration |
+| `crates/ckrv-core/src/job.rs` | Job lifecycle management |
+| `crates/ckrv-sandbox/src/agent/mod.rs` | Agent provider trait |
+| `crates/ckrv-git/src/worktree.rs` | Git worktree management |
+| `crates/ckrv-cli/src/commands/run.rs` | Main run command |
+| `crates/ckrv-ui/src/api/` | Web UI API endpoints |
 
 ## Testing
 
 - Unit tests in each crate's source files
 - Integration tests in `crates/ckrv-cli/tests/`
 - Tests marked `#[ignore]` require API keys or Docker
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `crates/ckrv-core/src/job.rs` | Job lifecycle management |
-| `crates/ckrv-core/src/orchestrator.rs` | Execution orchestration |
-| `crates/ckrv-model/src/router.rs` | Model selection logic |
-| `crates/ckrv-git/src/worktree.rs` | Git worktree management |
-| `crates/ckrv-cli/src/commands/run.rs` | Main run command |
-
-## Recent Changes (2025-12-25)
-
-- Completed MVP implementation (174 tasks)
-- All 6 user stories implemented
-- 226 tests passing
-- Documentation complete
-- CI/CD configured
+- Run `cargo test --workspace` before committing
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
 
 ## Active Technologies
-- Rust 1.75+ + `clap` (CLI), `indicatif` (Spinners), `termimad` (Markdown), `tabled` (Tables), `console` (Styling) (002-rich-cli-ui)
-- N/A (Presentation layer only) (002-rich-cli-ui)
-- Rust 1.75+ (Stable) (003-agent-orchestration)
-- Filesystem (.ckrv/tasks for state) (003-agent-orchestration)
-- Rust 1.75+ (Backend), Node.js/TypeScript (Frontend Build) (004-web-ui-extension)
-- N/A (Uses existing file system / git worktrees via `ckrv-core`) (004-web-ui-extension)
-- Rust 1.75+ (CLI), TypeScript/Node.js (Cloud API) (005-cloud-executions)
-- TypeScript 5.x (Frontend), Rust 1.75+ (Backend) (006-bug-free-polished-ui)
-- File-based (specs, plans, tasks in YAML format) (006-bug-free-polished-ui)
-- Rust 1.75+ (backend), TypeScript 5.x (frontend) + axum, tokio (backend); React 18, XTerm.js (frontend) (007-execution-state-sync)
-- N/A (stateless WebSocket communication) (007-execution-state-sync)
-- Rust 1.75+ (backend), TypeScript 5.x (frontend) + axum, tokio, serde_yaml (backend); React 18, @tanstack/react-query (frontend) (008-persistent-run-history)
-- YAML files in `.specs/<spec-name>/runs.yaml` (008-persistent-run-history)
-- TypeScript 5.9.3, React 19.2.0 + Vite 7.2.4, Tailwind CSS 4.1.18, shadcn/ui (latest), @tanstack/react-query, lucide-react (009-shadcn-ui-migration)
-- N/A (frontend-only) (009-shadcn-ui-migration)
-- TypeScript 5.x, CSS (Tailwind 4) + Tailwind CSS v4, React 18, Vite (001-css-theme-consolidation)
-- N/A (CSS files only) (001-css-theme-consolidation)
-- Rust (current CLI) + Claude Code (AI execution) + ckrv-sandbox (Docker execution), ckrv-git, clap (CLI), serde_yaml (001-spec-setup)
-- Files in `.specs/<spec-id>/` directory (YAML + Markdown) (001-spec-setup)
-- Rust 1.75 (backend), TypeScript/React (frontend) + Axum (web server), tokio (async), React Query, WebSocket (010-persistent-runner-logs)
-- File-based (dedicated `.ckrv/logs/` folder with `.gitkeep`) (010-persistent-runner-logs)
-- Rust 1.75 (workspace already configured) + bollard (Docker), tokio (async), serde (config) (011-openai-codex-agent)
-- YAML configuration files in `.chakravarti/` and environment variables (011-openai-codex-agent)
+- Rust 1.75+ + Markdown, Mermaid diagrams, cargo doc (012-code-documentation)
+- N/A (documentation files only) (012-code-documentation)
