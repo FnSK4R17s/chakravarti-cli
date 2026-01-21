@@ -95,6 +95,11 @@ pub async fn start_terminal_session(
         .map(|a| matches!(a.agent_type, AgentType::ClaudeOpenRouter))
         .unwrap_or(false);
     
+    // Check if this is a GLM Coding Plan agent
+    let is_glm = payload.agent.as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::ClaudeGlm))
+        .unwrap_or(false);
+    
     // Check if this is a Codex agent
     let is_codex = payload.agent.as_ref()
         .map(|a| matches!(a.agent_type, AgentType::Codex))
@@ -126,6 +131,39 @@ pub async fn start_terminal_session(
         }
         
         println!("Terminal session using OpenAI Codex with mounted credentials");
+    } else if is_glm {
+        // GLM Coding Plan configuration for Claude Code
+        // See: https://docs.z.ai/devpack/tool/claude#manual-configuration
+        if let Some(ref agent) = payload.agent {
+            if let Some(ref glm_config) = agent.glm {
+                // Required: Set base URL to Z.AI
+                env_vars.push("ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic".to_string());
+                
+                // Required: Set auth token to Z.AI API key
+                if let Some(ref api_key) = glm_config.api_key {
+                    env_vars.push(format!("ANTHROPIC_AUTH_TOKEN={}", api_key));
+                    env_vars.push(format!("ZAI_API_KEY={}", api_key));
+                }
+                
+                // Required: Explicitly blank out Anthropic API key to prevent conflicts
+                env_vars.push("ANTHROPIC_API_KEY=".to_string());
+                
+                // Set extended timeout for GLM
+                env_vars.push(format!("API_TIMEOUT_MS={}", glm_config.timeout_ms.unwrap_or(3000000)));
+                
+                // Set default model if specified
+                if !glm_config.model.is_empty() {
+                    env_vars.push(format!("ANTHROPIC_DEFAULT_SONNET_MODEL={}", glm_config.model));
+                    env_vars.push(format!("ANTHROPIC_DEFAULT_OPUS_MODEL={}", glm_config.model));
+                    env_vars.push(format!("ANTHROPIC_DEFAULT_HAIKU_MODEL={}", glm_config.model));
+                }
+                
+                println!("GLM Coding Plan agent configured: model={}", glm_config.model);
+            }
+        }
+        
+        // For GLM, we do NOT mount Claude credentials
+        println!("Terminal session using GLM Coding Plan - skipping Claude credential mounts");
     } else if is_openrouter {
         // OpenRouter configuration for Claude Code
         // See: https://openrouter.ai/docs/guides/guides/claude-code-integration
