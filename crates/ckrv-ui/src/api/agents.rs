@@ -8,7 +8,8 @@ use std::path::PathBuf;
 
 use crate::state::AppState;
 
-/// Agent type enumeration
+/// Agent type enumeration - only currently supported types
+/// Future: Gemini, Cursor, Amp, QwenCode, Opencode, FactoryDroid, Copilot
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentType {
@@ -16,22 +17,10 @@ pub enum AgentType {
     Claude,
     /// Claude Code with custom OpenRouter API
     ClaudeOpenRouter,
-    /// Gemini CLI
-    Gemini,
+    /// Claude Code with Z.AI GLM Coding Plan
+    ClaudeGlm,
     /// OpenAI Codex CLI
     Codex,
-    /// Cursor CLI
-    Cursor,
-    /// Amp CLI
-    Amp,
-    /// Qwen Code CLI
-    QwenCode,
-    /// Opencode CLI
-    Opencode,
-    /// Factory Droid
-    FactoryDroid,
-    /// GitHub Copilot (via CLI)
-    Copilot,
 }
 
 impl Default for AgentType {
@@ -53,6 +42,17 @@ pub struct OpenRouterConfig {
     pub max_tokens: Option<u32>,
     /// Temperature
     pub temperature: Option<f32>,
+}
+
+/// Configuration for Z.AI GLM Coding Plan agents
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GLMConfig {
+    /// Z.AI API key
+    pub api_key: Option<String>,
+    /// Model identifier (e.g., "glm-4.7", "glm-4.5-air")
+    pub model: String,
+    /// Custom timeout in milliseconds (default: 3000000)
+    pub timeout_ms: Option<u32>,
 }
 
 /// Agent configuration
@@ -85,6 +85,8 @@ pub struct AgentConfig {
     pub description: Option<String>,
     /// OpenRouter configuration (for ClaudeOpenRouter type)
     pub openrouter: Option<OpenRouterConfig>,
+    /// GLM Coding Plan configuration (for ClaudeGlm type)
+    pub glm: Option<GLMConfig>,
     /// Custom CLI binary path (if not using default)
     pub binary_path: Option<String>,
     /// Additional CLI arguments
@@ -130,6 +132,7 @@ fn ensure_defaults(agents: &mut AgentsFile) {
             enabled: true,
             description: Some("Default Claude Code CLI agent".to_string()),
             openrouter: None,
+            glm: None,
             binary_path: None,
             extra_args: None,
             env_vars: None,
@@ -627,16 +630,31 @@ pub async fn test_agent(Json(payload): Json<TestAgentPayload>) -> impl IntoRespo
                 Err("OpenRouter configuration is required".to_string())
             }
         }
-        AgentType::Gemini => {
-            let binary = payload.agent.binary_path.as_deref().unwrap_or("gemini");
-            match std::process::Command::new(binary).arg("--version").output() {
-                Ok(_) => Ok("Gemini CLI available".to_string()),
-                Err(e) => Err(format!("Gemini CLI not found: {}", e)),
+        AgentType::ClaudeGlm => {
+            // Test GLM Coding Plan API
+            if let Some(ref config) = payload.agent.glm {
+                if config.api_key.is_none() || config.api_key.as_ref().map(|k| k.is_empty()).unwrap_or(true) {
+                    Err("Z.AI API key is required for GLM Coding Plan".to_string())
+                } else {
+                    Ok(format!("GLM Coding Plan config valid for model: {}", config.model))
+                }
+            } else {
+                Err("GLM configuration is required".to_string())
             }
         }
-        _ => {
-            // Generic test for other agents
-            Ok(format!("{:?} agent configured", payload.agent.agent_type))
+        AgentType::Codex => {
+            // Test Codex CLI
+            let binary = payload.agent.binary_path.as_deref().unwrap_or("codex");
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        Ok("Codex CLI available".to_string())
+                    } else {
+                        Err("Codex CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Codex CLI not found: {}", e)),
+            }
         }
     };
     

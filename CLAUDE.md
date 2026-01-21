@@ -132,3 +132,8 @@ See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 ## Active Technologies
 - Rust 1.75+ + Markdown, Mermaid diagrams, cargo doc (012-code-documentation)
 - N/A (documentation files only) (012-code-documentation)
+- Rust 1.75+, TypeScript/React + axum, tokio, serde, bollard (Docker) (013-glm-coding-plan)
+- YAML configuration files (`~/.config/chakravarti/agents.yaml`) (013-glm-coding-plan)
+
+## Recent Changes
+- 013-glm-coding-plan: Added Rust 1.75+, TypeScript/React + axum, tokio, serde, bollard (Docker)
