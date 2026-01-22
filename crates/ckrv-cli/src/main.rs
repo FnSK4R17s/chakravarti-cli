@@ -7,6 +7,7 @@ use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 mod cloud;
 mod commands;
 mod prompts;
+mod services;
 pub mod ui;
 
 use ui::components::Banner;
@@ -94,6 +95,14 @@ enum Commands {
     /// Pull results from a completed cloud job
     #[command(display_order = 11)]
     Pull(commands::pull::PullArgs),
+
+    /// Run tests in sandbox, plan and write new tests
+    #[command(display_order = 12)]
+    Test(commands::test::TestArgs),
+
+    /// QA code review and bug analysis
+    #[command(display_order = 13)]
+    Qa(commands::qa::QaArgs),
 }
 
 #[tokio::main]
@@ -145,6 +154,8 @@ async fn main() -> anyhow::Result<()> {
         Some(Commands::Cloud(args)) => commands::cloud::execute(args, &ui).await,
         Some(Commands::Logs(args)) => commands::logs::execute(args, &ui).await,
         Some(Commands::Pull(args)) => commands::pull::execute(args, &ui).await,
+        Some(Commands::Test(args)) => commands::test::execute(args, cli.json, &ui).await,
+        Some(Commands::Qa(args)) => commands::qa::execute(args, cli.json, &ui).await,
         None => {
             use clap::CommandFactory;
             let mut cmd = Cli::command();

@@ -1,0 +1,164 @@
+//! Agent lookup service - find agents by role.
+
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
+
+/// Agent type enumeration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentType {
+    Claude,
+    ClaudeOpenRouter,
+    ClaudeGlm,
+    Codex,
+}
+
+impl Default for AgentType {
+    fn default() -> Self {
+        Self::Claude
+    }
+}
+
+/// OpenRouter configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenRouterConfig {
+    pub api_key: Option<String>,
+    pub model: String,
+    pub base_url: Option<String>,
+    pub max_tokens: Option<u32>,
+    pub temperature: Option<f32>,
+}
+
+/// GLM configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GLMConfig {
+    pub api_key: Option<String>,
+    pub model: String,
+    pub timeout_ms: Option<u32>,
+}
+
+/// Agent configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentConfig {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub agent_type: AgentType,
+    #[serde(default = "default_level")]
+    pub level: u8,
+    #[serde(default)]
+    pub is_default: bool,
+    #[serde(default)]
+    pub is_qa_agent: bool,
+    #[serde(default)]
+    pub is_test_writer: bool,
+    #[serde(default = "default_enabled")]
+    pub enabled: bool,
+    pub description: Option<String>,
+    pub openrouter: Option<OpenRouterConfig>,
+    pub glm: Option<GLMConfig>,
+    pub binary_path: Option<String>,
+    pub extra_args: Option<Vec<String>>,
+    pub env_vars: Option<HashMap<String, String>>,
+}
+
+fn default_level() -> u8 {
+    3
+}
+
+fn default_enabled() -> bool {
+    true
+}
+
+/// Agents configuration file
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AgentsFile {
+    pub agents: Vec<AgentConfig>,
+}
+
+/// Get the path to the agents config file
+pub fn get_agents_path() -> PathBuf {
+    dirs::config_dir()
+        .map(|d| d.join("chakravarti").join("agents.yaml"))
+        .unwrap_or_else(|| PathBuf::from(".chakravarti/agents.yaml"))
+}
+
+/// Load agents configuration from file
+pub fn load_agents_config() -> anyhow::Result<AgentsFile> {
+    let path = get_agents_path();
+    if !path.exists() {
+        return Ok(AgentsFile::default());
+    }
+    let content = fs::read_to_string(&path)?;
+    let agents: AgentsFile = serde_yaml::from_str(&content)?;
+    Ok(agents)
+}
+
+/// Find the test writer agent (is_test_writer=true)
+pub fn find_test_writer_agent() -> Option<AgentConfig> {
+    load_agents_config()
+        .ok()?
+        .agents
+        .into_iter()
+        .find(|a| a.is_test_writer && a.enabled)
+}
+
+/// Find the QA agent (is_qa_agent=true)
+pub fn find_qa_agent() -> Option<AgentConfig> {
+    load_agents_config()
+        .ok()?
+        .agents
+        .into_iter()
+        .find(|a| a.is_qa_agent && a.enabled)
+}
+
+/// Find the default agent
+pub fn find_default_agent() -> Option<AgentConfig> {
+    load_agents_config()
+        .ok()?
+        .agents
+        .into_iter()
+        .find(|a| a.is_default && a.enabled)
+}
+
+/// Error message for missing test writer agent
+pub fn test_writer_missing_message() -> String {
+    format!(
+        r#"No test writer agent configured.
+
+To configure a test writer agent:
+1. Open the Agent Manager in `ckrv ui`
+2. Select an agent and enable "Test Writer" role
+3. Or add to ~/.config/chakravarti/agents.yaml:
+
+   agents:
+     - id: test-writer
+       name: Test Writer
+       agent_type: claude
+       is_test_writer: true
+       enabled: true
+"#
+    )
+}
+
+/// Error message for missing QA agent
+pub fn qa_agent_missing_message() -> String {
+    format!(
+        r#"No QA agent configured.
+
+To configure a QA agent:
+1. Open the Agent Manager in `ckrv ui`
+2. Select an agent and enable "QA Agent" role
+3. Or add to ~/.config/chakravarti/agents.yaml:
+
+   agents:
+     - id: qa-agent
+       name: QA Agent
+       agent_type: claude
+       is_qa_agent: true
+       enabled: true
+"#
+    )
+}

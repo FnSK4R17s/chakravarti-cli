@@ -16,6 +16,8 @@ pub mod status;
 pub mod task;
 pub mod ui;
 pub mod verify;
+pub mod test;
+pub mod qa;
 
 /// Emit a JSON value to stdout if requested.
 pub fn emit_json<T: serde::Serialize>(val: T, json: bool) {
