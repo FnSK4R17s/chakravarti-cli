@@ -13,6 +13,8 @@ import { TaskEditor } from './components/TaskEditor';
 import PlanEditor from './components/PlanEditor';
 import ExecutionRunner from './components/ExecutionRunner';
 import DiffViewer from './components/DiffViewer';
+import TestRunner from './components/TestRunner';
+import QAReviewer from './components/QAReviewer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
@@ -31,7 +33,7 @@ interface CommandResult {
 }
 
 // Navigation context
-export type PageType = 'dashboard' | 'agents' | 'specs' | 'tasks' | 'plan' | 'runner' | 'diff';
+export type PageType = 'dashboard' | 'agents' | 'specs' | 'tasks' | 'plan' | 'runner' | 'diff' | 'test' | 'qa';
 interface NavigationContextType {
     currentPage: PageType;
     setCurrentPage: (page: PageType) => void;
@@ -110,6 +112,20 @@ const DiffPage = () => (
     </div>
 );
 
+// Test Page
+const TestPage = () => (
+    <div className="h-full max-h-full overflow-hidden">
+        <TestRunner />
+    </div>
+);
+
+// QA Page
+const QAPage = () => (
+    <div className="h-full max-h-full overflow-hidden">
+        <QAReviewer />
+    </div>
+);
+
 function App() {
     const [lastResult, setLastResult] = useState<CommandResult | null>(null);
     const [currentPage, setCurrentPage] = useState<PageType>('dashboard');
@@ -130,6 +146,8 @@ function App() {
                                         {currentPage === 'tasks' && <TasksPage />}
                                         {currentPage === 'runner' && <RunnerPage />}
                                         {currentPage === 'diff' && <DiffPage />}
+                                        {currentPage === 'test' && <TestPage />}
+                                        {currentPage === 'qa' && <QAPage />}
                                     </ErrorBoundary>
                                 </DashboardLayout>
                             </CommandResultContext.Provider>
