@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react';
-import { FileText, Layers, Zap, ChevronRight, Loader2, Container, Bot, Cloud, ListTodo, Workflow, Rocket, GitCompare } from 'lucide-react';
+import { FileText, Layers, Zap, ChevronRight, Loader2, Container, Bot, Cloud, ListTodo, Workflow, Rocket, GitCompare, FlaskConical, ShieldCheck } from 'lucide-react';
 import { useConnection, type ConnectionStatus } from '../hooks/useConnection';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '../App';
@@ -53,6 +53,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         tasks: 'Task Orchestration',
         runner: 'Execution Runner',
         diff: 'Diff Viewer',
+        test: 'Test Runner',
+        qa: 'QA Reviewer',
     };
     const pageTitle = pageTitles[currentPage] || 'Dashboard';
 
@@ -123,6 +125,20 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                         active={currentPage === 'diff'}
                         onClick={() => setCurrentPage('diff')}
                         testId="nav-diff"
+                    />
+                    <NavIcon
+                        icon={<FlaskConical size={20} />}
+                        label="Test"
+                        active={currentPage === 'test'}
+                        onClick={() => setCurrentPage('test')}
+                        testId="nav-test"
+                    />
+                    <NavIcon
+                        icon={<ShieldCheck size={20} />}
+                        label="QA"
+                        active={currentPage === 'qa'}
+                        onClick={() => setCurrentPage('qa')}
+                        testId="nav-qa"
                     />
                 </nav>
 

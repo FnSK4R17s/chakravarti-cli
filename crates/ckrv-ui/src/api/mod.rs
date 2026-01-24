@@ -13,3 +13,5 @@ pub mod plans;
 pub mod execution;
 pub mod diff;
 pub mod history;
+pub mod test;
+pub mod qa;

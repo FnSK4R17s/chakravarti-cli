@@ -141,7 +141,7 @@ fn ensure_defaults(agents: &mut AgentsFile) {
 }
 
 /// Load agents from config file
-fn load_agents(state: &AppState) -> AgentsFile {
+pub fn load_agents(state: &AppState) -> AgentsFile {
     let path = get_agents_path(state);
     
     if let Ok(content) = fs::read_to_string(&path) {

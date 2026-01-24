@@ -133,6 +133,17 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
         // Git diff routes
         .route("/api/diff/branches", axum::routing::get(crate::api::diff::get_branches))
         .route("/api/diff", axum::routing::get(crate::api::diff::get_diff))
+        // Test command routes
+        .route("/api/test/agent", axum::routing::get(crate::api::test::get_test_agent))
+        .route("/api/test/run", axum::routing::post(crate::api::test::run_tests))
+        .route("/api/test/plan", axum::routing::post(crate::api::test::plan_tests))
+        .route("/api/test/write", axum::routing::post(crate::api::test::write_tests))
+        .route("/api/test/coverage", axum::routing::post(crate::api::test::check_coverage))
+        // QA command routes
+        .route("/api/qa/agent", axum::routing::get(crate::api::qa::get_qa_agent))
+        .route("/api/qa/review", axum::routing::post(crate::api::qa::run_review))
+        .route("/api/qa/bugs", axum::routing::post(crate::api::qa::run_bugs))
+        .route("/api/qa/report", axum::routing::post(crate::api::qa::run_report))
         // Fallback for SPA
         .fallback(static_handler)
         .with_state(state);
