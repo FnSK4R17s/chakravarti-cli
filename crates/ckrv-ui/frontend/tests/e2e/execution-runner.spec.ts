@@ -16,12 +16,17 @@ import { test, expect } from '../helpers/test-project';
 
 test.describe('Execution Runner', () => {
     test.beforeEach(async ({ page }) => {
-        // Navigate to the runner page
+        // Navigate to the runner page (now accessed via Code page Run tab)
         await page.goto('/');
-        // Click on Runner in the navigation
-        await page.click('[data-testid="nav-runner"]', { timeout: 5000 }).catch(() => {
+        // Click on Code in the navigation
+        await page.click('[data-testid="nav-code"]', { timeout: 5000 }).catch(() => {
             // Fallback: try clicking by text
-            return page.click('text=Runner');
+            return page.click('text=Code');
+        });
+        // Click on the Run tab
+        await page.click('[data-testid="code-tab-run"]', { timeout: 5000 }).catch(() => {
+            // Fallback: try clicking by text
+            return page.click('text=Run');
         });
     });
 

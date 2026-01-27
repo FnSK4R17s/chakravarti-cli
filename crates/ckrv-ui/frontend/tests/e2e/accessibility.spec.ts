@@ -173,9 +173,12 @@ test.describe('ARIA Labels', () => {
     test('progress indicators have ARIA attributes', async ({ page }) => {
         await page.goto('/');
 
-        // Navigate to runner to see progress indicators
-        await page.click('[data-testid="nav-runner"]').catch(() => {
-            return page.click('text=Runner');
+        // Navigate to Code page Run tab to see progress indicators
+        await page.click('[data-testid="nav-code"]').catch(() => {
+            return page.click('text=Code');
+        });
+        await page.click('[data-testid="code-tab-run"]').catch(() => {
+            return page.click('text=Run');
         });
 
         await page.waitForLoadState('networkidle');

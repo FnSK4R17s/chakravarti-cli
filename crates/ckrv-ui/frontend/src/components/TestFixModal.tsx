@@ -1,0 +1,323 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Circle, X, Bot, Wrench, Copy, Check } from 'lucide-react';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+interface TestFixModalProps {
+    error: string;
+    baseBranch: string;
+    onClose: () => void;
+}
+
+export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, onClose }) => {
+    const terminalRef = useRef<HTMLDivElement>(null);
+    const xtermRef = useRef<Terminal | null>(null);
+    const wsRef = useRef<WebSocket | null>(null);
+    const fitAddonRef = useRef<FitAddon | null>(null);
+    const sessionIdRef = useRef(`test-fix-${Date.now()}`);
+
+    const [status, setStatus] = useState<'connecting' | 'connected' | 'error' | 'disconnected'>('connecting');
+    const [containerId, setContainerId] = useState<string | null>(null);
+
+    useEffect(() => {
+        let mounted = true;
+
+        const init = async () => {
+            // Wait for terminal ref to be available
+            let attempts = 0;
+            while (!terminalRef.current && attempts < 20 && mounted) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (!mounted) return;
+            if (!terminalRef.current) return;
+
+            // Create xterm instance
+            const term = new Terminal({
+                cursorBlink: true,
+                fontSize: 14,
+                fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
+                scrollback: 1000,
+                cols: 120,
+                rows: 30,
+                convertEol: true,
+                allowProposedApi: true,
+                theme: {
+                    background: '#1e1e1e',
+                    foreground: '#d4d4d4',
+                    cursor: '#d4d4d4',
+                    cursorAccent: '#1e1e1e',
+                    selectionBackground: '#264f78',
+                    black: '#1e1e1e',
+                    red: '#f44747',
+                    green: '#608b4e',
+                    yellow: '#dcdcaa',
+                    blue: '#569cd6',
+                    magenta: '#c586c0',
+                    cyan: '#4ec9b0',
+                    white: '#d4d4d4',
+                    brightBlack: '#808080',
+                    brightRed: '#f44747',
+                    brightGreen: '#608b4e',
+                    brightYellow: '#dcdcaa',
+                    brightBlue: '#569cd6',
+                    brightMagenta: '#c586c0',
+                    brightCyan: '#4ec9b0',
+                    brightWhite: '#ffffff',
+                },
+            });
+
+            const fitAddon = new FitAddon();
+            term.loadAddon(fitAddon);
+
+            xtermRef.current = term;
+            fitAddonRef.current = fitAddon;
+
+            term.open(terminalRef.current);
+
+            // Use ResizeObserver for reliable sizing
+            const resizeObserver = new ResizeObserver(() => {
+                if (fitAddonRef.current && terminalRef.current) {
+                    try {
+                        fitAddonRef.current.fit();
+                    } catch (e) {
+                        // Ignore fit errors during resize
+                    }
+                }
+            });
+            resizeObserver.observe(terminalRef.current);
+
+            setTimeout(() => fitAddon.fit(), 50);
+
+            // Enable clipboard paste support
+            term.attachCustomKeyEventHandler((event) => {
+                if (event.type !== 'keydown') return true;
+                if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+                    navigator.clipboard.readText().then((text) => {
+                        if (wsRef.current?.readyState === WebSocket.OPEN) {
+                            wsRef.current.send(text);
+                        }
+                    }).catch(() => { });
+                    return false;
+                }
+                if ((event.ctrlKey || event.metaKey) && event.key === 'c' && term.hasSelection()) {
+                    const selection = term.getSelection();
+                    navigator.clipboard.writeText(selection).catch(() => { });
+                    return false;
+                }
+                return true;
+            });
+
+            term.writeln('\x1b[35m╔════════════════════════════════════════════════════════════════╗\x1b[0m');
+            term.writeln('\x1b[35m║                  🤖 AI Test Fix Agent                          ║\x1b[0m');
+            term.writeln('\x1b[35m╚════════════════════════════════════════════════════════════════╝\x1b[0m');
+            term.writeln('');
+            term.writeln('\x1b[33m# Starting sandbox to fix test errors...\x1b[0m');
+
+            // Start terminal session using existing endpoint
+            try {
+                const res = await fetch('/api/terminal/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionIdRef.current,
+                        agent: null, // Use default claude settings
+                    }),
+                });
+                const data = await res.json();
+
+                if (!mounted) return;
+
+                if (data.success) {
+                    setContainerId(data.container_id || null);
+                    term.writeln(`\x1b[32m# Container: ${data.container_id?.slice(0, 12) || 'unknown'}\x1b[0m`);
+                    term.writeln('\x1b[33m# Connecting to shell...\x1b[0m');
+
+                    // Connect WebSocket
+                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${wsProtocol}//${window.location.host}/api/terminal/ws?session_id=${sessionIdRef.current}`;
+
+                    const ws = new WebSocket(wsUrl);
+                    wsRef.current = ws;
+
+                    ws.onopen = () => {
+                        if (!mounted) return;
+                        setStatus('connected');
+                        term.writeln('\x1b[32m# Connected! Shell ready.\x1b[0m');
+                        term.writeln('\x1b[33m# Click "Fill Fix Command" to paste the AI fix command, then press Enter to run.\x1b[0m\r\n');
+                        // Don't auto-send - let user trigger it
+                    };
+
+                    ws.onmessage = (event) => {
+                        if (!mounted) return;
+                        term.write(event.data);
+                    };
+
+                    ws.onerror = () => {
+                        if (!mounted) return;
+                        setStatus('error');
+                        term.writeln('\r\n\x1b[31m# WebSocket error\x1b[0m');
+                    };
+
+                    ws.onclose = () => {
+                        if (!mounted) return;
+                        setStatus('disconnected');
+                        term.writeln('\r\n\x1b[33m# Session ended\x1b[0m');
+                    };
+
+                    // Send terminal input to WebSocket
+                    term.onData((data) => {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(data);
+                        }
+                    });
+                } else {
+                    setStatus('error');
+                    term.writeln(`\x1b[31m# Error: ${data.message || data.error}\x1b[0m`);
+                }
+            } catch (e) {
+                if (!mounted) return;
+                setStatus('error');
+                term.writeln(`\x1b[31m# Error: ${e}\x1b[0m`);
+            }
+        };
+
+        init();
+
+        // Handle resize
+        const handleResize = () => {
+            fitAddonRef.current?.fit();
+        };
+        window.addEventListener('resize', handleResize);
+
+        // Cleanup
+        return () => {
+            mounted = false;
+            window.removeEventListener('resize', handleResize);
+            wsRef.current?.close();
+            xtermRef.current?.dispose();
+            fetch('/api/terminal/stop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionIdRef.current }),
+            }).catch(() => { });
+        };
+    }, [error, baseBranch]);
+
+    const handleClose = () => {
+        wsRef.current?.close();
+        fetch('/api/terminal/stop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionIdRef.current }),
+        }).catch(() => { });
+        onClose();
+    };
+
+    const getStatusVariant = (): "success" | "warning" | "destructive" | "secondary" => {
+        switch (status) {
+            case 'connecting': return 'warning';
+            case 'connected': return 'success';
+            case 'error': return 'destructive';
+            case 'disconnected': return 'secondary';
+        }
+    };
+
+    const statusLabel = {
+        connecting: 'Connecting...',
+        connected: 'Ready',
+        error: 'Error',
+        disconnected: 'Completed'
+    }[status];
+
+    const [copied, setCopied] = useState(false);
+
+    const handleCopyError = async () => {
+        try {
+            await navigator.clipboard.writeText(error);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (e) {
+            console.error('Failed to copy:', e);
+        }
+    };
+
+    return (
+        <Dialog open onOpenChange={(open) => !open && handleClose()}>
+            <DialogContent
+                className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0"
+                onEscapeKeyDown={(e) => e.preventDefault()}
+                onInteractOutside={(e) => e.preventDefault()}
+            >
+                <DialogHeader className="px-4 py-3 shrink-0 border-b border-border bg-muted">
+                    <div className="flex items-center gap-3">
+                        <Bot size={16} className="text-purple-400" />
+                        <DialogTitle className="text-sm">
+                            AI Test Fix Agent
+                        </DialogTitle>
+                        <Badge variant="info" className="flex items-center gap-1">
+                            <Wrench size={10} />
+                            Auto-Fix
+                        </Badge>
+                        <Badge variant={getStatusVariant()} className="flex items-center gap-1">
+                            <Circle size={8} fill="currentColor" />
+                            {statusLabel}
+                        </Badge>
+                        {containerId && (
+                            <span className="text-[10px] font-mono text-muted-foreground">
+                                {containerId.slice(0, 12)}
+                            </span>
+                        )}
+                        <div className="flex-1" />
+                        {/* Copy Error Button */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCopyError}
+                            className="flex items-center gap-2 mr-2"
+                            title="Copy error logs to clipboard"
+                        >
+                            {copied ? (
+                                <>
+                                    <Check size={14} className="text-green-500" />
+                                    Copied!
+                                </>
+                            ) : (
+                                <>
+                                    <Copy size={14} />
+                                    Copy Error
+                                </>
+                            )}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleClose}
+                            className="h-7 w-7 shrink-0"
+                            title="Close terminal"
+                        >
+                            <X size={16} />
+                        </Button>
+                    </div>
+                </DialogHeader>
+
+                {/* Terminal wrapped in Card */}
+                <div className="flex-1 m-2 overflow-hidden">
+                    <Card className="h-full w-full overflow-hidden rounded-lg border-border">
+                        <div
+                            ref={terminalRef}
+                            className="w-full h-full p-2"
+                            style={{ background: '#1e1e1e', minHeight: '400px' }}
+                        />
+                    </Card>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+};

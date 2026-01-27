@@ -82,6 +82,13 @@ pub fn get_changed_files(base: &str) -> anyhow::Result<Vec<ChangedFile>> {
     for line in stdout.lines() {
         let parts: Vec<&str> = line.split('\t').collect();
         if parts.len() >= 2 {
+            let path = PathBuf::from(parts.last().unwrap_or(&""));
+            
+            // Skip paths that should be excluded
+            if should_exclude_path(&path) {
+                continue;
+            }
+            
             let change_type = match parts[0].chars().next() {
                 Some('A') => ChangeType::Added,
                 Some('M') => ChangeType::Modified,
@@ -89,8 +96,6 @@ pub fn get_changed_files(base: &str) -> anyhow::Result<Vec<ChangedFile>> {
                 Some('R') => ChangeType::Renamed,
                 _ => ChangeType::Modified,
             };
-            
-            let path = PathBuf::from(parts.last().unwrap_or(&""));
             
             // Get line counts
             let (lines_added, lines_removed) = get_file_diff_stats(base, &path)?;
@@ -105,6 +110,66 @@ pub fn get_changed_files(base: &str) -> anyhow::Result<Vec<ChangedFile>> {
     }
     
     Ok(files)
+}
+
+/// Check if a path should be excluded from analysis
+fn should_exclude_path(path: &PathBuf) -> bool {
+    let path_str = path.to_string_lossy();
+    
+    // Common directories to exclude
+    let excluded_dirs = [
+        "node_modules/",
+        "vendor/",
+        "target/",
+        "dist/",
+        "build/",
+        ".git/",
+        ".next/",
+        "__pycache__/",
+        ".pytest_cache/",
+        ".mypy_cache/",
+        "coverage/",
+        ".nyc_output/",
+        ".turbo/",
+        "out/",
+        ".vercel/",
+        ".cache/",
+        "pkg/",
+        "bin/",
+        ".venv/",
+        "venv/",
+        "env/",
+        ".env/",
+    ];
+    
+    for dir in &excluded_dirs {
+        if path_str.contains(dir) {
+            return true;
+        }
+    }
+    
+    // Exclude common generated/lock files
+    let excluded_files = [
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "Cargo.lock",
+        "poetry.lock",
+        "Gemfile.lock",
+        ".DS_Store",
+    ];
+    
+    let filename = path.file_name()
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or_default();
+    
+    for file in &excluded_files {
+        if filename == *file {
+            return true;
+        }
+    }
+    
+    false
 }
 
 /// Get line counts for a specific file

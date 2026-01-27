@@ -337,14 +337,22 @@ impl DockerClient {
         );
 
         // Convert env to Docker format
-        let mut env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
+        let mut env_vec: Vec<String> = env.iter().map(|(k, v)| format!("{k}={v}")).collect();
 
-        // Mount Claude credentials if they exist
+        // Mount credentials if they exist
         let host_home = std::env::var("HOME").unwrap_or_default();
-        let container_home = "/home/claude".to_string();
-        env_vec.push(format!("HOME={}", container_home));
+        
+        // Use HOME from passed env, or default to /home/claude
+        let container_home = env.get("HOME")
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "/home/claude".to_string());
+        
+        // Only add HOME if not already in env
+        if !env.contains_key("HOME") {
+            env_vec.push(format!("HOME={}", container_home));
+        }
 
-        // Create mounts: workspace + Claude credentials
+        // Create mounts: workspace + credentials
         let mut mounts = vec![
             Mount {
                 target: Some(mount_target.to_string()),
@@ -355,6 +363,7 @@ impl DockerClient {
             },
         ];
 
+        // Mount Claude credentials (~/.claude.json and ~/.claude)
         let claude_config = format!("{}/.claude.json", host_home);
         if std::path::Path::new(&claude_config).exists() {
             mounts.push(Mount {
@@ -371,6 +380,18 @@ impl DockerClient {
             mounts.push(Mount {
                 target: Some(format!("{}/.claude", container_home)),
                 source: Some(claude_dir),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false),
+                ..Default::default()
+            });
+        }
+        
+        // Mount Codex credentials (~/.codex) if running Codex
+        let codex_dir = format!("{}/.codex", host_home);
+        if std::path::Path::new(&codex_dir).exists() {
+            mounts.push(Mount {
+                target: Some(format!("{}/.codex", container_home)),
+                source: Some(codex_dir),
                 typ: Some(MountTypeEnum::BIND),
                 read_only: Some(false),
                 ..Default::default()

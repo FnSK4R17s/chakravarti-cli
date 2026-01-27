@@ -133,12 +133,16 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
         // Git diff routes
         .route("/api/diff/branches", axum::routing::get(crate::api::diff::get_branches))
         .route("/api/diff", axum::routing::get(crate::api::diff::get_diff))
+        .route("/api/git/default-branch", axum::routing::get(crate::api::diff::get_default_branch))
         // Test command routes
         .route("/api/test/agent", axum::routing::get(crate::api::test::get_test_agent))
         .route("/api/test/run", axum::routing::post(crate::api::test::run_tests))
         .route("/api/test/plan", axum::routing::post(crate::api::test::plan_tests))
+        .route("/api/test/plan-status", axum::routing::get(crate::api::test::test_plan_status))
         .route("/api/test/write", axum::routing::post(crate::api::test::write_tests))
+        .route("/api/test/write-status", axum::routing::get(crate::api::test::test_write_status))
         .route("/api/test/coverage", axum::routing::post(crate::api::test::check_coverage))
+        .route("/api/test/fix", axum::routing::post(crate::api::test::fix_tests))
         // QA command routes
         .route("/api/qa/agent", axum::routing::get(crate::api::qa::get_qa_agent))
         .route("/api/qa/review", axum::routing::post(crate::api::qa::run_review))

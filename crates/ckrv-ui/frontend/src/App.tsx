@@ -4,15 +4,10 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import { DashboardLayout } from './layouts/Dashboard';
 import { StatusWidget } from './components/StatusWidget';
-import { LogViewer } from './components/LogViewer';
 import { CommandPalette, CommandResultContext } from './components/CommandPalette';
-import { WorkflowPanel } from './components/WorkflowPanel';
+import { ChatDashboard } from './components/ChatDashboard';
 import AgentManager from './components/AgentManager';
-import { SpecEditor } from './components/SpecEditor';
-import { TaskEditor } from './components/TaskEditor';
-import PlanEditor from './components/PlanEditor';
-import ExecutionRunner from './components/ExecutionRunner';
-import DiffViewer from './components/DiffViewer';
+import CodePage from './components/CodePage';
 import TestRunner from './components/TestRunner';
 import QAReviewer from './components/QAReviewer';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -32,8 +27,8 @@ interface CommandResult {
     result: { success: boolean; message?: string };
 }
 
-// Navigation context
-export type PageType = 'dashboard' | 'agents' | 'specs' | 'tasks' | 'plan' | 'runner' | 'diff' | 'test' | 'qa';
+// Navigation context - Updated to include settings
+export type PageType = 'dashboard' | 'agents' | 'code' | 'test' | 'qa' | 'settings';
 interface NavigationContextType {
     currentPage: PageType;
     setCurrentPage: (page: PageType) => void;
@@ -44,29 +39,20 @@ export const NavigationContext = createContext<NavigationContextType>({
 });
 export const useNavigation = () => useContext(NavigationContext);
 
-// Dashboard Page
+// Dashboard Page - Chat-inspired UI
 const DashboardPage = () => (
-    <div className="grid grid-cols-12 gap-4 h-full max-h-full overflow-hidden">
+    <div className="h-full max-h-full overflow-auto">
+        <ChatDashboard />
+    </div>
+);
 
-        {/* Left Column: Status & Commands */}
-        <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 overflow-y-auto pr-2 max-h-full">
+// Settings Page - Contains initialization commands
+const SettingsPage = () => (
+    <div className="h-full max-h-full overflow-auto">
+        <div className="max-w-2xl mx-auto space-y-6 py-4">
             <StatusWidget />
             <CommandPalette />
         </div>
-
-        {/* Right Column: Workflow Pipeline & Logs */}
-        <div className="col-span-12 lg:col-span-9 flex flex-col gap-4 h-full max-h-full overflow-hidden">
-            {/* Workflow Pipeline - Fixed height, scrollable */}
-            <div className="shrink-0 overflow-x-auto">
-                <WorkflowPanel />
-            </div>
-
-            {/* Logs - Takes remaining space */}
-            <div className="flex-1 min-h-0 overflow-hidden">
-                <LogViewer />
-            </div>
-        </div>
-
     </div>
 );
 
@@ -74,41 +60,6 @@ const DashboardPage = () => (
 const AgentsPage = () => (
     <div className="h-full max-h-full overflow-hidden">
         <AgentManager />
-    </div>
-);
-
-// Specs Page
-const SpecsPage = () => (
-    <div className="h-full max-h-full overflow-hidden">
-        <SpecEditor />
-    </div>
-);
-
-// Tasks Page
-const TasksPage = () => (
-    <div className="h-full max-h-full overflow-hidden">
-        <TaskEditor />
-    </div>
-);
-
-// Plan Page
-const PlanPage = () => (
-    <div className="h-full max-h-full overflow-hidden">
-        <PlanEditor />
-    </div>
-);
-
-// Runner Page
-const RunnerPage = () => (
-    <div className="h-full max-h-full overflow-hidden">
-        <ExecutionRunner />
-    </div>
-);
-
-// Diff Page
-const DiffPage = () => (
-    <div className="h-full max-h-full overflow-hidden">
-        <DiffViewer />
     </div>
 );
 
@@ -141,13 +92,10 @@ function App() {
                                     <ErrorBoundary>
                                         {currentPage === 'dashboard' && <DashboardPage />}
                                         {currentPage === 'agents' && <AgentsPage />}
-                                        {currentPage === 'specs' && <SpecsPage />}
-                                        {currentPage === 'plan' && <PlanPage />}
-                                        {currentPage === 'tasks' && <TasksPage />}
-                                        {currentPage === 'runner' && <RunnerPage />}
-                                        {currentPage === 'diff' && <DiffPage />}
+                                        {currentPage === 'code' && <CodePage />}
                                         {currentPage === 'test' && <TestPage />}
                                         {currentPage === 'qa' && <QAPage />}
+                                        {currentPage === 'settings' && <SettingsPage />}
                                     </ErrorBoundary>
                                 </DashboardLayout>
                             </CommandResultContext.Provider>

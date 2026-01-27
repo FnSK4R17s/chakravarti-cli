@@ -134,6 +134,8 @@ See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 - N/A (documentation files only) (012-code-documentation)
 - Rust 1.75+, TypeScript/React + axum, tokio, serde, bollard (Docker) (013-glm-coding-plan)
 - YAML configuration files (`~/.config/chakravarti/agents.yaml`) (013-glm-coding-plan)
+- TypeScript 5.9, React 19 + React, Radix UI (Tabs), TanStack Query, Tailwind CSS 4 (015-unified-code-page)
+- N/A (frontend only, uses existing API endpoints) (015-unified-code-page)
 
 ## Recent Changes
 - 013-glm-coding-plan: Added Rust 1.75+, TypeScript/React + axum, tokio, serde, bollard (Docker)
