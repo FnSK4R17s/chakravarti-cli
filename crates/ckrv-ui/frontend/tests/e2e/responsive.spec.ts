@@ -64,9 +64,12 @@ test.describe('Responsive Layout', () => {
     test('T052: panel transitions work correctly', async ({ page }) => {
         await page.goto('/');
 
-        // Navigate to runner which has expandable panels
-        await page.click('[data-testid="nav-runner"]').catch(() => {
-            return page.click('text=Runner');
+        // Navigate to Code page Run tab which has expandable panels
+        await page.click('[data-testid="nav-code"]').catch(() => {
+            return page.click('text=Code');
+        });
+        await page.click('[data-testid="code-tab-run"]').catch(() => {
+            return page.click('text=Run');
         });
 
         await page.waitForLoadState('networkidle');

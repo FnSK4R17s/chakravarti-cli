@@ -39,6 +39,8 @@ pub struct Batch {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Plan {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spec_id: Option<String>,
     pub batches: Vec<Batch>,
 }
 
@@ -117,12 +119,31 @@ pub async fn get_plan(
     match fs::read_to_string(&plan_path) {
         Ok(content) => {
             match serde_yaml::from_str::<Plan>(&content) {
-                Ok(plan) => Json(PlanResponse {
-                    success: true,
-                    batches: plan.batches,
-                    raw_yaml: Some(content),
-                    error: None,
-                }),
+                Ok(mut plan) => {
+                    // Reset any 'running' batches to 'pending' - they're stale from interrupted execution
+                    let mut needs_save = false;
+                    for batch in &mut plan.batches {
+                        if batch.status == "running" {
+                            println!("Resetting stale running batch '{}' to pending", batch.id);
+                            batch.status = "pending".to_string();
+                            needs_save = true;
+                        }
+                    }
+                    
+                    // Save the updated plan if we reset any batches
+                    if needs_save {
+                        if let Ok(yaml) = serde_yaml::to_string(&plan) {
+                            let _ = fs::write(&plan_path, &yaml);
+                        }
+                    }
+                    
+                    Json(PlanResponse {
+                        success: true,
+                        batches: plan.batches,
+                        raw_yaml: Some(content),
+                        error: None,
+                    })
+                },
                 Err(e) => Json(PlanResponse {
                     success: false,
                     batches: vec![],
@@ -147,6 +168,7 @@ pub async fn save_plan(
     let plan_path = spec_dir.join("plan.yaml");
     
     let plan = Plan {
+        spec_id: None,
         batches: payload.batches,
     };
 

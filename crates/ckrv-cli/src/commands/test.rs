@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::services::{
     agent_lookup,
@@ -65,7 +65,7 @@ pub struct TestRunOutput {
 }
 
 /// Output for test plan command
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TestPlanOutput {
     pub plan_id: String,
     pub base_branch: String,
@@ -73,7 +73,7 @@ pub struct TestPlanOutput {
     pub proposed_tests: Vec<ProposedTest>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ChangedFileInfo {
     pub path: String,
     pub change_type: String,
@@ -82,7 +82,7 @@ pub struct ChangedFileInfo {
     pub has_tests: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ProposedTest {
     pub target_file: String,
     pub test_file: String,
@@ -200,6 +200,14 @@ async fn execute_plan(base: &str, json: bool, ui: &UiContext) -> anyhow::Result<
         proposed_tests,
     };
     
+    // Save test plan to the spec folder for the current branch
+    let current_branch = diff_analyzer::get_current_branch().unwrap_or_else(|_| "default".to_string());
+    let plan_dir = cwd.join(".specs").join(&current_branch);
+    std::fs::create_dir_all(&plan_dir)?;
+    let plan_file = plan_dir.join("test-plan.yaml");
+    let yaml_content = serde_yaml::to_string(&output)?;
+    std::fs::write(&plan_file, &yaml_content)?;
+    
     if json {
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
@@ -227,6 +235,8 @@ async fn execute_plan(base: &str, json: bool, ui: &UiContext) -> anyhow::Result<
             }
             println!("\nRun `ckrv test write` to have the test writer agent create these tests.");
         }
+        
+        println!("\n📄 Plan saved to: {}", plan_file.display());
     }
     
     Ok(())

@@ -109,6 +109,32 @@ pub async fn get_branches(
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct DefaultBranchResponse {
+    pub branch: String,
+}
+
+/// Get the default branch (main or master)
+pub async fn get_default_branch(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let cwd = &state.project_root;
+    
+    // Check if main exists
+    let main_check = Command::new("git")
+        .args(["rev-parse", "--verify", "main"])
+        .current_dir(cwd)
+        .output();
+    
+    let branch = if main_check.map(|o| o.status.success()).unwrap_or(false) {
+        "main".to_string()
+    } else {
+        "master".to_string()
+    };
+    
+    Json(DefaultBranchResponse { branch })
+}
+
 /// Get diff between two branches
 pub async fn get_diff(
     State(state): State<AppState>,

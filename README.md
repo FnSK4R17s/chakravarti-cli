@@ -2,7 +2,8 @@
 
 <p align="center">
   <strong>Spec-driven Agent Orchestration Engine</strong><br>
-  <em>The Universal Orchestrator for AI Coding.</em>
+  <em>The Universal Orchestrator for AI Coding.</em><br>
+  <sub>Turn your ideas into code, one spec at a time.</sub>
 </p>
 
 <p align="center">
@@ -14,6 +15,8 @@
 ---
 
 Chakravarti (`ckrv`) is an autonomous coding engine that transforms high-level specifications into shipping code. It orchestrates AI agents across isolated Git worktrees and Docker sandboxes to ensure safety and code integrity.
+
+Each spec generates a complete workflow—from **scope** to **plan** to **implementation**—with full control to review and refine at every stage.
 
 ## Installation
 

@@ -141,6 +141,11 @@ impl DockerSandbox {
         Self::new(crate::allowlist::DefaultAllowList::default())
     }
 
+    /// Set the Docker image to use.
+    pub fn set_image(&mut self, image: impl Into<String>) {
+        self.client.set_image(image);
+    }
+
     /// Get reference to inner Docker client.
     pub fn inner_client(&self) -> &DockerClient {
         &self.client

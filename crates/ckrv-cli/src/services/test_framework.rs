@@ -56,7 +56,7 @@ pub struct TestFailure {
 
 /// Detect the test framework for a project
 pub fn detect_framework(cwd: &Path) -> TestFramework {
-    // Check for Rust
+    // Check for Rust first (Cargo.toml is very specific)
     if cwd.join("Cargo.toml").exists() {
         return TestFramework::Cargo;
     }
@@ -66,17 +66,29 @@ pub fn detect_framework(cwd: &Path) -> TestFramework {
         return TestFramework::GoTest;
     }
     
+    // Check for Node.js - package.json takes priority
+    // Many Node projects may also have pyproject.toml for tooling, but we prefer npm
+    if cwd.join("package.json").exists() {
+        // Check if package.json has a test script
+        if let Ok(content) = std::fs::read_to_string(cwd.join("package.json")) {
+            if content.contains("\"test\"") || content.contains("\"test:") 
+               || content.contains("jest") || content.contains("vitest")
+               || content.contains("mocha") {
+                return TestFramework::Npm;
+            }
+        }
+        // Even without a test script, if there's a tests directory with .ts/.js files, use npm
+        if cwd.join("tests").exists() || cwd.join("test").exists() || cwd.join("__tests__").exists() {
+            return TestFramework::Npm;
+        }
+    }
+    
     // Check for Python
     if cwd.join("pyproject.toml").exists() 
         || cwd.join("pytest.ini").exists()
         || cwd.join("setup.py").exists() 
     {
         return TestFramework::Pytest;
-    }
-    
-    // Check for Node.js
-    if cwd.join("package.json").exists() {
-        return TestFramework::Npm;
     }
     
     // Check for Makefile as fallback
@@ -92,6 +104,11 @@ pub fn detect_framework(cwd: &Path) -> TestFramework {
                 return TestFramework::Make;
             }
         }
+    }
+    
+    // Final fallback: if package.json exists at all, try npm
+    if cwd.join("package.json").exists() {
+        return TestFramework::Npm;
     }
     
     TestFramework::Unknown
@@ -149,22 +166,44 @@ pub async fn run_tests_local(cwd: &Path) -> TestResult {
                 failures,
             }
         }
-        Err(e) => TestResult {
-            success: false,
-            framework: framework.name().to_string(),
-            total: 0,
-            passed: 0,
-            failed: 1,
-            skipped: 0,
-            duration_ms,
-            stdout: String::new(),
-            stderr: format!("Failed to run {}: {}", cmd, e),
-            failures: vec![TestFailure {
-                name: "test_runner".to_string(),
-                file: None,
-                line: None,
-                message: format!("Failed to run tests: {}", e),
-            }],
+        Err(e) => {
+            // Provide helpful error messages based on the error type and framework
+            let (error_msg, setup_hint) = match (e.kind(), &framework) {
+                (std::io::ErrorKind::NotFound, TestFramework::Npm) => (
+                    format!("Test command not found. npm is not installed or not in PATH."),
+                    "Install Node.js and npm, then add a test script to package.json:\n  \"scripts\": { \"test\": \"jest\" }".to_string(),
+                ),
+                (std::io::ErrorKind::NotFound, TestFramework::Pytest) => (
+                    format!("pytest not found. Python testing is not configured."),
+                    "Install pytest: pip install pytest".to_string(),
+                ),
+                (std::io::ErrorKind::NotFound, TestFramework::Cargo) => (
+                    format!("cargo not found. Rust is not installed."),
+                    "Install Rust: https://rustup.rs/".to_string(),
+                ),
+                _ => (
+                    format!("Failed to run {}: {}", cmd, e),
+                    format!("Ensure {} is installed and the project has tests configured.", cmd),
+                ),
+            };
+            
+            TestResult {
+                success: false,
+                framework: framework.name().to_string(),
+                total: 0,
+                passed: 0,
+                failed: 1,
+                skipped: 0,
+                duration_ms,
+                stdout: String::new(),
+                stderr: format!("{}\n\nSetup hint: {}", error_msg, setup_hint),
+                failures: vec![TestFailure {
+                    name: "test_setup".to_string(),
+                    file: None,
+                    line: None,
+                    message: error_msg,
+                }],
+            }
         },
     }
 }

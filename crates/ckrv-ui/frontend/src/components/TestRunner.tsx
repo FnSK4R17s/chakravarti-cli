@@ -3,7 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import {
     FlaskConical, Play, FileSearch, FileEdit, BarChart3,
     Loader2, CheckCircle2, XCircle, AlertTriangle, Clock,
-    ChevronDown, ChevronRight, Beaker
+    ChevronDown, ChevronRight, Beaker, Bot, MessageCircle, Send
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { TestFixModal } from './TestFixModal';
 
 // Types
 interface TestResult {
@@ -101,11 +102,11 @@ const planTests = async (base: string): Promise<{ success: boolean; plan?: TestP
     return res.json();
 };
 
-const writeTests = async (base: string, run: boolean): Promise<{ success: boolean; message?: string; error?: string }> => {
+const writeTests = async (base: string, run: boolean, customPrompt?: string): Promise<{ success: boolean; message?: string; error?: string }> => {
     const res = await fetch('/api/test/write', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base, run }),
+        body: JSON.stringify({ base, run, custom_prompt: customPrompt }),
     });
     return res.json();
 };
@@ -369,6 +370,83 @@ export default function TestRunner() {
     const [testResult, setTestResult] = useState<TestResult | null>(null);
     const [testPlan, setTestPlan] = useState<TestPlanOutput | null>(null);
     const [coverage, setCoverage] = useState<CoverageResult | null>(null);
+    const [lastError, setLastError] = useState<string | null>(null);
+    const [showFixModal, setShowFixModal] = useState(false);
+    const [showAgentPrompt, setShowAgentPrompt] = useState(false);
+    const [agentPrompt, setAgentPrompt] = useState('');
+
+    // Auto-detect default branch on mount
+    React.useEffect(() => {
+        fetch('/api/git/default-branch')
+            .then(res => res.json())
+            .then(data => {
+                if (data.branch) {
+                    setBaseBranch(data.branch);
+                }
+            })
+            .catch(() => {
+                // Keep default 'main'
+            });
+    }, []);
+
+    // Check if test plan exists and load it
+    const [planExists, setPlanExists] = React.useState(false);
+
+    const checkPlanStatus = React.useCallback(() => {
+        fetch('/api/test/plan-status')
+            .then(res => res.json())
+            .then(data => {
+                setPlanExists(data.exists);
+                // Load the saved plan if it exists
+                if (data.exists && data.plan) {
+                    setTestPlan(data.plan);
+                }
+            })
+            .catch(() => {
+                setPlanExists(false);
+            });
+    }, []);
+
+    React.useEffect(() => {
+        checkPlanStatus();
+    }, [checkPlanStatus]);
+
+    // Check if tests have been written
+    const [writeExists, setWriteExists] = React.useState(false);
+    const [writeStatus, setWriteStatus] = React.useState<{
+        completed_at?: string;
+        status?: string;
+        agent_name?: string;
+        worktree_branch?: string;
+        base_branch?: string;
+    } | null>(null);
+
+    const checkWriteStatus = React.useCallback(() => {
+        fetch('/api/test/write-status')
+            .then(res => res.json())
+            .then(data => {
+                setWriteExists(data.exists);
+                if (data.exists) {
+                    setWriteStatus({
+                        completed_at: data.completed_at,
+                        status: data.status,
+                        agent_name: data.agent_name,
+                        worktree_branch: data.worktree_branch,
+                        base_branch: data.base_branch,
+                    });
+                } else {
+                    setWriteStatus(null);
+                }
+            })
+            .catch(() => {
+                setWriteExists(false);
+                setWriteStatus(null);
+            });
+    }, []);
+
+    React.useEffect(() => {
+        checkWriteStatus();
+    }, [checkWriteStatus]);
 
     // Fetch test writer agent
     const { data: agentData, isLoading: loadingAgent } = useQuery({
@@ -382,12 +460,20 @@ export default function TestRunner() {
         onSuccess: (data) => {
             if (data.success && data.result) {
                 setTestResult(data.result);
+                setLastError(null);
                 toast.success('Tests completed');
             } else {
-                toast.error(data.error || 'Failed to run tests');
+                const errorMsg = data.error || 'Failed to run tests';
+                setLastError(errorMsg);
+                if (data.result) setTestResult(data.result);
+                toast.error(errorMsg);
             }
         },
-        onError: () => toast.error('Failed to run tests'),
+        onError: () => {
+            const errorMsg = 'Failed to run tests';
+            setLastError(errorMsg);
+            toast.error(errorMsg);
+        },
     });
 
     const planMutation = useMutation({
@@ -396,6 +482,7 @@ export default function TestRunner() {
             if (data.success && data.plan) {
                 setTestPlan(data.plan);
                 toast.success('Test plan generated');
+                checkPlanStatus(); // Refresh plan status to show checkmark
             } else {
                 toast.error(data.error || 'Failed to generate plan');
             }
@@ -404,10 +491,11 @@ export default function TestRunner() {
     });
 
     const writeMutation = useMutation({
-        mutationFn: () => writeTests(baseBranch, false),
+        mutationFn: (customPrompt?: string) => writeTests(baseBranch, false, customPrompt),
         onSuccess: (data) => {
             if (data.success) {
                 toast.success(data.message || 'Tests written successfully');
+                checkWriteStatus(); // Refresh write status to show checkmark
             } else {
                 toast.error(data.error || 'Failed to write tests');
             }
@@ -483,9 +571,11 @@ export default function TestRunner() {
                             </TabsTrigger>
                             <TabsTrigger value="plan" className="data-[state=active]:bg-background">
                                 <FileSearch size={14} className="mr-1" /> Plan
+                                {planExists && <CheckCircle2 size={12} className="ml-1 text-green-500" />}
                             </TabsTrigger>
                             <TabsTrigger value="write" className="data-[state=active]:bg-background">
                                 <FileEdit size={14} className="mr-1" /> Write
+                                {writeExists && <CheckCircle2 size={12} className="ml-1 text-green-500" />}
                             </TabsTrigger>
                             <TabsTrigger value="coverage" className="data-[state=active]:bg-background">
                                 <BarChart3 size={14} className="mr-1" /> Coverage
@@ -511,6 +601,21 @@ export default function TestRunner() {
                                 </div>
 
                                 {testResult && <TestResultCard result={testResult} />}
+
+                                {/* Error display with AI fix option */}
+                                {lastError && (
+                                    <Card className="p-4 border-destructive/50 bg-destructive/5">
+                                        <div className="flex items-start gap-3">
+                                            <XCircle className="text-destructive shrink-0 mt-0.5" size={18} />
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-medium text-destructive">Test Error</h4>
+                                                <pre className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap font-mono bg-background p-2 rounded overflow-x-auto">
+                                                    {lastError}
+                                                </pre>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                )}
                             </div>
                         </TabsContent>
 
@@ -539,7 +644,7 @@ export default function TestRunner() {
                             <div className="space-y-4">
                                 <div className="flex items-center gap-4">
                                     <Button
-                                        onClick={() => writeMutation.mutate()}
+                                        onClick={() => writeMutation.mutate(undefined)}
                                         disabled={isLoading || !agentData?.agent}
                                     >
                                         {writeMutation.isPending ? (
@@ -552,6 +657,45 @@ export default function TestRunner() {
                                         Use the test writer agent to generate tests for uncovered code
                                     </span>
                                 </div>
+
+                                {/* Show completed test results */}
+                                {writeExists && writeStatus && (
+                                    <Card className="p-4 border-green-500/50 bg-green-500/5">
+                                        <div className="flex items-start gap-3">
+                                            <CheckCircle2 className="text-green-500 shrink-0 mt-0.5" size={20} />
+                                            <div className="flex-1">
+                                                <h4 className="font-medium text-green-700 dark:text-green-400">Tests Written Successfully</h4>
+                                                <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                                                    {writeStatus.completed_at && (
+                                                        <div>
+                                                            <span className="font-medium">Completed:</span>{' '}
+                                                            {new Date(writeStatus.completed_at).toLocaleString()}
+                                                        </div>
+                                                    )}
+                                                    {writeStatus.agent_name && (
+                                                        <div>
+                                                            <span className="font-medium">Agent:</span> {writeStatus.agent_name}
+                                                        </div>
+                                                    )}
+                                                    {writeStatus.status && (
+                                                        <div>
+                                                            <span className="font-medium">Status:</span>{' '}
+                                                            <Badge variant={writeStatus.status === 'merged' ? 'success' : 'warning'}>
+                                                                {writeStatus.status}
+                                                            </Badge>
+                                                        </div>
+                                                    )}
+                                                    {writeStatus.worktree_branch && (
+                                                        <div>
+                                                            <span className="font-medium">Branch:</span>{' '}
+                                                            <code className="text-xs bg-muted px-1 py-0.5 rounded">{writeStatus.worktree_branch}</code>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                )}
 
                                 {!agentData?.agent && (
                                     <Card className="p-6 border-accent-amber/50 bg-accent-amber/5">
@@ -606,6 +750,85 @@ export default function TestRunner() {
                     </ScrollArea>
                 </Tabs>
             </div>
+
+            {/* Floating AI Agent Button - always visible */}
+            <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+                {/* Expandable prompt panel */}
+                {showAgentPrompt && (
+                    <Card className="w-80 p-4 shadow-xl border-primary/20 animate-in slide-in-from-bottom-2">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Bot className="text-primary" size={18} />
+                            <span className="font-medium text-sm">Ask Test Agent</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={agentPrompt}
+                                onChange={(e) => setAgentPrompt(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && agentPrompt.trim()) {
+                                        // TODO: Send prompt to agent
+                                        toast.info('Sending to agent...');
+                                        writeMutation.mutate(agentPrompt.trim());
+                                        setAgentPrompt('');
+                                        setShowAgentPrompt(false);
+                                    }
+                                }}
+                                placeholder="e.g., Set up Jest for this project"
+                                className="flex-1 px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            />
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    if (agentPrompt.trim()) {
+                                        toast.info('Sending to agent...');
+                                        writeMutation.mutate(agentPrompt.trim());
+                                        setAgentPrompt('');
+                                        setShowAgentPrompt(false);
+                                    }
+                                }}
+                                disabled={!agentPrompt.trim() || writeMutation.isPending}
+                            >
+                                <Send size={14} />
+                            </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-2">
+                            Press Enter to send • Agent: {agentData?.agent?.name || 'Not configured'}
+                        </div>
+                    </Card>
+                )}
+
+                {/* Main FAB */}
+                <button
+                    onClick={() => lastError ? setShowFixModal(true) : setShowAgentPrompt(!showAgentPrompt)}
+                    className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 ${showAgentPrompt ? 'rotate-45' : ''
+                        }`}
+                    style={{
+                        background: lastError
+                            ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                            : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                    }}
+                    title={lastError ? "Fix error with AI" : "Ask test agent"}
+                >
+                    {lastError ? (
+                        <AlertTriangle className="w-6 h-6 text-white" />
+                    ) : (
+                        <MessageCircle className="w-6 h-6 text-white" />
+                    )}
+                </button>
+            </div>
+
+            {/* Test Fix Modal */}
+            {showFixModal && lastError && (
+                <TestFixModal
+                    error={lastError}
+                    baseBranch={baseBranch}
+                    onClose={() => {
+                        setShowFixModal(false);
+                        // Optionally clear error or re-run tests
+                    }}
+                />
+            )}
         </div>
     );
 }

@@ -451,10 +451,11 @@ impl ExecutionEngine {
                      let agent = agent.clone();
                      let sender = self.sender.clone();
                      let execution_id = self.current_execution_id.lock().unwrap().clone();
+                     let batch_id_for_error = batch.id.clone(); // Capture for error handling
                      
-                     // Spawn the batch execution
+                     // Spawn the batch execution - wrap result to always include batch_id
                      running_futures.push(tokio::spawn(async move {
-                         Self::execute_batch(
+                         let result = Self::execute_batch(
                              project_root,
                              exe_path,
                              batch_clone,
@@ -465,7 +466,9 @@ impl ExecutionEngine {
                              agent,
                              sender,
                              execution_id,
-                         ).await
+                         ).await;
+                         // Wrap error to include batch_id
+                         result.map_err(|e| (batch_id_for_error, e))
                      }));
                  } else {
                      still_pending.push_back(batch);
@@ -516,8 +519,18 @@ impl ExecutionEngine {
                                      );
                                  }
                              },
-                             Err(e) => {
-                                 self.log("batch_error", &format!("Batch failed: {}", e)).await;
+                             Err((failed_batch_id, e)) => {
+                                 self.log("batch_error", &format!("Batch {} failed: {}", failed_batch_id, e)).await;
+                                 
+                                 // Update plan.yaml with failed status
+                                 let _ = self.update_batch_status(&plan_path, &failed_batch_id, BatchStatus::Failed, None);
+                                 
+                                 // Send batch_status message so frontend updates the batch pill
+                                 let _ = self.sender.send(
+                                     LogMessage::batch_status(&failed_batch_id, &failed_batch_id, "failed")
+                                         .with_error(&e.to_string())
+                                 ).await;
+                                 
                                  // T015: Send status failed so frontend stops timer and shows error
                                  let _ = self.sender.send(LogMessage::status("failed")).await;
                                  
