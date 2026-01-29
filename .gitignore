@@ -50,3 +50,10 @@ coverage/
 
 # Node (for any tooling)
 node_modules/
+
+# NPM binary (built artifact)
+npm/bin/
+
+# Test artifacts
+playwright-report/
+test-results/
