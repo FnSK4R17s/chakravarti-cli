@@ -9,9 +9,9 @@ pub mod env;
 pub mod error;
 pub mod executor;
 
+pub use agent::{create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType};
 pub use allowlist::{AllowList, DefaultAllowList};
 pub use docker::DockerClient;
 pub use env::{detect_env, EnvConfig};
 pub use error::SandboxError;
 pub use executor::{DockerSandbox, ExecuteConfig, ExecuteResult, LocalSandbox, Sandbox};
-pub use agent::{AgentConfig, AgentOutput, AgentProvider, AgentType, create_agent, default_agent};

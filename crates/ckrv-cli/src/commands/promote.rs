@@ -5,9 +5,9 @@ use std::path::PathBuf;
 use clap::Args;
 use serde::{Deserialize, Serialize};
 
-use crate::ui::UiContext;
-use crate::ui::Renderable;
 use crate::ui::components::Banner;
+use crate::ui::Renderable;
+use crate::ui::UiContext;
 
 /// Arguments for the promote command
 #[derive(Args)]
@@ -67,7 +67,12 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
     let cwd = std::env::current_dir()?;
 
     if !json {
-        println!("{}", Banner::new("CKRV PROMOTE").subtitle("Create Pull Request").render(&ui.theme));
+        println!(
+            "{}",
+            Banner::new("CKRV PROMOTE")
+                .subtitle("Create Pull Request")
+                .render(&ui.theme)
+        );
     }
 
     // Get current branch
@@ -84,7 +89,7 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
             pr_number: None,
             message: format!("Cannot create PR: already on base branch '{}'", base_branch),
         };
-        
+
         if json {
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
@@ -100,7 +105,7 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
     // Check for implementation.yaml to ensure run completed
     let spec_dir = cwd.join(".specs").join(&current_branch);
     let impl_path = spec_dir.join("implementation.yaml");
-    
+
     if !impl_path.exists() && !args.skip_verify {
         let output = PromoteOutput {
             success: false,
@@ -109,9 +114,10 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
             pushed: false,
             pr_url: None,
             pr_number: None,
-            message: "Implementation not complete. Run 'ckrv run' first or use --skip-verify".to_string(),
+            message: "Implementation not complete. Run 'ckrv run' first or use --skip-verify"
+                .to_string(),
         };
-        
+
         if json {
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
@@ -150,12 +156,12 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
         if !json {
             println!("📤 Pushing branch to {}...", args.remote);
         }
-        
+
         let push_result = std::process::Command::new("git")
             .args(["push", "-u", &args.remote, &current_branch])
             .current_dir(&cwd)
             .status();
-        
+
         match push_result {
             Ok(status) if status.success() => {
                 if !json {
@@ -178,10 +184,23 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
     let remote_url = get_remote_url(&cwd, &args.remote);
     let (pr_url, pr_number) = if let Some(url) = &remote_url {
         if url.contains("github.com") {
-            create_github_pr(&cwd, &current_branch, &base_branch, &spec_name, &spec_description, &impl_summary, args.draft, json).await
+            create_github_pr(
+                &cwd,
+                &current_branch,
+                &base_branch,
+                &spec_name,
+                &spec_description,
+                &impl_summary,
+                args.draft,
+                json,
+            )
+            .await
         } else if url.contains("gitlab") {
             // GitLab MR creation would go here
-            (generate_pr_url_github(url, &current_branch, &base_branch), None)
+            (
+                generate_pr_url_github(url, &current_branch, &base_branch),
+                None,
+            )
         } else {
             (None, None)
         }
@@ -191,7 +210,9 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
 
     // Generate manual PR URL if we couldn't create one automatically
     let final_pr_url = pr_url.or_else(|| {
-        remote_url.as_ref().and_then(|url| generate_pr_url_github(url, &current_branch, &base_branch))
+        remote_url
+            .as_ref()
+            .and_then(|url| generate_pr_url_github(url, &current_branch, &base_branch))
     });
 
     let output = PromoteOutput {
@@ -212,13 +233,13 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
         println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
         println!("═══════════════════════════════════════════════════════════════");
-        
+
         if let Some(num) = pr_number {
             println!("✅ Pull Request #{} created!", num);
         } else {
             println!("✅ Branch ready for Pull Request!");
         }
-        
+
         println!("═══════════════════════════════════════════════════════════════\n");
 
         println!("📊 Summary:");
@@ -232,7 +253,7 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
         if let Some(ref url) = final_pr_url {
             println!("🔗 PR URL: {}", url);
             println!();
-            
+
             if args.open {
                 let _ = open_url(url);
             }
@@ -243,7 +264,10 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
             if let Some(ref url) = final_pr_url {
                 println!("   {}", url);
             } else {
-                println!("   Go to your repository and create a PR from '{}' to '{}'", current_branch, base_branch);
+                println!(
+                    "   Go to your repository and create a PR from '{}' to '{}'",
+                    current_branch, base_branch
+                );
             }
         }
 
@@ -261,7 +285,7 @@ fn get_current_branch(cwd: &PathBuf) -> anyhow::Result<String> {
         .args(["branch", "--show-current"])
         .current_dir(cwd)
         .output()?;
-    
+
     let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if branch.is_empty() {
         return Err(anyhow::anyhow!("Not on a branch (detached HEAD state)"));
@@ -274,7 +298,7 @@ fn detect_default_branch(cwd: &PathBuf) -> String {
         .args(["branch", "-l", "main", "master"])
         .current_dir(cwd)
         .output();
-    
+
     if let Ok(out) = output {
         let branches = String::from_utf8_lossy(&out.stdout);
         if branches.contains("main") {
@@ -290,7 +314,7 @@ fn get_remote_url(cwd: &PathBuf, remote: &str) -> Option<String> {
         .current_dir(cwd)
         .output()
         .ok()?;
-    
+
     if output.status.success() {
         Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {
@@ -302,10 +326,14 @@ fn generate_pr_url_github(remote_url: &str, branch: &str, base: &str) -> Option<
     // Parse GitHub URL
     // Formats: git@github.com:owner/repo.git or https://github.com/owner/repo.git
     let repo_path = if remote_url.starts_with("git@github.com:") {
-        remote_url.strip_prefix("git@github.com:")?.strip_suffix(".git")
+        remote_url
+            .strip_prefix("git@github.com:")?
+            .strip_suffix(".git")
     } else if remote_url.contains("github.com/") {
         let parts: Vec<&str> = remote_url.split("github.com/").collect();
-        parts.get(1).and_then(|p| p.strip_suffix(".git").or(Some(*p)))
+        parts
+            .get(1)
+            .and_then(|p| p.strip_suffix(".git").or(Some(*p)))
     } else {
         None
     }?;
@@ -327,10 +355,8 @@ async fn create_github_pr(
     json: bool,
 ) -> (Option<String>, Option<u64>) {
     // Check if gh CLI is available
-    let gh_check = std::process::Command::new("gh")
-        .arg("--version")
-        .output();
-    
+    let gh_check = std::process::Command::new("gh").arg("--version").output();
+
     if gh_check.is_err() || !gh_check.unwrap().status.success() {
         return (None, None);
     }
@@ -341,12 +367,15 @@ async fn create_github_pr(
         body.push_str(desc);
         body.push_str("\n\n");
     }
-    
+
     body.push_str("## Implementation Details\n\n");
     body.push_str("This PR was created using [CKRV](https://github.com/FnSK4R17s/chakravarti-cli) - Spec-driven Agent Orchestration.\n\n");
-    
+
     if let Some(ref summary) = impl_summary {
-        body.push_str(&format!("- **Tasks Completed**: {}\n", summary.tasks_completed));
+        body.push_str(&format!(
+            "- **Tasks Completed**: {}\n",
+            summary.tasks_completed
+        ));
         body.push_str(&format!("- **Status**: {}\n", summary.status));
     }
 
@@ -355,11 +384,7 @@ async fn create_github_pr(
     }
 
     let mut args = vec![
-        "pr", "create",
-        "--title", title,
-        "--body", &body,
-        "--base", base,
-        "--head", branch,
+        "pr", "create", "--title", title, "--body", &body, "--base", base, "--head", branch,
     ];
 
     if draft {
@@ -381,7 +406,10 @@ async fn create_github_pr(
         Ok(out) => {
             let stderr = String::from_utf8_lossy(&out.stderr);
             if !json {
-                eprintln!("   ⚠️  gh CLI failed: {}", stderr.lines().next().unwrap_or("unknown error"));
+                eprintln!(
+                    "   ⚠️  gh CLI failed: {}",
+                    stderr.lines().next().unwrap_or("unknown error")
+                );
             }
             (None, None)
         }
@@ -414,12 +442,14 @@ fn save_pr_info(spec_dir: &PathBuf, url: &str, number: Option<u64>) -> anyhow::R
 fn open_url(url: &str) -> anyhow::Result<()> {
     #[cfg(target_os = "macos")]
     std::process::Command::new("open").arg(url).spawn()?;
-    
+
     #[cfg(target_os = "linux")]
     std::process::Command::new("xdg-open").arg(url).spawn()?;
-    
+
     #[cfg(target_os = "windows")]
-    std::process::Command::new("cmd").args(["/C", "start", url]).spawn()?;
-    
+    std::process::Command::new("cmd")
+        .args(["/C", "start", url])
+        .spawn()?;
+
     Ok(())
 }

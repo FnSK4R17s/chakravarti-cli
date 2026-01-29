@@ -34,7 +34,11 @@ pub fn validate(spec: &Spec) -> ValidationResult {
             field: "id".to_string(),
             message: "id is required".to_string(),
         });
-    } else if !spec.id.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+    } else if !spec
+        .id
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+    {
         errors.push(ValidationError {
             field: "id".to_string(),
             message: "id must be alphanumeric with underscores or hyphens only".to_string(),

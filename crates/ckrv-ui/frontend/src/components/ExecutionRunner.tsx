@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
 import {
     Square, RotateCcw, CheckCircle2, Circle, Clock,
     AlertTriangle, Loader2, Terminal as TerminalIcon, ChevronRight, Maximize2, Minimize2,
-    ArrowRight, Zap, Brain, Cpu, Bot,
+    Zap, Brain, Cpu,
     Layers, Timer, DollarSign, Rocket, GitMerge, ArrowDown
 } from 'lucide-react';
 import { LogTerminal } from './LogTerminal';
@@ -17,7 +18,6 @@ import { useRunHistory } from '../hooks/useRunHistory';
 import { fetchLogs } from '../services/logService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
 // Types
 interface Batch {
@@ -427,7 +427,14 @@ function getGridLayout(count: number): { cols: number; rows: number } {
 // Main Execution Runner
 export default function ExecutionRunner() {
     const queryClient = useQueryClient();
-    const [selectedSpecName, setSelectedSpecName] = useState<string | null>(null);
+
+    // Auto-select spec based on current branch
+    const { selectedSpec: autoSelectedSpec, isLoading: isLoadingAutoSpec } = useAutoSelectedSpec();
+
+    // Allow manual override but default to auto-selected
+    const [manualSpecOverride, setManualSpecOverride] = useState<string | null>(null);
+    const selectedSpecName = manualSpecOverride ?? autoSelectedSpec;
+
     const [batches, setBatches] = useState<Batch[]>([]);
     const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>('idle');
     const [batchLogs, setBatchLogs] = useState<Record<string, LogEntry[]>>({});
@@ -438,7 +445,7 @@ export default function ExecutionRunner() {
     // T046: View mode toggle - 'terminal' for classic view, 'carousel' for new batch carousel
     const [logViewMode, setLogViewMode] = useState<'terminal' | 'carousel'>('carousel');
     // Agent selection for execution (claude or codex)
-    const [selectedAgent, setSelectedAgent] = useState<'claude' | 'codex'>('claude');
+
     const [unmergedBranches, setUnmergedBranches] = useState<UnmergedBranch[]>([]);
     const [isMerging, setIsMerging] = useState(false);
     const [mergeResult, setMergeResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -475,7 +482,7 @@ export default function ExecutionRunner() {
     const pendingMessagesRef = useRef<WsMessage[]>([]);
     const rafIdRef = useRef<number | null>(null);
 
-    // Fetch specs
+    // Fetch specs (for manual selection fallback)
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({
         queryKey: ['specs'],
         queryFn: fetchSpecs,
@@ -994,7 +1001,7 @@ export default function ExecutionRunner() {
         addLog('🚀 Starting execution...', 'start');
 
         try {
-            const res = await startExecution(selectedSpecName, runId, selectedAgent);
+            const res = await startExecution(selectedSpecName, runId);
             if (res.success) {
                 connectWebSocket(runId);
             } else {
@@ -1005,7 +1012,7 @@ export default function ExecutionRunner() {
             addLog(`Error: ${e}`, 'error');
             setExecutionStatus('failed');
         }
-    }, [selectedSpecName, selectedAgent, addLog, connectWebSocket]);
+    }, [selectedSpecName, addLog, connectWebSocket]);
 
     const handlePlan = useCallback(async () => {
         if (!selectedSpecName) return;
@@ -1074,12 +1081,6 @@ export default function ExecutionRunner() {
             queryClient.invalidateQueries({ queryKey: ['plan', selectedSpecName] });
         }
     }, [selectedSpecName, queryClient]);
-
-    const handleBack = useCallback(() => {
-        wsRef.current?.close();
-        setSelectedSpecName(null);
-        handleReset();
-    }, [handleReset]);
 
 
     const progress = batches.length > 0 ? (completedBatches.size / batches.length) * 100 : 0;
@@ -1170,15 +1171,24 @@ export default function ExecutionRunner() {
     }, [selectedSpecName, loadUnmergedBranches, queryClient]);
 
     if (!selectedSpecName) {
+        // If still loading auto-selection, show spinner
+        if (isLoadingAutoSpec) {
+            return (
+                <div className="flex items-center justify-center h-full">
+                    <Loader2 className="animate-spin text-muted-foreground" size={32} />
+                </div>
+            );
+        }
+
         return (
             <div className="h-full overflow-auto p-4">
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-foreground">Execution Runner</h1>
-                    <p className="text-muted-foreground mt-1">Select a specification to plan and execute</p>
+                    <p className="text-muted-foreground mt-1">No spec matches the current branch. Select a specification to plan and execute.</p>
                 </div>
                 <SpecListView
                     specs={specsData?.specs || []}
-                    onSelect={setSelectedSpecName}
+                    onSelect={setManualSpecOverride}
                     isLoading={isLoadingSpecs}
                 />
             </div>
@@ -1193,13 +1203,6 @@ export default function ExecutionRunner() {
             <Card className="shrink-0 rounded-none border-x-0 border-t-0">
                 <CardContent className="px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleBack}
-                        >
-                            <ArrowRight size={20} className="rotate-180" />
-                        </Button>
                         <div>
                             <div className="text-sm text-muted-foreground font-mono">execution</div>
                             <h1 className="text-lg font-semibold text-foreground">{selectedSpecName}</h1>
@@ -1228,19 +1231,7 @@ export default function ExecutionRunner() {
                                     <Layers size={14} />
                                     {selectedSpecHasPlan ? 'Plan Exists' : 'Generate Plan'}
                                 </button>
-                                {/* Agent Selector */}
-                                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-800/50 border border-gray-700">
-                                    <Bot size={12} className="text-gray-400" />
-                                    <select
-                                        value={selectedAgent}
-                                        onChange={(e) => setSelectedAgent(e.target.value as 'claude' | 'codex')}
-                                        className="bg-transparent text-xs text-gray-300 border-none outline-none cursor-pointer"
-                                        title="Select AI agent for execution"
-                                    >
-                                        <option value="claude" className="bg-gray-900">Claude</option>
-                                        <option value="codex" className="bg-gray-900">Codex</option>
-                                    </select>
-                                </div>
+
                                 <button
                                     onClick={handleRun}
                                     disabled={batches.length > 0 && completedBatches.size === batches.length}
@@ -1250,7 +1241,7 @@ export default function ExecutionRunner() {
                                         }`}
                                     data-testid="run-button"
                                     aria-label="Start execution"
-                                    title={batches.length > 0 && completedBatches.size === batches.length ? 'All batches completed' : `Run execution with ${selectedAgent === 'claude' ? 'Claude Code' : 'OpenAI Codex'}`}
+                                    title={batches.length > 0 && completedBatches.size === batches.length ? 'All batches completed' : 'Run execution with configured agent'}
                                 >
                                     <Zap size={14} fill="currentColor" />
                                     {batches.length > 0 && completedBatches.size === batches.length ? 'Completed' : 'Run Execution'}

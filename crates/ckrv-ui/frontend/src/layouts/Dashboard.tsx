@@ -1,11 +1,12 @@
-import React, { type ReactNode } from 'react';
-import { FileText, Layers, Zap, ChevronRight, Loader2, Container, Bot, Cloud, ListTodo, Workflow, Rocket, GitCompare } from 'lucide-react';
+import React, { type ReactNode, useState } from 'react';
+import { Code2, Layers, ChevronRight, Loader2, Container, Bot, Cloud, FlaskConical, ShieldCheck, PanelLeftClose, PanelLeft, Settings, GitBranch } from 'lucide-react';
 import { useConnection, type ConnectionStatus } from '../hooks/useConnection';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '../App';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 interface DockerStatus {
     available: boolean;
@@ -25,6 +26,19 @@ interface DashboardLayoutProps {
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     const { status } = useConnection(5000);
     const { currentPage, setCurrentPage } = useNavigation();
+    const [sidebarExpanded, setSidebarExpanded] = useState(false);
+
+    // Fetch status to check if initialized and get branch
+    const { data: systemStatus } = useQuery<{ is_ready: boolean; active_branch?: string }>({
+        queryKey: ['status'],
+        queryFn: async () => {
+            const res = await fetch('/api/status');
+            return res.json();
+        },
+        refetchInterval: 5000,
+    });
+
+    const currentBranch = systemStatus?.active_branch ?? 'main';
 
     const { data: dockerStatus } = useQuery<DockerStatus>({
         queryKey: ['docker'],
@@ -32,7 +46,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             const res = await fetch('/api/docker');
             return res.json();
         },
-        refetchInterval: 10000, // Check every 10 seconds
+        refetchInterval: 10000,
     });
 
     const { data: cloudStatus } = useQuery<CloudStatus>({
@@ -41,18 +55,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             const res = await fetch('/api/cloud');
             return res.json();
         },
-        refetchInterval: 15000, // Check every 15 seconds
+        refetchInterval: 15000,
     });
 
     // Page titles
     const pageTitles: Record<string, string> = {
         dashboard: 'Dashboard',
         agents: 'Agent Manager',
-        specs: 'Specifications',
-        plan: 'Execution Plan',
-        tasks: 'Task Orchestration',
-        runner: 'Execution Runner',
-        diff: 'Diff Viewer',
+        code: 'Code',
+        test: 'Test Runner',
+        qa: 'QA Reviewer',
+        settings: 'Settings',
     };
     const pageTitle = pageTitles[currentPage] || 'Dashboard';
 
@@ -60,75 +73,102 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         <div className="flex h-screen w-full bg-background">
             {/* Sidebar Navigation */}
             <aside
-                className="w-16 flex flex-col items-center py-6 gap-2 bg-muted border-r border-border"
+                className={cn(
+                    "flex flex-col py-6 gap-2 bg-muted border-r border-border transition-all duration-300",
+                    sidebarExpanded ? "w-48" : "w-16"
+                )}
             >
                 {/* Logo */}
-                <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center mb-6 font-mono font-bold text-sm"
-                    style={{
-                        background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
-                        color: 'var(--bg-primary)'
-                    }}
-                >
-                    CK
+                <div className={cn("flex items-center gap-3 mb-6", sidebarExpanded ? "px-4" : "justify-center")}>
+                    <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center font-mono font-bold text-sm shrink-0"
+                        style={{
+                            background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
+                            color: 'var(--bg-primary)'
+                        }}
+                    >
+                        CK
+                    </div>
+                    {sidebarExpanded && (
+                        <span className="font-semibold text-foreground truncate">Chakravarti</span>
+                    )}
                 </div>
 
                 {/* Navigation Icons */}
-                <nav className="flex flex-col gap-1 w-full items-center flex-1" role="navigation" aria-label="Main navigation">
-                    <NavIcon
+                <nav className={cn("flex flex-col gap-1 flex-1", sidebarExpanded ? "px-2" : "items-center")} role="navigation" aria-label="Main navigation">
+                    <NavItem
                         icon={<Layers size={20} />}
                         label="Dashboard"
                         active={currentPage === 'dashboard'}
                         onClick={() => setCurrentPage('dashboard')}
                         testId="nav-dashboard"
+                        expanded={sidebarExpanded}
                     />
-                    <NavIcon
+                    <NavItem
+                        icon={<Code2 size={20} />}
+                        label="Code"
+                        active={currentPage === 'code'}
+                        onClick={() => setCurrentPage('code')}
+                        testId="nav-code"
+                        expanded={sidebarExpanded}
+                    />
+                    <NavItem
+                        icon={<FlaskConical size={20} />}
+                        label="Test"
+                        active={currentPage === 'test'}
+                        onClick={() => setCurrentPage('test')}
+                        testId="nav-test"
+                        expanded={sidebarExpanded}
+                    />
+                    <NavItem
+                        icon={<ShieldCheck size={20} />}
+                        label="QA"
+                        active={currentPage === 'qa'}
+                        onClick={() => setCurrentPage('qa')}
+                        testId="nav-qa"
+                        expanded={sidebarExpanded}
+                    />
+                </nav>
+
+                {/* Bottom section */}
+                <div className={cn("flex flex-col gap-1", sidebarExpanded ? "px-2" : "items-center")}>
+                    <NavItem
                         icon={<Bot size={20} />}
                         label="Agents"
                         active={currentPage === 'agents'}
                         onClick={() => setCurrentPage('agents')}
                         testId="nav-agents"
+                        expanded={sidebarExpanded}
                     />
-                    <NavIcon
-                        icon={<FileText size={20} />}
-                        label="Specs"
-                        active={currentPage === 'specs'}
-                        onClick={() => setCurrentPage('specs')}
-                        testId="nav-specs"
+                    <NavItem
+                        icon={<Settings size={20} />}
+                        label="Settings"
+                        active={currentPage === 'settings'}
+                        onClick={() => setCurrentPage('settings')}
+                        testId="nav-settings"
+                        expanded={sidebarExpanded}
                     />
-                    <NavIcon
-                        icon={<ListTodo size={20} />}
-                        label="Tasks"
-                        active={currentPage === 'tasks'}
-                        onClick={() => setCurrentPage('tasks')}
-                        testId="nav-tasks"
-                    />
-                    <NavIcon
-                        icon={<Workflow size={20} />}
-                        label="Plan"
-                        active={currentPage === 'plan'}
-                        onClick={() => setCurrentPage('plan')}
-                        testId="nav-plan"
-                    />
-                    <NavIcon
-                        icon={<Rocket size={20} />}
-                        label="Runner"
-                        active={currentPage === 'runner'}
-                        onClick={() => setCurrentPage('runner')}
-                        testId="nav-runner"
-                    />
-                    <NavIcon
-                        icon={<GitCompare size={20} />}
-                        label="Diff"
-                        active={currentPage === 'diff'}
-                        onClick={() => setCurrentPage('diff')}
-                        testId="nav-diff"
-                    />
-                </nav>
 
-                {/* Bottom section */}
-                <div className="flex flex-col gap-1 items-center">
-                    <NavIcon icon={<Zap size={20} />} label="Quick Run (coming soon)" disabled testId="nav-quick-run" />
+                    {/* Toggle button */}
+                    <Button
+                        variant="ghost"
+                        size={sidebarExpanded ? "default" : "icon"}
+                        className={cn(
+                            "mt-2 text-muted-foreground hover:text-foreground",
+                            sidebarExpanded ? "w-full justify-start gap-2" : "w-10 h-10"
+                        )}
+                        onClick={() => setSidebarExpanded(!sidebarExpanded)}
+                        aria-label={sidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
+                    >
+                        {sidebarExpanded ? (
+                            <>
+                                <PanelLeftClose size={20} />
+                                <span className="text-sm">Collapse</span>
+                            </>
+                        ) : (
+                            <PanelLeft size={20} />
+                        )}
+                    </Button>
                 </div>
             </aside>
 
@@ -148,6 +188,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                         <h1 className="text-lg font-semibold text-foreground">
                             {pageTitle}
                         </h1>
+                    </div>
+
+                    {/* Center - Branch indicator */}
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border">
+                        <GitBranch size={14} className="text-accent-cyan" />
+                        <span className="font-mono text-sm text-foreground">{currentBranch}</span>
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -173,40 +219,57 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     );
 };
 
-interface NavIconProps {
+interface NavItemProps {
     icon: ReactNode;
     label: string;
     active?: boolean;
     disabled?: boolean;
     onClick?: () => void;
     testId?: string;
+    expanded?: boolean;
 }
 
-const NavIcon: React.FC<NavIconProps> = ({ icon, label, active, disabled, onClick, testId }) => (
-    <Tooltip>
-        <TooltipTrigger asChild>
-            <Button
-                variant="ghost"
-                size="icon"
-                className={`w-10 h-10 relative ${active ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                onClick={disabled ? undefined : onClick}
-                disabled={disabled}
-                data-testid={testId}
-                aria-label={label}
-            >
-                {icon}
-                {active && (
-                    <div
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r bg-primary"
-                    />
-                )}
-            </Button>
-        </TooltipTrigger>
-        <TooltipContent side="right">
-            <p>{label}</p>
-        </TooltipContent>
-    </Tooltip>
-);
+const NavItem: React.FC<NavItemProps> = ({ icon, label, active, disabled, onClick, testId, expanded }) => {
+    const button = (
+        <Button
+            variant="ghost"
+            size={expanded ? "default" : "icon"}
+            className={cn(
+                "relative transition-all",
+                expanded ? "w-full justify-start gap-3" : "w-10 h-10",
+                active ? 'bg-accent text-primary' : 'text-muted-foreground hover:text-foreground'
+            )}
+            onClick={disabled ? undefined : onClick}
+            disabled={disabled}
+            data-testid={testId}
+            aria-label={label}
+        >
+            <span className="shrink-0">{icon}</span>
+            {expanded && <span className="truncate text-sm">{label}</span>}
+            {active && (
+                <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r bg-primary"
+                />
+            )}
+        </Button>
+    );
+
+    // Only show tooltip when collapsed
+    if (expanded) {
+        return button;
+    }
+
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                {button}
+            </TooltipTrigger>
+            <TooltipContent side="right">
+                <p>{label}</p>
+            </TooltipContent>
+        </Tooltip>
+    );
+};
 
 interface ConnectionIndicatorProps {
     status: ConnectionStatus;

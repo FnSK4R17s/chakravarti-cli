@@ -5,28 +5,27 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        State, Query,
+        Query, State,
     },
     response::IntoResponse,
 };
-use bollard::Docker;
-use bollard::exec::{CreateExecOptions, StartExecOptions, StartExecResults};
 use bollard::container::LogOutput;
+use bollard::exec::{CreateExecOptions, StartExecOptions, StartExecResults};
+use bollard::Docker;
 use futures_util::{SinkExt, StreamExt};
+use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use once_cell::sync::Lazy;
-use tokio::sync::mpsc;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::mpsc;
 
-use crate::state::AppState;
 use crate::api::agents::{AgentConfig, AgentType};
+use crate::state::AppState;
 
 // Session store for container IDs
-static TERMINAL_SESSIONS: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| {
-    Mutex::new(HashMap::new())
-});
+static TERMINAL_SESSIONS: Lazy<Mutex<HashMap<String, String>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Query parameters for WebSocket connection
 #[derive(Debug, Deserialize)]
@@ -83,41 +82,49 @@ pub async fn start_terminal_session(
 
     // Create a container that stays alive with a shell
     let cwd = state.project_root.to_string_lossy().to_string();
-    
+
     // Get host home for config mounting
     let host_home = std::env::var("HOME").unwrap_or_default();
-    
-    let mut binds = vec![
-        format!("{}:/workspace", cwd),
-    ];
-    
-    let is_openrouter = payload.agent.as_ref()
+
+    let mut binds = vec![format!("{}:/workspace", cwd)];
+
+    let is_openrouter = payload
+        .agent
+        .as_ref()
         .map(|a| matches!(a.agent_type, AgentType::ClaudeOpenRouter))
         .unwrap_or(false);
-    
+
     // Check if this is a GLM Coding Plan agent
-    let is_glm = payload.agent.as_ref()
+    let is_glm = payload
+        .agent
+        .as_ref()
         .map(|a| matches!(a.agent_type, AgentType::ClaudeGlm))
         .unwrap_or(false);
-    
+
     // Check if this is a Codex agent
-    let is_codex = payload.agent.as_ref()
+    let is_codex = payload
+        .agent
+        .as_ref()
         .map(|a| matches!(a.agent_type, AgentType::Codex))
         .unwrap_or(false);
-    
+
     // Set container home based on agent type
-    let container_home = if is_codex { "/home/codex" } else { "/home/claude" };
-    
+    let container_home = if is_codex {
+        "/home/codex"
+    } else {
+        "/home/claude"
+    };
+
     // Build environment variables based on agent type
     let mut env_vars = vec![format!("HOME={}", container_home)];
-    
+
     // Select Docker image based on agent type
     let docker_image = if is_codex {
         "ckrv-codex:latest".to_string()
     } else {
         "ckrv-claude:latest".to_string()
     };
-    
+
     if is_codex {
         // Codex configuration - mount logged-in credentials (similar to Claude)
         // Codex CLI stores auth in ~/.codex directory
@@ -129,7 +136,7 @@ pub async fn start_terminal_session(
         if std::path::Path::new(&openai_config).exists() {
             binds.push(format!("{}:/home/codex/.config/openai", openai_config));
         }
-        
+
         println!("Terminal session using OpenAI Codex with mounted credentials");
     } else if is_glm {
         // GLM Coding Plan configuration for Claude Code
@@ -138,30 +145,42 @@ pub async fn start_terminal_session(
             if let Some(ref glm_config) = agent.glm {
                 // Required: Set base URL to Z.AI
                 env_vars.push("ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic".to_string());
-                
+
                 // Required: Set auth token to Z.AI API key
                 if let Some(ref api_key) = glm_config.api_key {
                     env_vars.push(format!("ANTHROPIC_AUTH_TOKEN={}", api_key));
                     env_vars.push(format!("ZAI_API_KEY={}", api_key));
                 }
-                
+
                 // Required: Explicitly blank out Anthropic API key to prevent conflicts
                 env_vars.push("ANTHROPIC_API_KEY=".to_string());
-                
+
                 // Set extended timeout for GLM
-                env_vars.push(format!("API_TIMEOUT_MS={}", glm_config.timeout_ms.unwrap_or(3000000)));
-                
+                env_vars.push(format!(
+                    "API_TIMEOUT_MS={}",
+                    glm_config.timeout_ms.unwrap_or(3000000)
+                ));
+
                 // Set default model if specified
                 if !glm_config.model.is_empty() {
-                    env_vars.push(format!("ANTHROPIC_DEFAULT_SONNET_MODEL={}", glm_config.model));
+                    env_vars.push(format!(
+                        "ANTHROPIC_DEFAULT_SONNET_MODEL={}",
+                        glm_config.model
+                    ));
                     env_vars.push(format!("ANTHROPIC_DEFAULT_OPUS_MODEL={}", glm_config.model));
-                    env_vars.push(format!("ANTHROPIC_DEFAULT_HAIKU_MODEL={}", glm_config.model));
+                    env_vars.push(format!(
+                        "ANTHROPIC_DEFAULT_HAIKU_MODEL={}",
+                        glm_config.model
+                    ));
                 }
-                
-                println!("GLM Coding Plan agent configured: model={}", glm_config.model);
+
+                println!(
+                    "GLM Coding Plan agent configured: model={}",
+                    glm_config.model
+                );
             }
         }
-        
+
         // For GLM, we do NOT mount Claude credentials
         println!("Terminal session using GLM Coding Plan - skipping Claude credential mounts");
     } else if is_openrouter {
@@ -171,28 +190,40 @@ pub async fn start_terminal_session(
             if let Some(ref openrouter_config) = agent.openrouter {
                 // Required: Set base URL to OpenRouter
                 env_vars.push("ANTHROPIC_BASE_URL=https://openrouter.ai/api".to_string());
-                
+
                 // Required: Set auth token to OpenRouter API key
                 if let Some(ref api_key) = openrouter_config.api_key {
                     env_vars.push(format!("ANTHROPIC_AUTH_TOKEN={}", api_key));
                     env_vars.push(format!("OPENROUTER_API_KEY={}", api_key));
                 }
-                
+
                 // Required: Explicitly blank out Anthropic API key to prevent conflicts
                 env_vars.push("ANTHROPIC_API_KEY=".to_string());
-                
+
                 // Optional: Set default model if specified (e.g., z-ai/glm-4.7)
                 if !openrouter_config.model.is_empty() {
-                    env_vars.push(format!("ANTHROPIC_DEFAULT_SONNET_MODEL={}", openrouter_config.model));
+                    env_vars.push(format!(
+                        "ANTHROPIC_DEFAULT_SONNET_MODEL={}",
+                        openrouter_config.model
+                    ));
                     // Also set opus and haiku to same model for consistency
-                    env_vars.push(format!("ANTHROPIC_DEFAULT_OPUS_MODEL={}", openrouter_config.model));
-                    env_vars.push(format!("ANTHROPIC_DEFAULT_HAIKU_MODEL={}", openrouter_config.model));
+                    env_vars.push(format!(
+                        "ANTHROPIC_DEFAULT_OPUS_MODEL={}",
+                        openrouter_config.model
+                    ));
+                    env_vars.push(format!(
+                        "ANTHROPIC_DEFAULT_HAIKU_MODEL={}",
+                        openrouter_config.model
+                    ));
                 }
-                
-                println!("OpenRouter agent configured: model={}", openrouter_config.model);
+
+                println!(
+                    "OpenRouter agent configured: model={}",
+                    openrouter_config.model
+                );
             }
         }
-        
+
         // For OpenRouter, we do NOT mount Claude credentials
         println!("Terminal session using OpenRouter - skipping Claude credential mounts");
     } else {
@@ -207,7 +238,7 @@ pub async fn start_terminal_session(
         }
         println!("Terminal session using native Claude with mounted credentials");
     }
-    
+
     // Add any custom env vars from agent config
     if let Some(ref agent) = payload.agent {
         if let Some(ref custom_env) = agent.env_vars {
@@ -218,10 +249,14 @@ pub async fn start_terminal_session(
     }
 
     let container_name = format!("ckrv-term-{}", uuid::Uuid::new_v4());
-    
+
     let config = bollard::container::Config {
         image: Some(docker_image),
-        cmd: Some(vec!["tail".to_string(), "-f".to_string(), "/dev/null".to_string()]),
+        cmd: Some(vec![
+            "tail".to_string(),
+            "-f".to_string(),
+            "/dev/null".to_string(),
+        ]),
         working_dir: Some("/workspace".to_string()),
         env: Some(env_vars),
         host_config: Some(bollard::models::HostConfig {
@@ -257,7 +292,10 @@ pub async fn start_terminal_session(
                 sessions.insert(payload.session_id.clone(), container.id.clone());
             }
 
-            println!("Terminal session started: {} -> {}", payload.session_id, container.id);
+            println!(
+                "Terminal session started: {} -> {}",
+                payload.session_id, container.id
+            );
 
             axum::Json(super::session::StartSessionResponse {
                 success: true,
@@ -287,7 +325,13 @@ async fn handle_terminal(socket: WebSocket, _state: AppState, session_id: String
         Some(id) => id,
         None => {
             let (mut sender, _) = socket.split();
-            let _ = sender.send(Message::Text("Error: No session found. Start a session first.".to_string().into())).await;
+            let _ = sender
+                .send(Message::Text(
+                    "Error: No session found. Start a session first."
+                        .to_string()
+                        .into(),
+                ))
+                .await;
             return;
         }
     };
@@ -297,7 +341,11 @@ async fn handle_terminal(socket: WebSocket, _state: AppState, session_id: String
         Ok(d) => d,
         Err(e) => {
             let (mut sender, _) = socket.split();
-            let _ = sender.send(Message::Text(format!("Error: Docker connection failed: {}", e).into())).await;
+            let _ = sender
+                .send(Message::Text(
+                    format!("Error: Docker connection failed: {}", e).into(),
+                ))
+                .await;
             return;
         }
     };
@@ -316,7 +364,11 @@ async fn handle_terminal(socket: WebSocket, _state: AppState, session_id: String
         Ok(e) => e,
         Err(e) => {
             let (mut sender, _) = socket.split();
-            let _ = sender.send(Message::Text(format!("Error: Failed to create exec: {}", e).into())).await;
+            let _ = sender
+                .send(Message::Text(
+                    format!("Error: Failed to create exec: {}", e).into(),
+                ))
+                .await;
             return;
         }
     };
@@ -332,15 +384,23 @@ async fn handle_terminal(socket: WebSocket, _state: AppState, session_id: String
         Ok(r) => r,
         Err(e) => {
             let (mut sender, _) = socket.split();
-            let _ = sender.send(Message::Text(format!("Error: Failed to start exec: {}", e).into())).await;
+            let _ = sender
+                .send(Message::Text(
+                    format!("Error: Failed to start exec: {}", e).into(),
+                ))
+                .await;
             return;
         }
     };
 
     // Get the attached streams
-    if let StartExecResults::Attached { mut output, mut input } = exec_result {
+    if let StartExecResults::Attached {
+        mut output,
+        mut input,
+    } = exec_result
+    {
         let (mut ws_sender, mut ws_receiver) = socket.split();
-        
+
         // Channel for coordinating shutdown
         let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
         let shutdown_tx2 = shutdown_tx.clone();
@@ -439,7 +499,10 @@ pub async fn stop_terminal_session(
 
     match docker.remove_container(&container_id, remove_options).await {
         Ok(()) => {
-            println!("Terminal session stopped: {} -> {}", payload.session_id, container_id);
+            println!(
+                "Terminal session stopped: {} -> {}",
+                payload.session_id, container_id
+            );
             axum::Json(super::session::StopSessionResponse {
                 success: true,
                 message: Some("Session stopped".to_string()),

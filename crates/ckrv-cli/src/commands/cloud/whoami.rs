@@ -13,7 +13,7 @@ pub struct WhoamiArgs {
 /// Execute the whoami command
 pub async fn execute(args: WhoamiArgs, ui: &crate::ui::UiContext) -> anyhow::Result<()> {
     let client = crate::cloud::client::CloudClient::new();
-    
+
     let client = match client {
         Ok(c) => c,
         Err(e) => {
@@ -24,7 +24,7 @@ pub async fn execute(args: WhoamiArgs, ui: &crate::ui::UiContext) -> anyhow::Res
             return Err(anyhow::anyhow!("{}", e));
         }
     };
-    
+
     let user = match client.get_current_user().await {
         Ok(user) => user,
         Err(e) => {
@@ -35,7 +35,7 @@ pub async fn execute(args: WhoamiArgs, ui: &crate::ui::UiContext) -> anyhow::Res
             return Err(anyhow::anyhow!("{}", e));
         }
     };
-    
+
     if args.json {
         println!("{}", serde_json::to_string_pretty(&user)?);
     } else {
@@ -46,6 +46,6 @@ pub async fn execute(args: WhoamiArgs, ui: &crate::ui::UiContext) -> anyhow::Res
         println!("Subscription: {}", user.subscription_tier);
         println!("Jobs remaining: {}", user.job_quota_remaining);
     }
-    
+
     Ok(())
 }

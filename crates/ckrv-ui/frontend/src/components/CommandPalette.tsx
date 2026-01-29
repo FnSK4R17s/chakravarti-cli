@@ -1,9 +1,8 @@
 import React, { useState, createContext, useContext } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import {
-    Play, FileText, GitBranch, Rocket, Terminal,
-    ChevronRight, Loader2, Sparkles,
-    GitCompare, ShieldCheck, ExternalLink, ClipboardList
+    Play, Terminal,
+    ChevronRight, Loader2, Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,30 +42,6 @@ interface SystemStatus {
     mode: string;
 }
 
-interface Spec {
-    name: string;
-    path: string;
-    has_tasks: boolean;
-    has_plan: boolean;
-    has_implementation: boolean;
-    implementation_branch: string | null;
-}
-
-interface SpecsResponse {
-    specs: Spec[];
-    count: number;
-}
-
-interface Task {
-    id: string;
-    status: string;
-}
-
-interface TasksResponse {
-    tasks: Task[];
-    spec_id: string;
-}
-
 export const CommandPalette: React.FC = () => {
     const queryClient = useQueryClient();
     const { setLastResult } = useCommandResult();
@@ -82,40 +57,8 @@ export const CommandPalette: React.FC = () => {
         refetchInterval: 2000,
     });
 
-    // Fetch specs to check if any exist
-    const { data: specsData, isLoading: isLoadingSpecs } = useQuery<SpecsResponse>({
-        queryKey: ['specs'],
-        queryFn: async () => {
-            const res = await fetch('/api/specs');
-            return res.json();
-        },
-        refetchInterval: 3000,
-    });
-
-    // Fetch tasks to check if any exist
-    const { data: tasksData, isLoading: isLoadingTasks } = useQuery<TasksResponse>({
-        queryKey: ['tasks'],
-        queryFn: async () => {
-            const res = await fetch('/api/tasks');
-            return res.json();
-        },
-        refetchInterval: 3000,
-    });
-
     // Derive workflow state
     const isInitialized = status?.is_ready ?? false;
-    const specs = specsData?.specs ?? [];
-    const specsWithoutTasks = specs.filter(s => !s.has_tasks);
-    const hasSpecsWithoutTasks = specsWithoutTasks.length > 0;
-    const tasks = tasksData?.tasks ?? [];
-    const hasTasks = tasks.length > 0;
-    const pendingTasks = tasks.filter(t => t.status !== 'completed').length;
-
-    // Check if any spec has completed implementation (code merged and ready for review)
-    const hasImplementation = specs.some(s => s.has_implementation);
-
-    // Check if any spec already has a plan
-    const hasPlan = specs.some(s => s.has_plan);
 
     const runCommand = async (endpoint: string, body?: object): Promise<CommandResult> => {
         const res = await fetch(`/api/command/${endpoint}`, {
@@ -152,75 +95,6 @@ export const CommandPalette: React.FC = () => {
         }
     });
 
-    const specTasksMutation = useMutation({
-        mutationFn: () => runCommand('spec-tasks'),
-        onSuccess: (data) => {
-            setLastResult({ command: 'spec-tasks', result: data });
-            queryClient.invalidateQueries({ queryKey: ['tasks'] });
-            queryClient.invalidateQueries({ queryKey: ['specs'] });
-        },
-        onError: () => {
-            setLastResult({ command: 'spec-tasks', result: { success: false, message: 'Failed to generate tasks' } });
-        }
-    });
-
-    const planMutation = useMutation({
-        mutationFn: () => runCommand('plan'),
-        onSuccess: (data) => {
-            setLastResult({ command: 'plan', result: data });
-            queryClient.invalidateQueries({ queryKey: ['tasks'] });
-            queryClient.invalidateQueries({ queryKey: ['specs'] });
-        },
-        onError: () => {
-            setLastResult({ command: 'plan', result: { success: false, message: 'Failed to generate plan' } });
-        }
-    });
-
-    const runMutation = useMutation({
-        mutationFn: () => runCommand('execute'),
-        onSuccess: (data) => {
-            setLastResult({ command: 'run', result: data });
-            queryClient.invalidateQueries({ queryKey: ['tasks'] });
-            queryClient.invalidateQueries({ queryKey: ['status'] });
-            queryClient.invalidateQueries({ queryKey: ['specs'] });
-        },
-        onError: () => {
-            setLastResult({ command: 'run', result: { success: false, message: 'Failed to execute tasks' } });
-        }
-    });
-
-    const diffMutation = useMutation({
-        mutationFn: () => runCommand('diff', { stat: true, files: true }),
-        onSuccess: (data) => {
-            setLastResult({ command: 'diff', result: data });
-        },
-        onError: () => {
-            setLastResult({ command: 'diff', result: { success: false, message: 'Failed to get diff' } });
-        }
-    });
-
-    const verifyMutation = useMutation({
-        mutationFn: () => runCommand('verify', {}),
-        onSuccess: (data) => {
-            setLastResult({ command: 'verify', result: data });
-            queryClient.invalidateQueries({ queryKey: ['specs'] });
-        },
-        onError: () => {
-            setLastResult({ command: 'verify', result: { success: false, message: 'Verification failed' } });
-        }
-    });
-
-    const promoteMutation = useMutation({
-        mutationFn: () => runCommand('promote', { push: true }),
-        onSuccess: (data) => {
-            setLastResult({ command: 'promote', result: data });
-            queryClient.invalidateQueries({ queryKey: ['specs'] });
-        },
-        onError: () => {
-            setLastResult({ command: 'promote', result: { success: false, message: 'Failed to create PR' } });
-        }
-    });
-
     const commands = [
         {
             id: 'init',
@@ -233,88 +107,9 @@ export const CommandPalette: React.FC = () => {
             disabled: isInitialized,
             color: 'cyan' as const,
         },
-        {
-            id: 'spec-new',
-            icon: <FileText size={16} />,
-            label: 'New Spec',
-            description: 'Create AI-generated specification',
-            command: 'ckrv spec new "..."',
-            action: () => setShowSpecModal(true),
-            loading: specNewMutation.isPending,
-            disabled: !isInitialized,
-            color: 'green' as const,
-        },
-        {
-            id: 'spec-tasks',
-            icon: <GitBranch size={16} />,
-            label: 'Generate Tasks',
-            description: 'Create implementation tasks from spec',
-            command: 'ckrv spec tasks',
-            action: () => specTasksMutation.mutate(),
-            loading: specTasksMutation.isPending,
-            disabled: !isInitialized || !hasSpecsWithoutTasks,
-            color: 'amber' as const,
-        },
-        {
-            id: 'plan',
-            icon: <ClipboardList size={16} />,
-            label: hasPlan ? 'Plan Exists' : 'Plan',
-            description: hasPlan ? 'Execution plan already generated' : 'Generate execution plan in Docker',
-            command: 'ckrv plan',
-            action: () => planMutation.mutate(),
-            loading: planMutation.isPending,
-            disabled: !isInitialized || !hasTasks || hasImplementation || hasPlan,
-            color: 'cyan' as const,
-        },
-        {
-            id: 'run',
-            icon: <Rocket size={16} />,
-            label: 'Run',
-            description: hasPlan
-                ? `Execute batches in Docker${pendingTasks > 0 ? ` (${pendingTasks} pending)` : ''}`
-                : 'Generate a plan first',
-            command: 'ckrv run',
-            action: () => runMutation.mutate(),
-            loading: runMutation.isPending,
-            disabled: !isInitialized || !hasTasks || hasImplementation || !hasPlan,
-            color: 'purple' as const,
-        },
-        {
-            id: 'diff',
-            icon: <GitCompare size={16} />,
-            label: 'View Diff',
-            description: 'Review changes between branches',
-            command: 'ckrv diff',
-            action: () => diffMutation.mutate(),
-            loading: diffMutation.isPending,
-            disabled: !hasImplementation,
-            color: 'cyan' as const,
-        },
-        {
-            id: 'verify',
-            icon: <ShieldCheck size={16} />,
-            label: 'Verify',
-            description: 'Run tests, lint, and type checks',
-            command: 'ckrv verify',
-            action: () => verifyMutation.mutate(),
-            loading: verifyMutation.isPending,
-            disabled: !hasImplementation,
-            color: 'amber' as const,
-        },
-        {
-            id: 'promote',
-            icon: <ExternalLink size={16} />,
-            label: 'Create PR',
-            description: 'Push and create pull request',
-            command: 'ckrv promote --push',
-            action: () => promoteMutation.mutate(),
-            loading: promoteMutation.isPending,
-            disabled: !hasImplementation,
-            color: 'green' as const,
-        },
     ];
 
-    const isLoading = isLoadingStatus || isLoadingSpecs || isLoadingTasks;
+    const isLoading = isLoadingStatus;
 
     return (
         <>
@@ -367,14 +162,14 @@ export const CommandPalette: React.FC = () => {
     );
 };
 
-interface SpecNewDialogProps {
+export interface SpecNewDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSubmit: (description: string) => void;
     isLoading: boolean;
 }
 
-const SpecNewDialog: React.FC<SpecNewDialogProps> = ({ open, onOpenChange, onSubmit, isLoading }) => {
+export const SpecNewDialog: React.FC<SpecNewDialogProps> = ({ open, onOpenChange, onSubmit, isLoading }) => {
     const [description, setDescription] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
 import {
     ChevronDown, ChevronRight, Play,
     CheckCircle2, Circle, AlertTriangle, GitBranch,
-    Layers, LayoutGrid, Code, Filter, Zap, Brain, Cpu,
-    Link2, FileText, ArrowLeft, Save, Loader2, RotateCcw, ClipboardList
+    Layers, Code, Filter, Zap, Brain, Cpu,
+    Link2, FileText, Save, Loader2, RotateCcw, ClipboardList
 } from 'lucide-react';
 import { TaskDetailModal } from './TaskDetailModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -350,7 +351,7 @@ const FilterBar: React.FC<{
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="__all__">All Phases</SelectItem>
-                        {phases.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        {phases.filter(p => p && p.trim() !== '').map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                     </SelectContent>
                 </Select>
 
@@ -416,10 +417,6 @@ const ViewToggle: React.FC<{ view: string; setView: (v: string) => void }> = ({ 
                 <Layers size={16} />
                 By Phase
             </TabsTrigger>
-            <TabsTrigger value="kanban" className="gap-1.5">
-                <LayoutGrid size={16} />
-                Kanban
-            </TabsTrigger>
             <TabsTrigger value="code" className="gap-1.5">
                 <Code size={16} />
                 YAML
@@ -427,50 +424,6 @@ const ViewToggle: React.FC<{ view: string; setView: (v: string) => void }> = ({ 
         </TabsList>
     </Tabs>
 );
-
-const KanbanColumn: React.FC<{
-    status: string;
-    tasks: Task[];
-    onTaskClick: (task: Task) => void;
-}> = ({ status, tasks, onTaskClick }) => {
-    const statusConfig: Record<string, { label: string; variant: "secondary" | "info" | "success" | "destructive" }> = {
-        pending: { label: 'Pending', variant: 'secondary' },
-        running: { label: 'Running', variant: 'info' },
-        completed: { label: 'Completed', variant: 'success' },
-        failed: { label: 'Failed', variant: 'destructive' }
-    };
-    const config = statusConfig[status] || statusConfig.pending;
-
-    return (
-        <Card className="min-w-[280px] flex-1">
-            <CardHeader className="py-2 px-4 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-medium">{config.label}</CardTitle>
-                <Badge variant={config.variant}>{tasks.length}</Badge>
-            </CardHeader>
-            <CardContent className="p-3 space-y-2 max-h-[500px] overflow-y-auto">
-                {tasks.map(task => (
-                    <Card
-                        key={task.id}
-                        className="cursor-pointer hover:border-primary transition-all"
-                        onClick={() => onTaskClick(task)}
-                    >
-                        <CardContent className="p-3">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="font-mono text-xs text-muted-foreground">{task.id}</span>
-                                {task.parallel && <GitBranch size={12} className="text-accent-green" />}
-                            </div>
-                            <p className="text-sm font-medium text-foreground line-clamp-2">{task.title}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                                <ModelTierBadge tier={task.model_tier} />
-                                <RiskBadge risk={task.risk} />
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </CardContent>
-        </Card>
-    );
-};
 
 // YAML View
 const YamlView: React.FC<{ rawYaml?: string }> = ({ rawYaml }) => (
@@ -539,16 +492,23 @@ const SpecListView: React.FC<{
 // Main Task Editor Component
 export const TaskEditor: React.FC = () => {
     const queryClient = useQueryClient();
-    const [selectedSpecName, setSelectedSpecName] = useState<string | null>(null);
+
+    // Auto-select spec based on current branch
+    const { selectedSpec: autoSelectedSpec, isLoading: isLoadingAutoSpec } = useAutoSelectedSpec();
+
+    // Allow manual override but default to auto-selected
+    const [manualSpecOverride, setManualSpecOverride] = useState<string | null>(null);
+    const selectedSpecName = manualSpecOverride ?? autoSelectedSpec;
+
     const [tasks, setTasks] = useState<Task[]>([]);
     const [rawYaml, setRawYaml] = useState<string | undefined>();
-    const [view, setView] = useState<'phase' | 'kanban' | 'code'>('phase');
+    const [view, setView] = useState<'phase' | 'code'>('phase');
     const [hasChanges, setHasChanges] = useState(false);
     const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
     const [filters, setFilters] = useState({ phase: '__all__', status: '__all__', risk: '__all__', tier: '__all__', parallelOnly: false });
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-    // Fetch specs list
+    // Fetch specs list (for manual selection fallback)
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({
         queryKey: ['specs'],
         queryFn: fetchSpecs,
@@ -626,7 +586,7 @@ export const TaskEditor: React.FC = () => {
         setExpandedTasks(newExpanded);
     };
 
-    const phases = useMemo(() => [...new Set(tasks.map(t => t.phase))], [tasks]);
+    const phases = useMemo(() => [...new Set(tasks.map(t => t.phase).filter(p => p && p.trim() !== ''))], [tasks]);
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(t => {
@@ -654,33 +614,51 @@ export const TaskEditor: React.FC = () => {
         return grouped;
     }, [filteredTasks]);
 
-    const tasksByStatus = useMemo(() => {
-        const grouped: Record<string, Task[]> = { pending: [], running: [], completed: [], failed: [] };
-        filteredTasks.forEach(t => grouped[t.status]?.push(t));
-        return grouped;
-    }, [filteredTasks]);
 
-    // Show spec list if nothing selected
+
+    // Show spec list if nothing selected (neither auto nor manual)
     if (!selectedSpecName) {
+        // If still loading auto-selection, show spinner
+        if (isLoadingAutoSpec) {
+            return (
+                <div className="flex items-center justify-center h-full">
+                    <Loader2 className="animate-spin text-muted-foreground" size={32} />
+                </div>
+            );
+        }
+
         return (
             <div className="h-full overflow-auto p-4">
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-foreground">Task Orchestration</h1>
-                    <p className="text-muted-foreground mt-1">Select a spec to view and manage tasks</p>
+                    <p className="text-muted-foreground mt-1">No spec matches the current branch. Select a spec to view and manage tasks.</p>
                 </div>
                 <SpecListView
                     specs={specsData?.specs || []}
-                    onSelect={setSelectedSpecName}
+                    onSelect={setManualSpecOverride}
                     isLoading={isLoadingSpecs}
                 />
             </div>
         );
     }
 
-    if (isLoadingTasks || tasks.length === 0) {
+    if (isLoadingTasks) {
         return (
             <div className="flex items-center justify-center h-full">
                 <Loader2 className="animate-spin text-muted-foreground" size={32} />
+            </div>
+        );
+    }
+
+    if (tasks.length === 0) {
+        return (
+            <div className="h-full overflow-auto p-4">
+                <div className="text-center py-12 text-muted-foreground">
+                    <FileText size={48} className="mx-auto mb-4 opacity-50" />
+                    <h2 className="text-xl font-semibold text-foreground mb-2">No Tasks Found</h2>
+                    <p>No tasks found for spec <code className="bg-muted px-2 py-0.5 rounded">{selectedSpecName}</code></p>
+                    <p className="text-sm mt-2">Run <code className="bg-muted px-2 py-0.5 rounded">ckrv spec tasks</code> to generate tasks</p>
+                </div>
             </div>
         );
     }
@@ -691,13 +669,6 @@ export const TaskEditor: React.FC = () => {
             <Card className="shrink-0 rounded-none border-x-0 border-t-0">
                 <CardContent className="px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedSpecName(null)}
-                        >
-                            <ArrowLeft size={20} />
-                        </Button>
                         <div>
                             <span className="text-sm text-muted-foreground font-mono">tasks.yaml</span>
                             <h1 className="text-lg font-semibold text-foreground">{selectedSpecName}</h1>
@@ -772,18 +743,6 @@ export const TaskEditor: React.FC = () => {
                     </div>
                 )}
 
-                {view === 'kanban' && (
-                    <div className="flex gap-4 overflow-x-auto pb-4">
-                        {(['pending', 'running', 'completed', 'failed'] as const).map(status => (
-                            <KanbanColumn
-                                key={status}
-                                status={status}
-                                tasks={tasksByStatus[status]}
-                                onTaskClick={setSelectedTask}
-                            />
-                        ))}
-                    </div>
-                )}
 
                 {view === 'code' && (
                     <Card>

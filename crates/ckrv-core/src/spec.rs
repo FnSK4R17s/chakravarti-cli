@@ -71,7 +71,11 @@ impl Spec {
         }
 
         // Allow dashes in ID (e.g., "001-make-hello-world")
-        if !self.id.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+        if !self
+            .id
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        {
             return Err(CoreError::InvalidSpec(
                 "id must be alphanumeric with underscores or dashes".to_string(),
             ));

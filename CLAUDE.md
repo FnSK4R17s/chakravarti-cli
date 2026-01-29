@@ -38,12 +38,11 @@ chakravarti-cli/
 │   ├── ckrv-git/           # Git worktrees, branches, diffs
 │   ├── ckrv-sandbox/       # Docker execution, agent providers
 │   ├── ckrv-spec/          # Spec parsing/validation
-│   ├── ckrv-model/         # LLM provider routing
-│   ├── ckrv-metrics/       # Cost/timing tracking
-│   ├── ckrv-verify/        # Test/lint verification
-│   ├── ckrv-integrations/  # External services (GitHub)
+│   ├── ckrv-model/         # LLM provider routing (⚠️ unused)
+│   ├── ckrv-metrics/       # Cost/timing tracking, file storage
+│   ├── ckrv-verify/        # Test execution/parsing (⚠️ unused)
+│   ├── ckrv-integrations/  # External services stub (⚠️ stub)
 │   └── ckrv-ui/            # Web dashboard server + frontend
-│       └── docs/           # Per-crate documentation
 ├── crates/docs/            # Cross-crate documentation
 ├── specs/                  # Feature specifications
 └── npm/                    # npm package for distribution
@@ -94,8 +93,9 @@ ckrv ui                      # Launch Web UI
 Chakravarti uses Claude Code CLI as the execution interface:
 
 - **Claude Code (Native)** - Default agent
+- **Claude Code + OpenRouter** - 12+ models via Claude Code CLI
+- **Claude Code + GLM Coding Plan** - Z.AI's GLM models (UI only for now)
 - **OpenAI Codex** - Native CLI integration  
-- **OpenRouter Models** - 12+ models via Claude Code CLI
 
 See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 
@@ -126,14 +126,86 @@ See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 - Tests marked `#[ignore]` require API keys or Docker
 - Run `cargo test --workspace` before committing
 
-<!-- MANUAL ADDITIONS START -->
-<!-- MANUAL ADDITIONS END -->
+## Frontend Development
+
+### Tech Stack
+
+- **React 18** with TypeScript
+- **Tailwind CSS v4** with `@theme inline` for custom utilities
+- **Vite** for bundling
+- **shadcn/ui** components (Radix-based)
+- **TanStack Query** for data fetching
+
+### Frontend Commands
+
+```bash
+# Navigate to frontend directory
+cd crates/ckrv-ui/frontend
+
+# Development mode (hot reload)
+npm run dev
+
+# Production build
+npm run build
+
+# Type checking
+npx tsc --noEmit
+
+# Add shadcn component
+npx shadcn@latest add [component-name]
+```
+
+### CSS Theme System
+
+All colors are centralized in `crates/ckrv-ui/frontend/src/index.css` using OKLCH format:
+
+```css
+:root {
+  /* === THEME COLORS START === */
+  --accent-cyan: oklch(0.82 0.19 195);
+  --accent-cyan-dim: oklch(0.82 0.19 195 / 15%);
+  /* ... more colors ... */
+  /* === THEME COLORS END === */
+}
+```
+
+**When styling components:**
+- ✅ Use semantic Tailwind utilities: `text-accent-cyan`, `bg-accent-green-dim`
+- ✅ Use shadcn semantic colors: `text-foreground`, `bg-muted`, `border-border`
+- ❌ Avoid inline `style={}` with hardcoded colors
+- ❌ Avoid arbitrary values like `text-[#00ff00]`
+
+### Component Guidelines
+
+1. **Use shadcn/ui components** from `@/components/ui/`
+2. **Import paths** use `@/` alias for `src/`
+3. **State management** via TanStack Query for server state
+4. **Icons** from `lucide-react`
+
+## Important Notes
+
+1. **Tailwind v4**: Uses `@theme inline` for custom utilities, not `tailwind.config.js` extend
+2. **OKLCH colors**: All theme colors use OKLCH format for better color manipulation
+3. **Dark mode only**: The UI is dark-mode only (no light theme toggle)
+4. **Build before testing**: Always run `make install` before testing CLI changes
+
+## Troubleshooting
+
+### "command not found: ckrv"
+Run `make install` from the repository root.
+
+### Frontend changes not appearing
+1. Run `npm run build` in the frontend directory
+2. Run `make install` from root
+3. Restart `ckrv ui`
+
+### CSS lint warnings about @plugin, @theme, @apply
+These are Tailwind v4 directives - the IDE linter doesn't recognize them but they work correctly at build time.
+
 
 ## Active Technologies
-- Rust 1.75+ + Markdown, Mermaid diagrams, cargo doc (012-code-documentation)
-- N/A (documentation files only) (012-code-documentation)
-- Rust 1.75+, TypeScript/React + axum, tokio, serde, bollard (Docker) (013-glm-coding-plan)
-- YAML configuration files (`~/.config/chakravarti/agents.yaml`) (013-glm-coding-plan)
+- Rust 1.75+ + tokio, bollard (Docker), serde (016-glm-cli-support)
+- YAML configuration (`~/.config/chakravarti/agents.yaml`) (016-glm-cli-support)
 
 ## Recent Changes
-- 013-glm-coding-plan: Added Rust 1.75+, TypeScript/React + axum, tokio, serde, bollard (Docker)
+- 016-glm-cli-support: Added Rust 1.75+ + tokio, bollard (Docker), serde

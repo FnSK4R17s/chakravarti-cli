@@ -1,6 +1,6 @@
 ---
-last_commit: c1bb442
-last_updated: 2026-01-21
+last_commit: 5160ff1
+last_updated: 2026-01-29
 related_files:
   - crates/ckrv-cli/src/commands/mod.rs
   - crates/ckrv-cli/src/main.rs
@@ -124,6 +124,8 @@ Run code quality checks.
 ckrv verify [OPTIONS]
 ```
 
+> **Note:** This command runs shell commands (e.g., `cargo test`, `cargo clippy`) directly, not via the `ckrv-verify` crate.
+
 **Options:**
 - `--lint`: Run linting only
 - `--test`: Run tests only
@@ -134,6 +136,77 @@ ckrv verify [OPTIONS]
 **Exit codes:**
 - `0`: All checks passed
 - `1`: One or more checks failed
+
+---
+
+### `test`
+
+Run tests and manage test coverage using role-based agents.
+
+```bash
+ckrv test <SUBCOMMAND>
+```
+
+**Subcommands:**
+- `run`: Run existing tests in sandbox
+- `plan`: Analyze changes and generate test plan
+- `write`: Write new tests using test writer agent
+- `coverage`: Check test coverage of changed files
+
+**Options (all subcommands):**
+- `--base <branch>`: Branch to compare against (default: main)
+- `--json`: Output in JSON format
+
+**Write subcommand options:**
+- `--run`: Run tests after writing
+
+**Examples:**
+```bash
+ckrv test run                    # Run project tests
+ckrv test plan                   # Analyze what needs tests
+ckrv test write --run            # Write and run new tests
+ckrv test coverage --base develop # Check coverage vs develop
+```
+
+**Exit codes:**
+- `0`: All tests passed
+- `1`: Tests failed
+- `4`: No test writer agent configured
+
+---
+
+### `qa`
+
+QA code review and bug analysis using role-based agents.
+
+```bash
+ckrv qa <SUBCOMMAND>
+```
+
+**Subcommands:**
+- `review`: Review code quality of changes
+- `bugs`: Analyze for potential bugs
+- `report`: Generate full QA report
+
+**Options:**
+- `--base <branch>`: Branch to compare against (default: main)
+- `--output <file>`: Save report to file
+- `--json`: Output in JSON format
+
+**Report subcommand options:**
+- `--full`: Include all analysis types (quality, bugs, security)
+
+**Examples:**
+```bash
+ckrv qa review                    # Review changes vs main
+ckrv qa bugs --base develop       # Find bugs vs develop
+ckrv qa report --full -o qa.md    # Full report to file
+```
+
+**Exit codes:**
+- `0`: No critical issues
+- `1`: Critical issues found
+- `4`: No QA agent configured
 
 ---
 

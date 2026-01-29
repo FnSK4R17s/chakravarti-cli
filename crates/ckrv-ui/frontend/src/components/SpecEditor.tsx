@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
 import {
     ChevronDown, ChevronRight, Code, LayoutGrid, List,
-    FileText, ArrowLeft, Loader2, AlertCircle, CheckCircle2,
+    FileText, Loader2, AlertCircle, CheckCircle2,
     Circle, Lightbulb, X, GitBranch, Calendar, Tag
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -331,14 +332,21 @@ const SpecListView: React.FC<{
 // Main Spec Editor Component
 export const SpecEditor: React.FC = () => {
     const queryClient = useQueryClient();
-    const [selectedSpecName, setSelectedSpecName] = useState<string | null>(null);
+
+    // Auto-select spec based on current branch
+    const { selectedSpec: autoSelectedSpec, isLoading: isLoadingAutoSpec } = useAutoSelectedSpec();
+
+    // Allow manual override but default to auto-selected
+    const [manualSpecOverride, setManualSpecOverride] = useState<string | null>(null);
+    const selectedSpecName = manualSpecOverride ?? autoSelectedSpec;
+
     const [spec, setSpec] = useState<SpecDetail | null>(null);
     const [rawYaml, setRawYaml] = useState<string | undefined>();
     const [view, setView] = useState<'visual' | 'outline' | 'code'>('visual');
     const [showClarifyModal, setShowClarifyModal] = useState(false);
     const [showWorkflowPanel, setShowWorkflowPanel] = useState(true);
 
-    // Fetch specs list
+    // Fetch specs list (for manual selection fallback)
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({
         queryKey: ['specs'],
         queryFn: fetchSpecs,
@@ -374,17 +382,26 @@ export const SpecEditor: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['clarifications', selectedSpecName] });
     };
 
-    // Show spec list if nothing selected
+    // Show spec list if nothing selected (neither auto nor manual)
     if (!selectedSpecName) {
+        // If still loading auto-selection, show spinner
+        if (isLoadingAutoSpec) {
+            return (
+                <div className="flex items-center justify-center h-full">
+                    <Loader2 className="animate-spin text-muted-foreground" size={32} />
+                </div>
+            );
+        }
+
         return (
             <div className="h-full overflow-auto p-4">
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-foreground">Specifications</h1>
-                    <p className="text-muted-foreground mt-1">Select a spec to view and edit</p>
+                    <p className="text-muted-foreground mt-1">No spec matches the current branch. Select a spec to view and edit.</p>
                 </div>
                 <SpecListView
                     specs={specsData?.specs || []}
-                    onSelect={setSelectedSpecName}
+                    onSelect={setManualSpecOverride}
                     isLoading={isLoadingSpecs}
                 />
             </div>
@@ -407,13 +424,6 @@ export const SpecEditor: React.FC = () => {
             <Card className="shrink-0 rounded-none border-x-0 border-t-0">
                 <CardContent className="px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedSpecName(null)}
-                        >
-                            <ArrowLeft size={20} />
-                        </Button>
                         <Badge variant="secondary" className="font-mono">{spec.id}</Badge>
                         {spec.status && (
                             <Badge variant={spec.status === 'draft' ? 'warning' : 'success'}>

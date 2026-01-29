@@ -32,6 +32,12 @@ pub struct RunnerConfig {
     pub openrouter_model: Option<String>,
     /// OpenRouter base URL (defaults to https://openrouter.ai/api).
     pub openrouter_base_url: Option<String>,
+    /// Z.AI API key (for Claude Code + GLM Coding Plan mode).
+    pub glm_api_key: Option<String>,
+    /// GLM model ID (for Claude Code + GLM Coding Plan mode).
+    pub glm_model: Option<String>,
+    /// GLM timeout in ms (default: 3000000).
+    pub glm_timeout_ms: Option<u32>,
 }
 
 impl Default for RunnerConfig {
@@ -46,6 +52,9 @@ impl Default for RunnerConfig {
             openrouter_api_key: None,
             openrouter_model: None,
             openrouter_base_url: None,
+            glm_api_key: None,
+            glm_model: None,
+            glm_timeout_ms: None,
         }
     }
 }
@@ -300,10 +309,12 @@ impl WorkflowRunner {
         // Set OpenRouter environment variables if configured
         // Per https://openrouter.ai/docs/guides/guides/claude-code-integration
         if let Some(ref api_key) = self.config.openrouter_api_key {
-            let base_url = self.config.openrouter_base_url
+            let base_url = self
+                .config
+                .openrouter_base_url
                 .as_deref()
                 .unwrap_or("https://openrouter.ai/api");
-            
+
             tracing::info!(
                 base_url = %base_url,
                 model = ?self.config.openrouter_model,
@@ -318,6 +329,30 @@ impl WorkflowRunner {
             // Optional: override default model
             if let Some(ref model) = self.config.openrouter_model {
                 // Set all tiers to the same model for consistency
+                cmd.env("ANTHROPIC_DEFAULT_SONNET_MODEL", model);
+                cmd.env("ANTHROPIC_DEFAULT_OPUS_MODEL", model);
+                cmd.env("ANTHROPIC_DEFAULT_HAIKU_MODEL", model);
+            }
+        }
+
+        // Set GLM Coding Plan environment variables if configured
+        if let Some(ref api_key) = self.config.glm_api_key {
+            let timeout = self.config.glm_timeout_ms.unwrap_or(3_000_000);
+
+            tracing::info!(
+                model = ?self.config.glm_model,
+                timeout_ms = timeout,
+                "Using GLM Coding Plan for Claude Code"
+            );
+
+            // Required env vars for GLM Coding Plan (Z.AI)
+            cmd.env("ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic");
+            cmd.env("ANTHROPIC_AUTH_TOKEN", api_key);
+            cmd.env("ANTHROPIC_API_KEY", ""); // Must be explicitly empty!
+            cmd.env("API_TIMEOUT_MS", timeout.to_string());
+
+            // Override model if specified
+            if let Some(ref model) = self.config.glm_model {
                 cmd.env("ANTHROPIC_DEFAULT_SONNET_MODEL", model);
                 cmd.env("ANTHROPIC_DEFAULT_OPUS_MODEL", model);
                 cmd.env("ANTHROPIC_DEFAULT_HAIKU_MODEL", model);
@@ -375,7 +410,9 @@ impl WorkflowRunner {
 
         // Add OpenRouter environment variables if configured
         if let Some(ref api_key) = self.config.openrouter_api_key {
-            let base_url = self.config.openrouter_base_url
+            let base_url = self
+                .config
+                .openrouter_base_url
                 .as_deref()
                 .unwrap_or("https://openrouter.ai/api");
 
@@ -391,6 +428,30 @@ impl WorkflowRunner {
                 .env("ANTHROPIC_API_KEY", ""); // Must be explicitly empty!
 
             if let Some(ref model) = self.config.openrouter_model {
+                config = config
+                    .env("ANTHROPIC_DEFAULT_SONNET_MODEL", model)
+                    .env("ANTHROPIC_DEFAULT_OPUS_MODEL", model)
+                    .env("ANTHROPIC_DEFAULT_HAIKU_MODEL", model);
+            }
+        }
+
+        // Add GLM Coding Plan environment variables if configured
+        if let Some(ref api_key) = self.config.glm_api_key {
+            let timeout = self.config.glm_timeout_ms.unwrap_or(3_000_000);
+
+            tracing::info!(
+                model = ?self.config.glm_model,
+                timeout_ms = timeout,
+                "Using GLM Coding Plan for Claude Code in sandbox"
+            );
+
+            config = config
+                .env("ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic")
+                .env("ANTHROPIC_AUTH_TOKEN", api_key)
+                .env("ANTHROPIC_API_KEY", "") // Must be explicitly empty!
+                .env("API_TIMEOUT_MS", &timeout.to_string());
+
+            if let Some(ref model) = self.config.glm_model {
                 config = config
                     .env("ANTHROPIC_DEFAULT_SONNET_MODEL", model)
                     .env("ANTHROPIC_DEFAULT_OPUS_MODEL", model)
@@ -523,5 +584,29 @@ steps:
 
         // Task should have recorded outputs
         assert!(task.get_step_output("step1", "result").is_some());
+    }
+
+    #[test]
+    fn test_runner_config_glm_defaults() {
+        let config = RunnerConfig::default();
+
+        // GLM fields should default to None
+        assert!(config.glm_api_key.is_none());
+        assert!(config.glm_model.is_none());
+        assert!(config.glm_timeout_ms.is_none());
+    }
+
+    #[test]
+    fn test_runner_config_glm_fields() {
+        let config = RunnerConfig {
+            glm_api_key: Some("test-api-key".to_string()),
+            glm_model: Some("glm-4.7".to_string()),
+            glm_timeout_ms: Some(5_000_000),
+            ..Default::default()
+        };
+
+        assert_eq!(config.glm_api_key.as_deref(), Some("test-api-key"));
+        assert_eq!(config.glm_model.as_deref(), Some("glm-4.7"));
+        assert_eq!(config.glm_timeout_ms, Some(5_000_000));
     }
 }

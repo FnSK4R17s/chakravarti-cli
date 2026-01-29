@@ -42,32 +42,36 @@ test.describe('Visual Consistency', () => {
         await page.screenshot({ path: 'test-results/visual-dashboard.png', fullPage: true });
     });
 
-    test('T031: visual regression - specs page', async ({ page }) => {
+    test('T031: visual regression - code page (specs tab)', async ({ page }) => {
         await page.goto('/');
 
-        // Navigate to specs
-        await page.click('[data-testid="nav-specs"]').catch(() => {
-            return page.click('text=Specs');
+        // Navigate to Code page, Spec tab (default)
+        await page.click('[data-testid="nav-code"]').catch(() => {
+            return page.click('text=Code');
         });
 
         await page.waitForLoadState('networkidle');
 
         // Screenshot for visual comparison
-        await page.screenshot({ path: 'test-results/visual-specs.png', fullPage: true });
+        await page.screenshot({ path: 'test-results/visual-code-spec.png', fullPage: true });
     });
 
-    test('T031: visual regression - runner page', async ({ page }) => {
+    test('T031: visual regression - code page (runner tab)', async ({ page }) => {
         await page.goto('/');
 
-        // Navigate to runner
-        await page.click('[data-testid="nav-runner"]').catch(() => {
-            return page.click('text=Runner');
+        // Navigate to Code page
+        await page.click('[data-testid="nav-code"]').catch(() => {
+            return page.click('text=Code');
+        });
+        // Click Run tab
+        await page.click('[data-testid="code-tab-run"]').catch(() => {
+            return page.click('text=Run');
         });
 
         await page.waitForLoadState('networkidle');
 
         // Screenshot for visual comparison
-        await page.screenshot({ path: 'test-results/visual-runner.png', fullPage: true });
+        await page.screenshot({ path: 'test-results/visual-code-runner.png', fullPage: true });
     });
 
     /**

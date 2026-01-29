@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 
-use crate::models::log::{LogEntry, ExecutionLogFile};
+use crate::models::log::{ExecutionLogFile, LogEntry};
 
 /// Service for reading and writing execution logs to disk.
 ///
@@ -58,13 +58,12 @@ impl LogStore {
             .with_context(|| format!("Failed to open log file: {:?}", path))?;
 
         let mut writer = BufWriter::new(file);
-        let json = serde_json::to_string(entry)
-            .with_context(|| "Failed to serialize log entry")?;
+        let json = serde_json::to_string(entry).with_context(|| "Failed to serialize log entry")?;
 
-        writeln!(writer, "{}", json)
-            .with_context(|| "Failed to write log entry")?;
+        writeln!(writer, "{}", json).with_context(|| "Failed to write log entry")?;
 
-        writer.flush()
+        writer
+            .flush()
             .with_context(|| "Failed to flush log entry")?;
 
         Ok(())
@@ -80,8 +79,8 @@ impl LogStore {
             return Ok(Vec::new());
         }
 
-        let file = File::open(&path)
-            .with_context(|| format!("Failed to open log file: {:?}", path))?;
+        let file =
+            File::open(&path).with_context(|| format!("Failed to open log file: {:?}", path))?;
 
         let reader = BufReader::new(file);
         let mut entries = Vec::new();
@@ -107,15 +106,20 @@ impl LogStore {
     /// Read a range of log entries with offset and limit (T028 - for pagination).
     ///
     /// Returns entries starting from `offset`, up to `limit` entries.
-    pub fn read_range(&self, execution_id: &str, offset: usize, limit: usize) -> Result<(Vec<LogEntry>, usize)> {
+    pub fn read_range(
+        &self,
+        execution_id: &str,
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<LogEntry>, usize)> {
         let path = self.log_file_path(execution_id);
 
         if !path.exists() {
             return Ok((Vec::new(), 0));
         }
 
-        let file = File::open(&path)
-            .with_context(|| format!("Failed to open log file: {:?}", path))?;
+        let file =
+            File::open(&path).with_context(|| format!("Failed to open log file: {:?}", path))?;
 
         let reader = BufReader::new(file);
         let mut entries = Vec::new();

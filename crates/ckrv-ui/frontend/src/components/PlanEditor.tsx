@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
 import {
     ChevronDown, ChevronRight,
     GitBranch, Layers, List, Code,
@@ -601,7 +602,14 @@ const SpecListView: React.FC<{
 // Main Plan Editor
 export default function PlanEditor() {
     const queryClient = useQueryClient();
-    const [selectedSpecName, setSelectedSpecName] = useState<string | null>(null);
+
+    // Auto-select spec based on current branch
+    const { selectedSpec: autoSelectedSpec, isLoading: isLoadingAutoSpec } = useAutoSelectedSpec();
+
+    // Allow manual override but default to auto-selected
+    const [manualSpecOverride, setManualSpecOverride] = useState<string | null>(null);
+    const selectedSpecName = manualSpecOverride ?? autoSelectedSpec;
+
     const [view, setView] = useState<'dag' | 'list' | 'timeline' | 'cost' | 'code'>('dag');
     const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -609,7 +617,7 @@ export default function PlanEditor() {
     const [editableBatches, setEditableBatches] = useState<Batch[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
 
-    // Data Fetching
+    // Data Fetching (for manual selection fallback)
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({ queryKey: ['specs'], queryFn: fetchSpecs });
     const { data: modelsData } = useQuery({ queryKey: ['openrouter-models'], queryFn: fetchModels });
     const { data: agentsData } = useQuery({ queryKey: ['agents'], queryFn: fetchAgents });
@@ -687,17 +695,26 @@ export default function PlanEditor() {
         return <div className="p-8 text-destructive">Error loading plan: {(error as Error).message}</div>;
     }
 
-    // Show spec list if nothing selected
+    // Show spec list if nothing selected (neither auto nor manual)
     if (!selectedSpecName) {
+        // If still loading auto-selection, show spinner
+        if (isLoadingAutoSpec) {
+            return (
+                <div className="flex items-center justify-center h-full">
+                    <Workflow className="animate-spin text-muted-foreground" size={32} />
+                </div>
+            );
+        }
+
         return (
             <div className="h-full overflow-auto p-4">
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-foreground">Execution Plan</h1>
-                    <p className="text-muted-foreground mt-1">Select a spec to view its execution plan</p>
+                    <p className="text-muted-foreground mt-1">No spec matches the current branch. Select a spec to view its execution plan.</p>
                 </div>
                 <SpecListView
                     specs={specsData?.specs || []}
-                    onSelect={setSelectedSpecName}
+                    onSelect={setManualSpecOverride}
                     isLoading={isLoadingSpecs}
                 />
             </div>
@@ -710,13 +727,6 @@ export default function PlanEditor() {
             <Card className="shrink-0 rounded-none border-x-0 border-t-0">
                 <CardContent className="px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedSpecName(null)}
-                        >
-                            <ArrowRight size={20} className="rotate-180" />
-                        </Button>
                         <div>
                             <div className="text-sm text-muted-foreground font-mono">plan.yaml</div>
                             <h1 className="text-lg font-semibold text-foreground">{selectedSpecName}</h1>

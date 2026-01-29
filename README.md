@@ -2,7 +2,8 @@
 
 <p align="center">
   <strong>Spec-driven Agent Orchestration Engine</strong><br>
-  <em>The Universal Orchestrator for AI Coding.</em>
+  <em>The Universal Orchestrator for AI Coding.</em><br>
+  <sub>Turn your ideas into code, one spec at a time.</sub>
 </p>
 
 <p align="center">
@@ -14,6 +15,8 @@
 ---
 
 Chakravarti (`ckrv`) is an autonomous coding engine that transforms high-level specifications into shipping code. It orchestrates AI agents across isolated Git worktrees and Docker sandboxes to ensure safety and code integrity.
+
+Each spec generates a complete workflow—from **scope** to **plan** to **implementation**—with full control to review and refine at every stage.
 
 ## Installation
 
@@ -64,6 +67,8 @@ ckrv promote --push --open
 | `ckrv run` | Execute orchestration (Plan → Execute → Merge) |
 | `ckrv diff` | View changes between branches |
 | `ckrv verify` | Run tests, linting, and type checking |
+| `ckrv test` | Run, plan, and write tests using AI agents |
+| `ckrv qa` | QA code review and bug analysis |
 | `ckrv fix` | Use AI to fix verification errors |
 | `ckrv promote` | Push changes and create a Pull Request |
 | `ckrv status` | Show current workflow status |
@@ -97,10 +102,10 @@ crates/
 ├── ckrv-git          # Git operations, worktree management
 ├── ckrv-sandbox      # Docker execution, agent providers
 ├── ckrv-spec         # Spec file loading and validation
-├── ckrv-model        # LLM provider abstraction, routing
-├── ckrv-metrics      # Telemetry and metrics collection
-├── ckrv-verify       # Code verification (lint, test, typecheck)
-├── ckrv-integrations # External service integrations (GitHub)
+├── ckrv-model        # LLM provider abstraction (⚠️ unused)
+├── ckrv-metrics      # Cost/time tracking, file storage
+├── ckrv-verify       # Test execution and parsing (⚠️ unused)
+├── ckrv-integrations # External integrations stub (⚠️ stub)
 └── ckrv-ui           # Web dashboard server and frontend
 ```
 
@@ -112,12 +117,12 @@ Chakravarti uses Claude Code CLI as the execution interface, with support for mu
 
 ### Currently Supported
 
-| Agent Type | Description |
-|------------|-------------|
-| Claude Code (Native) | Default - uses Anthropic's Claude directly |
-| Claude + OpenRouter | Use 12+ models via Claude Code CLI (Gemini, Kimi K2, DeepSeek, etc.) |
-| GLM Coding Plan | Z.AI's GLM-4.7 and GLM-4.5-Air via Claude Code CLI |
-| OpenAI Codex | Native Codex CLI integration |
+| 🤖 Tool | 🔑 Authentication | 📍 Availability | Description |
+|---------|-------------------|-----------------|-------------|
+| Claude Code | Claude Subscription | CLI + UI | Default - uses Anthropic's Claude directly |
+| Claude Code | OpenRouter API | CLI + UI | 12+ models (Gemini, DeepSeek, Qwen, Kimi K2, etc.) |
+| Claude Code | GLM Coding Plan | CLI + UI | Z.AI's GLM-4.7 and GLM-4.5-Air |
+| Codex | OpenAI Subscription | CLI + UI | Native Codex CLI integration |
 
 ### Future Integrations
 

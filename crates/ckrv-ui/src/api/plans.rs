@@ -1,3 +1,4 @@
+use crate::state::AppState;
 use axum::{
     extract::{Query, State},
     response::{IntoResponse, Json},
@@ -6,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use crate::state::AppState;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ModelAssignment {
@@ -39,6 +39,8 @@ pub struct Batch {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Plan {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spec_id: Option<String>,
     pub batches: Vec<Batch>,
 }
 
@@ -69,24 +71,24 @@ pub struct SavePlanResponse {
 
 // Helpers
 fn get_spec_dir(branch: &str) -> PathBuf {
-    // This logic mimics tasks.rs. 
+    // This logic mimics tasks.rs.
     // Ideally this should be centralized in a safe utility.
     // Assuming run from root or finding .specs dir
     let mut path = std::env::current_dir().unwrap_or_default();
-    
+
     // Naive workspace traversal - similar to tasks.rs (assumed)
     // We expect the user to run this where .specs exists or in a known workspace structure
-     if path.join(".specs").exists() {
+    if path.join(".specs").exists() {
         return path.join(".specs").join(branch);
     }
-    
+
     // Check known apps paths (as per user env)
     let apps = vec![
         "/apps/chakra-test",
         "/apps/chakravarti-cli",
         // Add others if needed or rely on a more robust find
     ];
-    
+
     for app in apps {
         let p = PathBuf::from(app).join(".specs").join(branch);
         if p.exists() {
@@ -97,9 +99,7 @@ fn get_spec_dir(branch: &str) -> PathBuf {
     path.join(".specs").join(branch)
 }
 
-pub async fn get_plan(
-    Query(query): Query<GetPlanQuery>,
-) -> impl IntoResponse {
+pub async fn get_plan(Query(query): Query<GetPlanQuery>) -> impl IntoResponse {
     let spec_dir = get_spec_dir(&query.spec);
     let plan_path = spec_dir.join("plan.yaml");
 
@@ -117,12 +117,31 @@ pub async fn get_plan(
     match fs::read_to_string(&plan_path) {
         Ok(content) => {
             match serde_yaml::from_str::<Plan>(&content) {
-                Ok(plan) => Json(PlanResponse {
-                    success: true,
-                    batches: plan.batches,
-                    raw_yaml: Some(content),
-                    error: None,
-                }),
+                Ok(mut plan) => {
+                    // Reset any 'running' batches to 'pending' - they're stale from interrupted execution
+                    let mut needs_save = false;
+                    for batch in &mut plan.batches {
+                        if batch.status == "running" {
+                            println!("Resetting stale running batch '{}' to pending", batch.id);
+                            batch.status = "pending".to_string();
+                            needs_save = true;
+                        }
+                    }
+
+                    // Save the updated plan if we reset any batches
+                    if needs_save {
+                        if let Ok(yaml) = serde_yaml::to_string(&plan) {
+                            let _ = fs::write(&plan_path, &yaml);
+                        }
+                    }
+
+                    Json(PlanResponse {
+                        success: true,
+                        batches: plan.batches,
+                        raw_yaml: Some(content),
+                        error: None,
+                    })
+                }
                 Err(e) => Json(PlanResponse {
                     success: false,
                     batches: vec![],
@@ -130,7 +149,7 @@ pub async fn get_plan(
                     error: Some(e.to_string()),
                 }),
             }
-        },
+        }
         Err(e) => Json(PlanResponse {
             success: false,
             batches: vec![],
@@ -140,28 +159,25 @@ pub async fn get_plan(
     }
 }
 
-pub async fn save_plan(
-    Json(payload): Json<SavePlanPayload>,
-) -> impl IntoResponse {
+pub async fn save_plan(Json(payload): Json<SavePlanPayload>) -> impl IntoResponse {
     let spec_dir = get_spec_dir(&payload.spec);
     let plan_path = spec_dir.join("plan.yaml");
-    
+
     let plan = Plan {
+        spec_id: None,
         batches: payload.batches,
     };
 
     match serde_yaml::to_string(&plan) {
-        Ok(yaml) => {
-            match fs::write(&plan_path, yaml) {
-                Ok(_) => Json(SavePlanResponse {
-                    success: true,
-                    message: None,
-                }),
-                Err(e) => Json(SavePlanResponse {
-                    success: false,
-                    message: Some(format!("Failed to write file: {}", e)),
-                }),
-            }
+        Ok(yaml) => match fs::write(&plan_path, yaml) {
+            Ok(_) => Json(SavePlanResponse {
+                success: true,
+                message: None,
+            }),
+            Err(e) => Json(SavePlanResponse {
+                success: false,
+                message: Some(format!("Failed to write file: {}", e)),
+            }),
         },
         Err(e) => Json(SavePlanResponse {
             success: false,
@@ -207,25 +223,39 @@ pub struct ModelsResponse {
 
 pub async fn get_openrouter_models() -> impl IntoResponse {
     let client = reqwest::Client::new();
-    match client.get("https://openrouter.ai/api/v1/models").send().await {
+    match client
+        .get("https://openrouter.ai/api/v1/models")
+        .send()
+        .await
+    {
         Ok(resp) => {
             if let Ok(data) = resp.json::<OpenRouterResponse>().await {
-                let models: Vec<ModelInfo> = data.data.into_iter().map(|m| {
-                    let prompt_cost = m.pricing.as_ref()
-                        .and_then(|p| p.prompt.parse::<f64>().ok())
-                        .unwrap_or(0.0) * 1000.0;
-                    let completion_cost = m.pricing.as_ref()
-                        .and_then(|p| p.completion.parse::<f64>().ok())
-                        .unwrap_or(0.0) * 1000.0;
-                    
-                    ModelInfo {
-                        id: m.id,
-                        name: m.name,
-                        cost_per_1k_prompt: prompt_cost,
-                        cost_per_1k_completion: completion_cost,
-                        context_length: m.context_length.unwrap_or(0),
-                    }
-                }).collect();
+                let models: Vec<ModelInfo> = data
+                    .data
+                    .into_iter()
+                    .map(|m| {
+                        let prompt_cost = m
+                            .pricing
+                            .as_ref()
+                            .and_then(|p| p.prompt.parse::<f64>().ok())
+                            .unwrap_or(0.0)
+                            * 1000.0;
+                        let completion_cost = m
+                            .pricing
+                            .as_ref()
+                            .and_then(|p| p.completion.parse::<f64>().ok())
+                            .unwrap_or(0.0)
+                            * 1000.0;
+
+                        ModelInfo {
+                            id: m.id,
+                            name: m.name,
+                            cost_per_1k_prompt: prompt_cost,
+                            cost_per_1k_completion: completion_cost,
+                            context_length: m.context_length.unwrap_or(0),
+                        }
+                    })
+                    .collect();
 
                 Json(ModelsResponse {
                     success: true,
@@ -237,7 +267,7 @@ pub async fn get_openrouter_models() -> impl IntoResponse {
                     models: vec![],
                 })
             }
-        },
+        }
         Err(_) => Json(ModelsResponse {
             success: false,
             models: vec![],

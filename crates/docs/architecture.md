@@ -1,6 +1,6 @@
 ---
-last_commit: c1bb442
-last_updated: 2026-01-21
+last_commit: 5160ff1
+last_updated: 2026-01-29
 related_files:
   - Cargo.toml
   - crates/ckrv-core/src/lib.rs
@@ -37,18 +37,18 @@ graph TD
 
 ## Crate Responsibilities
 
-| Crate | Purpose |
-|-------|---------|
-| `ckrv-cli` | CLI entry point, command handlers, user prompts |
-| `ckrv-core` | Orchestration engine, workflow execution, domain types |
-| `ckrv-git` | Git operations, worktree management, branch handling |
-| `ckrv-sandbox` | Docker execution, agent providers, command allow-list |
-| `ckrv-spec` | Spec file loading, parsing, validation |
-| `ckrv-model` | LLM provider abstraction, routing, cost tracking |
-| `ckrv-metrics` | Telemetry collection, event tracking |
-| `ckrv-verify` | Code verification: linting, testing, type checking |
-| `ckrv-integrations` | External service integrations (GitHub, etc.) |
-| `ckrv-ui` | Web dashboard server, REST API, WebSocket events |
+| Crate | Purpose | Status |
+|-------|---------|--------|
+| `ckrv-cli` | CLI entry point, command handlers, user prompts | ✅ Used |
+| `ckrv-core` | Orchestration engine, workflow execution, domain types | ✅ Used |
+| `ckrv-git` | Git operations, worktree management, branch handling | ✅ Used |
+| `ckrv-sandbox` | Docker execution, agent providers, command allow-list | ✅ Used |
+| `ckrv-spec` | Spec file loading, parsing, validation | ✅ Used |
+| `ckrv-model` | LLM provider abstraction, routing, cost tracking | ⚠️ **Unused** |
+| `ckrv-metrics` | Metrics collection, cost/time tracking, file storage | ✅ Used |
+| `ckrv-verify` | Test execution, output parsing, acceptance checking | ⚠️ **Unused** |
+| `ckrv-integrations` | External service integrations (GitHub, etc.) | ⚠️ **Stub** |
+| `ckrv-ui` | Web dashboard server, REST API, WebSocket events | ✅ Used |
 
 ## Execution Flow
 

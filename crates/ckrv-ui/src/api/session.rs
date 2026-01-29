@@ -3,18 +3,16 @@
 //! Provides persistent container sessions where multiple commands
 //! can be executed in the same environment.
 
-use axum::{Json, response::IntoResponse, extract::State};
+use crate::state::AppState;
+use axum::{extract::State, response::IntoResponse, Json};
+use ckrv_sandbox::docker::DockerClient;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use once_cell::sync::Lazy;
-use crate::state::AppState;
-use ckrv_sandbox::docker::DockerClient;
 
 // Global session store: Map<SessionID, ContainerID>
-static SESSIONS: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| {
-    Mutex::new(HashMap::new())
-});
+static SESSIONS: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Request to start a new session
 #[derive(Debug, Deserialize)]
@@ -97,7 +95,10 @@ pub async fn start_session(
     let cwd = state.project_root.to_string_lossy().to_string();
     let env: HashMap<String, String> = HashMap::new();
 
-    match client.create_session("/workspace", &cwd, "/workspace", env).await {
+    match client
+        .create_session("/workspace", &cwd, "/workspace", env)
+        .await
+    {
         Ok(container_id) => {
             // Store session
             {
@@ -105,7 +106,10 @@ pub async fn start_session(
                 sessions.insert(payload.session_id.clone(), container_id.clone());
             }
 
-            println!("Session started: {} -> {}", payload.session_id, container_id);
+            println!(
+                "Session started: {} -> {}",
+                payload.session_id, container_id
+            );
 
             Json(StartSessionResponse {
                 success: true,
@@ -124,9 +128,7 @@ pub async fn start_session(
 }
 
 /// Execute a command in an existing session
-pub async fn exec_in_session(
-    Json(payload): Json<ExecRequest>,
-) -> impl IntoResponse {
+pub async fn exec_in_session(Json(payload): Json<ExecRequest>) -> impl IntoResponse {
     // Look up container ID
     let container_id = {
         let sessions = SESSIONS.lock().unwrap();
@@ -190,9 +192,7 @@ pub async fn exec_in_session(
 }
 
 /// Stop and clean up a session
-pub async fn stop_session(
-    Json(payload): Json<StopSessionRequest>,
-) -> impl IntoResponse {
+pub async fn stop_session(Json(payload): Json<StopSessionRequest>) -> impl IntoResponse {
     // Remove from store
     let container_id = {
         let mut sessions = SESSIONS.lock().unwrap();
@@ -222,7 +222,10 @@ pub async fn stop_session(
 
     match client.stop_session(&container_id).await {
         Ok(()) => {
-            println!("Session stopped: {} -> {}", payload.session_id, container_id);
+            println!(
+                "Session stopped: {} -> {}",
+                payload.session_id, container_id
+            );
             Json(StopSessionResponse {
                 success: true,
                 message: Some("Session stopped".to_string()),

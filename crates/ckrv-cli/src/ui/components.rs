@@ -90,21 +90,22 @@ impl Renderable for RichTable {
 
         // Color Header Row (Blue/Secondary)
         let header_style = Style::new().fg(theme.secondary_color).bold();
-        table.with(Modify::new(Rows::first()).with(Format::content(|s| {
-            format!("{}", header_style.apply_to(s))
-        })));
+        table.with(
+            Modify::new(Rows::first())
+                .with(Format::content(|s| format!("{}", header_style.apply_to(s)))),
+        );
 
         let output = table.to_string();
 
         // Color borders using standard box drawing characters
         // We replace known box chars with colored versions
         let border_style = Style::new().fg(theme.primary_color);
-        
+
         // Box drawing characters used by Style::modern() (and others)
         let box_chars = [
             '╭', '╮', '╰', '╯', // Rounded
             '┌', '┐', '└', '┘', // Sharp
-            '─', '│', '├', '┤', '┬', '┴', '┼' // Lines & Intersections
+            '─', '│', '├', '┤', '┬', '┴', '┼', // Lines & Intersections
         ];
 
         let mut result = String::with_capacity(output.len() * 2);

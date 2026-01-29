@@ -143,9 +143,11 @@ Path pattern:
 
 ### 5.5 Verifier
 
-* Runs tests
+* Runs tests via shell commands
 * Checks spec acceptance criteria
 * Produces pass/fail + logs
+
+> **Implementation Note**: The `ckrv-verify` crate is currently unused. Verification runs shell commands directly via `ckrv verify`.
 
 ---
 
@@ -154,7 +156,9 @@ Path pattern:
 * Coordinates planner, executors, verifiers
 * Handles retries
 * Tracks cost & time
-* Selects models dynamically
+* Selects agents (Claude, Codex, OpenRouter, GLM)
+
+> **Implementation Note**: Model routing (`ckrv-model`) is currently unused. Agent selection happens in `ckrv-sandbox` and `ckrv-ui`.
 
 ---
 

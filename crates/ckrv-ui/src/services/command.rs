@@ -1,7 +1,7 @@
-use std::process::{Command, Stdio};
-use crate::state::{AppState, SystemMode};
 use crate::hub::OrchestrationEvent;
+use crate::state::{AppState, SystemMode};
 use chrono::Utc;
+use std::process::{Command, Stdio};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 pub struct CommandService;
@@ -55,15 +55,15 @@ impl CommandService {
     /// Determine if a stderr line is an actual error or just an info/debug log
     fn is_error_line(line: &str) -> bool {
         // Check for structured log levels - these are informational
-        let is_info_log = line.contains(" INFO ") 
-            || line.contains(" WARN ") 
+        let is_info_log = line.contains(" INFO ")
+            || line.contains(" WARN ")
             || line.contains(" DEBUG ")
             || line.contains(" TRACE ");
-        
+
         // It's an error if:
         // 1. It contains " ERROR " (structured error log)
         // 2. It's not an info log AND contains "Error:" or "error:" (error message)
-        line.contains(" ERROR ") 
+        line.contains(" ERROR ")
             || (!is_info_log && (line.contains("Error:") || line.contains("error:")))
     }
 
@@ -93,8 +93,8 @@ impl CommandService {
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
         // Run ckrv init command
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe =
+            std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
         Self::emit_log(state, &format!("Running: {} init", exe.display()));
 
@@ -199,10 +199,7 @@ impl CommandService {
 
         Self::emit_log(state, "Running: git init");
 
-        let output = Command::new("git")
-            .arg("init")
-            .current_dir(&cwd)
-            .output();
+        let output = Command::new("git").arg("init").current_dir(&cwd).output();
 
         match output {
             Ok(result) => {
@@ -225,12 +222,12 @@ impl CommandService {
                 if result.status.success() {
                     // Configure git user for the repo
                     Self::emit_log(state, "Configuring git user...");
-                    
+
                     let _ = Command::new("git")
                         .args(["config", "user.email", "chakravarti@local"])
                         .current_dir(&cwd)
                         .output();
-                    
+
                     let _ = Command::new("git")
                         .args(["config", "user.name", "Chakravarti"])
                         .current_dir(&cwd)
@@ -265,9 +262,16 @@ impl CommandService {
         }
     }
 
-    pub async fn run_spec_new(state: &AppState, description: &str, name: Option<&str>) -> Result<String, String> {
+    pub async fn run_spec_new(
+        state: &AppState,
+        description: &str,
+        name: Option<&str>,
+    ) -> Result<String, String> {
         Self::emit_step_start(state, "Create Specification");
-        Self::emit_log(state, &format!("Creating new specification: \"{}\"", description));
+        Self::emit_log(
+            state,
+            &format!("Creating new specification: \"{}\"", description),
+        );
 
         // Update mode to running
         {
@@ -282,11 +286,11 @@ impl CommandService {
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
         // Build the command
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe =
+            std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
         let mut args = vec!["spec", "new", "--json"];
-        
+
         // Add name if provided
         let name_args: Vec<String>;
         if let Some(n) = name {
@@ -294,16 +298,16 @@ impl CommandService {
             args.push("-n");
             args.push(name_args[1].as_str());
         }
-        
+
         // Description must be last
         args.push(description);
 
-        Self::emit_log(state, &format!("Running: {} {}", exe.display(), args.join(" ")));
+        Self::emit_log(
+            state,
+            &format!("Running: {} {}", exe.display(), args.join(" ")),
+        );
 
-        let output = Command::new(&exe)
-            .args(&args)
-            .current_dir(&cwd)
-            .output();
+        let output = Command::new(&exe).args(&args).current_dir(&cwd).output();
 
         // Reset mode
         {
@@ -333,7 +337,10 @@ impl CommandService {
                     // Try to parse JSON output for better messaging
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
                         if let Some(spec_file) = json.get("spec_file").and_then(|v| v.as_str()) {
-                            Self::emit_success(state, &format!("Specification created: {}", spec_file));
+                            Self::emit_success(
+                                state,
+                                &format!("Specification created: {}", spec_file),
+                            );
                         } else {
                             Self::emit_success(state, "Specification created successfully");
                         }
@@ -344,7 +351,9 @@ impl CommandService {
                     Ok("Specification created".to_string())
                 } else {
                     // Try to get error message from JSON output
-                    let error_msg = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                    let error_msg = if let Ok(json) =
+                        serde_json::from_str::<serde_json::Value>(&stdout)
+                    {
                         if let Some(err) = json.get("error").and_then(|v| v.as_str()) {
                             if !err.is_empty() {
                                 err.to_string()
@@ -352,7 +361,12 @@ impl CommandService {
                                 json.get("code")
                                     .and_then(|v| v.as_str())
                                     .map(|c| format!("Command failed: {}", c))
-                                    .unwrap_or_else(|| format!("spec new failed with exit code: {:?}", result.status.code()))
+                                    .unwrap_or_else(|| {
+                                        format!(
+                                            "spec new failed with exit code: {:?}",
+                                            result.status.code()
+                                        )
+                                    })
                             }
                         } else {
                             format!("spec new failed with exit code: {:?}", result.status.code())
@@ -376,7 +390,10 @@ impl CommandService {
 
     pub async fn run_spec_tasks(state: &AppState) -> Result<String, String> {
         Self::emit_step_start(state, "Generate Tasks");
-        Self::emit_log(state, "Generating implementation tasks from specification...");
+        Self::emit_log(
+            state,
+            "Generating implementation tasks from specification...",
+        );
 
         // Update mode to planning
         {
@@ -391,17 +408,17 @@ impl CommandService {
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
         // Build the command
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe =
+            std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
         let args = vec!["spec", "tasks", "--json"];
 
-        Self::emit_log(state, &format!("Running: {} {}", exe.display(), args.join(" ")));
+        Self::emit_log(
+            state,
+            &format!("Running: {} {}", exe.display(), args.join(" ")),
+        );
 
-        let output = Command::new(&exe)
-            .args(&args)
-            .current_dir(&cwd)
-            .output();
+        let output = Command::new(&exe).args(&args).current_dir(&cwd).output();
 
         // Reset mode
         {
@@ -442,15 +459,24 @@ impl CommandService {
                     Ok("Tasks generated".to_string())
                 } else {
                     // Try to get error message from JSON output
-                    let error_msg = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                        json.get("error")
-                            .and_then(|v| v.as_str())
-                            .filter(|s| !s.is_empty())
-                            .map(|s| s.to_string())
-                            .unwrap_or_else(|| format!("spec tasks failed with exit code: {:?}", result.status.code()))
-                    } else {
-                        format!("spec tasks failed with exit code: {:?}", result.status.code())
-                    };
+                    let error_msg =
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                            json.get("error")
+                                .and_then(|v| v.as_str())
+                                .filter(|s| !s.is_empty())
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| {
+                                    format!(
+                                        "spec tasks failed with exit code: {:?}",
+                                        result.status.code()
+                                    )
+                                })
+                        } else {
+                            format!(
+                                "spec tasks failed with exit code: {:?}",
+                                result.status.code()
+                            )
+                        };
                     Self::emit_error(state, &error_msg);
                     Self::emit_step_end(state, "Generate Tasks", "failed");
                     Err(error_msg)
@@ -483,8 +509,8 @@ impl CommandService {
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
         // Build the command
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe =
+            std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
         let cmd_str = format!("{} plan", exe.display());
         Self::emit_log(state, &format!("Running: {}", cmd_str));
@@ -511,7 +537,7 @@ impl CommandService {
         // Stream stdout
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
-        
+
         let state_stdout = state.clone();
         let state_stderr = state.clone();
 
@@ -598,8 +624,8 @@ impl CommandService {
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
         // Build the command
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe =
+            std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
         let cmd_str = format!("{} run", exe.display());
         Self::emit_log(state, &format!("Running: {}", cmd_str));
@@ -626,7 +652,7 @@ impl CommandService {
         // Stream stdout
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
-        
+
         let state_stdout = state.clone();
         let state_stderr = state.clone();
 
@@ -714,11 +740,11 @@ impl CommandService {
         let cwd = std::env::current_dir()
             .map_err(|e| format!("Failed to get current directory: {}", e))?;
 
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe =
+            std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
         let mut args = vec!["diff", "--json"];
-        
+
         if let Some(b) = base {
             args.push("--base");
             args.push(b);
@@ -733,12 +759,12 @@ impl CommandService {
             args.push("--summary");
         }
 
-        Self::emit_log(state, &format!("Running: {} {}", exe.display(), args.join(" ")));
+        Self::emit_log(
+            state,
+            &format!("Running: {} {}", exe.display(), args.join(" ")),
+        );
 
-        let output = Command::new(&exe)
-            .args(&args)
-            .current_dir(&cwd)
-            .output();
+        let output = Command::new(&exe).args(&args).current_dir(&cwd).output();
 
         match output {
             Ok(result) => {
@@ -756,15 +782,27 @@ impl CommandService {
                         // Log diff summary
                         if let Some(current) = json.get("current_branch").and_then(|v| v.as_str()) {
                             if let Some(base) = json.get("base_branch").and_then(|v| v.as_str()) {
-                                Self::emit_log(state, &format!("Comparing: {} → {}", base, current));
+                                Self::emit_log(
+                                    state,
+                                    &format!("Comparing: {} → {}", base, current),
+                                );
                             }
                         }
 
                         // Log statistics
-                        let files_changed = json.get("files_changed").and_then(|v| v.as_u64()).unwrap_or(0);
-                        let lines_added = json.get("lines_added").and_then(|v| v.as_u64()).unwrap_or(0);
-                        let lines_removed = json.get("lines_removed").and_then(|v| v.as_u64()).unwrap_or(0);
-                        
+                        let files_changed = json
+                            .get("files_changed")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
+                        let lines_added = json
+                            .get("lines_added")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
+                        let lines_removed = json
+                            .get("lines_removed")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
+
                         Self::emit_log(state, "");
                         Self::emit_log(state, "📊 Diff Summary:");
                         Self::emit_log(state, &format!("   {} files changed", files_changed));
@@ -777,21 +815,41 @@ impl CommandService {
                                 Self::emit_log(state, "");
                                 Self::emit_log(state, "📁 Changed Files:");
                                 for file in files.iter().take(20) {
-                                    if let Some(filename) = file.get("file").and_then(|v| v.as_str()) {
-                                        let status = file.get("status").and_then(|v| v.as_str()).unwrap_or("modified");
-                                        let ins = file.get("insertions").and_then(|v| v.as_u64()).unwrap_or(0);
-                                        let del = file.get("deletions").and_then(|v| v.as_u64()).unwrap_or(0);
+                                    if let Some(filename) =
+                                        file.get("file").and_then(|v| v.as_str())
+                                    {
+                                        let status = file
+                                            .get("status")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("modified");
+                                        let ins = file
+                                            .get("insertions")
+                                            .and_then(|v| v.as_u64())
+                                            .unwrap_or(0);
+                                        let del = file
+                                            .get("deletions")
+                                            .and_then(|v| v.as_u64())
+                                            .unwrap_or(0);
                                         let icon = match status {
                                             "added" => "+",
                                             "deleted" => "-",
                                             "renamed" => "→",
                                             _ => "~",
                                         };
-                                        Self::emit_log(state, &format!("   {} {} (+{}/-{})", icon, filename, ins, del));
+                                        Self::emit_log(
+                                            state,
+                                            &format!(
+                                                "   {} {} (+{}/-{})",
+                                                icon, filename, ins, del
+                                            ),
+                                        );
                                     }
                                 }
                                 if files.len() > 20 {
-                                    Self::emit_log(state, &format!("   ... and {} more files", files.len() - 20));
+                                    Self::emit_log(
+                                        state,
+                                        &format!("   ... and {} more files", files.len() - 20),
+                                    );
                                 }
                             }
                         }
@@ -806,7 +864,8 @@ impl CommandService {
                         Ok(serde_json::json!({ "output": stdout.to_string() }))
                     }
                 } else {
-                    let error_msg = format!("diff failed with exit code: {:?}", result.status.code());
+                    let error_msg =
+                        format!("diff failed with exit code: {:?}", result.status.code());
                     Self::emit_error(state, &error_msg);
                     Self::emit_step_end(state, "View Diff", "failed");
                     Err(error_msg)
@@ -840,11 +899,11 @@ impl CommandService {
         let cwd = std::env::current_dir()
             .map_err(|e| format!("Failed to get current directory: {}", e))?;
 
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe =
+            std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
         let mut args = vec!["verify", "--json"];
-        
+
         if lint {
             args.push("--lint");
         }
@@ -858,7 +917,10 @@ impl CommandService {
             args.push("--fix");
         }
 
-        Self::emit_log(state, &format!("Running: {} {}", exe.display(), args.join(" ")));
+        Self::emit_log(
+            state,
+            &format!("Running: {} {}", exe.display(), args.join(" ")),
+        );
 
         // Use streaming for verify as it can take a while
         let mut child = tokio::process::Command::new(&exe)
@@ -924,16 +986,28 @@ impl CommandService {
                     // Log detailed check results
                     Self::emit_log(state, "");
                     Self::emit_log(state, "🔍 Verification Results:");
-                    
+
                     if let Some(checks) = json.get("checks").and_then(|v| v.as_array()) {
                         for check in checks {
-                            let name = check.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown");
-                            let passed = check.get("passed").and_then(|v| v.as_bool()).unwrap_or(false);
-                            let duration = check.get("duration_ms").and_then(|v| v.as_u64()).unwrap_or(0);
-                            
+                            let name = check
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("Unknown");
+                            let passed = check
+                                .get("passed")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false);
+                            let duration = check
+                                .get("duration_ms")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0);
+
                             let icon = if passed { "✅" } else { "❌" };
-                            Self::emit_log(state, &format!("   {} {} ({}ms)", icon, name, duration));
-                            
+                            Self::emit_log(
+                                state,
+                                &format!("   {} {} ({}ms)", icon, name, duration),
+                            );
+
                             // Log error details if check failed
                             if !passed {
                                 if let Some(error) = check.get("error").and_then(|v| v.as_str()) {
@@ -947,7 +1021,13 @@ impl CommandService {
                                     }
                                     let total_lines = error.lines().count();
                                     if total_lines > 10 {
-                                        Self::emit_log(state, &format!("         ... and {} more lines", total_lines - 10));
+                                        Self::emit_log(
+                                            state,
+                                            &format!(
+                                                "         ... and {} more lines",
+                                                total_lines - 10
+                                            ),
+                                        );
                                     }
                                 }
                             }
@@ -958,14 +1038,23 @@ impl CommandService {
                     if let Some(summary) = json.get("summary") {
                         let passed = summary.get("passed").and_then(|v| v.as_u64()).unwrap_or(0);
                         let failed = summary.get("failed").and_then(|v| v.as_u64()).unwrap_or(0);
-                        let duration = json.get("total_duration_ms").and_then(|v| v.as_u64()).unwrap_or(0);
-                        
+                        let duration = json
+                            .get("total_duration_ms")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
+
                         Self::emit_log(state, "");
-                        Self::emit_log(state, &format!("📊 Summary: {} passed, {} failed ({}ms total)", passed, failed, duration));
+                        Self::emit_log(
+                            state,
+                            &format!(
+                                "📊 Summary: {} passed, {} failed ({}ms total)",
+                                passed, failed, duration
+                            ),
+                        );
                     }
 
                     Self::emit_log(state, "");
-                    
+
                     if exit_status.success() {
                         Self::emit_success(state, "All checks passed");
                         Self::emit_step_end(state, "Verify Code", "success");
@@ -1007,11 +1096,11 @@ impl CommandService {
         let cwd = std::env::current_dir()
             .map_err(|e| format!("Failed to get current directory: {}", e))?;
 
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe =
+            std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
         let mut args = vec!["promote", "--json"];
-        
+
         if let Some(b) = base {
             args.push("--base");
             args.push(b);
@@ -1023,12 +1112,12 @@ impl CommandService {
             args.push("--push");
         }
 
-        Self::emit_log(state, &format!("Running: {} {}", exe.display(), args.join(" ")));
+        Self::emit_log(
+            state,
+            &format!("Running: {} {}", exe.display(), args.join(" ")),
+        );
 
-        let output = Command::new(&exe)
-            .args(&args)
-            .current_dir(&cwd)
-            .output();
+        let output = Command::new(&exe).args(&args).current_dir(&cwd).output();
 
         match output {
             Ok(result) => {
@@ -1056,7 +1145,10 @@ impl CommandService {
                         }
                         Self::emit_step_end(state, "Create Pull Request", "success");
                     } else {
-                        let msg = json.get("message").and_then(|v| v.as_str()).unwrap_or("Failed");
+                        let msg = json
+                            .get("message")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Failed");
                         Self::emit_error(state, msg);
                         Self::emit_step_end(state, "Create Pull Request", "failed");
                     }
@@ -1067,7 +1159,8 @@ impl CommandService {
                         Self::emit_step_end(state, "Create Pull Request", "success");
                         Ok(serde_json::json!({ "success": true }))
                     } else {
-                        let error_msg = format!("promote failed with exit code: {:?}", result.status.code());
+                        let error_msg =
+                            format!("promote failed with exit code: {:?}", result.status.code());
                         Self::emit_error(state, &error_msg);
                         Self::emit_step_end(state, "Create Pull Request", "failed");
                         Err(error_msg)
@@ -1103,11 +1196,11 @@ impl CommandService {
         let cwd = std::env::current_dir()
             .map_err(|e| format!("Failed to get current directory: {}", e))?;
 
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe =
+            std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
 
         let mut args = vec!["fix", "--json"];
-        
+
         if lint {
             args.push("--lint");
         }
@@ -1120,7 +1213,7 @@ impl CommandService {
         if check {
             args.push("--check");
         }
-        
+
         // Store the error string so it lives long enough
         let error_string;
         if let Some(e) = error {
@@ -1129,7 +1222,10 @@ impl CommandService {
             args.push(&error_string);
         }
 
-        Self::emit_log(state, &format!("Running: {} {}", exe.display(), args.join(" ")));
+        Self::emit_log(
+            state,
+            &format!("Running: {} {}", exe.display(), args.join(" ")),
+        );
 
         // Use streaming for fix as it can take a while (Claude interaction)
         let mut child = tokio::process::Command::new(&exe)
@@ -1212,11 +1308,20 @@ impl CommandService {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout_content) {
                     // Log results
                     Self::emit_log(state, "");
-                    
-                    let success = json.get("success").and_then(|v| v.as_bool()).unwrap_or(false);
-                    let fixes = json.get("fixes_applied").and_then(|v| v.as_u64()).unwrap_or(0);
-                    let remaining = json.get("errors_remaining").and_then(|v| v.as_u64()).unwrap_or(0);
-                    
+
+                    let success = json
+                        .get("success")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+                    let fixes = json
+                        .get("fixes_applied")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+                    let remaining = json
+                        .get("errors_remaining")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+
                     if success {
                         Self::emit_log(state, &format!("✅ {} fix(es) applied", fixes));
                         if remaining > 0 {
@@ -1230,7 +1335,7 @@ impl CommandService {
                         }
                         Self::emit_step_end(state, "Fix with AI", "failed");
                     }
-                    
+
                     Ok(json)
                 } else {
                     if exit_status.success() {
@@ -1257,10 +1362,10 @@ impl CommandService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{AppState, SystemStatus};
     use crate::hub::Hub;
-    use std::sync::Arc;
+    use crate::state::{AppState, SystemStatus};
     use std::path::PathBuf;
+    use std::sync::Arc;
     use tokio::sync::RwLock;
 
     #[tokio::test]
@@ -1270,7 +1375,7 @@ mod tests {
             hub: Arc::new(Hub::new()),
             project_root: PathBuf::from("/tmp"),
         };
-        
+
         // This test may fail if not in a git repo, but that's expected
         let _result = CommandService::run_init(&state).await;
         // Just verify it doesn't panic

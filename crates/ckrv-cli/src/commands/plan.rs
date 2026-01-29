@@ -5,14 +5,14 @@
 
 use std::path::PathBuf;
 
-use clap::Args;
 use anyhow::Context;
+use clap::Args;
 
 use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox};
 
-use crate::ui::UiContext;
-use crate::ui::Renderable;
 use crate::ui::components::Banner;
+use crate::ui::Renderable;
+use crate::ui::UiContext;
 
 /// Arguments for the plan command.
 #[derive(Args)]
@@ -29,7 +29,7 @@ pub struct PlanArgs {
 /// Execute the plan command.
 pub async fn execute(args: PlanArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    
+
     // Determine spec directory
     let spec_dir = if let Some(ref spec) = args.spec {
         if spec.is_absolute() {
@@ -44,27 +44,33 @@ pub async fn execute(args: PlanArgs, json: bool, ui: &UiContext) -> anyhow::Resu
             .current_dir(&cwd)
             .output()
             .context("Failed to get current branch")?;
-        
-        let branch_name = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
-        
+
+        let branch_name = String::from_utf8_lossy(&branch_output.stdout)
+            .trim()
+            .to_string();
+
         if branch_name.is_empty() {
             anyhow::bail!("No spec provided and could not detect branch name.");
         }
-        
+
         let specs_dir = cwd.join(".specs");
         let spec_dir = specs_dir.join(&branch_name);
-        
+
         if !spec_dir.exists() {
             anyhow::bail!(
                 "No spec found at .specs/{}/\nEither provide a spec path or checkout a branch matching a spec directory.",
                 branch_name
             );
         }
-        
+
         if !json {
-            println!("Auto-detected spec from branch '{}': {}", branch_name, spec_dir.display());
+            println!(
+                "Auto-detected spec from branch '{}': {}",
+                branch_name,
+                spec_dir.display()
+            );
         }
-        
+
         spec_dir
     };
 
@@ -73,11 +79,19 @@ pub async fn execute(args: PlanArgs, json: bool, ui: &UiContext) -> anyhow::Resu
     let spec_path = spec_dir.join("spec.yaml");
 
     if !tasks_path.exists() {
-        anyhow::bail!("No tasks.yaml found at {}\nRun `ckrv spec tasks` first.", tasks_path.display());
+        anyhow::bail!(
+            "No tasks.yaml found at {}\nRun `ckrv spec tasks` first.",
+            tasks_path.display()
+        );
     }
 
     if !json {
-        println!("{}", Banner::new("CKRV PLAN").subtitle(spec_dir.display().to_string()).render(&ui.theme));
+        println!(
+            "{}",
+            Banner::new("CKRV PLAN")
+                .subtitle(spec_dir.display().to_string())
+                .render(&ui.theme)
+        );
         println!();
     }
 
@@ -92,7 +106,7 @@ pub async fn execute(args: PlanArgs, json: bool, ui: &UiContext) -> anyhow::Resu
 
     // Read tasks
     let tasks_content = std::fs::read_to_string(&tasks_path)?;
-    
+
     // Read spec for context
     let spec_content = if spec_path.exists() {
         std::fs::read_to_string(&spec_path).unwrap_or_default()
@@ -121,7 +135,8 @@ pub async fn execute(args: PlanArgs, json: bool, ui: &UiContext) -> anyhow::Resu
 
 /// Build the planning prompt from tasks and spec
 fn build_planning_prompt(tasks_yaml: &str, spec_yaml: &str) -> String {
-    format!(r#"You are an expert software architect. Analyze these development tasks and create an execution plan.
+    format!(
+        r#"You are an expert software architect. Analyze these development tasks and create an execution plan.
 
 ## CONTEXT
 {spec_yaml}
@@ -169,17 +184,26 @@ batches:
 ```
 
 IMPORTANT: Save your output as `plan.yaml` in the current directory.
-"#, spec_yaml = spec_yaml, tasks_yaml = tasks_yaml)
+"#,
+        spec_yaml = spec_yaml,
+        tasks_yaml = tasks_yaml
+    )
 }
 
 /// Execute planning using Docker sandbox with Claude Code
-async fn execute_planning_docker(spec_dir: &PathBuf, prompt: &str, json: bool) -> anyhow::Result<()> {
+async fn execute_planning_docker(
+    spec_dir: &PathBuf,
+    prompt: &str,
+    json: bool,
+) -> anyhow::Result<()> {
     // Create Docker sandbox
     let sandbox = DockerSandbox::with_defaults()
         .context("Docker is required but not available. Please install and start Docker.")?;
-    
+
     // Health check
-    sandbox.health_check().await
+    sandbox
+        .health_check()
+        .await
         .context("Docker daemon not responding. Ensure Docker is running.")?;
 
     if !json {
@@ -190,7 +214,7 @@ async fn execute_planning_docker(spec_dir: &PathBuf, prompt: &str, json: bool) -
     let home = std::env::var("HOME").unwrap_or_default();
     let claude_dir = format!("{}/.claude", home);
     let claude_json = format!("{}/.claude.json", home);
-    
+
     if !std::path::Path::new(&claude_dir).exists() && !std::path::Path::new(&claude_json).exists() {
         anyhow::bail!(
             "Claude Code credentials not found.\n\
@@ -205,7 +229,7 @@ async fn execute_planning_docker(spec_dir: &PathBuf, prompt: &str, json: bool) -
 
     // Escape the prompt for shell
     let escaped_prompt = prompt.replace("'", "'\\''");
-    
+
     // Build Claude command - use --print for non-interactive mode
     // --dangerously-skip-permissions allows file writes without prompting
     let claude_cmd = format!(
@@ -224,7 +248,9 @@ async fn execute_planning_docker(spec_dir: &PathBuf, prompt: &str, json: bool) -
     }
 
     // Execute
-    let result = sandbox.execute(config).await
+    let result = sandbox
+        .execute(config)
+        .await
         .context("Planning execution failed")?;
 
     // Log output

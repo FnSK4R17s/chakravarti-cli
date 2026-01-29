@@ -104,7 +104,7 @@ impl DockerClient {
 
         // Mount Claude credentials if they exist
         let host_home = std::env::var("HOME").unwrap_or_default();
-        
+
         // Use /home/claude as the container home directory (writable by any user)
         let container_home = "/home/claude".to_string();
         env_vec.push(format!("HOME={}", container_home));
@@ -205,7 +205,7 @@ impl DockerClient {
             .start_container(&container.id, None::<StartContainerOptions<String>>)
             .await
             .map_err(|e| SandboxError::ContainerStartFailed(e.to_string()))?;
-        
+
         let start_time = std::time::Instant::now();
 
         // Get logs with following enabled for real-time streaming
@@ -222,22 +222,22 @@ impl DockerClient {
         // Spawn a task to wait for the container exit code independently
         let client_clone = self.client.clone();
         let container_id_clone = container.id.clone();
-        
+
         let wait_handle = tokio::spawn(async move {
             let wait_options = Some(WaitContainerOptions {
-                 condition: "not-running",
+                condition: "not-running",
             });
             let mut stream = client_clone.wait_container(&container_id_clone, wait_options);
             if let Some(Ok(response)) = stream.next().await {
-                 response.status_code
+                response.status_code
             } else {
-                 -1
+                -1
             }
         });
 
         // Stream logs in the main task
         let mut log_stream = self.client.logs(&container.id, log_options);
-        
+
         // Use a timeout for the *entire* execution, not just wait
         let log_collection = async {
             // Import Write trait for flush
@@ -263,18 +263,24 @@ impl DockerClient {
 
         // Run log collection with timeout
         if let Err(_) = tokio::time::timeout(timeout, log_collection).await {
-             // Timeout occurred
-             let _ = self.client.kill_container::<String>(&container.id, None).await;
+            // Timeout occurred
+            let _ = self
+                .client
+                .kill_container::<String>(&container.id, None)
+                .await;
         }
-        
+
         // Now wait for the exit code (it should be ready or close to ready)
         // We wrap this in a short timeout just in case
         let exit_code = match tokio::time::timeout(Duration::from_secs(5), wait_handle).await {
             Ok(Ok(code)) => code,
             _ => {
-                 // Force kill if still running after log stream ended/timeout
-                 let _ = self.client.kill_container::<String>(&container.id, None).await;
-                 -1
+                // Force kill if still running after log stream ended/timeout
+                let _ = self
+                    .client
+                    .kill_container::<String>(&container.id, None)
+                    .await;
+                -1
             }
         };
 
@@ -308,7 +314,7 @@ impl DockerClient {
     }
 
     /// Execute a command in a container with real-time log streaming.
-    /// 
+    ///
     /// Unlike `execute()`, this method calls `on_log` for each line of output
     /// as it arrives, enabling real-time streaming to the UI.
     pub async fn execute_streaming<F>(
@@ -337,24 +343,32 @@ impl DockerClient {
         );
 
         // Convert env to Docker format
-        let mut env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
+        let mut env_vec: Vec<String> = env.iter().map(|(k, v)| format!("{k}={v}")).collect();
 
-        // Mount Claude credentials if they exist
+        // Mount credentials if they exist
         let host_home = std::env::var("HOME").unwrap_or_default();
-        let container_home = "/home/claude".to_string();
-        env_vec.push(format!("HOME={}", container_home));
 
-        // Create mounts: workspace + Claude credentials
-        let mut mounts = vec![
-            Mount {
-                target: Some(mount_target.to_string()),
-                source: Some(mount_source.to_string()),
-                typ: Some(MountTypeEnum::BIND),
-                read_only: Some(false),
-                ..Default::default()
-            },
-        ];
+        // Use HOME from passed env, or default to /home/claude
+        let container_home = env
+            .get("HOME")
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "/home/claude".to_string());
 
+        // Only add HOME if not already in env
+        if !env.contains_key("HOME") {
+            env_vec.push(format!("HOME={}", container_home));
+        }
+
+        // Create mounts: workspace + credentials
+        let mut mounts = vec![Mount {
+            target: Some(mount_target.to_string()),
+            source: Some(mount_source.to_string()),
+            typ: Some(MountTypeEnum::BIND),
+            read_only: Some(false),
+            ..Default::default()
+        }];
+
+        // Mount Claude credentials (~/.claude.json and ~/.claude)
         let claude_config = format!("{}/.claude.json", host_home);
         if std::path::Path::new(&claude_config).exists() {
             mounts.push(Mount {
@@ -371,6 +385,18 @@ impl DockerClient {
             mounts.push(Mount {
                 target: Some(format!("{}/.claude", container_home)),
                 source: Some(claude_dir),
+                typ: Some(MountTypeEnum::BIND),
+                read_only: Some(false),
+                ..Default::default()
+            });
+        }
+
+        // Mount Codex credentials (~/.codex) if running Codex
+        let codex_dir = format!("{}/.codex", host_home);
+        if std::path::Path::new(&codex_dir).exists() {
+            mounts.push(Mount {
+                target: Some(format!("{}/.codex", container_home)),
+                source: Some(codex_dir),
                 typ: Some(MountTypeEnum::BIND),
                 read_only: Some(false),
                 ..Default::default()
@@ -425,7 +451,7 @@ impl DockerClient {
             .start_container(&container.id, None::<StartContainerOptions<String>>)
             .await
             .map_err(|e| SandboxError::ContainerStartFailed(e.to_string()))?;
-        
+
         let start_time = std::time::Instant::now();
 
         let log_options = Some(LogsOptions::<String> {
@@ -440,21 +466,21 @@ impl DockerClient {
 
         let client_clone = self.client.clone();
         let container_id_clone = container.id.clone();
-        
+
         let wait_handle = tokio::spawn(async move {
             let wait_options = Some(WaitContainerOptions {
-                 condition: "not-running",
+                condition: "not-running",
             });
             let mut stream = client_clone.wait_container(&container_id_clone, wait_options);
             if let Some(Ok(response)) = stream.next().await {
-                 response.status_code
+                response.status_code
             } else {
-                 -1
+                -1
             }
         });
 
         let mut log_stream = self.client.logs(&container.id, log_options);
-        
+
         let log_collection = async {
             while let Some(Ok(log)) = log_stream.next().await {
                 match log {
@@ -478,13 +504,19 @@ impl DockerClient {
         };
 
         if tokio::time::timeout(timeout, log_collection).await.is_err() {
-            let _ = self.client.kill_container::<String>(&container.id, None).await;
+            let _ = self
+                .client
+                .kill_container::<String>(&container.id, None)
+                .await;
         }
-        
+
         let exit_code = match tokio::time::timeout(Duration::from_secs(5), wait_handle).await {
             Ok(Ok(code)) => code,
             _ => {
-                let _ = self.client.kill_container::<String>(&container.id, None).await;
+                let _ = self
+                    .client
+                    .kill_container::<String>(&container.id, None)
+                    .await;
                 -1
             }
         };
@@ -498,7 +530,10 @@ impl DockerClient {
                 force: true,
                 ..Default::default()
             });
-            let _ = self.client.remove_container(&container.id, remove_options).await;
+            let _ = self
+                .client
+                .remove_container(&container.id, remove_options)
+                .await;
         }
 
         Ok(ExecutionOutput {
@@ -526,19 +561,17 @@ impl DockerClient {
         let container_home = "/home/claude".to_string();
         env_vec.push(format!("HOME={}", container_home));
 
-        let mut mounts = vec![
-            Mount {
-                target: Some(mount_target.to_string()),
-                source: Some(mount_source.to_string()),
-                typ: Some(MountTypeEnum::BIND),
-                read_only: Some(false),
-                ..Default::default()
-            },
-        ];
+        let mut mounts = vec![Mount {
+            target: Some(mount_target.to_string()),
+            source: Some(mount_source.to_string()),
+            typ: Some(MountTypeEnum::BIND),
+            read_only: Some(false),
+            ..Default::default()
+        }];
 
         let claude_config = format!("{}/.claude.json", host_home);
         if std::path::Path::new(&claude_config).exists() {
-             mounts.push(Mount {
+            mounts.push(Mount {
                 target: Some(format!("{}/.claude.json", container_home)),
                 source: Some(claude_config),
                 typ: Some(MountTypeEnum::BIND),
@@ -559,7 +592,11 @@ impl DockerClient {
 
         let config = Config {
             image: Some(image.to_string()),
-            cmd: Some(vec!["tail".to_string(), "-f".to_string(), "/dev/null".to_string()]), 
+            cmd: Some(vec![
+                "tail".to_string(),
+                "-f".to_string(),
+                "/dev/null".to_string(),
+            ]),
             working_dir: Some(workdir.to_string()),
             env: Some(env_vec),
             host_config: Some(HostConfig {
@@ -575,10 +612,15 @@ impl DockerClient {
             platform: None,
         });
 
-        let container = self.client.create_container(options, config).await
+        let container = self
+            .client
+            .create_container(options, config)
+            .await
             .map_err(|e| SandboxError::ContainerCreateFailed(e.to_string()))?;
-        
-        self.client.start_container(&container.id, None::<StartContainerOptions<String>>).await
+
+        self.client
+            .start_container(&container.id, None::<StartContainerOptions<String>>)
+            .await
             .map_err(|e| SandboxError::ContainerStartFailed(e.to_string()))?;
 
         Ok(container.id)
@@ -601,10 +643,16 @@ impl DockerClient {
             ..Default::default()
         };
 
-        let exec = self.client.create_exec(container_id, exec_config).await
+        let exec = self
+            .client
+            .create_exec(container_id, exec_config)
+            .await
             .map_err(|e| SandboxError::ExecutionFailed(format!("Create exec failed: {}", e)))?;
 
-        let stream = self.client.start_exec(&exec.id, None).await
+        let stream = self
+            .client
+            .start_exec(&exec.id, None)
+            .await
             .map_err(|e| SandboxError::ExecutionFailed(format!("Start exec failed: {}", e)))?;
 
         let mut stdout = String::new();
@@ -612,20 +660,28 @@ impl DockerClient {
 
         // With TTY enabled, both stdout and stderr come through the same stream
         if let StartExecResults::Attached { mut output, .. } = stream {
-             while let Some(Ok(msg)) = output.next().await {
+            while let Some(Ok(msg)) = output.next().await {
                 match msg {
-                    LogOutput::StdOut { message } => stdout.push_str(&String::from_utf8_lossy(&message)),
-                    LogOutput::StdErr { message } => stdout.push_str(&String::from_utf8_lossy(&message)),
-                    LogOutput::Console { message } => stdout.push_str(&String::from_utf8_lossy(&message)),
+                    LogOutput::StdOut { message } => {
+                        stdout.push_str(&String::from_utf8_lossy(&message))
+                    }
+                    LogOutput::StdErr { message } => {
+                        stdout.push_str(&String::from_utf8_lossy(&message))
+                    }
+                    LogOutput::Console { message } => {
+                        stdout.push_str(&String::from_utf8_lossy(&message))
+                    }
                     _ => {}
                 }
-             }
+            }
         }
 
         let duration = start_time.elapsed();
-        
-        let inspect = self.client.inspect_exec(&exec.id).await
-             .map_err(|e| SandboxError::ExecutionFailed(format!("Inspect exec failed: {}", e)))?;
+
+        let inspect =
+            self.client.inspect_exec(&exec.id).await.map_err(|e| {
+                SandboxError::ExecutionFailed(format!("Inspect exec failed: {}", e))
+            })?;
 
         Ok(ExecutionOutput {
             exit_code: inspect.exit_code.unwrap_or(-1) as i32,
@@ -637,8 +693,18 @@ impl DockerClient {
 
     /// Stop and remove a session container.
     pub async fn stop_session(&self, container_id: &str) -> Result<(), SandboxError> {
-        self.client.remove_container(container_id, Some(RemoveContainerOptions { force: true, ..Default::default() })).await
-            .map_err(|e| SandboxError::ExecutionFailed(format!("Failed to remove session: {}", e)))?;
+        self.client
+            .remove_container(
+                container_id,
+                Some(RemoveContainerOptions {
+                    force: true,
+                    ..Default::default()
+                }),
+            )
+            .await
+            .map_err(|e| {
+                SandboxError::ExecutionFailed(format!("Failed to remove session: {}", e))
+            })?;
         Ok(())
     }
 }

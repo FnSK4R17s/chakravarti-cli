@@ -10,8 +10,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::models::history::{HistoryBatchStatus, Run, RunSummary};
 use crate::services::history::HistoryService;
-use crate::models::history::{Run, RunSummary, HistoryBatchStatus};
 use crate::state::AppState;
 
 // ============================================================================
@@ -155,7 +155,7 @@ pub async fn list_runs(
     Query(query): Query<HistoryListQuery>,
 ) -> impl IntoResponse {
     let service = HistoryService::new(&state.project_root);
-    
+
     // Check if spec exists
     if !service.spec_exists(&spec) {
         return (
@@ -169,18 +169,18 @@ pub async fn list_runs(
             }),
         );
     }
-    
+
     match service.load_history(&spec) {
         Ok(history) => {
             let mut runs: Vec<&Run> = history.runs.iter().collect();
-            
+
             // Filter by status if provided
             if let Some(ref status_filter) = query.status {
                 runs.retain(|r| format!("{:?}", r.status).to_lowercase() == *status_filter);
             }
-            
+
             let total_count = runs.len();
-            
+
             // Paginate
             let start = query.offset.min(runs.len());
             let end = (start + query.limit).min(runs.len());
@@ -188,7 +188,7 @@ pub async fn list_runs(
                 .iter()
                 .map(|r| RunListItem::from(*r))
                 .collect();
-            
+
             (
                 StatusCode::OK,
                 Json(HistoryListResponse {
@@ -220,7 +220,7 @@ pub async fn get_run(
     Path((spec, run_id)): Path<(String, String)>,
 ) -> impl IntoResponse {
     let service = HistoryService::new(&state.project_root);
-    
+
     match service.get_run(&spec, &run_id) {
         Ok(Some(run)) => (
             StatusCode::OK,
@@ -257,7 +257,7 @@ pub async fn create_run(
     Json(request): Json<CreateRunRequest>,
 ) -> impl IntoResponse {
     let service = HistoryService::new(&state.project_root);
-    
+
     // Check if spec exists
     if !service.spec_exists(&spec) {
         return (
@@ -272,12 +272,13 @@ pub async fn create_run(
             }),
         );
     }
-    
-    let batches: Vec<(String, String)> = request.batches
+
+    let batches: Vec<(String, String)> = request
+        .batches
         .into_iter()
         .map(|b| (b.id, b.name))
         .collect();
-    
+
     match service.create_run(&spec, &request.run_id, batches, request.dry_run) {
         Ok(run) => (
             StatusCode::CREATED,
@@ -331,7 +332,7 @@ pub async fn update_run(
     Json(request): Json<UpdateRunRequest>,
 ) -> impl IntoResponse {
     let service = HistoryService::new(&state.project_root);
-    
+
     // Handle batch update
     if let Some(batch_update) = request.batch_update {
         let status = match batch_update.status.as_str() {
@@ -340,7 +341,7 @@ pub async fn update_run(
             "failed" => HistoryBatchStatus::Failed,
             _ => HistoryBatchStatus::Pending,
         };
-        
+
         match service.update_batch_status(
             &spec,
             &run_id,
@@ -371,12 +372,16 @@ pub async fn update_run(
             }
         }
     }
-    
+
     // Handle run status update
     if let Some(ref status) = request.status {
         let result = match status.as_str() {
             "completed" => service.complete_run(&spec, &run_id),
-            "failed" => service.fail_run(&spec, &run_id, request.error.as_deref().unwrap_or("Unknown error")),
+            "failed" => service.fail_run(
+                &spec,
+                &run_id,
+                request.error.as_deref().unwrap_or("Unknown error"),
+            ),
             "aborted" => service.abort_run(&spec, &run_id),
             _ => {
                 return (
@@ -389,7 +394,7 @@ pub async fn update_run(
                 );
             }
         };
-        
+
         match result {
             Ok(_) => (
                 StatusCode::OK,
@@ -427,7 +432,7 @@ pub async fn delete_run(
     Path((spec, run_id)): Path<(String, String)>,
 ) -> impl IntoResponse {
     let service = HistoryService::new(&state.project_root);
-    
+
     match service.delete_run(&spec, &run_id) {
         Ok(_) => (
             StatusCode::OK,
@@ -446,7 +451,7 @@ pub async fn delete_run(
             } else {
                 StatusCode::INTERNAL_SERVER_ERROR
             };
-            
+
             (
                 status,
                 Json(DeleteRunResponse {

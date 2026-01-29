@@ -141,13 +141,18 @@ impl DockerSandbox {
         Self::new(crate::allowlist::DefaultAllowList::default())
     }
 
+    /// Set the Docker image to use.
+    pub fn set_image(&mut self, image: impl Into<String>) {
+        self.client.set_image(image);
+    }
+
     /// Get reference to inner Docker client.
     pub fn inner_client(&self) -> &DockerClient {
         &self.client
     }
 
     /// Execute a command with real-time log streaming.
-    /// 
+    ///
     /// Unlike `execute()`, this method calls `on_log` for each line of output
     /// as it arrives, enabling real-time streaming to the UI.
     pub async fn execute_streaming<F>(
