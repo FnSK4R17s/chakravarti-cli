@@ -1,5 +1,5 @@
 ---
-last_commit: e74f093
+last_commit: 5160ff1
 last_updated: 2026-01-29
 related_files:
   - Cargo.toml

@@ -1,5 +1,5 @@
 ---
-last_commit: e74f093
+last_commit: 5160ff1
 last_updated: 2026-01-29
 related_files:
   - src/lib.rs
@@ -145,6 +145,42 @@ for step in result.step_results {
     println!("{}: {:?}", step.step_id, step.status);
 }
 ```
+
+### RunnerConfig
+
+The `RunnerConfig` struct configures workflow execution:
+
+```rust
+use ckrv_core::RunnerConfig;
+
+let config = RunnerConfig {
+    agent_binary: "claude".to_string(),
+    use_sandbox: true,           // Use Docker sandbox (recommended)
+    keep_container: false,       // Keep container after execution
+    
+    // OpenRouter configuration
+    openrouter_api_key: Some("sk-or-...".to_string()),
+    openrouter_model: Some("provider/model".to_string()),
+    openrouter_base_url: None,   // Defaults to https://openrouter.ai/api
+    
+    // GLM Coding Plan configuration
+    glm_api_key: Some("your-zai-key".to_string()),
+    glm_model: Some("glm-4.7".to_string()),
+    glm_timeout_ms: Some(3_000_000),  // 50 minutes
+    
+    ..Default::default()
+};
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agent_binary` | `String` | CLI binary name (usually "claude") |
+| `use_sandbox` | `bool` | Run in Docker sandbox |
+| `openrouter_api_key` | `Option<String>` | OpenRouter API key |
+| `openrouter_model` | `Option<String>` | OpenRouter model ID |
+| `glm_api_key` | `Option<String>` | Z.AI GLM API key |
+| `glm_model` | `Option<String>` | GLM model ID (e.g., "glm-4.7") |
+| `glm_timeout_ms` | `Option<u32>` | Timeout in ms (default: 3,000,000) |
 
 ## Traits
 

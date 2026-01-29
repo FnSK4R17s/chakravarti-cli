@@ -1,11 +1,12 @@
 ---
-last_commit: e74f093
+last_commit: 5160ff1
 last_updated: 2026-01-29
 related_files:
   - src/main.rs
   - src/commands/mod.rs
   - src/commands/test.rs
   - src/commands/qa.rs
+  - src/commands/task.rs
   - src/services/mod.rs
 ---
 
@@ -102,7 +103,7 @@ src/
 
 | Service | Purpose |
 |---------|---------|
-| `agent_lookup` | Load agent configs from `~/.config/chakravarti/agents.yaml` |
+| `agent_lookup` | Load agent configs (OpenRouter, GLM) from `~/.config/chakravarti/agents.yaml` |
 | `diff_analyzer` | Analyze git diffs for changed files and types |
 | `report_generator` | Generate markdown reports for test/QA results |
 | `test_framework` | Detect project test framework (Rust, Node, Python, etc.) |
