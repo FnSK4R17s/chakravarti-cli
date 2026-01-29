@@ -1,10 +1,11 @@
 ---
-last_commit: e74f093
+last_commit: 5160ff1
 last_updated: 2026-01-29
 related_files:
   - crates/ckrv-sandbox/src/agent/mod.rs
   - crates/ckrv-sandbox/src/agent/claude.rs
   - crates/ckrv-sandbox/src/agent/codex.rs
+  - crates/ckrv-core/src/runner.rs
 ---
 
 # Agent Extensibility Guide
