@@ -57,3 +57,10 @@ npm/bin/
 # Test artifacts
 playwright-report/
 test-results/
+
+# Build logs
+build.log
+build_error.log
+
+# Coverage reports
+coverage/

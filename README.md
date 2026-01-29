@@ -54,7 +54,7 @@ ckrv promote --push --open
 ```
 
 <p align="center">
-  <img src="hero.png" alt="ckrv --help output" width="600">
+  <img src="screenshots/hero.png" alt="ckrv --help output" width="600">
 </p>
 
 ## Commands
@@ -90,7 +90,7 @@ ckrv ui --port 3000
 ```
 
 <p align="center">
-  <img src="ui-dashboard.png" alt="CKRV Dashboard" width="800">
+  <img src="screenshots/ui-dashboard.png" alt="CKRV Dashboard" width="800">
 </p>
 
 ## Architecture
