@@ -152,7 +152,7 @@ impl DockerSandbox {
     }
 
     /// Execute a command with real-time log streaming.
-    /// 
+    ///
     /// Unlike `execute()`, this method calls `on_log` for each line of output
     /// as it arrives, enabling real-time streaming to the UI.
     pub async fn execute_streaming<F>(

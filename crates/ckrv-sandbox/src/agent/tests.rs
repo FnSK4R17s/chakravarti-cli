@@ -1,8 +1,8 @@
 //! Tests for the agent module
 
 use super::{
-    AgentConfig, AgentOutput, AgentProvider, AgentType,
-    ClaudeProvider, CodexProvider, create_agent, default_agent,
+    create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
+    ClaudeProvider, CodexProvider,
 };
 use std::path::Path;
 
@@ -43,7 +43,7 @@ fn test_agent_config_builder() {
     let config = AgentConfig::new(AgentType::Codex)
         .with_model("gpt-4o")
         .with_streaming(false);
-    
+
     assert_eq!(config.agent_type, AgentType::Codex);
     assert_eq!(config.model, Some("gpt-4o".to_string()));
     assert!(!config.streaming);
@@ -70,9 +70,9 @@ fn test_claude_provider_build_command() {
     let provider = ClaudeProvider::new();
     let config = AgentConfig::new(AgentType::Claude);
     let workdir = Path::new("/workspace");
-    
+
     let cmd = provider.build_command("test prompt", workdir, &config);
-    
+
     assert!(cmd.contains(&"claude".to_string()));
     assert!(cmd.contains(&"--print".to_string()));
     assert!(cmd.contains(&"--dangerously-skip-permissions".to_string()));
@@ -84,9 +84,9 @@ fn test_codex_provider_build_command() {
     let provider = CodexProvider::new();
     let config = AgentConfig::new(AgentType::Codex);
     let workdir = Path::new("/workspace");
-    
+
     let cmd = provider.build_command("test prompt", workdir, &config);
-    
+
     assert!(cmd.contains(&"codex".to_string()));
     assert!(cmd.contains(&"--print".to_string()));
     assert!(cmd.contains(&"--full-auto".to_string()));
@@ -96,12 +96,11 @@ fn test_codex_provider_build_command() {
 #[test]
 fn test_codex_provider_with_model() {
     let provider = CodexProvider::new();
-    let config = AgentConfig::new(AgentType::Codex)
-        .with_model("gpt-5.2-codex");
+    let config = AgentConfig::new(AgentType::Codex).with_model("gpt-5.2-codex");
     let workdir = Path::new("/workspace");
-    
+
     let cmd = provider.build_command("test prompt", workdir, &config);
-    
+
     assert!(cmd.contains(&"codex".to_string()));
     assert!(cmd.contains(&"--model".to_string()));
     assert!(cmd.contains(&"gpt-5.2-codex".to_string()));
@@ -126,7 +125,7 @@ fn test_agent_output_default() {
 fn test_claude_parse_output_success() {
     let provider = ClaudeProvider::new();
     let result = provider.parse_output("success output", "", 0).unwrap();
-    
+
     assert!(result.success);
     assert_eq!(result.stdout, "success output");
     assert_eq!(result.exit_code, 0);
@@ -136,7 +135,7 @@ fn test_claude_parse_output_success() {
 fn test_claude_parse_output_failure() {
     let provider = ClaudeProvider::new();
     let result = provider.parse_output("", "error message", 1).unwrap();
-    
+
     assert!(!result.success);
     assert_eq!(result.stderr, "error message");
     assert_eq!(result.exit_code, 1);

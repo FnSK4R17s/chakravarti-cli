@@ -30,14 +30,14 @@ pub fn get_base_branch() -> anyhow::Result<String> {
     let output = Command::new("git")
         .args(["symbolic-ref", "refs/remotes/origin/HEAD"])
         .output()?;
-    
+
     if output.status.success() {
         let branch = String::from_utf8_lossy(&output.stdout)
             .trim()
             .replace("refs/remotes/origin/", "");
         return Ok(branch);
     }
-    
+
     // Fall back to checking if main or master exists
     for branch in &["main", "master"] {
         let check = Command::new("git")
@@ -47,7 +47,7 @@ pub fn get_base_branch() -> anyhow::Result<String> {
             return Ok(branch.to_string());
         }
     }
-    
+
     // Default to main
     Ok("main".to_string())
 }
@@ -57,7 +57,7 @@ pub fn get_current_branch() -> anyhow::Result<String> {
     let output = Command::new("git")
         .args(["branch", "--show-current"])
         .output()?;
-    
+
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {
@@ -70,25 +70,25 @@ pub fn get_changed_files(base: &str) -> anyhow::Result<Vec<ChangedFile>> {
     let output = Command::new("git")
         .args(["diff", "--name-status", &format!("{}...HEAD", base)])
         .output()?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         anyhow::bail!("git diff failed: {}", stderr);
     }
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut files = Vec::new();
-    
+
     for line in stdout.lines() {
         let parts: Vec<&str> = line.split('\t').collect();
         if parts.len() >= 2 {
             let path = PathBuf::from(parts.last().unwrap_or(&""));
-            
+
             // Skip paths that should be excluded
             if should_exclude_path(&path) {
                 continue;
             }
-            
+
             let change_type = match parts[0].chars().next() {
                 Some('A') => ChangeType::Added,
                 Some('M') => ChangeType::Modified,
@@ -96,10 +96,10 @@ pub fn get_changed_files(base: &str) -> anyhow::Result<Vec<ChangedFile>> {
                 Some('R') => ChangeType::Renamed,
                 _ => ChangeType::Modified,
             };
-            
+
             // Get line counts
             let (lines_added, lines_removed) = get_file_diff_stats(base, &path)?;
-            
+
             files.push(ChangedFile {
                 path,
                 change_type,
@@ -108,14 +108,14 @@ pub fn get_changed_files(base: &str) -> anyhow::Result<Vec<ChangedFile>> {
             });
         }
     }
-    
+
     Ok(files)
 }
 
 /// Check if a path should be excluded from analysis
 fn should_exclude_path(path: &PathBuf) -> bool {
     let path_str = path.to_string_lossy();
-    
+
     // Common directories to exclude
     let excluded_dirs = [
         "node_modules/",
@@ -141,13 +141,13 @@ fn should_exclude_path(path: &PathBuf) -> bool {
         "env/",
         ".env/",
     ];
-    
+
     for dir in &excluded_dirs {
         if path_str.contains(dir) {
             return true;
         }
     }
-    
+
     // Exclude common generated/lock files
     let excluded_files = [
         "package-lock.json",
@@ -158,17 +158,18 @@ fn should_exclude_path(path: &PathBuf) -> bool {
         "Gemfile.lock",
         ".DS_Store",
     ];
-    
-    let filename = path.file_name()
+
+    let filename = path
+        .file_name()
         .map(|f| f.to_string_lossy().to_string())
         .unwrap_or_default();
-    
+
     for file in &excluded_files {
         if filename == *file {
             return true;
         }
     }
-    
+
     false
 }
 
@@ -176,14 +177,14 @@ fn should_exclude_path(path: &PathBuf) -> bool {
 fn get_file_diff_stats(base: &str, file: &PathBuf) -> anyhow::Result<(u32, u32)> {
     let output = Command::new("git")
         .args([
-            "diff", 
-            "--numstat", 
+            "diff",
+            "--numstat",
             &format!("{}...HEAD", base),
             "--",
-            file.to_str().unwrap_or("")
+            file.to_str().unwrap_or(""),
         ])
         .output()?;
-    
+
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         if let Some(line) = stdout.lines().next() {
@@ -195,7 +196,7 @@ fn get_file_diff_stats(base: &str, file: &PathBuf) -> anyhow::Result<(u32, u32)>
             }
         }
     }
-    
+
     Ok((0, 0))
 }
 
@@ -204,7 +205,7 @@ pub fn get_diff_content(base: &str) -> anyhow::Result<String> {
     let output = Command::new("git")
         .args(["diff", &format!("{}...HEAD", base)])
         .output()?;
-    
+
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
@@ -223,18 +224,27 @@ pub fn has_changes(base: &str) -> bool {
 /// Get a summary of changes for display
 pub fn get_change_summary(base: &str) -> anyhow::Result<String> {
     let files = get_changed_files(base)?;
-    
+
     if files.is_empty() {
         return Ok(format!("No changes compared to {}", base));
     }
-    
-    let added = files.iter().filter(|f| f.change_type == ChangeType::Added).count();
-    let modified = files.iter().filter(|f| f.change_type == ChangeType::Modified).count();
-    let deleted = files.iter().filter(|f| f.change_type == ChangeType::Deleted).count();
-    
+
+    let added = files
+        .iter()
+        .filter(|f| f.change_type == ChangeType::Added)
+        .count();
+    let modified = files
+        .iter()
+        .filter(|f| f.change_type == ChangeType::Modified)
+        .count();
+    let deleted = files
+        .iter()
+        .filter(|f| f.change_type == ChangeType::Deleted)
+        .count();
+
     let total_lines_added: u32 = files.iter().map(|f| f.lines_added).sum();
     let total_lines_removed: u32 = files.iter().map(|f| f.lines_removed).sum();
-    
+
     Ok(format!(
         "{} files changed ({} added, {} modified, {} deleted)\n+{} lines, -{} lines",
         files.len(),

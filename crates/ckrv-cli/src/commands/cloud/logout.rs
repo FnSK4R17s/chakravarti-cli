@@ -15,10 +15,10 @@ pub async fn execute(args: LogoutArgs, ui: &crate::ui::UiContext) -> anyhow::Res
     if !args.force {
         println!("This will clear your stored cloud credentials.");
     }
-    
+
     crate::cloud::credentials::clear_tokens()?;
-    
+
     ui.success("Logout", "Logged out from Chakravarti Cloud");
-    
+
     Ok(())
 }

@@ -21,18 +21,15 @@ fn get_access_token() -> Result<String, CloudError> {
 }
 
 /// Stream logs from a cloud job via SSE
-pub async fn stream_logs<F>(
-    job_id: &str,
-    mut on_log: F,
-) -> Result<(), CloudError>
+pub async fn stream_logs<F>(job_id: &str, mut on_log: F) -> Result<(), CloudError>
 where
     F: FnMut(LogEntry),
 {
     let config = CloudConfig::load();
     let token = get_access_token()?;
-    
+
     let url = format!("{}/v1/jobs/{}/logs?follow=true", config.api_url, job_id);
-    
+
     let client = reqwest::Client::new();
     let response = client
         .get(&url)
@@ -40,27 +37,30 @@ where
         .header("Accept", "text/event-stream")
         .send()
         .await?;
-    
+
     if !response.status().is_success() {
         let status = response.status().as_u16();
         let message = response.text().await.unwrap_or_default();
-        return Err(CloudError::ApiError(format!("HTTP {}: {}", status, message)));
+        return Err(CloudError::ApiError(format!(
+            "HTTP {}: {}",
+            status, message
+        )));
     }
-    
+
     // Parse SSE stream
     let mut stream = response.bytes_stream();
     let mut buffer = String::new();
-    
+
     while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
         let text = String::from_utf8_lossy(&chunk);
         buffer.push_str(&text);
-        
+
         // Parse SSE events
         while let Some(event_end) = buffer.find("\n\n") {
             let event_text = buffer[..event_end].to_string();
             buffer = buffer[event_end + 2..].to_string();
-            
+
             // Parse data lines
             for line in event_text.lines() {
                 if let Some(data) = line.strip_prefix("data: ") {
@@ -73,7 +73,7 @@ where
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -81,29 +81,34 @@ where
 pub async fn fetch_logs(job_id: &str) -> Result<Vec<LogEntry>, CloudError> {
     let config = CloudConfig::load();
     let token = get_access_token()?;
-    
+
     let url = format!("{}/v1/jobs/{}/logs", config.api_url, job_id);
-    
+
     let client = reqwest::Client::new();
     let response = client
         .get(&url)
         .header("Authorization", format!("Bearer {}", token))
         .send()
         .await?;
-    
+
     if !response.status().is_success() {
         let status = response.status().as_u16();
         let message = response.text().await.unwrap_or_default();
-        return Err(CloudError::ApiError(format!("HTTP {}: {}", status, message)));
+        return Err(CloudError::ApiError(format!(
+            "HTTP {}: {}",
+            status, message
+        )));
     }
-    
+
     #[derive(serde::Deserialize)]
     struct LogsResponse {
         logs: Vec<LogEntry>,
     }
-    
-    let logs_response: LogsResponse = response.json().await
+
+    let logs_response: LogsResponse = response
+        .json()
+        .await
         .map_err(|e| CloudError::InvalidResponse(e.to_string()))?;
-    
+
     Ok(logs_response.logs)
 }

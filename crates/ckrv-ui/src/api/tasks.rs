@@ -1,10 +1,10 @@
 //! Tasks API endpoints
 
+use crate::state::AppState;
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Command;
-use crate::state::AppState;
 
 /// Full task structure matching tasks.yaml
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -35,10 +35,18 @@ pub struct Task {
     pub status: String,
 }
 
-fn default_complexity() -> i32 { 1 }
-fn default_model_tier() -> String { "light".to_string() }
-fn default_risk() -> String { "low".to_string() }
-fn default_status() -> String { "pending".to_string() }
+fn default_complexity() -> i32 {
+    1
+}
+fn default_model_tier() -> String {
+    "light".to_string()
+}
+fn default_risk() -> String {
+    "low".to_string()
+}
+fn default_status() -> String {
+    "pending".to_string()
+}
 
 #[derive(Serialize)]
 pub struct TasksResponse {
@@ -55,10 +63,10 @@ struct TasksYaml {
 /// GET /api/tasks - Get tasks for current spec (based on current branch)
 pub async fn list_tasks(State(_state): State<AppState>) -> impl IntoResponse {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    
+
     // Get current git branch to find the spec
     let branch = get_current_branch(&cwd);
-    
+
     if branch.is_empty() || branch == "main" || branch == "master" {
         return Json(TasksResponse {
             tasks: vec![],
@@ -159,9 +167,7 @@ pub struct SaveTasksResponse {
 }
 
 /// POST /api/tasks/save - Save tasks to a specific spec
-pub async fn save_tasks(
-    Json(payload): Json<SaveTasksPayload>,
-) -> impl IntoResponse {
+pub async fn save_tasks(Json(payload): Json<SaveTasksPayload>) -> impl IntoResponse {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let tasks_path = cwd.join(".specs").join(&payload.spec).join("tasks.yaml");
 
@@ -170,21 +176,21 @@ pub async fn save_tasks(
         tasks: Vec<Task>,
     }
 
-    let output = TasksYamlOutput { tasks: payload.tasks };
+    let output = TasksYamlOutput {
+        tasks: payload.tasks,
+    };
 
     match serde_yaml::to_string(&output) {
-        Ok(yaml) => {
-            match std::fs::write(&tasks_path, yaml) {
-                Ok(_) => Json(SaveTasksResponse {
-                    success: true,
-                    message: Some("Tasks saved successfully".to_string()),
-                }),
-                Err(e) => Json(SaveTasksResponse {
-                    success: false,
-                    message: Some(format!("Failed to write tasks: {}", e)),
-                }),
-            }
-        }
+        Ok(yaml) => match std::fs::write(&tasks_path, yaml) {
+            Ok(_) => Json(SaveTasksResponse {
+                success: true,
+                message: Some("Tasks saved successfully".to_string()),
+            }),
+            Err(e) => Json(SaveTasksResponse {
+                success: false,
+                message: Some(format!("Failed to write tasks: {}", e)),
+            }),
+        },
         Err(e) => Json(SaveTasksResponse {
             success: false,
             message: Some(format!("Failed to serialize tasks: {}", e)),
@@ -201,9 +207,7 @@ pub struct UpdateTaskStatusPayload {
 }
 
 /// POST /api/tasks/status - Update a single task's status
-pub async fn update_task_status(
-    Json(payload): Json<UpdateTaskStatusPayload>,
-) -> impl IntoResponse {
+pub async fn update_task_status(Json(payload): Json<UpdateTaskStatusPayload>) -> impl IntoResponse {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let tasks_path = cwd.join(".specs").join(&payload.spec).join("tasks.yaml");
 
@@ -216,14 +220,16 @@ pub async fn update_task_status(
 
     let content = match std::fs::read_to_string(&tasks_path) {
         Ok(c) => c,
-        Err(e) => return Json(SaveTasksResponse {
-            success: false,
-            message: Some(format!("Failed to read tasks: {}", e)),
-        }),
+        Err(e) => {
+            return Json(SaveTasksResponse {
+                success: false,
+                message: Some(format!("Failed to read tasks: {}", e)),
+            })
+        }
     };
 
     let mut tasks = parse_tasks_yaml(&content);
-    
+
     // Find and update the task
     let mut found = false;
     for task in &mut tasks {
@@ -249,18 +255,16 @@ pub async fn update_task_status(
 
     let output = TasksYamlOutput { tasks };
     match serde_yaml::to_string(&output) {
-        Ok(yaml) => {
-            match std::fs::write(&tasks_path, yaml) {
-                Ok(_) => Json(SaveTasksResponse {
-                    success: true,
-                    message: Some("Task status updated".to_string()),
-                }),
-                Err(e) => Json(SaveTasksResponse {
-                    success: false,
-                    message: Some(format!("Failed to write: {}", e)),
-                }),
-            }
-        }
+        Ok(yaml) => match std::fs::write(&tasks_path, yaml) {
+            Ok(_) => Json(SaveTasksResponse {
+                success: true,
+                message: Some("Task status updated".to_string()),
+            }),
+            Err(e) => Json(SaveTasksResponse {
+                success: false,
+                message: Some(format!("Failed to write: {}", e)),
+            }),
+        },
         Err(e) => Json(SaveTasksResponse {
             success: false,
             message: Some(format!("Failed to serialize: {}", e)),
@@ -290,7 +294,9 @@ fn get_current_branch(cwd: &PathBuf) -> String {
         .ok()
         .and_then(|o| {
             if o.status.success() {
-                String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                String::from_utf8(o.stdout)
+                    .ok()
+                    .map(|s| s.trim().to_string())
             } else {
                 None
             }

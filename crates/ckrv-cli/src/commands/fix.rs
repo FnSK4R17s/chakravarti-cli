@@ -5,9 +5,9 @@ use std::path::PathBuf;
 use clap::Args;
 use serde::{Deserialize, Serialize};
 
-use crate::ui::UiContext;
-use crate::ui::Renderable;
 use crate::ui::components::Banner;
+use crate::ui::Renderable;
+use crate::ui::UiContext;
 
 /// Arguments for the fix command
 #[derive(Args)]
@@ -60,7 +60,12 @@ pub async fn execute(args: FixArgs, json: bool, ui: &UiContext) -> anyhow::Resul
     let cwd = std::env::current_dir()?;
 
     if !json {
-        println!("{}", Banner::new("CKRV FIX").subtitle("AI-Powered Fixes").render(&ui.theme));
+        println!(
+            "{}",
+            Banner::new("CKRV FIX")
+                .subtitle("AI-Powered Fixes")
+                .render(&ui.theme)
+        );
     }
 
     // Gather errors to fix
@@ -91,7 +96,11 @@ pub async fn execute(args: FixArgs, json: bool, ui: &UiContext) -> anyhow::Resul
     if !json {
         println!("🔍 Found {} error(s) to fix\n", errors.len());
         for (i, error) in errors.iter().enumerate() {
-            println!("   {}. {}", i + 1, error.lines().next().unwrap_or("Unknown error"));
+            println!(
+                "   {}. {}",
+                i + 1,
+                error.lines().next().unwrap_or("Unknown error")
+            );
         }
         println!();
     }
@@ -132,7 +141,7 @@ pub async fn execute(args: FixArgs, json: bool, ui: &UiContext) -> anyhow::Resul
                 .args(["verify"])
                 .current_dir(&cwd)
                 .status();
-            
+
             if let Ok(status) = verify_result {
                 if !status.success() {
                     println!("\n💡 Some checks still failing. You may need to fix manually or run 'ckrv fix' again.");
@@ -155,8 +164,10 @@ fn gather_verification_errors(cwd: &PathBuf, args: &FixArgs) -> anyhow::Result<V
         .args(["branch", "--show-current"])
         .current_dir(cwd)
         .output()?;
-    
-    let branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+
+    let branch = String::from_utf8_lossy(&branch_output.stdout)
+        .trim()
+        .to_string();
     let verification_path = cwd.join(".specs").join(&branch).join("verification.yaml");
 
     if verification_path.exists() {
@@ -227,9 +238,9 @@ fn gather_verification_errors(cwd: &PathBuf, args: &FixArgs) -> anyhow::Result<V
 
 fn build_fix_prompt(cwd: &PathBuf, errors: &[String]) -> anyhow::Result<String> {
     let mut prompt = String::new();
-    
+
     prompt.push_str("I need you to fix the following verification errors in this project:\n\n");
-    
+
     for (i, error) in errors.iter().enumerate() {
         prompt.push_str(&format!("Error {}:\n```\n{}\n```\n\n", i + 1, error));
     }
@@ -239,10 +250,10 @@ fn build_fix_prompt(cwd: &PathBuf, errors: &[String]) -> anyhow::Result<String> 
     prompt.push_str("- For type errors: Add type annotations, fix type mismatches\n");
     prompt.push_str("- For test failures: Fix the failing tests or the code they're testing\n");
     prompt.push_str("- For missing tools: Add them to requirements.txt/package.json or suggest alternatives\n\n");
-    
+
     // Add project context
     prompt.push_str("Project context:\n");
-    
+
     // Check for common project files
     if cwd.join("pyproject.toml").exists() || cwd.join("requirements.txt").exists() {
         prompt.push_str("- This is a Python project\n");
@@ -275,7 +286,8 @@ async fn run_claude_fix(cwd: &PathBuf, prompt: &str, json: bool) -> anyhow::Resu
         return Ok(FixResult {
             success: false,
             fixes_applied: 0,
-            message: "Claude CLI not found. Install from: https://docs.anthropic.com/claude-code".to_string(),
+            message: "Claude CLI not found. Install from: https://docs.anthropic.com/claude-code"
+                .to_string(),
         });
     }
 
@@ -316,4 +328,3 @@ async fn run_claude_fix(cwd: &PathBuf, prompt: &str, json: bool) -> anyhow::Resu
         })
     }
 }
-

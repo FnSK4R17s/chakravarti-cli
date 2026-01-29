@@ -26,11 +26,11 @@ pub struct AddArgs {
     /// Name for this credential (e.g., "github-work")
     #[arg(long)]
     pub name: String,
-    
+
     /// Git provider (github, gitlab, bitbucket, generic)
     #[arg(long, default_value = "github")]
     pub provider: String,
-    
+
     /// Credential type (pat, deploy_key)
     #[arg(long, default_value = "pat")]
     pub credential_type: String,
@@ -62,55 +62,72 @@ pub async fn execute(args: CredentialsArgs, ui: &crate::ui::UiContext) -> anyhow
 
 async fn execute_add(args: AddArgs, ui: &crate::ui::UiContext) -> anyhow::Result<()> {
     use std::io::{self, Write};
-    
+
     println!("Adding credential '{}' for {}", args.name, args.provider);
-    
+
     // Prompt for token securely
     print!("Enter token: ");
     io::stdout().flush()?;
-    
+
     let token = rpassword::read_password()?;
-    
+
     if token.is_empty() {
         anyhow::bail!("Token cannot be empty");
     }
-    
+
     let client = crate::cloud::client::CloudClient::new().map_err(|e| anyhow::anyhow!("{}", e))?;
-    client.add_credential(&args.name, &args.provider, &args.credential_type, &token).await
+    client
+        .add_credential(&args.name, &args.provider, &args.credential_type, &token)
+        .await
         .map_err(|e| anyhow::anyhow!("{}", e))?;
-    
-    ui.success("Credential Added", &format!("Credential '{}' saved", args.name));
-    
+
+    ui.success(
+        "Credential Added",
+        &format!("Credential '{}' saved", args.name),
+    );
+
     Ok(())
 }
 
 async fn execute_list(args: ListArgs, ui: &crate::ui::UiContext) -> anyhow::Result<()> {
     let client = crate::cloud::client::CloudClient::new().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let credentials = client.list_credentials().await.map_err(|e| anyhow::anyhow!("{}", e))?;
-    
+    let credentials = client
+        .list_credentials()
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+
     if credentials.is_empty() {
         println!("No credentials stored. Use 'ckrv cloud credentials add' to add one.");
         return Ok(());
     }
-    
+
     if args.json {
         println!("{}", serde_json::to_string_pretty(&credentials)?);
     } else {
         println!("Stored credentials:");
         for cred in credentials {
-            println!("  {} ({}) - {}", cred.name, cred.provider, cred.credential_type);
+            println!(
+                "  {} ({}) - {}",
+                cred.name, cred.provider, cred.credential_type
+            );
         }
     }
-    
+
     let _ = ui; // Suppress unused warning
     Ok(())
 }
 
 async fn execute_remove(args: RemoveArgs, ui: &crate::ui::UiContext) -> anyhow::Result<()> {
     let client = crate::cloud::client::CloudClient::new().map_err(|e| anyhow::anyhow!("{}", e))?;
-    client.remove_credential(&args.name).await.map_err(|e| anyhow::anyhow!("{}", e))?;
-    
-    ui.success("Credential Removed", &format!("Credential '{}' removed", args.name));
-    
+    client
+        .remove_credential(&args.name)
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    ui.success(
+        "Credential Removed",
+        &format!("Credential '{}' removed", args.name),
+    );
+
     Ok(())
 }

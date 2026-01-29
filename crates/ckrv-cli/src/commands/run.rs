@@ -10,23 +10,26 @@ use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 
 use futures::future::join_all;
-use tokio::process::Command as AsyncCommand;
 use std::sync::Arc;
+use tokio::process::Command as AsyncCommand;
 
 use ckrv_core::{
-    AgentTask, Workflow, WorkflowStep, OptimizeMode,
-    runner::{RunnerConfig, WorkflowRunner, WorkflowRunResult},
+    runner::{RunnerConfig, WorkflowRunResult, WorkflowRunner},
+    AgentTask, OptimizeMode, Workflow, WorkflowStep,
 };
 use ckrv_git::{DefaultDiffGenerator, DefaultWorktreeManager, DiffGenerator, WorktreeManager};
 use ckrv_metrics::{DefaultMetricsCollector, FileMetricsStorage, MetricsCollector, MetricsStorage};
 use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox};
 
-use crate::ui::UiContext;
+use crate::ui::components::{Banner, Panel, RichTable};
 use crate::ui::Renderable;
-use crate::ui::components::{Banner, RichTable, Panel};
+use crate::ui::UiContext;
 use tabled::{
     builder::Builder,
-    settings::{object::{Columns, Rows}, Modify, Width, Alignment},
+    settings::{
+        object::{Columns, Rows},
+        Alignment, Modify, Width,
+    },
 };
 
 /// Arguments for the run command.
@@ -104,7 +107,9 @@ struct SpecTask {
     pub risk: Option<String>,
 }
 
-fn default_complexity() -> u8 { 3 }
+fn default_complexity() -> u8 {
+    3
+}
 
 /// Execution plan structure.
 #[derive(Serialize, Deserialize, Debug)]
@@ -162,7 +167,7 @@ struct ExecutionBatch {
     /// Branch name created for this batch (for resume)
     #[serde(default)]
     branch: Option<String>,
-    
+
     // Enhanced Fields
     #[serde(default)]
     model_assignment: ModelAssignment,
@@ -193,15 +198,15 @@ fn serialize_plan_with_depends_on(plan: &ExecutionPlan) -> String {
                 output.push_str(&format!("      - \"{}\"\n", dep));
             }
         }
-        
+
         // Serialize model_assignment
         output.push_str("    model_assignment:\n");
         if let Some(default_model) = &batch.model_assignment.default {
             output.push_str(&format!("      default: \"{}\"\n", default_model));
         } else {
-             output.push_str("      default: null\n");
+            output.push_str("      default: null\n");
         }
-        
+
         if batch.model_assignment.overrides.is_empty() {
             output.push_str("      overrides: {}\n");
         } else {
@@ -212,14 +217,20 @@ fn serialize_plan_with_depends_on(plan: &ExecutionPlan) -> String {
         }
 
         if let Some(strategy) = &batch.execution_strategy {
-             output.push_str(&format!("    execution_strategy: \"{}\"\n", strategy));
+            output.push_str(&format!("    execution_strategy: \"{}\"\n", strategy));
         }
 
         output.push_str(&format!("    estimated_cost: {}\n", batch.estimated_cost));
-        output.push_str(&format!("    estimated_time: \"{}\"\n", batch.estimated_time));
+        output.push_str(&format!(
+            "    estimated_time: \"{}\"\n",
+            batch.estimated_time
+        ));
 
-        output.push_str(&format!("    reasoning: \"{}\"\n", batch.reasoning.replace('"', "\\\"")));
-        
+        output.push_str(&format!(
+            "    reasoning: \"{}\"\n",
+            batch.reasoning.replace('"', "\\\"")
+        ));
+
         // Include status and branch for resume capability
         let status_str = match batch.status {
             BatchStatus::Pending => "pending",
@@ -228,11 +239,11 @@ fn serialize_plan_with_depends_on(plan: &ExecutionPlan) -> String {
             BatchStatus::Failed => "failed",
         };
         output.push_str(&format!("    status: {}\n", status_str));
-        
+
         if let Some(ref branch) = batch.branch {
             output.push_str(&format!("    branch: \"{}\"\n", branch));
         }
-        
+
         output.push('\n');
     }
     output
@@ -262,30 +273,32 @@ fn load_agent_model_instructions(cwd: &Path) -> String {
     let locations = [cwd.join("agent.yaml"), cwd.join(".ckrv/agent.yaml")];
     for loc in &locations {
         if loc.exists() {
-             if let Ok(content) = std::fs::read_to_string(loc) {
-                 if let Ok(config) = serde_yaml::from_str::<AgentConfig>(&content) {
-                     let mut instructions = String::new();
-                     for model in config.models {
-                         instructions.push_str(&format!("   - Use '{}' {}.\n", model.id, model.description));
-                     }
-                     if !instructions.is_empty() {
-                         return instructions;
-                     }
-                 }
-             }
+            if let Ok(content) = std::fs::read_to_string(loc) {
+                if let Ok(config) = serde_yaml::from_str::<AgentConfig>(&content) {
+                    let mut instructions = String::new();
+                    for model in config.models {
+                        instructions
+                            .push_str(&format!("   - Use '{}' {}.\n", model.id, model.description));
+                    }
+                    if !instructions.is_empty() {
+                        return instructions;
+                    }
+                }
+            }
         }
     }
     // Default fallback
     r#"   - Use 'minimax/minimax-m2.1' for light/standard tasks (Level 1-3).
    - Use 'z-ai/glm-4.7' for complex logic (Level 4).
-   - Use 'claude' (default) if high reasoning/risk required (Level 5)."#.to_string()
+   - Use 'claude' (default) if high reasoning/risk required (Level 5)."#
+        .to_string()
 }
 
 /// Execute the run command.
 
 pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    
+
     // Determine spec path: use provided arg, or detect from branch name
     let spec_path = if let Some(ref spec) = args.spec {
         if spec.is_absolute() {
@@ -300,38 +313,52 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
             .current_dir(&cwd)
             .output()
             .map_err(|e| anyhow::anyhow!("Failed to get current branch: {}", e))?;
-        
-        let branch_name = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
-        
+
+        let branch_name = String::from_utf8_lossy(&branch_output.stdout)
+            .trim()
+            .to_string();
+
         if branch_name.is_empty() {
             return Err(anyhow::anyhow!("No spec provided and could not detect branch name. Run with a spec path or checkout a spec branch."));
         }
-        
+
         // Look for spec in .specs/ directory matching branch name
         let specs_dir = cwd.join(".specs");
         let spec_dir = specs_dir.join(&branch_name);
         let spec_file = spec_dir.join("spec.yaml");
-        
+
         if !spec_file.exists() {
             return Err(anyhow::anyhow!(
                 "No spec provided and could not find .specs/{}/spec.yaml\nEither provide a spec path or checkout a branch matching a spec directory.",
                 branch_name
             ));
         }
-        
+
         if !json {
-            println!("Auto-detected spec from branch '{}': {}", branch_name, spec_file.display());
+            println!(
+                "Auto-detected spec from branch '{}': {}",
+                branch_name,
+                spec_file.display()
+            );
         }
-        
+
         spec_file
     };
 
     if !spec_path.exists() {
-        return Err(anyhow::anyhow!("Spec file not found: {}", spec_path.display()));
+        return Err(anyhow::anyhow!(
+            "Spec file not found: {}",
+            spec_path.display()
+        ));
     }
 
     if !json {
-        println!("{}", Banner::new("CKRV RUN").subtitle(spec_path.display().to_string()).render(&ui.theme));
+        println!(
+            "{}",
+            Banner::new("CKRV RUN")
+                .subtitle(spec_path.display().to_string())
+                .render(&ui.theme)
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -373,7 +400,7 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
 
     // Orchestration Logic: Run tasks from tasks.yaml
     let tasks_path = spec_path.parent().unwrap_or(&cwd).join("tasks.yaml");
-    
+
     if !tasks_path.exists() {
         if !json {
             eprintln!("No tasks.yaml found at {}", tasks_path.display());
@@ -385,21 +412,29 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
     if !json {
         println!("Loading tasks from {}", tasks_path.display());
     }
-    
+
     let content = std::fs::read_to_string(&tasks_path)?;
     let file: TaskFile = serde_yaml::from_str(&content)
         .map_err(|e| anyhow::anyhow!("Failed to parse tasks.yaml: {}", e))?;
-    
+
     let all_tasks = file.tasks.clone();
-    let pending_tasks: Vec<_> = file.tasks.into_iter().filter(|t| t.status != "completed").collect();
+    let pending_tasks: Vec<_> = file
+        .tasks
+        .into_iter()
+        .filter(|t| t.status != "completed")
+        .collect();
     let spec_dir = spec_path.parent().unwrap_or(&cwd);
     let impl_path = spec_dir.join("implementation.yaml");
     let plan_yaml_path = spec_dir.join("plan.yaml");
-    
+
     // Check for existing state/worktrees first
-    let manager = DefaultWorktreeManager::new(&cwd).map_err(|e| anyhow::anyhow!("Init WT manager failed: {}", e))?;
+    let manager = DefaultWorktreeManager::new(&cwd)
+        .map_err(|e| anyhow::anyhow!("Init WT manager failed: {}", e))?;
     let existing_wts = manager.list()?;
-    let batch_wts: Vec<_> = existing_wts.iter().filter(|wt| wt.job_id.starts_with("batch-")).collect();
+    let batch_wts: Vec<_> = existing_wts
+        .iter()
+        .filter(|wt| wt.job_id.starts_with("batch-"))
+        .collect();
 
     // ═══════════════════════════════════════════════════════════════════════════
     // COMPLETION CHECKLIST - Handle case where all tasks are already completed
@@ -409,7 +444,7 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
             println!("\n📋 Completion Checklist");
             println!("   ✅ All {} tasks marked as completed", all_tasks.len());
         }
-        
+
         // Check 1: Is implementation.yaml already created?
         if impl_path.exists() {
             if !json {
@@ -419,14 +454,14 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
             }
             return Ok(());
         }
-        
+
         // Check 2: Are there any unmerged worktrees?
         if !batch_wts.is_empty() {
             if !json {
                 println!("   ⚠️  Found {} unmerged worktrees", batch_wts.len());
                 println!("\n🔄 Attempting to merge remaining worktrees...\n");
             }
-            
+
             // Try to merge each worktree
             let mut merged_count = 0;
             for wt in &batch_wts {
@@ -435,50 +470,54 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
                     .args(["rev-parse", "--abbrev-ref", "HEAD"])
                     .current_dir(&wt.path)
                     .output();
-                
+
                 let branch = match branch_output {
                     Ok(out) => String::from_utf8_lossy(&out.stdout).trim().to_string(),
                     Err(_) => continue,
                 };
-                
+
                 if branch.is_empty() || branch == "HEAD" {
                     continue;
                 }
-                
+
                 if !json {
                     println!("   Merging worktree: {} ({})", wt.job_id, branch);
                 }
-                
+
                 // Commit any uncommitted changes in worktree
                 let _ = std::process::Command::new("git")
                     .args(["add", "."])
                     .current_dir(&wt.path)
                     .status();
-                
+
                 let diff_status = std::process::Command::new("git")
                     .args(["diff", "--staged", "--quiet"])
                     .current_dir(&wt.path)
                     .status();
-                
+
                 if diff_status.map(|s| !s.success()).unwrap_or(false) {
                     let _ = std::process::Command::new("git")
-                        .args(["commit", "-m", &format!("feat(batch): {} - finalize", wt.job_id)])
+                        .args([
+                            "commit",
+                            "-m",
+                            &format!("feat(batch): {} - finalize", wt.job_id),
+                        ])
                         .current_dir(&wt.path)
                         .status();
                 }
-                
+
                 // Try to merge into current branch
                 let merge_status = std::process::Command::new("git")
                     .args(["merge", "--no-ff", "--no-edit", &branch])
                     .current_dir(&cwd)
                     .status();
-                
+
                 if merge_status.map(|s| s.success()).unwrap_or(false) {
                     merged_count += 1;
                     if !json {
                         println!("      ✅ Merged successfully");
                     }
-                    
+
                     // Clean up worktree
                     let _ = std::process::Command::new("git")
                         .args(["worktree", "remove", "--force", &wt.path.to_string_lossy()])
@@ -489,10 +528,12 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
                     if !json {
                         println!("      🤖 Conflict detected, attempting AI resolution...");
                     }
-                    
-                    match tokio::runtime::Handle::current().block_on(
-                        resolve_conflicts_with_ai(&cwd, &branch, Some(spec_path.as_path()))
-                    ) {
+
+                    match tokio::runtime::Handle::current().block_on(resolve_conflicts_with_ai(
+                        &cwd,
+                        &branch,
+                        Some(spec_path.as_path()),
+                    )) {
                         Ok(()) => {
                             merged_count += 1;
                             if !json {
@@ -519,7 +560,7 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
                     }
                 }
             }
-            
+
             if !json {
                 println!("\n   Merged {}/{} worktrees", merged_count, batch_wts.len());
             }
@@ -528,33 +569,36 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
                 println!("   ✅ No unmerged worktrees");
             }
         }
-        
+
         // Check 3: Create implementation.yaml since all tasks are done
         let branch_output = std::process::Command::new("git")
             .args(["branch", "--show-current"])
             .current_dir(&cwd)
             .output()?;
-        let current_branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
-        
+        let current_branch = String::from_utf8_lossy(&branch_output.stdout)
+            .trim()
+            .to_string();
+
         // Count batches from plan if it exists
         let batches_count = if plan_yaml_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&plan_yaml_path) {
                 if let Ok(plan) = serde_yaml::from_str::<ExecutionPlan>(&content) {
                     plan.batches.len()
-                } else { 0 }
-            } else { 0 }
-        } else { 0 };
-        
-        create_implementation_summary(
-            spec_dir,
-            &current_branch,
-            all_tasks.len(),
-            batches_count,
-        )?;
-        
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        create_implementation_summary(spec_dir, &current_branch, all_tasks.len(), batches_count)?;
+
         return Ok(());
     }
-    
+
     if !json {
         println!("Found {} pending tasks.", pending_tasks.len());
         println!();
@@ -562,16 +606,27 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
 
     // Track if we're resuming from a previous run
     let resuming = !batch_wts.is_empty() && plan_yaml_path.exists();
-    
+
     if resuming && !json {
         println!("🔄 Resuming previous execution run...");
         println!("   Found {} existing worktrees", batch_wts.len());
     }
 
     let plan: ExecutionPlan = if plan_yaml_path.exists() {
-         if !json { println!("Found existing orchestration plan at {}", plan_yaml_path.display()); }
-         let content = std::fs::read_to_string(&plan_yaml_path)?;
-         serde_yaml::from_str(&content).map_err(|e| anyhow::anyhow!("Failed to parse plan at {}: {}", plan_yaml_path.display(), e))?
+        if !json {
+            println!(
+                "Found existing orchestration plan at {}",
+                plan_yaml_path.display()
+            );
+        }
+        let content = std::fs::read_to_string(&plan_yaml_path)?;
+        serde_yaml::from_str(&content).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to parse plan at {}: {}",
+                plan_yaml_path.display(),
+                e
+            )
+        })?
     } else {
         if !json {
             println!("Generating execution plan with Claude...");
@@ -579,7 +634,8 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
 
         let tasks_json = serde_json::to_string_pretty(&pending_tasks)?;
         let model_instructions = load_agent_model_instructions(&cwd);
-        let prompt_base = format!(r#"### ARCHITECTURAL PLANNER
+        let prompt_base = format!(
+            r#"### ARCHITECTURAL PLANNER
 Analyze these tasks and group them into logical execution batches.
 
 DEPENDENCY MAPPING RULES:
@@ -618,7 +674,9 @@ batches:
     execution_strategy: "sequential"
     estimated_cost: 0.05
     estimated_time: "2m"
-"#, model_instructions, tasks_json);
+"#,
+            model_instructions, tasks_json
+        );
 
         let plan_workflow = Workflow {
             version: "1.0".to_string(),
@@ -644,11 +702,23 @@ batches:
             ],
         };
 
-        let plan_id = format!("PLAN-{}", uuid::Uuid::new_v4().to_string().chars().take(8).collect::<String>());
+        let plan_id = format!(
+            "PLAN-{}",
+            uuid::Uuid::new_v4()
+                .to_string()
+                .chars()
+                .take(8)
+                .collect::<String>()
+        );
         let plan_worktree = cwd.join(".ckrv").join("planning").join(&plan_id);
         std::fs::create_dir_all(&plan_worktree)?;
 
-        let mut task = AgentTask::new(&plan_id, "Planning execution batches", "orchestrator-plan", plan_worktree.clone());
+        let mut task = AgentTask::new(
+            &plan_id,
+            "Planning execution batches",
+            "orchestrator-plan",
+            plan_worktree.clone(),
+        );
         task.save(&cwd)?;
 
         let config = RunnerConfig {
@@ -666,20 +736,27 @@ batches:
         );
 
         let runner = WorkflowRunner::new(config);
-        let result = runner.run(&plan_workflow, &mut task, &plan_worktree).await?;
-        
+        let result = runner
+            .run(&plan_workflow, &mut task, &plan_worktree)
+            .await?;
+
         if !result.success {
-             return Err(anyhow::anyhow!("Planning workflow failed."));
+            return Err(anyhow::anyhow!("Planning workflow failed."));
         }
-        
+
         let plan_yaml_file = plan_worktree.join("plan.yaml");
         if !plan_yaml_file.exists() {
             return Err(anyhow::anyhow!("Agent failed to create plan.yaml"));
         }
-        
+
         let content = std::fs::read_to_string(&plan_yaml_file)?;
-        let mut plan: ExecutionPlan = serde_yaml::from_str(&content)
-            .map_err(|e| anyhow::anyhow!("AI failed to generate valid YAML: {}\nContent: {}", e, content))?;
+        let mut plan: ExecutionPlan = serde_yaml::from_str(&content).map_err(|e| {
+            anyhow::anyhow!(
+                "AI failed to generate valid YAML: {}\nContent: {}",
+                e,
+                content
+            )
+        })?;
 
         // Auto-assign sequential dependencies if the AI didn't provide them
         // This guarantees that batches execute in order even if the AI forgets the field
@@ -695,30 +772,46 @@ batches:
         if !json {
             println!("Computed Dependencies:");
             for batch in &plan.batches {
-                let deps = if batch.depends_on.is_empty() { "[]".to_string() } else { batch.depends_on.join(", ") };
+                let deps = if batch.depends_on.is_empty() {
+                    "[]".to_string()
+                } else {
+                    batch.depends_on.join(", ")
+                };
                 println!("  {} -> {}", batch.id, deps);
             }
         }
 
         if let Some(parent) = tasks_path.parent() {
-             let user_plan_path = parent.join("plan.yaml");
-             let yaml = serialize_plan_with_depends_on(&plan);
-             std::fs::write(&user_plan_path, &yaml).ok();
-             if !json {
-                 println!("Saved orchestration plan to {}", user_plan_path.display());
-             }
+            let user_plan_path = parent.join("plan.yaml");
+            let yaml = serialize_plan_with_depends_on(&plan);
+            std::fs::write(&user_plan_path, &yaml).ok();
+            if !json {
+                println!("Saved orchestration plan to {}", user_plan_path.display());
+            }
         }
         plan
     };
 
     if !json {
-        let parallel_count = plan.batches.iter().filter(|b| b.depends_on.is_empty()).count();
-        println!("Execution Plan Ready: {} batches ({} parallelizable foundation batches)", plan.batches.len(), parallel_count);
-        
+        let parallel_count = plan
+            .batches
+            .iter()
+            .filter(|b| b.depends_on.is_empty())
+            .count();
+        println!(
+            "Execution Plan Ready: {} batches ({} parallelizable foundation batches)",
+            plan.batches.len(),
+            parallel_count
+        );
+
         let mut builder = Builder::default();
         builder.push_record(["Batch", "Tasks", "Depends On", "Reasoning"]);
         for batch in &plan.batches {
-            let deps = if batch.depends_on.is_empty() { "none".to_string() } else { batch.depends_on.join(", ") };
+            let deps = if batch.depends_on.is_empty() {
+                "none".to_string()
+            } else {
+                batch.depends_on.join(", ")
+            };
             builder.push_record([
                 batch.name.clone(),
                 batch.task_ids.join(", "),
@@ -735,27 +828,32 @@ batches:
         ui.print(rich);
         println!();
     }
-    
+
     // Execute Plan with Dependency Awareness
     let exe = std::env::current_exe()?;
-    
+
     // Map of batch_id -> task data
-    let task_map: std::collections::HashMap<String, SpecTask> = pending_tasks.into_iter().map(|t| (t.id.clone(), t)).collect();
+    let task_map: std::collections::HashMap<String, SpecTask> = pending_tasks
+        .into_iter()
+        .map(|t| (t.id.clone(), t))
+        .collect();
 
     // Map of batch_id -> task_ids (for updating status later)
-    let batch_task_map: std::collections::HashMap<String, Vec<String>> = plan.batches.iter()
+    let batch_task_map: std::collections::HashMap<String, Vec<String>> = plan
+        .batches
+        .iter()
         .map(|b| (b.id.clone(), b.task_ids.clone()))
         .collect();
 
     let mut completed_batches = std::collections::HashSet::<String>::new();
-    
+
     // Resume handling: process previously completed batches
     let mut mutable_plan = plan;
     if resuming {
         if !json {
             println!("\n📋 Checking batch status for resume...");
         }
-        
+
         for batch in &mut mutable_plan.batches {
             // Check if this batch was already marked as completed
             if batch.status == BatchStatus::Completed {
@@ -765,11 +863,13 @@ batches:
                 completed_batches.insert(batch.id.clone());
                 continue;
             }
-            
+
             // Check if there's a worktree for this batch that has uncommitted work
             let batch_prefix = format!("batch-{}-", batch.id);
-            let batch_worktree = batch_wts.iter().find(|wt| wt.job_id.starts_with(&batch_prefix));
-            
+            let batch_worktree = batch_wts
+                .iter()
+                .find(|wt| wt.job_id.starts_with(&batch_prefix));
+
             if let Some(wt) = batch_worktree {
                 // Check if this worktree has commits that haven't been merged
                 let has_commits = std::process::Command::new("git")
@@ -778,45 +878,49 @@ batches:
                     .output()
                     .map(|o| o.status.success() && !o.stdout.is_empty())
                     .unwrap_or(false);
-                
+
                 if has_commits && batch.branch.is_some() {
                     // Try to merge this completed worktree
                     let branch = batch.branch.as_ref().unwrap();
                     if !json {
                         println!("   🔀 Found incomplete batch '{}' with commits, attempting to merge...", batch.name);
                     }
-                    
+
                     // Commit any uncommitted changes
                     let _ = std::process::Command::new("git")
                         .args(["add", "."])
                         .current_dir(&wt.path)
                         .status();
-                    
+
                     let diff_status = std::process::Command::new("git")
                         .args(["diff", "--staged", "--quiet"])
                         .current_dir(&wt.path)
                         .status();
-                    
+
                     if diff_status.map(|s| !s.success()).unwrap_or(false) {
                         let _ = std::process::Command::new("git")
-                            .args(["commit", "-m", &format!("feat(batch): {} - recovered", batch.name)])
+                            .args([
+                                "commit",
+                                "-m",
+                                &format!("feat(batch): {} - recovered", batch.name),
+                            ])
                             .current_dir(&wt.path)
                             .status();
                     }
-                    
+
                     // Try to merge
                     let merge_status = std::process::Command::new("git")
                         .args(["merge", "--no-ff", "--no-edit", branch])
                         .current_dir(&cwd)
                         .status();
-                    
+
                     if merge_status.map(|s| s.success()).unwrap_or(false) {
                         if !json {
                             println!("   ✅ Successfully merged batch '{}'", batch.name);
                         }
                         batch.status = BatchStatus::Completed;
                         completed_batches.insert(batch.id.clone());
-                        
+
                         // Clean up worktree
                         let _ = std::process::Command::new("git")
                             .args(["worktree", "remove", "--force", &wt.path.to_string_lossy()])
@@ -828,24 +932,37 @@ batches:
                             println!("   🤖 Merge conflict detected, attempting AI resolution...");
                         }
                         let spec_path_ref: Option<&Path> = Some(spec_path.as_path());
-                        match tokio::runtime::Handle::current().block_on(
-                            resolve_conflicts_with_ai(&cwd, branch, spec_path_ref)
-                        ) {
+                        match tokio::runtime::Handle::current().block_on(resolve_conflicts_with_ai(
+                            &cwd,
+                            branch,
+                            spec_path_ref,
+                        )) {
                             Ok(()) => {
                                 if !json {
-                                    println!("   ✅ Conflicts resolved, batch '{}' completed", batch.name);
+                                    println!(
+                                        "   ✅ Conflicts resolved, batch '{}' completed",
+                                        batch.name
+                                    );
                                 }
                                 batch.status = BatchStatus::Completed;
                                 completed_batches.insert(batch.id.clone());
-                                
+
                                 let _ = std::process::Command::new("git")
-                                    .args(["worktree", "remove", "--force", &wt.path.to_string_lossy()])
+                                    .args([
+                                        "worktree",
+                                        "remove",
+                                        "--force",
+                                        &wt.path.to_string_lossy(),
+                                    ])
                                     .current_dir(&cwd)
                                     .status();
                             }
                             Err(e) => {
                                 if !json {
-                                    println!("   ⚠️  Could not auto-merge batch '{}': {}", batch.name, e);
+                                    println!(
+                                        "   ⚠️  Could not auto-merge batch '{}': {}",
+                                        batch.name, e
+                                    );
                                 }
                                 let _ = std::process::Command::new("git")
                                     .args(["merge", "--abort"])
@@ -869,22 +986,30 @@ batches:
                 }
             }
         }
-        
+
         // Save updated plan with status
         if let Some(parent) = tasks_path.parent() {
             let user_plan_path = parent.join("plan.yaml");
             let yaml = serialize_plan_with_depends_on(&mutable_plan);
             std::fs::write(&user_plan_path, &yaml).ok();
         }
-        
+
         if !json {
             let completed_count = completed_batches.len();
-            let remaining = mutable_plan.batches.iter().filter(|b| b.status != BatchStatus::Completed).count();
-            println!("\n   Resume summary: {} completed, {} remaining\n", completed_count, remaining);
+            let remaining = mutable_plan
+                .batches
+                .iter()
+                .filter(|b| b.status != BatchStatus::Completed)
+                .count();
+            println!(
+                "\n   Resume summary: {} completed, {} remaining\n",
+                completed_count, remaining
+            );
         }
     }
-    
-    let mut pending_batches: std::collections::VecDeque<_> = mutable_plan.batches
+
+    let mut pending_batches: std::collections::VecDeque<_> = mutable_plan
+        .batches
         .into_iter()
         .filter(|b| b.status != BatchStatus::Completed)
         .collect();
@@ -899,12 +1024,15 @@ batches:
         let mut spawned_any = false;
 
         while let Some(batch) = pending_batches.pop_front() {
-            let unblocked = batch.depends_on.iter().all(|dep_id| completed_batches.contains(dep_id));
-            
+            let unblocked = batch
+                .depends_on
+                .iter()
+                .all(|dep_id| completed_batches.contains(dep_id));
+
             if unblocked {
                 let prefix = "[Orchestrator]";
                 println!("{} Spawning batch: {}", prefix, batch.name);
-                
+
                 spawned_any = true;
                 let exe = exe_arc.clone();
                 let manager = manager_arc.clone();
@@ -915,35 +1043,45 @@ batches:
                 let reasoning = batch.reasoning.clone();
 
                 // Build combined description & calculate max complexity
-                let mut combined_desc = format!("MISSION: {}\nREASONING: {}\n\nTASKS:\n", batch_name, reasoning);
+                let mut combined_desc = format!(
+                    "MISSION: {}\nREASONING: {}\n\nTASKS:\n",
+                    batch_name, reasoning
+                );
                 let mut max_complexity: u8 = 1;
 
                 for id in &task_ids {
                     if let Some(t) = task_map.get(id) {
-                        combined_desc.push_str(&format!("- [{}]: {} ({})\n", t.id, t.title, t.description));
+                        combined_desc
+                            .push_str(&format!("- [{}]: {} ({})\n", t.id, t.title, t.description));
                         max_complexity = max_complexity.max(t.complexity);
                     }
                 }
-                
+
                 // Intelligent Agent Selection
                 // Priority: 1. CLI Override, 2. AI Plan (model_assignment), 3. Complexity Auto-Select
                 let resolved_agent = if args.executor_model.is_none() {
                     let mut agent_id = None;
-                    
+
                     // 1. Try Plan Assignment
                     if let Some(model_str) = &batch.model_assignment.default {
                         agent_id = find_agent_for_model_string(&cwd, model_str);
                         if let Some(ref id) = agent_id {
-                             println!("   🧠 Plan-selected agent '{}' for model '{}', Batch Level {}", id, model_str, max_complexity);
+                            println!(
+                                "   🧠 Plan-selected agent '{}' for model '{}', Batch Level {}",
+                                id, model_str, max_complexity
+                            );
                         }
-                    } 
-                    
+                    }
+
                     // 2. Fallback to Complexity
                     if agent_id.is_none() {
-                         agent_id = find_best_agent_for_level(&cwd, max_complexity);
-                         if let Some(ref id) = agent_id {
-                             println!("   🧠 Auto-selecting agent '{}' for Batch Level {}", id, max_complexity);
-                         }
+                        agent_id = find_best_agent_for_level(&cwd, max_complexity);
+                        if let Some(ref id) = agent_id {
+                            println!(
+                                "   🧠 Auto-selecting agent '{}' for Batch Level {}",
+                                id, max_complexity
+                            );
+                        }
                     }
                     agent_id
                 } else {
@@ -954,55 +1092,83 @@ batches:
                 let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
                 let plan_path_clone = plan_path.clone();
                 let batch_id_for_status = batch_id.clone();
-                
+
                 let handle = tokio::spawn(async move {
                     let mut worktree_path: Option<PathBuf> = None;
                     let mut worktree_branch = String::new();
 
                     let suffix: String = uuid::Uuid::new_v4().to_string().chars().take(6).collect();
-                    let wt_job_id = format!("batch-{}-{}", batch_id, suffix); 
-                    
+                    let wt_job_id = format!("batch-{}-{}", batch_id, suffix);
+
                     let worktree = match manager.create(&wt_job_id, "1") {
                         Ok(wt) => wt,
                         Err(e) => {
                             eprintln!("[Batch: {}] Failed to create worktree: {}", batch_name, e);
-                            return (batch_id, batch_name.clone(), None, Err(anyhow::anyhow!("Worktree for {} failed", batch_name)));
+                            return (
+                                batch_id,
+                                batch_name.clone(),
+                                None,
+                                Err(anyhow::anyhow!("Worktree for {} failed", batch_name)),
+                            );
                         }
                     };
-                    println!("[Batch: {}] EXECUTING MISSION in worktree: {}", batch_name, worktree.path.display());
+                    println!(
+                        "[Batch: {}] EXECUTING MISSION in worktree: {}",
+                        batch_name,
+                        worktree.path.display()
+                    );
                     worktree_path = Some(worktree.path.clone());
                     worktree_branch = worktree.branch.clone();
-                    
+
                     // Update plan.yaml with running status and branch
-                    let _ = update_batch_status(&plan_path_clone, &batch_id_for_status, BatchStatus::Running, Some(&worktree.branch));
-                    
+                    let _ = update_batch_status(
+                        &plan_path_clone,
+                        &batch_id_for_status,
+                        BatchStatus::Running,
+                        Some(&worktree.branch),
+                    );
+
                     let mut cmd = AsyncCommand::new(exe.as_ref());
                     cmd.arg("task").arg(&combined_desc);
-                    
+
                     if let Some(ref path) = worktree_path {
                         cmd.arg("--use-worktree").arg(path);
                     }
-                    
+
                     let batch_run_id = format!("{}-run", batch_id);
                     cmd.arg("--continue-task").arg(&batch_run_id);
-                    
+
                     // Prioritize CLI arg, then auto-resolved agent
                     let final_agent = args_executor_model.or(resolved_agent);
-                    if let Some(m) = &final_agent { cmd.arg("--agent").arg(m); }
-                    
+                    if let Some(m) = &final_agent {
+                        cmd.arg("--agent").arg(m);
+                    }
+
                     let status = match cmd.status().await {
                         Ok(s) => s,
-                        Err(e) => return (batch_id, batch_name.clone(), worktree_path, Err(anyhow::anyhow!("Failed to run task: {}", e))),
+                        Err(e) => {
+                            return (
+                                batch_id,
+                                batch_name.clone(),
+                                worktree_path,
+                                Err(anyhow::anyhow!("Failed to run task: {}", e)),
+                            )
+                        }
                     };
 
                     if !status.success() {
-                        return (batch_id, batch_name.clone(), worktree_path, Err(anyhow::anyhow!("Batch mission {} failed", batch_name)));
+                        return (
+                            batch_id,
+                            batch_name.clone(),
+                            worktree_path,
+                            Err(anyhow::anyhow!("Batch mission {} failed", batch_name)),
+                        );
                     }
-                    
+
                     println!("[Batch] Mission completed: {}", batch_name);
                     (batch_id, batch_name, worktree_path, Ok(worktree_branch))
                 });
-                
+
                 running_futures.push(handle);
             } else {
                 still_pending.push_back(batch);
@@ -1020,15 +1186,18 @@ batches:
                         if let Some(ref wt_path) = wt_path_opt {
                             println!("[Orchestrator] Committing changes for batch '{}'...", name);
                             let commit_msg = format!("feat(batch): {} - {}", name, id);
-                            
+
                             let add_status = std::process::Command::new("git")
                                 .arg("add")
                                 .arg(".")
                                 .current_dir(&wt_path)
                                 .status()?;
-                            
+
                             if !add_status.success() {
-                                return Err(anyhow::anyhow!("Failed to git add in worktree for batch {}", name));
+                                return Err(anyhow::anyhow!(
+                                    "Failed to git add in worktree for batch {}",
+                                    name
+                                ));
                             }
 
                             // Check if there are changes to commit
@@ -1036,7 +1205,7 @@ batches:
                                 .args(["diff", "--staged", "--quiet"])
                                 .current_dir(&wt_path)
                                 .status()?;
-                            
+
                             // Exit code 1 means differences exist (good to commit), 0 means empty
                             if !diff_status.success() {
                                 let commit_status = std::process::Command::new("git")
@@ -1047,16 +1216,25 @@ batches:
                                     .status()?;
 
                                 if !commit_status.success() {
-                                    return Err(anyhow::anyhow!("Failed to git commit in worktree for batch {}", name));
+                                    return Err(anyhow::anyhow!(
+                                        "Failed to git commit in worktree for batch {}",
+                                        name
+                                    ));
                                 }
                             } else {
-                                println!("[Orchestrator] No changes to commit for batch '{}'.", name);
+                                println!(
+                                    "[Orchestrator] No changes to commit for batch '{}'.",
+                                    name
+                                );
                             }
                         }
 
                         // 2. Merge branch into current HEAD
                         if !branch.is_empty() {
-                            println!("[Orchestrator] Merging batch '{}' ({}) into main branch...", name, branch);
+                            println!(
+                                "[Orchestrator] Merging batch '{}' ({}) into main branch...",
+                                name, branch
+                            );
                             // Using --no-ff to preserve batch history context
                             let merge_status = std::process::Command::new("git")
                                 .arg("merge")
@@ -1070,11 +1248,11 @@ batches:
                                 // Check if it's a conflict that we can resolve with AI
                                 if has_merge_conflicts(&cwd) {
                                     println!("[Orchestrator] Merge conflict detected, attempting AI-assisted resolution...");
-                                    
+
                                     // Try to resolve conflicts with Claude Code
                                     let spec_path_ref: Option<&Path> = Some(spec_path.as_path());
                                     match tokio::runtime::Handle::current().block_on(
-                                        resolve_conflicts_with_ai(&cwd, &branch, spec_path_ref)
+                                        resolve_conflicts_with_ai(&cwd, &branch, spec_path_ref),
                                     ) {
                                         Ok(()) => {
                                             println!("[Orchestrator] AI successfully resolved merge conflicts!");
@@ -1106,27 +1284,40 @@ batches:
                                     eprintln!("Failed to update tasks.yaml: {}", e);
                                 }
                             }
-                            
+
                             // 4. Update plan.yaml batch status
                             let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
-                            let _ = update_batch_status(&plan_path, &id, BatchStatus::Completed, Some(&branch));
-                            
+                            let _ = update_batch_status(
+                                &plan_path,
+                                &id,
+                                BatchStatus::Completed,
+                                Some(&branch),
+                            );
+
                             // 5. Verify merge and cleanup worktree
                             // Check if the branch is now an ancestor of HEAD (merge was successful)
                             let verify_merge = std::process::Command::new("git")
                                 .args(["merge-base", "--is-ancestor", &branch, "HEAD"])
                                 .current_dir(&cwd)
                                 .status();
-                            
+
                             if verify_merge.map(|s| s.success()).unwrap_or(false) {
                                 // Branch is merged, safe to remove worktree
                                 if let Some(ref wt_path) = wt_path_opt {
-                                    println!("[Orchestrator] Cleaning up worktree for batch '{}'...", name);
+                                    println!(
+                                        "[Orchestrator] Cleaning up worktree for batch '{}'...",
+                                        name
+                                    );
                                     let remove_result = std::process::Command::new("git")
-                                        .args(["worktree", "remove", "--force", &wt_path.to_string_lossy()])
+                                        .args([
+                                            "worktree",
+                                            "remove",
+                                            "--force",
+                                            &wt_path.to_string_lossy(),
+                                        ])
                                         .current_dir(&cwd)
                                         .status();
-                                    
+
                                     if remove_result.map(|s| s.success()).unwrap_or(false) {
                                         println!("[Orchestrator] Worktree cleaned up ✓");
                                     } else {
@@ -1141,7 +1332,8 @@ batches:
                     Ok((failed_id, name, _path, Err(e))) => {
                         // Mark batch as failed in plan.yaml for potential retry
                         let plan_path = tasks_path.parent().unwrap_or(&cwd).join("plan.yaml");
-                        let _ = update_batch_status(&plan_path, &failed_id, BatchStatus::Failed, None);
+                        let _ =
+                            update_batch_status(&plan_path, &failed_id, BatchStatus::Failed, None);
                         return Err(anyhow::anyhow!("Batch '{}' failed: {}", name, e));
                     }
                     Err(e) => {
@@ -1163,13 +1355,15 @@ batches:
             .args(["branch", "--show-current"])
             .current_dir(&cwd)
             .output()?;
-        let current_branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
-        
+        let current_branch = String::from_utf8_lossy(&branch_output.stdout)
+            .trim()
+            .to_string();
+
         // Get the spec directory (parent of spec.yaml)
         if let Some(spec_dir) = spec_path.parent() {
             // Count total tasks that were completed
             let total_tasks = batch_task_map.values().map(|v| v.len()).sum();
-            
+
             create_implementation_summary(
                 spec_dir,
                 &current_branch,
@@ -1221,19 +1415,21 @@ fn create_implementation_summary(
     let yaml = serde_yaml::to_string(&summary)?;
     let impl_path = spec_dir.join("implementation.yaml");
     std::fs::write(&impl_path, yaml)?;
-    
+
     println!("\n✅ Implementation complete!");
     println!("   Summary saved to: {}", impl_path.display());
     println!("   Branch: {}", branch);
     println!("   Tasks: {} completed", tasks_completed);
     println!("   Ready for code review.\n");
-    
+
     Ok(())
 }
 
 fn mark_tasks_complete(tasks_path: &Path, task_ids: &[String]) -> anyhow::Result<()> {
-    if task_ids.is_empty() { return Ok(()); }
-    
+    if task_ids.is_empty() {
+        return Ok(());
+    }
+
     let content = std::fs::read_to_string(tasks_path)?;
     let mut file: TaskFile = serde_yaml::from_str(&content)?;
 
@@ -1248,20 +1444,28 @@ fn mark_tasks_complete(tasks_path: &Path, task_ids: &[String]) -> anyhow::Result
     if updated {
         let new_content = serde_yaml::to_string(&file)?;
         std::fs::write(tasks_path, new_content)?;
-        println!("[Orchestrator] Marked {} tasks as completed in tasks.yaml", task_ids.len());
+        println!(
+            "[Orchestrator] Marked {} tasks as completed in tasks.yaml",
+            task_ids.len()
+        );
     }
     Ok(())
 }
 
 /// Update batch status in plan.yaml for resume capability
-fn update_batch_status(plan_path: &Path, batch_id: &str, status: BatchStatus, branch: Option<&str>) -> anyhow::Result<()> {
+fn update_batch_status(
+    plan_path: &Path,
+    batch_id: &str,
+    status: BatchStatus,
+    branch: Option<&str>,
+) -> anyhow::Result<()> {
     if !plan_path.exists() {
         return Ok(());
     }
-    
+
     let content = std::fs::read_to_string(plan_path)?;
     let mut plan: ExecutionPlan = serde_yaml::from_str(&content)?;
-    
+
     for batch in &mut plan.batches {
         if batch.id == batch_id {
             batch.status = status;
@@ -1271,7 +1475,7 @@ fn update_batch_status(plan_path: &Path, batch_id: &str, status: BatchStatus, br
             break;
         }
     }
-    
+
     let yaml = serialize_plan_with_depends_on(&plan);
     std::fs::write(plan_path, yaml)?;
     Ok(())
@@ -1283,7 +1487,7 @@ fn has_merge_conflicts(cwd: &Path) -> bool {
         .args(["diff", "--name-only", "--diff-filter=U"])
         .current_dir(cwd)
         .output();
-    
+
     match output {
         Ok(out) => !out.stdout.is_empty(),
         Err(_) => false,
@@ -1296,22 +1500,24 @@ fn get_conflicted_files(cwd: &Path) -> Vec<String> {
         .args(["diff", "--name-only", "--diff-filter=U"])
         .current_dir(cwd)
         .output();
-    
+
     match output {
-        Ok(out) => {
-            String::from_utf8_lossy(&out.stdout)
-                .lines()
-                .map(|s| s.to_string())
-                .collect()
-        }
+        Ok(out) => String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .map(|s| s.to_string())
+            .collect(),
         Err(_) => vec![],
     }
 }
 
 /// Resolve merge conflicts using Claude Code AI
-async fn resolve_conflicts_with_ai(cwd: &Path, branch_name: &str, spec_path: Option<&Path>) -> anyhow::Result<()> {
+async fn resolve_conflicts_with_ai(
+    cwd: &Path,
+    branch_name: &str,
+    spec_path: Option<&Path>,
+) -> anyhow::Result<()> {
     let conflicted_files = get_conflicted_files(cwd);
-    
+
     if conflicted_files.is_empty() {
         return Ok(());
     }
@@ -1368,7 +1574,11 @@ CRITICAL RULES:
 
 Start by editing the first conflicted file now."#,
         branch = branch_name,
-        spec = if spec_context.is_empty() { "(No spec provided)".to_string() } else { spec_context },
+        spec = if spec_context.is_empty() {
+            "(No spec provided)".to_string()
+        } else {
+            spec_context
+        },
         files = file_contents
     );
 
@@ -1388,7 +1598,9 @@ Start by editing the first conflicted file now."#,
         .shell(&command)
         .with_timeout(Duration::from_secs(300)); // 5 minutes for conflict resolution
 
-    let result = sandbox.execute(config).await
+    let result = sandbox
+        .execute(config)
+        .await
         .map_err(|e| anyhow::anyhow!("AI conflict resolution failed: {}", e))?;
 
     // Log output for debugging
@@ -1398,14 +1610,17 @@ Start by editing the first conflicted file now."#,
 
     if !result.success() {
         // Don't fail immediately - check if conflicts are resolved anyway
-        eprintln!("[AI Resolution] Command returned non-zero: {}", result.stderr);
+        eprintln!(
+            "[AI Resolution] Command returned non-zero: {}",
+            result.stderr
+        );
     }
 
     // Check if conflicts are resolved
     if has_merge_conflicts(cwd) {
         // Try one more time with a simpler approach - just accept incoming changes
         println!("⚠️  Some conflicts remain. Attempting fallback resolution...");
-        
+
         for file in &conflicted_files {
             let _ = std::process::Command::new("git")
                 .args(["checkout", "--theirs", file])
@@ -1427,13 +1642,13 @@ Start by editing the first conflicted file now."#,
     }
 
     println!("✅ Conflicts resolved successfully!");
-    
+
     // Stage all changes
     let _ = std::process::Command::new("git")
         .args(["add", "-A"])
         .current_dir(cwd)
         .status();
-    
+
     // Complete the merge
     let commit_status = std::process::Command::new("git")
         .args(["commit", "--no-edit"])
@@ -1443,7 +1658,11 @@ Start by editing the first conflicted file now."#,
     if !commit_status.success() {
         // Might already be committed or no changes
         let _ = std::process::Command::new("git")
-            .args(["commit", "-m", &format!("Merge {} with AI-assisted conflict resolution", branch_name)])
+            .args([
+                "commit",
+                "-m",
+                &format!("Merge {} with AI-assisted conflict resolution", branch_name),
+            ])
             .current_dir(cwd)
             .status();
     }
@@ -1472,7 +1691,9 @@ async fn execute_cloud_job(
         .output()
         .map_err(|e| anyhow::anyhow!("Failed to get git remote: {}", e))?;
 
-    let git_repo_url = String::from_utf8_lossy(&remote_output.stdout).trim().to_string();
+    let git_repo_url = String::from_utf8_lossy(&remote_output.stdout)
+        .trim()
+        .to_string();
     if git_repo_url.is_empty() {
         return Err(anyhow::anyhow!(
             "No git remote 'origin' found. Cloud execution requires a remote repository."
@@ -1486,7 +1707,9 @@ async fn execute_cloud_job(
         .output()
         .map_err(|e| anyhow::anyhow!("Failed to get current branch: {}", e))?;
 
-    let git_base_branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+    let git_base_branch = String::from_utf8_lossy(&branch_output.stdout)
+        .trim()
+        .to_string();
     if git_base_branch.is_empty() {
         return Err(anyhow::anyhow!("Could not determine current branch."));
     }
@@ -1510,7 +1733,12 @@ async fn execute_cloud_job(
     })?;
 
     let job = client
-        .create_job(&spec_content, &git_repo_url, &git_base_branch, credential_name)
+        .create_job(
+            &spec_content,
+            &git_repo_url,
+            &git_base_branch,
+            credential_name,
+        )
         .await
         .map_err(|e| anyhow::anyhow!("Failed to dispatch job: {}", e))?;
 
@@ -1560,7 +1788,9 @@ fn find_agent_for_model_string(cwd: &Path, model_string: &str) -> Option<String>
         .filter(|p| p.exists())
         .unwrap_or_else(|| cwd.join(".chakravarti").join("agents.yaml"));
 
-    if !agents_path.exists() { return None; }
+    if !agents_path.exists() {
+        return None;
+    }
 
     let content = match std::fs::read_to_string(agents_path) {
         Ok(c) => c,
@@ -1572,13 +1802,18 @@ fn find_agent_for_model_string(cwd: &Path, model_string: &str) -> Option<String>
         Err(_) => return None,
     };
 
-    config.agents.iter()
+    config
+        .agents
+        .iter()
         .filter(|a| a.enabled)
         .find(|a| {
             // Match ID, Name, or OpenRouter Model
-            a.id == model_string || 
-            a.name == model_string || 
-            a.openrouter.as_ref().map(|o| o.model.as_deref() == Some(model_string)).unwrap_or(false)
+            a.id == model_string
+                || a.name == model_string
+                || a.openrouter
+                    .as_ref()
+                    .map(|o| o.model.as_deref() == Some(model_string))
+                    .unwrap_or(false)
         })
         .map(|a| a.id.clone())
 }
@@ -1607,13 +1842,15 @@ fn find_best_agent_for_level(cwd: &Path, required_level: u8) -> Option<String> {
         Err(_) => return None,
     };
 
-    let enabled_agents: Vec<&AgentConfigLite> = config.agents.iter().filter(|a| a.enabled).collect();
+    let enabled_agents: Vec<&AgentConfigLite> =
+        config.agents.iter().filter(|a| a.enabled).collect();
     if enabled_agents.is_empty() {
         return None;
     }
 
     // 1. Try to find agents with level >= required
-    let mut sufficient_agents: Vec<&AgentConfigLite> = enabled_agents.iter()
+    let mut sufficient_agents: Vec<&AgentConfigLite> = enabled_agents
+        .iter()
         .filter(|a| a.level >= required_level)
         .map(|&a| a)
         .collect();

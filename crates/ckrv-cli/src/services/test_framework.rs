@@ -60,37 +60,41 @@ pub fn detect_framework(cwd: &Path) -> TestFramework {
     if cwd.join("Cargo.toml").exists() {
         return TestFramework::Cargo;
     }
-    
+
     // Check for Go
     if cwd.join("go.mod").exists() {
         return TestFramework::GoTest;
     }
-    
+
     // Check for Node.js - package.json takes priority
     // Many Node projects may also have pyproject.toml for tooling, but we prefer npm
     if cwd.join("package.json").exists() {
         // Check if package.json has a test script
         if let Ok(content) = std::fs::read_to_string(cwd.join("package.json")) {
-            if content.contains("\"test\"") || content.contains("\"test:") 
-               || content.contains("jest") || content.contains("vitest")
-               || content.contains("mocha") {
+            if content.contains("\"test\"")
+                || content.contains("\"test:")
+                || content.contains("jest")
+                || content.contains("vitest")
+                || content.contains("mocha")
+            {
                 return TestFramework::Npm;
             }
         }
         // Even without a test script, if there's a tests directory with .ts/.js files, use npm
-        if cwd.join("tests").exists() || cwd.join("test").exists() || cwd.join("__tests__").exists() {
+        if cwd.join("tests").exists() || cwd.join("test").exists() || cwd.join("__tests__").exists()
+        {
             return TestFramework::Npm;
         }
     }
-    
+
     // Check for Python
-    if cwd.join("pyproject.toml").exists() 
+    if cwd.join("pyproject.toml").exists()
         || cwd.join("pytest.ini").exists()
-        || cwd.join("setup.py").exists() 
+        || cwd.join("setup.py").exists()
     {
         return TestFramework::Pytest;
     }
-    
+
     // Check for Makefile as fallback
     if cwd.join("Makefile").exists() || cwd.join("makefile").exists() {
         // Check if Makefile has a test target
@@ -105,12 +109,12 @@ pub fn detect_framework(cwd: &Path) -> TestFramework {
             }
         }
     }
-    
+
     // Final fallback: if package.json exists at all, try npm
     if cwd.join("package.json").exists() {
         return TestFramework::Npm;
     }
-    
+
     TestFramework::Unknown
 }
 
@@ -118,11 +122,24 @@ pub fn detect_framework(cwd: &Path) -> TestFramework {
 pub fn get_test_command(framework: &TestFramework) -> (String, Vec<String>) {
     match framework {
         TestFramework::Cargo => ("cargo".to_string(), vec!["test".to_string()]),
-        TestFramework::Npm => ("npm".to_string(), vec!["test".to_string(), "--".to_string(), "--passWithNoTests".to_string()]),
+        TestFramework::Npm => (
+            "npm".to_string(),
+            vec![
+                "test".to_string(),
+                "--".to_string(),
+                "--passWithNoTests".to_string(),
+            ],
+        ),
         TestFramework::Pytest => ("pytest".to_string(), vec!["-v".to_string()]),
-        TestFramework::GoTest => ("go".to_string(), vec!["test".to_string(), "./...".to_string()]),
+        TestFramework::GoTest => (
+            "go".to_string(),
+            vec!["test".to_string(), "./...".to_string()],
+        ),
         TestFramework::Make => ("make".to_string(), vec!["test".to_string()]),
-        TestFramework::Unknown => ("echo".to_string(), vec!["No test framework detected".to_string()]),
+        TestFramework::Unknown => (
+            "echo".to_string(),
+            vec!["No test framework detected".to_string()],
+        ),
     }
 }
 
@@ -131,20 +148,17 @@ pub async fn run_tests_local(cwd: &Path) -> TestResult {
     let start = Instant::now();
     let framework = detect_framework(cwd);
     let (cmd, args) = get_test_command(&framework);
-    
-    let output = Command::new(&cmd)
-        .args(&args)
-        .current_dir(cwd)
-        .output();
-    
+
+    let output = Command::new(&cmd).args(&args).current_dir(cwd).output();
+
     let duration_ms = start.elapsed().as_millis() as u64;
-    
+
     match output {
         Ok(out) => {
             let stdout = String::from_utf8_lossy(&out.stdout).to_string();
             let stderr = String::from_utf8_lossy(&out.stderr).to_string();
             let success = out.status.success();
-            
+
             // Parse test counts from output (simplified)
             let (total, passed, failed) = parse_test_counts(&stdout, &stderr, &framework);
             let failures = if !success {
@@ -152,7 +166,7 @@ pub async fn run_tests_local(cwd: &Path) -> TestResult {
             } else {
                 vec![]
             };
-            
+
             TestResult {
                 success,
                 framework: framework.name().to_string(),
@@ -186,7 +200,7 @@ pub async fn run_tests_local(cwd: &Path) -> TestResult {
                     format!("Ensure {} is installed and the project has tests configured.", cmd),
                 ),
             };
-            
+
             TestResult {
                 success: false,
                 framework: framework.name().to_string(),
@@ -204,14 +218,14 @@ pub async fn run_tests_local(cwd: &Path) -> TestResult {
                     message: error_msg,
                 }],
             }
-        },
+        }
     }
 }
 
 /// Parse test counts from output (simplified heuristics)
 fn parse_test_counts(stdout: &str, stderr: &str, framework: &TestFramework) -> (u32, u32, u32) {
     let combined = format!("{}\n{}", stdout, stderr);
-    
+
     match framework {
         TestFramework::Cargo => {
             // Look for "test result: ok. X passed; Y failed"
@@ -237,10 +251,21 @@ fn parse_test_counts(stdout: &str, stderr: &str, framework: &TestFramework) -> (
         }
         _ => {}
     }
-    
+
     // Default: if no parse, assume 1 test
-    (1, if combined.contains("FAIL") || combined.contains("FAILED") { 0 } else { 1 }, 
-     if combined.contains("FAIL") || combined.contains("FAILED") { 1 } else { 0 })
+    (
+        1,
+        if combined.contains("FAIL") || combined.contains("FAILED") {
+            0
+        } else {
+            1
+        },
+        if combined.contains("FAIL") || combined.contains("FAILED") {
+            1
+        } else {
+            0
+        },
+    )
 }
 
 /// Extract a number before a keyword (e.g., "5 passed")
@@ -260,7 +285,7 @@ fn extract_number(text: &str, keyword: &str) -> u32 {
 fn parse_failures(_stdout: &str, stderr: &str, _framework: &TestFramework) -> Vec<TestFailure> {
     // Simple heuristic: look for lines containing "FAILED" or "Error"
     let mut failures = vec![];
-    
+
     for line in stderr.lines() {
         if line.contains("FAILED") || line.contains("error[") || line.contains("Error:") {
             failures.push(TestFailure {
@@ -271,7 +296,7 @@ fn parse_failures(_stdout: &str, stderr: &str, _framework: &TestFramework) -> Ve
             });
         }
     }
-    
+
     if failures.is_empty() && stderr.contains("FAIL") {
         failures.push(TestFailure {
             name: "test".to_string(),
@@ -280,7 +305,7 @@ fn parse_failures(_stdout: &str, stderr: &str, _framework: &TestFramework) -> Ve
             message: "Test failed - see output for details".to_string(),
         });
     }
-    
+
     failures
 }
 
@@ -288,32 +313,38 @@ fn parse_failures(_stdout: &str, stderr: &str, _framework: &TestFramework) -> Ve
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    
+
     #[test]
     fn test_detect_framework_rust() {
         // This crate has Cargo.toml
         let cwd = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         assert_eq!(detect_framework(&cwd), TestFramework::Cargo);
     }
-    
+
     #[test]
     fn test_get_test_command_cargo() {
         let (cmd, args) = get_test_command(&TestFramework::Cargo);
         assert_eq!(cmd, "cargo");
         assert_eq!(args, vec!["test"]);
     }
-    
+
     #[test]
     fn test_get_test_command_make() {
         let (cmd, args) = get_test_command(&TestFramework::Make);
         assert_eq!(cmd, "make");
         assert_eq!(args, vec!["test"]);
     }
-    
+
     #[test]
     fn test_extract_number() {
         assert_eq!(extract_number("5 passed", "passed"), 5);
-        assert_eq!(extract_number("test result: ok. 10 passed; 2 failed", "passed"), 10);
-        assert_eq!(extract_number("test result: ok. 10 passed; 2 failed", "failed"), 2);
+        assert_eq!(
+            extract_number("test result: ok. 10 passed; 2 failed", "passed"),
+            10
+        );
+        assert_eq!(
+            extract_number("test result: ok. 10 passed; 2 failed", "failed"),
+            2
+        );
     }
 }

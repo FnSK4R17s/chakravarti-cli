@@ -3,8 +3,8 @@
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 
-use crate::state::AppState;
 use super::agents::load_agents;
+use crate::state::AppState;
 
 /// QA review request
 #[derive(Debug, Deserialize)]
@@ -99,20 +99,24 @@ pub struct AgentInfo {
 }
 
 /// Get the QA agent
-pub async fn get_qa_agent(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn get_qa_agent(State(state): State<AppState>) -> impl IntoResponse {
     let agents = load_agents(&state);
-    
+
     // Find agent with is_qa_agent = true
-    let qa_agent = agents.agents.iter()
+    let qa_agent = agents
+        .agents
+        .iter()
         .find(|a| a.is_qa_agent)
         .map(|a| AgentInfo {
             id: a.id.clone(),
             name: a.name.clone(),
-            model: a.openrouter.as_ref().map(|o| o.model.clone()).unwrap_or_else(|| "claude".to_string()),
+            model: a
+                .openrouter
+                .as_ref()
+                .map(|o| o.model.clone())
+                .unwrap_or_else(|| "claude".to_string()),
         });
-    
+
     Json(QAAgentResponse { agent: qa_agent })
 }
 
@@ -123,26 +127,28 @@ pub async fn run_review(
 ) -> impl IntoResponse {
     // Check for QA agent first
     let agents = load_agents(&state);
-    let qa_agent = agents.agents.iter()
-        .find(|a| a.is_qa_agent);
-    
+    let qa_agent = agents.agents.iter().find(|a| a.is_qa_agent);
+
     if qa_agent.is_none() {
         return Json(QAReviewResponse {
             success: false,
             review: None,
-            error: Some("No QA agent configured. Please set an agent as QA agent in Agent Manager.".to_string()),
+            error: Some(
+                "No QA agent configured. Please set an agent as QA agent in Agent Manager."
+                    .to_string(),
+            ),
         });
     }
-    
+
     let agent_id = qa_agent.map(|a| a.id.clone());
-    
+
     // Run ckrv qa review command
     let output = tokio::process::Command::new("ckrv")
         .args(["qa", "review", "--base", &req.base, "--json"])
         .current_dir(&state.project_root)
         .output()
         .await;
-    
+
     match output {
         Ok(output) => {
             if output.status.success() {
@@ -150,35 +156,60 @@ pub async fn run_review(
                     if let Ok(result) = serde_json::from_str::<serde_json::Value>(&stdout) {
                         let issues: Vec<QAIssue> = result["issues"]
                             .as_array()
-                            .map(|arr| arr.iter().filter_map(|i| {
-                                Some(QAIssue {
-                                    id: i["id"].as_str()?.to_string(),
-                                    file: i["file"].as_str()?.to_string(),
-                                    line: i["line"].as_u64().map(|n| n as u32),
-                                    severity: i["severity"].as_str().unwrap_or("info").to_string(),
-                                    category: i["category"].as_str().unwrap_or("code_quality").to_string(),
-                                    message: i["message"].as_str()?.to_string(),
-                                    suggestion: i["suggestion"].as_str().map(|s| s.to_string()),
-                                })
-                            }).collect())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|i| {
+                                        Some(QAIssue {
+                                            id: i["id"].as_str()?.to_string(),
+                                            file: i["file"].as_str()?.to_string(),
+                                            line: i["line"].as_u64().map(|n| n as u32),
+                                            severity: i["severity"]
+                                                .as_str()
+                                                .unwrap_or("info")
+                                                .to_string(),
+                                            category: i["category"]
+                                                .as_str()
+                                                .unwrap_or("code_quality")
+                                                .to_string(),
+                                            message: i["message"].as_str()?.to_string(),
+                                            suggestion: i["suggestion"]
+                                                .as_str()
+                                                .map(|s| s.to_string()),
+                                        })
+                                    })
+                                    .collect()
+                            })
                             .unwrap_or_default();
-                        
+
                         let summary_val = &result["summary"];
                         let summary = QASummary {
-                            total_issues: summary_val["total_issues"].as_u64().unwrap_or(issues.len() as u64) as u32,
+                            total_issues: summary_val["total_issues"]
+                                .as_u64()
+                                .unwrap_or(issues.len() as u64)
+                                as u32,
                             critical: summary_val["critical"].as_u64().unwrap_or(0) as u32,
                             major: summary_val["major"].as_u64().unwrap_or(0) as u32,
                             minor: summary_val["minor"].as_u64().unwrap_or(0) as u32,
                             info: summary_val["info"].as_u64().unwrap_or(0) as u32,
-                            files_reviewed: summary_val["files_reviewed"].as_u64().unwrap_or(0) as u32,
-                            verdict: summary_val["verdict"].as_str().unwrap_or("review").to_string(),
+                            files_reviewed: summary_val["files_reviewed"].as_u64().unwrap_or(0)
+                                as u32,
+                            verdict: summary_val["verdict"]
+                                .as_str()
+                                .unwrap_or("review")
+                                .to_string(),
                         };
-                        
+
                         return Json(QAReviewResponse {
                             success: true,
                             review: Some(QAReviewOutput {
-                                report_id: result["report_id"].as_str().unwrap_or("qa-0").to_string(),
-                                base_branch: result["base_branch"].as_str().unwrap_or(&req.base).to_string(),
+                                report_id: result["report_id"]
+                                    .as_str()
+                                    .unwrap_or("qa-0")
+                                    .to_string(),
+                                base_branch: result["base_branch"]
+                                    .as_str()
+                                    .unwrap_or(&req.base)
+                                    .to_string(),
                                 issues,
                                 summary,
                                 agent_id,
@@ -188,7 +219,7 @@ pub async fn run_review(
                     }
                 }
             }
-            
+
             let stderr = String::from_utf8_lossy(&output.stderr);
             Json(QAReviewResponse {
                 success: false,
@@ -211,24 +242,26 @@ pub async fn run_bugs(
 ) -> impl IntoResponse {
     // Check for QA agent first
     let agents = load_agents(&state);
-    let has_agent = agents.agents.iter()
-        .any(|a| a.is_qa_agent);
-    
+    let has_agent = agents.agents.iter().any(|a| a.is_qa_agent);
+
     if !has_agent {
         return Json(QABugsResponse {
             success: false,
             issues: None,
-            error: Some("No QA agent configured. Please set an agent as QA agent in Agent Manager.".to_string()),
+            error: Some(
+                "No QA agent configured. Please set an agent as QA agent in Agent Manager."
+                    .to_string(),
+            ),
         });
     }
-    
+
     // Run ckrv qa bugs command
     let output = tokio::process::Command::new("ckrv")
         .args(["qa", "bugs", "--base", &req.base, "--json"])
         .current_dir(&state.project_root)
         .output()
         .await;
-    
+
     match output {
         Ok(output) => {
             if output.status.success() {
@@ -242,7 +275,7 @@ pub async fn run_bugs(
                     }
                 }
             }
-            
+
             let stderr = String::from_utf8_lossy(&output.stderr);
             Json(QABugsResponse {
                 success: false,
@@ -265,40 +298,42 @@ pub async fn run_report(
 ) -> impl IntoResponse {
     // Check for QA agent first
     let agents = load_agents(&state);
-    let qa_agent = agents.agents.iter()
-        .find(|a| a.is_qa_agent);
-    
+    let qa_agent = agents.agents.iter().find(|a| a.is_qa_agent);
+
     if qa_agent.is_none() {
         return Json(QAReportResponse {
             success: false,
             review: None,
             report: None,
-            error: Some("No QA agent configured. Please set an agent as QA agent in Agent Manager.".to_string()),
+            error: Some(
+                "No QA agent configured. Please set an agent as QA agent in Agent Manager."
+                    .to_string(),
+            ),
         });
     }
-    
+
     let agent_id = qa_agent.map(|a| a.id.clone());
-    
+
     // Run ckrv qa report command
     let mut args = vec!["qa", "report", "--base", &req.base];
     if req.full {
         args.push("--full");
     }
-    
+
     let output = tokio::process::Command::new("ckrv")
         .args(&args)
         .current_dir(&state.project_root)
         .output()
         .await;
-    
+
     match output {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
-            
+
             if output.status.success() {
                 // The report command outputs markdown, not JSON
                 // Just return the markdown as the report
-                
+
                 // Create a minimal review summary
                 let summary = QASummary {
                     total_issues: 0,
@@ -309,7 +344,7 @@ pub async fn run_report(
                     files_reviewed: 0,
                     verdict: "review".to_string(),
                 };
-                
+
                 Json(QAReportResponse {
                     success: true,
                     review: Some(QAReviewOutput {

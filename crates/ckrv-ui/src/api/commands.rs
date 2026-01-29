@@ -1,28 +1,24 @@
+use crate::services::command::CommandService;
+use crate::state::AppState;
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     response::IntoResponse,
 };
 use serde::Deserialize;
-use crate::state::AppState;
-use crate::services::command::CommandService;
 
 #[derive(Deserialize)]
 pub struct SpecPayload {
     pub description: String,
 }
 
-pub async fn run_init(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn run_init(State(state): State<AppState>) -> impl IntoResponse {
     match CommandService::run_init(&state).await {
         Ok(msg) => Json(serde_json::json!({ "success": true, "message": msg })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
     }
 }
 
-pub async fn run_git_init(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn run_git_init(State(state): State<AppState>) -> impl IntoResponse {
     match CommandService::run_git_init(&state).await {
         Ok(msg) => Json(serde_json::json!({ "success": true, "message": msg })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
@@ -39,15 +35,14 @@ pub async fn run_spec_new(
     State(state): State<AppState>,
     Json(payload): Json<SpecNewPayload>,
 ) -> impl IntoResponse {
-    match CommandService::run_spec_new(&state, &payload.description, payload.name.as_deref()).await {
+    match CommandService::run_spec_new(&state, &payload.description, payload.name.as_deref()).await
+    {
         Ok(msg) => Json(serde_json::json!({ "success": true, "message": msg })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
     }
 }
 
-pub async fn run_spec_tasks(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn run_spec_tasks(State(state): State<AppState>) -> impl IntoResponse {
     match CommandService::run_spec_tasks(&state).await {
         Ok(msg) => Json(serde_json::json!({ "success": true, "message": msg })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
@@ -61,9 +56,7 @@ pub struct RunPayload {
 }
 
 /// Generate execution plan in Docker
-pub async fn run_plan(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn run_plan(State(state): State<AppState>) -> impl IntoResponse {
     match CommandService::run_plan(&state).await {
         Ok(msg) => Json(serde_json::json!({ "success": true, "message": msg })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
@@ -84,9 +77,7 @@ pub async fn run_run(
 }
 
 /// Execute batches in Docker
-pub async fn run_execute(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn run_execute(State(state): State<AppState>) -> impl IntoResponse {
     match CommandService::run_execute(&state).await {
         Ok(msg) => Json(serde_json::json!({ "success": true, "message": msg })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
@@ -105,7 +96,15 @@ pub async fn run_diff(
     State(state): State<AppState>,
     Json(payload): Json<DiffPayload>,
 ) -> impl IntoResponse {
-    match CommandService::run_diff(&state, payload.base.as_deref(), payload.stat.unwrap_or(false), payload.files.unwrap_or(false), payload.summary.unwrap_or(false)).await {
+    match CommandService::run_diff(
+        &state,
+        payload.base.as_deref(),
+        payload.stat.unwrap_or(false),
+        payload.files.unwrap_or(false),
+        payload.summary.unwrap_or(false),
+    )
+    .await
+    {
         Ok(output) => Json(serde_json::json!({ "success": true, "data": output })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
     }
@@ -123,7 +122,15 @@ pub async fn run_verify(
     State(state): State<AppState>,
     Json(payload): Json<VerifyPayload>,
 ) -> impl IntoResponse {
-    match CommandService::run_verify(&state, payload.lint.unwrap_or(false), payload.typecheck.unwrap_or(false), payload.test.unwrap_or(false), payload.fix.unwrap_or(false)).await {
+    match CommandService::run_verify(
+        &state,
+        payload.lint.unwrap_or(false),
+        payload.typecheck.unwrap_or(false),
+        payload.test.unwrap_or(false),
+        payload.fix.unwrap_or(false),
+    )
+    .await
+    {
         Ok(output) => Json(serde_json::json!({ "success": true, "data": output })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
     }
@@ -140,7 +147,14 @@ pub async fn run_promote(
     State(state): State<AppState>,
     Json(payload): Json<PromotePayload>,
 ) -> impl IntoResponse {
-    match CommandService::run_promote(&state, payload.base.as_deref(), payload.draft.unwrap_or(false), payload.push.unwrap_or(true)).await {
+    match CommandService::run_promote(
+        &state,
+        payload.base.as_deref(),
+        payload.draft.unwrap_or(false),
+        payload.push.unwrap_or(true),
+    )
+    .await
+    {
         Ok(output) => Json(serde_json::json!({ "success": true, "data": output })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
     }
@@ -166,7 +180,9 @@ pub async fn run_fix(
         payload.test.unwrap_or(false),
         payload.check.unwrap_or(false),
         payload.error.as_deref(),
-    ).await {
+    )
+    .await
+    {
         Ok(output) => Json(serde_json::json!({ "success": true, "data": output })),
         Err(e) => Json(serde_json::json!({ "success": false, "message": e })),
     }

@@ -143,14 +143,14 @@ fn ensure_defaults(agents: &mut AgentsFile) {
 /// Load agents from config file
 pub fn load_agents(state: &AppState) -> AgentsFile {
     let path = get_agents_path(state);
-    
+
     if let Ok(content) = fs::read_to_string(&path) {
         if let Ok(mut agents) = serde_yaml::from_str::<AgentsFile>(&content) {
             ensure_defaults(&mut agents);
             return agents;
         }
     }
-    
+
     // Return default agents if file doesn't exist or is invalid
     let mut default_agents = AgentsFile::default();
     ensure_defaults(&mut default_agents);
@@ -160,15 +160,15 @@ pub fn load_agents(state: &AppState) -> AgentsFile {
 /// Save agents to config file
 fn save_agents(state: &AppState, agents: &AgentsFile) -> Result<(), String> {
     let path = get_agents_path(state);
-    
+
     // Ensure .chakravarti directory exists
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
     }
-    
+
     let yaml = serde_yaml::to_string(agents).map_err(|e| format!("Failed to serialize: {}", e))?;
     fs::write(&path, yaml).map_err(|e| format!("Failed to write file: {}", e))?;
-    
+
     Ok(())
 }
 
@@ -219,11 +219,11 @@ struct OpenRouterApiPricing {
 fn format_pricing(pricing: &OpenRouterApiPricing) -> String {
     let prompt = pricing.prompt.as_deref().unwrap_or("0");
     let completion = pricing.completion.as_deref().unwrap_or("0");
-    
+
     // Convert from per-token to per-million tokens
     let prompt_f: f64 = prompt.parse().unwrap_or(0.0) * 1_000_000.0;
     let completion_f: f64 = completion.parse().unwrap_or(0.0) * 1_000_000.0;
-    
+
     if prompt_f == 0.0 && completion_f == 0.0 {
         "Free".to_string()
     } else {
@@ -234,7 +234,7 @@ fn format_pricing(pricing: &OpenRouterApiPricing) -> String {
 /// Filter to only include models suitable for coding tasks
 fn is_coding_model(model: &OpenRouterApiModel) -> bool {
     let id = model.id.to_lowercase();
-    
+
     // Include models from known good providers for coding
     let coding_providers = [
         "anthropic/claude",
@@ -251,21 +251,21 @@ fn is_coding_model(model: &OpenRouterApiModel) -> bool {
         "minimax/",
         "moonshot/",
         "x-ai/grok",
-        "z-ai/glm",          // Z.AI / Zhipu GLM models
+        "z-ai/glm", // Z.AI / Zhipu GLM models
         "zhipu/glm",
-        "thudm/glm",         // THUDM GLM models
+        "thudm/glm", // THUDM GLM models
         "cohere/command",
-        "nvidia/",           // NVIDIA models
-        "01-ai/",            // Yi models
-        "alibaba/",          // Alibaba models
-        "bytedance/",        // ByteDance models  
-        "amazon/",           // Amazon models
-        "ai21/",             // AI21 models
-        "inflection/",       // Inflection models
-        "perplexity/",       // Perplexity models
-        "databricks/",       // Databricks models
+        "nvidia/",     // NVIDIA models
+        "01-ai/",      // Yi models
+        "alibaba/",    // Alibaba models
+        "bytedance/",  // ByteDance models
+        "amazon/",     // Amazon models
+        "ai21/",       // AI21 models
+        "inflection/", // Inflection models
+        "perplexity/", // Perplexity models
+        "databricks/", // Databricks models
     ];
-    
+
     // Exclude models that are primarily for chat/roleplay
     let exclude_patterns = [
         "mythomax",
@@ -277,10 +277,10 @@ fn is_coding_model(model: &OpenRouterApiModel) -> bool {
         "psyfighter",
         "toppy",
     ];
-    
+
     let is_from_good_provider = coding_providers.iter().any(|p| id.contains(p));
     let is_excluded = exclude_patterns.iter().any(|p| id.contains(p));
-    
+
     is_from_good_provider && !is_excluded
 }
 
@@ -313,23 +313,26 @@ async fn fetch_openrouter_models() -> Result<Vec<OpenRouterModel>, String> {
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-    
+
     let response = client
         .get("https://openrouter.ai/api/v1/models")
         .header("Accept", "application/json")
         .send()
         .await
         .map_err(|e| format!("Failed to fetch models: {}", e))?;
-    
+
     if !response.status().is_success() {
-        return Err(format!("OpenRouter API returned status: {}", response.status()));
+        return Err(format!(
+            "OpenRouter API returned status: {}",
+            response.status()
+        ));
     }
-    
+
     let api_response: OpenRouterApiResponse = response
         .json()
         .await
         .map_err(|e| format!("Failed to parse response: {}", e))?;
-    
+
     // Transform all models (no filtering)
     let models: Vec<OpenRouterModel> = api_response
         .data
@@ -345,24 +348,40 @@ async fn fetch_openrouter_models() -> Result<Vec<OpenRouterModel>, String> {
             }
         })
         .collect();
-    
+
     // Sort by popularity/relevance (Claude and GPT models first)
     let mut sorted_models = models;
     sorted_models.sort_by(|a, b| {
         let priority = |id: &str| -> i32 {
-            if id.contains("anthropic/claude-sonnet-4") { return 0; }
-            if id.contains("anthropic/claude-opus-4") { return 1; }
-            if id.contains("anthropic/claude") { return 2; }
-            if id.contains("openai/gpt-4") { return 3; }
-            if id.contains("openai/o3") { return 4; }
-            if id.contains("google/gemini") { return 5; }
-            if id.contains("deepseek") { return 6; }
-            if id.contains("qwen") { return 7; }
+            if id.contains("anthropic/claude-sonnet-4") {
+                return 0;
+            }
+            if id.contains("anthropic/claude-opus-4") {
+                return 1;
+            }
+            if id.contains("anthropic/claude") {
+                return 2;
+            }
+            if id.contains("openai/gpt-4") {
+                return 3;
+            }
+            if id.contains("openai/o3") {
+                return 4;
+            }
+            if id.contains("google/gemini") {
+                return 5;
+            }
+            if id.contains("deepseek") {
+                return 6;
+            }
+            if id.contains("qwen") {
+                return 7;
+            }
             10
         };
         priority(&a.id).cmp(&priority(&b.id))
     });
-    
+
     Ok(sorted_models)
 }
 
@@ -418,21 +437,21 @@ pub async fn upsert_agent(
     Json(payload): Json<UpsertAgentPayload>,
 ) -> impl IntoResponse {
     let mut agents = load_agents(&state);
-    
+
     // If this agent is being set as default, unset others
     if payload.agent.is_default {
         for agent in &mut agents.agents {
             agent.is_default = false;
         }
     }
-    
+
     // Find existing or add new
     if let Some(existing) = agents.agents.iter_mut().find(|a| a.id == payload.agent.id) {
         *existing = payload.agent.clone();
     } else {
         agents.agents.push(payload.agent.clone());
     }
-    
+
     match save_agents(&state, &agents) {
         Ok(()) => Json(serde_json::json!({
             "success": true,
@@ -456,7 +475,7 @@ pub async fn delete_agent(
     Json(payload): Json<DeleteAgentPayload>,
 ) -> impl IntoResponse {
     let mut agents = load_agents(&state);
-    
+
     // Don't allow deleting the default agent
     if let Some(agent) = agents.agents.iter().find(|a| a.id == payload.id) {
         if agent.is_default {
@@ -466,9 +485,9 @@ pub async fn delete_agent(
             }));
         }
     }
-    
+
     agents.agents.retain(|a| a.id != payload.id);
-    
+
     match save_agents(&state, &agents) {
         Ok(()) => Json(serde_json::json!({
             "success": true
@@ -491,7 +510,7 @@ pub async fn set_default_agent(
     Json(payload): Json<SetDefaultPayload>,
 ) -> impl IntoResponse {
     let mut agents = load_agents(&state);
-    
+
     // Unset all defaults, then set the new one
     let mut found = false;
     for agent in &mut agents.agents {
@@ -502,14 +521,14 @@ pub async fn set_default_agent(
             agent.is_default = false;
         }
     }
-    
+
     if !found {
         return Json(serde_json::json!({
             "success": false,
             "message": "Agent not found"
         }));
     }
-    
+
     match save_agents(&state, &agents) {
         Ok(()) => Json(serde_json::json!({
             "success": true
@@ -527,7 +546,7 @@ pub async fn set_qa_agent(
     Json(payload): Json<SetDefaultPayload>,
 ) -> impl IntoResponse {
     let mut agents = load_agents(&state);
-    
+
     // Unset all QA agents, then set the new one
     let mut found = false;
     for agent in &mut agents.agents {
@@ -538,14 +557,14 @@ pub async fn set_qa_agent(
             agent.is_qa_agent = false;
         }
     }
-    
+
     if !found {
         return Json(serde_json::json!({
             "success": false,
             "message": "Agent not found"
         }));
     }
-    
+
     match save_agents(&state, &agents) {
         Ok(()) => Json(serde_json::json!({
             "success": true
@@ -563,7 +582,7 @@ pub async fn set_test_writer_agent(
     Json(payload): Json<SetDefaultPayload>,
 ) -> impl IntoResponse {
     let mut agents = load_agents(&state);
-    
+
     // Unset all test writer agents, then set the new one
     let mut found = false;
     for agent in &mut agents.agents {
@@ -574,14 +593,14 @@ pub async fn set_test_writer_agent(
             agent.is_test_writer = false;
         }
     }
-    
+
     if !found {
         return Json(serde_json::json!({
             "success": false,
             "message": "Agent not found"
         }));
     }
-    
+
     match save_agents(&state, &agents) {
         Ok(()) => Json(serde_json::json!({
             "success": true
@@ -620,11 +639,20 @@ pub async fn test_agent(Json(payload): Json<TestAgentPayload>) -> impl IntoRespo
         AgentType::ClaudeOpenRouter => {
             // Test OpenRouter API
             if let Some(ref config) = payload.agent.openrouter {
-                if config.api_key.is_none() || config.api_key.as_ref().map(|k| k.is_empty()).unwrap_or(true) {
+                if config.api_key.is_none()
+                    || config
+                        .api_key
+                        .as_ref()
+                        .map(|k| k.is_empty())
+                        .unwrap_or(true)
+                {
                     Err("OpenRouter API key is required".to_string())
                 } else {
                     // For now, just validate the config exists
-                    Ok(format!("OpenRouter config valid for model: {}", config.model))
+                    Ok(format!(
+                        "OpenRouter config valid for model: {}",
+                        config.model
+                    ))
                 }
             } else {
                 Err("OpenRouter configuration is required".to_string())
@@ -633,10 +661,19 @@ pub async fn test_agent(Json(payload): Json<TestAgentPayload>) -> impl IntoRespo
         AgentType::ClaudeGlm => {
             // Test GLM Coding Plan API
             if let Some(ref config) = payload.agent.glm {
-                if config.api_key.is_none() || config.api_key.as_ref().map(|k| k.is_empty()).unwrap_or(true) {
+                if config.api_key.is_none()
+                    || config
+                        .api_key
+                        .as_ref()
+                        .map(|k| k.is_empty())
+                        .unwrap_or(true)
+                {
                     Err("Z.AI API key is required for GLM Coding Plan".to_string())
                 } else {
-                    Ok(format!("GLM Coding Plan config valid for model: {}", config.model))
+                    Ok(format!(
+                        "GLM Coding Plan config valid for model: {}",
+                        config.model
+                    ))
                 }
             } else {
                 Err("GLM configuration is required".to_string())
@@ -657,7 +694,7 @@ pub async fn test_agent(Json(payload): Json<TestAgentPayload>) -> impl IntoRespo
             }
         }
     };
-    
+
     match result {
         Ok(message) => Json(serde_json::json!({
             "success": true,
@@ -669,4 +706,3 @@ pub async fn test_agent(Json(payload): Json<TestAgentPayload>) -> impl IntoRespo
         })),
     }
 }
-
