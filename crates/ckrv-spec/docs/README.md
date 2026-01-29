@@ -1,6 +1,6 @@
 ---
-last_commit: c1bb442
-last_updated: 2026-01-21
+last_commit: e74f093
+last_updated: 2026-01-29
 related_files:
   - src/lib.rs
   - src/loader.rs
@@ -13,60 +13,99 @@ Specification loading and validation for Chakravarti.
 
 ## Overview
 
-This crate handles loading, parsing, and validating specification files. It integrates with the Spec-Kit workflow system.
+This crate handles loading, parsing, and validating YAML specification files. It integrates with the Spec-Kit workflow system.
 
 ## Key Types
 
 | Type | Purpose |
 |------|---------|
-| `SpecLoader` | Loads spec files from disk |
-| `ValidationResult` | Validation outcome |
+| `SpecLoader` | **Trait** for loading spec files |
+| `YamlSpecLoader` | Default YAML implementation |
+| `ValidationResult` | Validation outcome struct |
 | `ValidationError` | Specific validation error |
 | `SpecError` | Loading errors |
-
-## Usage
-
-```rust
-use ckrv_spec::{SpecLoader, ValidationResult};
-
-let loader = SpecLoader::new();
-
-// Load and validate a spec
-let spec = loader.load("specs/012-feature/spec.md")?;
-let validation = loader.validate(&spec)?;
-
-match validation {
-    ValidationResult::Valid => println!("Spec is valid"),
-    ValidationResult::Invalid(errors) => {
-        for err in errors {
-            eprintln!("Validation error: {}", err);
-        }
-    }
-}
-```
 
 ## Module Structure
 
 ```
 src/
-├── loader.rs      # Spec file loading
+├── lib.rs         # Public exports
+├── loader.rs      # SpecLoader trait + YamlSpecLoader
+├── validator.rs   # validate() function
 ├── template.rs    # Spec templates
-├── validator.rs   # Validation logic
 └── error.rs       # Error types
 ```
 
-## Validation Rules
+## Usage
 
-The validator checks:
-- Required sections present
-- User stories have acceptance criteria
-- Requirements are testable
-- Success criteria are measurable
-- No implementation details in spec
+### Loading Specs
+
+```rust
+use ckrv_spec::{SpecLoader, SpecError};
+use ckrv_spec::loader::YamlSpecLoader;
+
+let loader = YamlSpecLoader;
+
+// Load a single spec
+let spec = loader.load(Path::new("specs/012-feature/spec.yaml"))?;
+
+// List all specs in a directory
+let specs = loader.list(Path::new("specs/"))?;
+```
+
+### Validating Specs
+
+```rust
+use ckrv_spec::validator::{validate, ValidationResult};
+
+let result = validate(&spec);
+
+if result.valid {
+    println!("Spec is valid");
+} else {
+    for err in &result.errors {
+        eprintln!("{}: {}", err.field, err.message);
+    }
+}
+```
+
+## Traits
+
+### SpecLoader
+
+```rust
+pub trait SpecLoader: Send + Sync {
+    /// Load a spec from a file path.
+    fn load(&self, path: &Path) -> Result<Spec, SpecError>;
+    
+    /// List all spec files in a directory.
+    fn list(&self, dir: &Path) -> Result<Vec<PathBuf>, SpecError>;
+}
+```
+
+## Validation
+
+The `validate()` function checks:
+- `id` is required and alphanumeric (with underscores/hyphens)
+- `overview` is required and non-empty
+
+```rust
+pub struct ValidationResult {
+    pub valid: bool,
+    pub errors: Vec<ValidationError>,
+    pub warnings: Vec<String>,
+}
+
+pub struct ValidationError {
+    pub field: String,
+    pub message: String,
+}
+```
 
 ## Dependencies
 
 | Crate | Purpose |
 |-------|---------|
-| `pulldown-cmark` | Markdown parsing |
+| `ckrv-core` | `Spec` type definition |
+| `serde_yaml` | YAML parsing |
 | `thiserror` | Error handling |

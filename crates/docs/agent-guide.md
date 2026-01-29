@@ -1,6 +1,6 @@
 ---
-last_commit: c1bb442
-last_updated: 2026-01-21
+last_commit: e74f093
+last_updated: 2026-01-29
 related_files:
   - crates/ckrv-sandbox/src/agent/mod.rs
   - crates/ckrv-sandbox/src/agent/claude.rs
@@ -11,17 +11,41 @@ related_files:
 
 ## Overview
 
-Chakravarti CLI supports multiple AI agents through the `AgentProvider` trait. This guide explains how to add support for new agents.
+Chakravarti CLI supports multiple AI agents through the `AgentProvider` trait. This guide explains how agents are structured and how to add new ones.
 
-## Supported Agents
+## Agentic Coding Tools
 
-| Agent | Type | Status |
-|-------|------|--------|
-| Claude Code | Native CLI | ✅ Default |
-| OpenAI Codex | Native CLI | ✅ Supported |
-| OpenRouter Models | Via Claude Code CLI | ✅ Supported |
+These are the underlying CLI tools that execute code generation:
 
-> **Note**: OpenRouter integration uses the Claude Code CLI as the interface, allowing you to plug in multiple AI models (Gemini, Kimi K2, DeepSeek, Qwen, etc.) through OpenRouter's API.
+| Tool | Provider | Description |
+|------|----------|-------------|
+| **Claude Code** | Anthropic | Native agentic coding CLI |
+| **Codex** | OpenAI | OpenAI's coding assistant CLI |
+
+## Authentication Methods
+
+Each tool can be authenticated in different ways:
+
+| Tool | Authentication | Environment/Config |
+|------|----------------|-------------------|
+| Claude Code | Claude Subscription | `~/.claude.json`, `~/.claude/` |
+| Claude Code | OpenRouter API Key | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` |
+| Claude Code | GLM Coding Plan (Z.AI) | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` |
+| Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
+
+> **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
+
+## Where Agent Support Lives
+
+| Crate | Responsibility |
+|-------|----------------|
+| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex providers, Docker execution |
+| `ckrv-core` | `RunnerConfig` with OpenRouter fields |
+| `ckrv-cli` | Agent config loading, CLI flags |
+| `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
+
+> [!WARNING]
+> **Current Limitation**: GLM Coding Plan is only available via the UI (`ckrv ui`). It has not been implemented in `ckrv-core` runner yet. OpenRouter works from both CLI and UI. See backlog for tracking.
 
 ## Agent Architecture
 
@@ -30,11 +54,16 @@ graph TD
     Sandbox[ckrv-sandbox] --> Provider[AgentProvider trait]
     Provider --> Claude[ClaudeProvider]
     Provider --> Codex[CodexProvider]
-    Provider --> Future[YourProvider]
     
     Claude --> Docker[Docker Container]
     Codex --> Docker
-    Future --> Docker
+    
+    subgraph "Authentication Layer"
+        Claude --> ClaudeSub[Claude Subscription]
+        Claude --> OpenRouter[OpenRouter API]
+        Claude --> GLM[GLM Coding Plan]
+        Codex --> OpenAISub[OpenAI Subscription]
+    end
 ```
 
 ## The AgentProvider Trait

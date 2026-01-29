@@ -1,6 +1,6 @@
 ---
-last_commit: c1bb442
-last_updated: 2026-01-21
+last_commit: e74f093
+last_updated: 2026-01-29
 related_files:
   - crates/ckrv-cli/src/commands/mod.rs
   - crates/ckrv-cli/src/main.rs
@@ -123,6 +123,8 @@ Run code quality checks.
 ```bash
 ckrv verify [OPTIONS]
 ```
+
+> **Note:** This command runs shell commands (e.g., `cargo test`, `cargo clippy`) directly, not via the `ckrv-verify` crate.
 
 **Options:**
 - `--lint`: Run linting only

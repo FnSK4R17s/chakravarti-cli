@@ -16,7 +16,6 @@ ckrv-core = { workspace = true }
 ckrv-spec = { workspace = true }
 ckrv-git = { workspace = true }
 ckrv-sandbox = { workspace = true }
-ckrv-model = { workspace = true }
 ckrv-verify = { workspace = true }
 ckrv-metrics = { workspace = true }
 
