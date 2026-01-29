@@ -37,7 +37,44 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Phases
 
-### Phase 0: Outline & Research
+### Phase 0: Existing Pattern Analysis (NEW - MANDATORY)
+
+**This phase prevents implementation location errors by analyzing existing codebase patterns.**
+
+1. **Identify similar features** in the codebase:
+   - Search documentation: Read `crates/docs/architecture.md` and relevant `crates/<crate>/docs/README.md`
+   - Search for keywords: `grep -r "<feature_keyword>" crates/ --include="*.rs" -l`
+   - Example: If adding GLM support, search for "openrouter" to find where similar feature lives
+
+2. **Map implementation locations**:
+   ```bash
+   # Find all files where similar feature is implemented
+   grep -rn "<similar_feature>" crates/ --include="*.rs" | cut -d: -f1 | sort -u
+   ```
+   
+3. **Document findings** in `research.md`:
+   ```markdown
+   ### Existing Pattern Analysis
+   
+   **Similar Feature**: [name]
+   **Search Command**: `grep -r "..." crates/`
+   
+   **Implementation Locations**:
+   | Crate | File | Purpose |
+   |-------|------|---------|
+   | ckrv-core | runner.rs | CLI execution path |
+   | ckrv-cli | commands/task.rs | Config loading |
+   | ckrv-ui | services/engine.rs | UI execution path |
+   
+   **CLI/UI Parity Check**:
+   - CLI path: [files that handle CLI execution]
+   - UI path: [files that handle UI execution]
+   - Conclusion: New feature MUST be added to [list all locations] for parity
+   ```
+
+4. **ERROR if pattern not found**: If no similar feature exists, document this and proceed with architecture review instead.
+
+### Phase 1: Research & Unknowns
 
 1. **Extract unknowns from Technical Context** above:
    - For each NEEDS CLARIFICATION → research task
@@ -58,11 +95,11 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Rationale: [why chosen]
    - Alternatives considered: [what else evaluated]
 
-**Output**: research.md with all NEEDS CLARIFICATION resolved
+**Output**: research.md with Existing Pattern Analysis + all NEEDS CLARIFICATION resolved
 
-### Phase 1: Design & Contracts
+### Phase 2: Design & Contracts
 
-**Prerequisites:** `research.md` complete
+**Prerequisites:** `research.md` complete with pattern analysis
 
 1. **Extract entities from feature spec** → `data-model.md`:
    - Entity name, fields, relationships
@@ -74,7 +111,12 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Use standard REST/GraphQL patterns
    - Output OpenAPI/GraphQL schema to `/contracts/`
 
-3. **Agent context update**:
+3. **Determine affected files** based on Pattern Analysis:
+   - List ALL files that need modification (not just one crate)
+   - For each file, specify: `[MODIFY]`, `[CREATE]`, or `[OPTIONAL]`
+   - **OPTIONAL changes require justification** (see Key Rules)
+
+4. **Agent context update**:
    - Run `.specify/scripts/bash/update-agent-context.sh claude`
    - These scripts detect which AI agent is in use
    - Update the appropriate agent-specific context file
@@ -83,7 +125,16 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
 
-## Key rules
+## Key Rules
 
 - Use absolute paths
 - ERROR on gate failures or unresolved clarifications
+- **CLI/UI Parity**: If a feature works in UI, it MUST also work via CLI (unless documented exception)
+- **Pattern Analysis**: NEVER decide implementation location without first searching for existing similar patterns
+- **Optional Changes Require Justification**: Any change marked `[OPTIONAL]` MUST include:
+  ```markdown
+  **Why optional**: [Clear explanation of why this is not required]
+  **Risk if omitted**: [What functionality will be missing]
+  **Recommendation**: [Keep optional / Make mandatory]
+  ```
+
