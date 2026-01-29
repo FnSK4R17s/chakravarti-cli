@@ -14,7 +14,7 @@ Thank you for your interest in contributing to Chakravarti! This document provid
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/chakravarti-cli
+git clone https://github.com/FnSK4R17s/chakravarti-cli
 cd chakravarti-cli
 
 # Build all crates
@@ -47,11 +47,12 @@ crates/
 ├── ckrv-cli/       # Main CLI binary
 ├── ckrv-core/      # Core types, job, plan, orchestrator
 ├── ckrv-spec/      # Spec parsing (YAML/JSON)
-├── ckrv-model/     # LLM provider abstraction
+├── ckrv-model/     # LLM provider abstraction (⚠️ unused)
 ├── ckrv-git/       # Git operations (git2 + shell)
-├── ckrv-sandbox/   # Execution isolation
-├── ckrv-verify/    # Test/lint verification
-└── ckrv-metrics/   # Cost and timing
+├── ckrv-sandbox/   # Docker execution, agent providers
+├── ckrv-verify/    # Test execution and parsing (⚠️ unused)
+├── ckrv-metrics/   # Cost/time tracking, file storage
+└── ckrv-ui/        # Web dashboard server + frontend
 ```
 
 ## Development Workflow
@@ -105,20 +106,17 @@ cargo build --release
 1. **CLI** parses arguments and loads spec
 2. **Spec** validates and normalizes the specification
 3. **Orchestrator** creates job and manages lifecycle
-4. **Planner** generates execution plan
-5. **Router** selects appropriate model
-6. **Provider** calls LLM API
-7. **Sandbox** executes generated commands
-8. **Verify** runs tests and lints
-9. **Git** manages worktrees and branches
-10. **Metrics** tracks costs and timing
+4. **Sandbox** selects agent (Claude, Codex) and executes in Docker
+5. **Git** manages worktrees and branches
+6. **Metrics** tracks costs and timing
+
+> **Note**: Steps 4-6 run in a loop with retries until verification passes.
 
 ### Key Traits
 
-- `ModelProvider` - LLM API abstraction
+- `AgentProvider` - AI agent abstraction (Claude, Codex)
 - `WorktreeManager` - Git worktree lifecycle
 - `Sandbox` - Command execution isolation
-- `Verifier` - Test/lint runner
 - `Orchestrator` - Job lifecycle management
 
 ## Pull Request Process
@@ -145,13 +143,15 @@ Use conventional commits:
 
 Example: `feat(router): add budget tracking for cost optimization`
 
-## Adding a New Provider
+## Adding a New Agent
 
-1. Create module in `crates/ckrv-model/src/`
-2. Implement `ModelProvider` trait
-3. Add to router detection in `ModelRouter::new()`
-4. Add tests
-5. Update pricing catalog
+See [Agent Guide](crates/docs/agent-guide.md) for adding new AI agent integrations.
+
+1. Add `AgentType` variant in `crates/ckrv-sandbox/src/agent/mod.rs`
+2. Implement `AgentProvider` trait
+3. Register in `create_agent()` factory
+4. Add to Docker image if needed
+5. Add tests
 
 ## Code of Conduct
 
