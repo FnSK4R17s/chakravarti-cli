@@ -1,6 +1,11 @@
 # Chakravarti CLI Development Guidelines
 
-Last updated: 2026-01-21
+Last updated: 2026-01-29
+
+> [!CAUTION]
+> **AI AGENTS: NEVER COMMIT OR PUSH**
+> 
+> Never run `git commit`, `git push`, or any git commands that modify repository state. Only the user commits and pushes code.
 
 ## Overview
 
