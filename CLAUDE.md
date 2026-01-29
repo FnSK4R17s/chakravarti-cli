@@ -202,3 +202,10 @@ Run `make install` from the repository root.
 ### CSS lint warnings about @plugin, @theme, @apply
 These are Tailwind v4 directives - the IDE linter doesn't recognize them but they work correctly at build time.
 
+
+## Active Technologies
+- Rust 1.75+ + tokio, bollard (Docker), serde (016-glm-cli-support)
+- YAML configuration (`~/.config/chakravarti/agents.yaml`) (016-glm-cli-support)
+
+## Recent Changes
+- 016-glm-cli-support: Added Rust 1.75+ + tokio, bollard (Docker), serde
