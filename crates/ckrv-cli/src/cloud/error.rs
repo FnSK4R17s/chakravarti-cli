@@ -8,42 +8,42 @@ pub enum CloudError {
     /// User is not authenticated
     #[error("Not authenticated. Run 'ckrv cloud login' to authenticate.")]
     NotAuthenticated,
-    
+
     /// Authentication failed
     #[error("Authentication failed: {0}")]
     AuthenticationFailed(String),
-    
+
     /// Token has expired
     #[error("Token expired. Run 'ckrv cloud login' to re-authenticate.")]
     TokenExpired,
-    
+
     /// API request failed
     #[error("API request failed: {0}")]
     ApiError(String),
-    
+
     /// Network error
     #[error("Network error: {0}")]
     NetworkError(String),
-    
+
     /// Configuration error
     #[error("Configuration error: {0}")]
     ConfigError(String),
-    
+
     /// Credential storage error
     #[error("Credential storage error: {0}")]
     CredentialError(String),
-    
+
     /// Quota exceeded
     #[error("Job quota exceeded. Resets at {reset_time}. Upgrade at {upgrade_url}")]
     QuotaExceeded {
         reset_time: String,
         upgrade_url: String,
     },
-    
+
     /// Job not found
     #[error("Job not found: {0}")]
     JobNotFound(String),
-    
+
     /// Invalid response from server
     #[error("Invalid response from server: {0}")]
     InvalidResponse(String),

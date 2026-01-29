@@ -8,16 +8,16 @@ pub mod logs;
 pub mod plan;
 pub mod promote;
 pub mod pull;
+pub mod qa;
 pub mod report;
 pub mod run;
 pub mod spec;
 pub mod spec_structs;
 pub mod status;
 pub mod task;
+pub mod test;
 pub mod ui;
 pub mod verify;
-pub mod test;
-pub mod qa;
 
 /// Emit a JSON value to stdout if requested.
 pub fn emit_json<T: serde::Serialize>(val: T, json: bool) {

@@ -27,7 +27,9 @@ fn check_docker() -> DockerStatus {
                 }
             } else {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                if stderr.contains("Cannot connect") || stderr.contains("Is the docker daemon running") {
+                if stderr.contains("Cannot connect")
+                    || stderr.contains("Is the docker daemon running")
+                {
                     DockerStatus {
                         available: false,
                         message: "Docker daemon not running".to_string(),
@@ -40,12 +42,9 @@ fn check_docker() -> DockerStatus {
                 }
             }
         }
-        Err(_) => {
-            DockerStatus {
-                available: false,
-                message: "Docker not installed".to_string(),
-            }
-        }
+        Err(_) => DockerStatus {
+            available: false,
+            message: "Docker not installed".to_string(),
+        },
     }
 }
-

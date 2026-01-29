@@ -10,11 +10,15 @@ fn main() {
     cmd.arg("run").arg("build");
     cmd.current_dir("frontend");
 
-    if !cmd.status().expect("failed to execute npm run build").success() {
+    if !cmd
+        .status()
+        .expect("failed to execute npm run build")
+        .success()
+    {
         if is_release {
-             panic!("Frontend build failed");
+            panic!("Frontend build failed");
         } else {
-             println!("cargo:warning=Frontend build failed, but continuing in debug mode");
+            println!("cargo:warning=Frontend build failed, but continuing in debug mode");
         }
     }
 }

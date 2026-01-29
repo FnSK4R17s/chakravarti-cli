@@ -6,9 +6,9 @@ use std::time::Instant;
 use clap::Args;
 use serde::Serialize;
 
-use crate::ui::UiContext;
-use crate::ui::Renderable;
 use crate::ui::components::Banner;
+use crate::ui::Renderable;
+use crate::ui::UiContext;
 
 /// Arguments for the verify command
 #[derive(Args)]
@@ -79,12 +79,17 @@ pub async fn execute(args: VerifyArgs, json: bool, ui: &UiContext) -> anyhow::Re
     let start_time = Instant::now();
 
     if !json {
-        println!("{}", Banner::new("CKRV VERIFY").subtitle("Quality Checks").render(&ui.theme));
+        println!(
+            "{}",
+            Banner::new("CKRV VERIFY")
+                .subtitle("Quality Checks")
+                .render(&ui.theme)
+        );
     }
 
     // Detect project type
     let project_type = detect_project_type(&cwd);
-    
+
     if !json {
         println!("📦 Detected project type: {:?}\n", project_type);
     }
@@ -103,7 +108,7 @@ pub async fn execute(args: VerifyArgs, json: bool, ui: &UiContext) -> anyhow::Re
             print_check_result(&result);
         }
         checks.push(result);
-        
+
         if !all_passed && !args.continue_on_failure {
             return finish_verify(checks, all_passed, start_time, json, &cwd, args.save);
         }
@@ -119,7 +124,7 @@ pub async fn execute(args: VerifyArgs, json: bool, ui: &UiContext) -> anyhow::Re
             print_check_result(&result);
         }
         checks.push(result);
-        
+
         if !all_passed && !args.continue_on_failure {
             return finish_verify(checks, all_passed, start_time, json, &cwd, args.save);
         }
@@ -149,12 +154,16 @@ fn finish_verify(
     save: bool,
 ) -> anyhow::Result<()> {
     let total_duration = start_time.elapsed().as_millis() as u64;
-    
+
     let passed = checks.iter().filter(|c| c.passed).count();
     let failed = checks.iter().filter(|c| !c.passed).count();
     let skipped = 0; // Could track skipped checks
 
-    let summary = VerifySummary { passed, failed, skipped };
+    let summary = VerifySummary {
+        passed,
+        failed,
+        skipped,
+    };
 
     let output = VerifyOutput {
         success: all_passed,
@@ -168,9 +177,15 @@ fn finish_verify(
     } else {
         println!("\n═══════════════════════════════════════════════════════════════");
         if all_passed {
-            println!("✅ All checks passed! ({} checks in {}ms)", passed, total_duration);
+            println!(
+                "✅ All checks passed! ({} checks in {}ms)",
+                passed, total_duration
+            );
         } else {
-            println!("❌ {} check(s) failed ({} passed, {} failed)", failed, passed, failed);
+            println!(
+                "❌ {} check(s) failed ({} passed, {} failed)",
+                failed, passed, failed
+            );
         }
         println!("═══════════════════════════════════════════════════════════════\n");
 
@@ -203,7 +218,10 @@ fn finish_verify(
 fn detect_project_type(cwd: &PathBuf) -> ProjectType {
     if cwd.join("Cargo.toml").exists() {
         ProjectType::Rust
-    } else if cwd.join("pyproject.toml").exists() || cwd.join("requirements.txt").exists() || cwd.join("setup.py").exists() {
+    } else if cwd.join("pyproject.toml").exists()
+        || cwd.join("requirements.txt").exists()
+        || cwd.join("setup.py").exists()
+    {
         ProjectType::Python
     } else if cwd.join("tsconfig.json").exists() {
         ProjectType::TypeScript
@@ -235,12 +253,8 @@ async fn run_lint_check(cwd: &PathBuf, project_type: &ProjectType, fix: bool) ->
                 ("npx", vec!["eslint", "."])
             }
         }
-        ProjectType::Rust => {
-            ("cargo", vec!["clippy", "--", "-D", "warnings"])
-        }
-        ProjectType::Go => {
-            ("golangci-lint", vec!["run"])
-        }
+        ProjectType::Rust => ("cargo", vec!["clippy", "--", "-D", "warnings"]),
+        ProjectType::Go => ("golangci-lint", vec!["run"]),
         ProjectType::Unknown => {
             return CheckResult {
                 name,
@@ -276,15 +290,9 @@ async fn run_type_check(cwd: &PathBuf, project_type: &ProjectType) -> CheckResul
                 };
             }
         }
-        ProjectType::TypeScript => {
-            ("npx", vec!["tsc", "--noEmit"])
-        }
-        ProjectType::Rust => {
-            ("cargo", vec!["check"])
-        }
-        ProjectType::Go => {
-            ("go", vec!["build", "./..."])
-        }
+        ProjectType::TypeScript => ("npx", vec!["tsc", "--noEmit"]),
+        ProjectType::Rust => ("cargo", vec!["check"]),
+        ProjectType::Go => ("go", vec!["build", "./..."]),
         _ => {
             return CheckResult {
                 name,
@@ -304,9 +312,7 @@ async fn run_tests(cwd: &PathBuf, project_type: &ProjectType) -> CheckResult {
     let name = "Tests".to_string();
 
     let (cmd, args): (&str, Vec<&str>) = match project_type {
-        ProjectType::Python => {
-            ("pytest", vec!["-v"])
-        }
+        ProjectType::Python => ("pytest", vec!["-v"]),
         ProjectType::JavaScript | ProjectType::TypeScript => {
             // Check for test script in package.json
             if cwd.join("package.json").exists() {
@@ -321,12 +327,8 @@ async fn run_tests(cwd: &PathBuf, project_type: &ProjectType) -> CheckResult {
                 };
             }
         }
-        ProjectType::Rust => {
-            ("cargo", vec!["test"])
-        }
-        ProjectType::Go => {
-            ("go", vec!["test", "./..."])
-        }
+        ProjectType::Rust => ("cargo", vec!["test"]),
+        ProjectType::Go => ("go", vec!["test", "./..."]),
         ProjectType::Unknown => {
             return CheckResult {
                 name,
@@ -341,7 +343,13 @@ async fn run_tests(cwd: &PathBuf, project_type: &ProjectType) -> CheckResult {
     run_command(name, cmd, &args, cwd, start).await
 }
 
-async fn run_command(name: String, cmd: &str, args: &[&str], cwd: &PathBuf, start: Instant) -> CheckResult {
+async fn run_command(
+    name: String,
+    cmd: &str,
+    args: &[&str],
+    cwd: &PathBuf,
+    start: Instant,
+) -> CheckResult {
     let output = std::process::Command::new(cmd)
         .args(args)
         .current_dir(cwd)
@@ -353,31 +361,37 @@ async fn run_command(name: String, cmd: &str, args: &[&str], cwd: &PathBuf, star
         Ok(out) => {
             let stdout = String::from_utf8_lossy(&out.stdout).to_string();
             let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-            
+
             CheckResult {
                 name,
                 passed: out.status.success(),
                 duration_ms,
-                output: if stdout.is_empty() { None } else { Some(stdout) },
-                error: if stderr.is_empty() || out.status.success() { None } else { Some(stderr) },
+                output: if stdout.is_empty() {
+                    None
+                } else {
+                    Some(stdout)
+                },
+                error: if stderr.is_empty() || out.status.success() {
+                    None
+                } else {
+                    Some(stderr)
+                },
             }
         }
-        Err(e) => {
-            CheckResult {
-                name,
-                passed: false,
-                duration_ms,
-                output: None,
-                error: Some(format!("Failed to run {}: {}", cmd, e)),
-            }
-        }
+        Err(e) => CheckResult {
+            name,
+            passed: false,
+            duration_ms,
+            output: None,
+            error: Some(format!("Failed to run {}: {}", cmd, e)),
+        },
     }
 }
 
 fn print_check_result(result: &CheckResult) {
     let icon = if result.passed { "✅" } else { "❌" };
     println!("{} {} ({}ms)", icon, result.name, result.duration_ms);
-    
+
     if let Some(ref error) = result.error {
         // Print first few lines of error
         for line in error.lines().take(10) {
@@ -405,15 +419,16 @@ fn save_verification_results(cwd: &PathBuf, output: &VerifyOutput) -> anyhow::Re
         .args(["branch", "--show-current"])
         .current_dir(cwd)
         .output()?;
-    
-    let branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
-    
+
+    let branch = String::from_utf8_lossy(&branch_output.stdout)
+        .trim()
+        .to_string();
+
     let spec_dir = cwd.join(".specs").join(&branch);
     if spec_dir.exists() {
         let yaml = serde_yaml::to_string(output)?;
         std::fs::write(spec_dir.join("verification.yaml"), yaml)?;
     }
-    
+
     Ok(())
 }
-

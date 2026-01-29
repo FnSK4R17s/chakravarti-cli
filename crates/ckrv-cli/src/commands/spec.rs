@@ -84,8 +84,8 @@ struct ValidationErrorOutput {
     message: String,
 }
 
-use crate::ui::{UiContext, Renderable};
-use crate::ui::components::{RichTable, Banner};
+use crate::ui::components::{Banner, RichTable};
+use crate::ui::{Renderable, UiContext};
 
 /// Execute the spec command
 pub async fn execute(args: SpecArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
@@ -125,12 +125,15 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
     }
 
     // Generate short name from description if not provided
-    let short_name = name.map(String::from).unwrap_or_else(|| {
-        generate_short_name(description)
-    });
+    let short_name = name
+        .map(String::from)
+        .unwrap_or_else(|| generate_short_name(description));
 
     // Validate name format
-    if !short_name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+    if !short_name
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+    {
         if json {
             let output = serde_json::json!({
                 "success": false,
@@ -139,13 +142,15 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
             });
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            eprintln!("Error: Invalid name. Must be alphanumeric with underscores or hyphens only.");
+            eprintln!(
+                "Error: Invalid name. Must be alphanumeric with underscores or hyphens only."
+            );
         }
         std::process::exit(1);
     }
 
     let specs_dir = cwd.join(".specs");
-    
+
     // Check if spec with this name already exists (before creating folder)
     if let Some(existing) = find_spec_by_name(&specs_dir, &short_name)? {
         if json {
@@ -156,7 +161,11 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
             });
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            eprintln!("Error: Spec '{}' already exists at {}", short_name, existing.display());
+            eprintln!(
+                "Error: Spec '{}' already exists at {}",
+                short_name,
+                existing.display()
+            );
         }
         std::process::exit(1);
     }
@@ -164,7 +173,7 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
     // Find next available number
     let next_number = get_next_spec_number(&specs_dir)?;
     let numbered_name = format!("{:03}-{}", next_number, short_name);
-    
+
     // Create spec folder and spec.yaml inside it
     let spec_folder = specs_dir.join(&numbered_name);
     std::fs::create_dir_all(&spec_folder)?;
@@ -193,7 +202,9 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
             .shell(&command)
             .with_timeout(Duration::from_secs(300));
 
-        sandbox.execute(config).await
+        sandbox
+            .execute(config)
+            .await
             .map_err(|e| anyhow::anyhow!("Sandbox execution failed: {}", e))
     }?;
 
@@ -215,7 +226,7 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
     // Write the generated spec (strip any markdown code fences)
     let spec_content = result.stdout.trim();
     let spec_content = crate::prompts::strip_yaml_fences(spec_content);
-    
+
     // Validate the generated YAML before writing
     let parsed: Result<super::spec_structs::SpecOutput, _> = serde_yaml::from_str(&spec_content);
     let (final_content, has_clarifications) = match parsed {
@@ -223,12 +234,16 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
             let has_clarifications = spec.has_unresolved_clarifications();
             let user_story_count = spec.user_story_count();
             let requirement_count = spec.requirement_count();
-            
+
             if !json {
-                eprintln!("✓ Generated spec with {} user stories, {} requirements", 
-                    user_story_count, requirement_count);
+                eprintln!(
+                    "✓ Generated spec with {} user stories, {} requirements",
+                    user_story_count, requirement_count
+                );
                 if has_clarifications {
-                    eprintln!("⚠ Spec has unresolved clarifications - run 'ckrv spec clarify' to resolve");
+                    eprintln!(
+                        "⚠ Spec has unresolved clarifications - run 'ckrv spec clarify' to resolve"
+                    );
                 }
             }
             (spec_content, has_clarifications)
@@ -241,7 +256,7 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
             (spec_content, false)
         }
     };
-    
+
     std::fs::write(&spec_path, &final_content)?;
 
     // Create a new git branch with the spec name
@@ -288,7 +303,8 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
 
     if json {
         // Try to parse spec for detailed output
-        let spec_details = serde_yaml::from_str::<super::spec_structs::SpecOutput>(&final_content).ok();
+        let spec_details =
+            serde_yaml::from_str::<super::spec_structs::SpecOutput>(&final_content).ok();
         let output = serde_json::json!({
             "success": true,
             "spec_folder": spec_folder,
@@ -329,23 +345,24 @@ async fn execute_clarify(spec_path: Option<&PathBuf>, json: bool) -> anyhow::Res
     use std::io::{self, Write};
 
     let cwd = std::env::current_dir()?;
-    
+
     // Resolve spec path - auto-detect from current branch if not provided
     let spec_path = resolve_spec_path(spec_path, &cwd)?;
-    
+
     // Read the spec file
     let spec_content = std::fs::read_to_string(&spec_path)?;
     let mut spec: super::spec_structs::SpecOutput = serde_yaml::from_str(&spec_content)
         .map_err(|e| anyhow::anyhow!("Failed to parse spec: {}", e))?;
-    
+
     // Check for unresolved clarifications - collect indices first
-    let unresolved_indices: Vec<usize> = spec.clarifications
+    let unresolved_indices: Vec<usize> = spec
+        .clarifications
         .iter()
         .enumerate()
         .filter(|(_, c)| c.resolved.is_none())
         .map(|(idx, _)| idx)
         .collect();
-    
+
     if unresolved_indices.is_empty() {
         if json {
             let output = serde_json::json!({
@@ -363,13 +380,16 @@ async fn execute_clarify(spec_path: Option<&PathBuf>, json: bool) -> anyhow::Res
         }
         return Ok(());
     }
-    
+
     if !json {
-        println!("Found {} clarification(s) to resolve:\n", unresolved_indices.len());
+        println!(
+            "Found {} clarification(s) to resolve:\n",
+            unresolved_indices.len()
+        );
     }
-    
+
     let mut resolved_count = 0;
-    
+
     for idx in unresolved_indices {
         let clarification = &spec.clarifications[idx];
         if !json {
@@ -377,7 +397,7 @@ async fn execute_clarify(spec_path: Option<&PathBuf>, json: bool) -> anyhow::Res
             println!("Topic: {}", clarification.topic);
             println!("Question: {}", clarification.question);
             println!();
-            
+
             for (i, option) in clarification.options.iter().enumerate() {
                 let label = (b'A' + i as u8) as char;
                 println!("  {}) {}", label, option.answer);
@@ -388,11 +408,11 @@ async fn execute_clarify(spec_path: Option<&PathBuf>, json: bool) -> anyhow::Res
             println!();
             print!("Choose an option (A, B, ...): ");
             io::stdout().flush()?;
-            
+
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
             let input = input.trim().to_uppercase();
-            
+
             if let Some(choice_idx) = input.chars().next().map(|c| (c as u8 - b'A') as usize) {
                 if choice_idx < spec.clarifications[idx].options.len() {
                     let answer = spec.clarifications[idx].options[choice_idx].answer.clone();
@@ -407,18 +427,18 @@ async fn execute_clarify(spec_path: Option<&PathBuf>, json: bool) -> anyhow::Res
             }
         }
     }
-    
+
     // Update the spec file if any clarifications were resolved
     if resolved_count > 0 {
         // Update status if all clarifications are now resolved
         if !spec.has_unresolved_clarifications() {
             spec.status = super::spec_structs::SpecStatus::Ready;
         }
-        
+
         let updated_yaml = serde_yaml::to_string(&spec)?;
         std::fs::write(&spec_path, &updated_yaml)?;
     }
-    
+
     if json {
         let output = serde_json::json!({
             "success": true,
@@ -431,7 +451,7 @@ async fn execute_clarify(spec_path: Option<&PathBuf>, json: bool) -> anyhow::Res
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         println!("✓ Resolved {} clarification(s)", resolved_count);
         println!("✓ Updated: {}", spec_path.display());
-        
+
         if spec.has_unresolved_clarifications() {
             println!("\n⚠ Some clarifications still unresolved - run 'ckrv spec clarify' again");
         } else {
@@ -440,25 +460,29 @@ async fn execute_clarify(spec_path: Option<&PathBuf>, json: bool) -> anyhow::Res
             println!("  2. Or Tasks: ckrv spec tasks");
         }
     }
-    
+
     Ok(())
 }
 
 /// Generate technical design document from a specification
-async fn execute_design(spec_path: Option<&PathBuf>, force: bool, json: bool) -> anyhow::Result<()> {
+async fn execute_design(
+    spec_path: Option<&PathBuf>,
+    force: bool,
+    json: bool,
+) -> anyhow::Result<()> {
     use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox};
     use std::time::Duration;
 
     let cwd = std::env::current_dir()?;
-    
+
     // Resolve spec path - auto-detect from current branch if not provided
     let spec_path = resolve_spec_path(spec_path, &cwd)?;
     let spec_folder = spec_path.parent().unwrap().to_path_buf();
-    
+
     // Check if design already exists
     let design_path = spec_folder.join("design.md");
     let research_path = spec_folder.join("research.md");
-    
+
     if design_path.exists() && !force {
         if json {
             let output = serde_json::json!({
@@ -468,17 +492,20 @@ async fn execute_design(spec_path: Option<&PathBuf>, force: bool, json: bool) ->
             });
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            eprintln!("Error: design.md already exists at {}", design_path.display());
+            eprintln!(
+                "Error: design.md already exists at {}",
+                design_path.display()
+            );
             eprintln!("Use --force to regenerate");
         }
         return Ok(());
     }
-    
+
     // Read the spec file
     let spec_content = std::fs::read_to_string(&spec_path)?;
     let spec: super::spec_structs::SpecOutput = serde_yaml::from_str(&spec_content)
         .map_err(|e| anyhow::anyhow!("Failed to parse spec: {}", e))?;
-    
+
     // Check for unresolved clarifications
     if spec.has_unresolved_clarifications() {
         if json {
@@ -494,15 +521,15 @@ async fn execute_design(spec_path: Option<&PathBuf>, force: bool, json: bool) ->
         }
         return Ok(());
     }
-    
+
     if !json {
         eprintln!("Generating design document for: {}", spec.id);
         eprintln!();
     }
-    
+
     // Build the design prompt
     let prompt = crate::prompts::build_design_prompt(&spec_content, &spec.id);
-    
+
     // Run Claude in Docker sandbox
     let result = {
         let sandbox = DockerSandbox::new(ckrv_sandbox::DefaultAllowList::default())
@@ -517,7 +544,9 @@ async fn execute_design(spec_path: Option<&PathBuf>, force: bool, json: bool) ->
             .shell(&command)
             .with_timeout(Duration::from_secs(300));
 
-        sandbox.execute(config).await
+        sandbox
+            .execute(config)
+            .await
             .map_err(|e| anyhow::anyhow!("Sandbox execution failed: {}", e))
     }?;
 
@@ -539,10 +568,11 @@ async fn execute_design(spec_path: Option<&PathBuf>, force: bool, json: bool) ->
     // Write the design document
     let design_content = result.stdout.trim();
     std::fs::write(&design_path, design_content)?;
-    
+
     // Create a basic research.md if it doesn't exist
     if !research_path.exists() {
-        let research_content = format!(r#"# Research: {}
+        let research_content = format!(
+            r#"# Research: {}
 
 **Generated**: {}
 **Status**: Auto-generated during design phase
@@ -558,10 +588,13 @@ async fn execute_design(spec_path: Option<&PathBuf>, force: bool, json: bool) ->
 ## Risks & Mitigations
 
 (Document any risks identified during design)
-"#, spec.id, chrono::Local::now().format("%Y-%m-%d"));
+"#,
+            spec.id,
+            chrono::Local::now().format("%Y-%m-%d")
+        );
         std::fs::write(&research_path, research_content)?;
     }
-    
+
     if json {
         let output = serde_json::json!({
             "success": true,
@@ -578,14 +611,14 @@ async fn execute_design(spec_path: Option<&PathBuf>, force: bool, json: bool) ->
         println!("  1. Review:   cat {}", design_path.display());
         println!("  2. Tasks:    ckrv spec tasks");
     }
-    
+
     Ok(())
 }
 
 /// Initialize an empty spec directory with templates
 fn execute_init(name: &str, json: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    
+
     // Check if initialized
     if !ckrv_git::is_initialized(&cwd) {
         if json {
@@ -600,9 +633,9 @@ fn execute_init(name: &str, json: bool) -> anyhow::Result<()> {
         }
         return Ok(());
     }
-    
+
     let specs_dir = cwd.join(".specs");
-    
+
     // Generate a numbered name
     let existing_count = if specs_dir.exists() {
         std::fs::read_dir(&specs_dir)
@@ -611,10 +644,10 @@ fn execute_init(name: &str, json: bool) -> anyhow::Result<()> {
     } else {
         0
     };
-    
+
     let numbered_name = format!("{:03}-{}", existing_count + 1, name);
     let spec_folder = specs_dir.join(&numbered_name);
-    
+
     if spec_folder.exists() {
         if json {
             let output = serde_json::json!({
@@ -624,17 +657,21 @@ fn execute_init(name: &str, json: bool) -> anyhow::Result<()> {
             });
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            eprintln!("Error: Spec folder already exists: {}", spec_folder.display());
+            eprintln!(
+                "Error: Spec folder already exists: {}",
+                spec_folder.display()
+            );
         }
         return Ok(());
     }
-    
+
     // Create the directory structure
     std::fs::create_dir_all(&spec_folder)?;
     std::fs::create_dir_all(spec_folder.join("checklists"))?;
-    
+
     // Create empty template files
-    let spec_yaml = format!(r#"id: "{}"
+    let spec_yaml = format!(
+        r#"id: "{}"
 branch: "{}"
 created: "{}"
 status: draft
@@ -656,10 +693,14 @@ edge_cases: []
 assumptions: []
 
 clarifications: []
-"#, numbered_name, numbered_name, chrono::Local::now().format("%Y-%m-%d"));
-    
+"#,
+        numbered_name,
+        numbered_name,
+        chrono::Local::now().format("%Y-%m-%d")
+    );
+
     std::fs::write(spec_folder.join("spec.yaml"), spec_yaml)?;
-    
+
     // Create empty checklist
     let checklist = r#"# Requirements Checklist
 
@@ -671,8 +712,11 @@ clarifications: []
 - [ ] Functional requirements are testable
 - [ ] Success criteria are measurable
 "#;
-    std::fs::write(spec_folder.join("checklists").join("requirements.md"), checklist)?;
-    
+    std::fs::write(
+        spec_folder.join("checklists").join("requirements.md"),
+        checklist,
+    )?;
+
     if json {
         let output = serde_json::json!({
             "success": true,
@@ -684,18 +728,28 @@ clarifications: []
     } else {
         println!("✓ Created: {}", spec_folder.display());
         println!("✓ Created: {}/spec.yaml", spec_folder.display());
-        println!("✓ Created: {}/checklists/requirements.md", spec_folder.display());
+        println!(
+            "✓ Created: {}/checklists/requirements.md",
+            spec_folder.display()
+        );
         println!();
         println!("Next steps:");
-        println!("  1. Edit:   {} {}/spec.yaml", std::env::var("EDITOR").unwrap_or_else(|_| "nano".to_string()), spec_folder.display());
+        println!(
+            "  1. Edit:   {} {}/spec.yaml",
+            std::env::var("EDITOR").unwrap_or_else(|_| "nano".to_string()),
+            spec_folder.display()
+        );
         println!("  2. Or use: ckrv spec new \"description\" --name {}", name);
     }
-    
+
     Ok(())
 }
 
 /// Helper function to resolve spec path from current branch if not provided
-fn resolve_spec_path(spec_path: Option<&PathBuf>, cwd: &std::path::Path) -> anyhow::Result<PathBuf> {
+fn resolve_spec_path(
+    spec_path: Option<&PathBuf>,
+    cwd: &std::path::Path,
+) -> anyhow::Result<PathBuf> {
     match spec_path {
         Some(path) => {
             if path.is_absolute() {
@@ -714,12 +768,12 @@ fn resolve_spec_path(spec_path: Option<&PathBuf>, cwd: &std::path::Path) -> anyh
             match branch_output {
                 Ok(output) if output.status.success() => {
                     let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                    
+
                     let specs_dir = cwd.join(".specs");
                     let spec_folder = specs_dir.join(&branch);
                     let spec_file = spec_folder.join("spec.yaml");
                     let spec_file_yml = spec_folder.join("spec.yml");
-                    
+
                     if spec_file.exists() {
                         Ok(spec_file)
                     } else if spec_file_yml.exists() {
@@ -732,7 +786,9 @@ fn resolve_spec_path(spec_path: Option<&PathBuf>, cwd: &std::path::Path) -> anyh
                         ))
                     }
                 }
-                _ => Err(anyhow::anyhow!("Failed to detect current branch. Provide spec path explicitly."))
+                _ => Err(anyhow::anyhow!(
+                    "Failed to detect current branch. Provide spec path explicitly."
+                )),
             }
         }
     }
@@ -740,7 +796,12 @@ fn resolve_spec_path(spec_path: Option<&PathBuf>, cwd: &std::path::Path) -> anyh
 
 /// Generate implementation tasks from a spec file.
 /// Auto-detects spec from current branch if not provided.
-async fn execute_tasks(spec_path: Option<&PathBuf>, force: bool, json: bool, ui: &UiContext) -> anyhow::Result<()> {
+async fn execute_tasks(
+    spec_path: Option<&PathBuf>,
+    force: bool,
+    json: bool,
+    ui: &UiContext,
+) -> anyhow::Result<()> {
     use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox};
     use std::time::Duration;
 
@@ -766,13 +827,13 @@ async fn execute_tasks(spec_path: Option<&PathBuf>, force: bool, json: bool, ui:
             match branch_output {
                 Ok(output) if output.status.success() => {
                     let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                    
+
                     // Try to find spec file in folder matching branch name
                     let specs_dir = cwd.join(".specs");
                     let spec_folder = specs_dir.join(&branch);
                     let spec_file = spec_folder.join("spec.yaml");
                     let spec_file_yml = spec_folder.join("spec.yml");
-                    
+
                     if spec_file.exists() {
                         spec_file
                     } else if spec_file_yml.exists() {
@@ -806,7 +867,9 @@ async fn execute_tasks(spec_path: Option<&PathBuf>, force: bool, json: bool, ui:
                         println!("{}", serde_json::to_string_pretty(&output)?);
                     } else {
                         eprintln!("Error: Could not determine current branch.");
-                        eprintln!("Provide spec path explicitly: ckrv spec tasks .specs/<spec>.yaml");
+                        eprintln!(
+                            "Provide spec path explicitly: ckrv spec tasks .specs/<spec>.yaml"
+                        );
                     }
                     std::process::exit(1);
                 }
@@ -840,11 +903,14 @@ async fn execute_tasks(spec_path: Option<&PathBuf>, force: bool, json: bool, ui:
         .unwrap_or("unknown");
 
     if !json {
-        println!("{}", Banner::new(spec_id).subtitle("Tasks").render(&ui.theme));
+        println!(
+            "{}",
+            Banner::new(spec_id).subtitle("Tasks").render(&ui.theme)
+        );
         println!();
         if is_auto_detected {
-             println!("Auto-detected spec: {}", spec_path.display());
-             println!();
+            println!("Auto-detected spec: {}", spec_path.display());
+            println!();
         }
     }
 
@@ -853,17 +919,16 @@ async fn execute_tasks(spec_path: Option<&PathBuf>, force: bool, json: bool, ui:
     let tasks_path = spec_folder.join("tasks.yaml");
 
     if tasks_path.exists() && !force {
-        
         // Parse YAML
         let content = std::fs::read_to_string(&tasks_path)?;
         // Handle potentially loose format or strict TaskFile
         // We asked Claude for "tasks: [...]" object
         let task_file: Result<TaskFile, _> = serde_yaml::from_str(&content);
-        
+
         match task_file {
             Ok(file) => {
-                 if json {
-                     let output = serde_json::json!({
+                if json {
+                    let output = serde_json::json!({
                         "success": true,
                         "spec_id": spec_id,
                         "tasks_path": tasks_path,
@@ -871,18 +936,18 @@ async fn execute_tasks(spec_path: Option<&PathBuf>, force: bool, json: bool, ui:
                     });
                     println!("{}", serde_json::to_string_pretty(&output)?);
                 } else {
-                     let table = tabled::Table::new(file.tasks);
-                     let rich_table = RichTable::new(table);
-                     println!("{}", rich_table.render(&ui.theme));
-                     println!();
-                     println!("Use --force to regenerate tasks with AI.");
+                    let table = tabled::Table::new(file.tasks);
+                    let rich_table = RichTable::new(table);
+                    println!("{}", rich_table.render(&ui.theme));
+                    println!();
+                    println!("Use --force to regenerate tasks with AI.");
                 }
                 return Ok(());
             }
             Err(e) => {
                 if !json {
-                     eprintln!("Warning: Could not parse existing tasks.yaml: {}", e);
-                     eprintln!("Proceeding to regenerate...");
+                    eprintln!("Warning: Could not parse existing tasks.yaml: {}", e);
+                    eprintln!("Proceeding to regenerate...");
                 }
             }
         }
@@ -895,7 +960,7 @@ async fn execute_tasks(spec_path: Option<&PathBuf>, force: bool, json: bool, ui:
 
     // Ensure we're on the spec's branch (branch was created during spec new)
     let repo_root = ckrv_git::repo_root(&cwd).unwrap_or_else(|_| cwd.clone());
-    
+
     let on_branch = match std::process::Command::new("git")
         .args(["checkout", spec_id])
         .current_dir(&repo_root)
@@ -989,7 +1054,9 @@ Output ONLY the raw YAML content. No ```yaml fences."#,
             .shell(&command)
             .with_timeout(Duration::from_secs(300));
 
-        sandbox.execute(config).await
+        sandbox
+            .execute(config)
+            .await
             .map_err(|e| anyhow::anyhow!("Sandbox execution failed: {}", e))
     }?;
 
@@ -1053,7 +1120,9 @@ fn generate_short_name(description: &str) -> String {
     if words.is_empty() {
         "feature".to_string()
     } else {
-        words.join("-").replace(|c: char| !c.is_alphanumeric() && c != '-', "")
+        words
+            .join("-")
+            .replace(|c: char| !c.is_alphanumeric() && c != '-', "")
     }
 }
 
@@ -1085,7 +1154,7 @@ fn strip_code_fences(content: &str) -> String {
 
 fn execute_validate(path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    
+
     // Resolve spec path - auto-detect from current branch if not provided
     let full_path = match path {
         Some(p) => {
@@ -1095,26 +1164,28 @@ fn execute_validate(path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
                 cwd.join(p)
             }
         }
-        None => resolve_spec_path(None, &cwd)?
+        None => resolve_spec_path(None, &cwd)?,
     };
 
     // Try to load as rich SpecOutput first for additional validation
     let spec_content = std::fs::read_to_string(&full_path)?;
-    let rich_spec: Option<super::spec_structs::SpecOutput> = serde_yaml::from_str(&spec_content).ok();
-    
+    let rich_spec: Option<super::spec_structs::SpecOutput> =
+        serde_yaml::from_str(&spec_content).ok();
+
     // Additional validation for rich spec
     let mut additional_errors: Vec<ValidationErrorOutput> = Vec::new();
     let mut additional_warnings: Vec<String> = Vec::new();
-    
+
     if let Some(ref spec) = rich_spec {
         // Check for unresolved clarifications
         if spec.has_unresolved_clarifications() {
             additional_errors.push(ValidationErrorOutput {
                 field: "clarifications".to_string(),
-                message: "Spec has unresolved clarifications. Run 'ckrv spec clarify' first.".to_string(),
+                message: "Spec has unresolved clarifications. Run 'ckrv spec clarify' first."
+                    .to_string(),
             });
         }
-        
+
         // Check for at least one user story
         if spec.user_stories.is_empty() {
             additional_errors.push(ValidationErrorOutput {
@@ -1122,7 +1193,7 @@ fn execute_validate(path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
                 message: "Spec must have at least one user story.".to_string(),
             });
         }
-        
+
         // Check user stories have acceptance scenarios
         for story in &spec.user_stories {
             if story.acceptance_scenarios.is_empty() {
@@ -1132,7 +1203,7 @@ fn execute_validate(path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
                 ));
             }
         }
-        
+
         // Check for at least one requirement
         if spec.requirement_count() == 0 {
             additional_errors.push(ValidationErrorOutput {
@@ -1140,7 +1211,7 @@ fn execute_validate(path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
                 message: "Spec must have at least one requirement.".to_string(),
             });
         }
-        
+
         // Check success criteria are measurable (contain numbers)
         for criteria in &spec.success_criteria {
             let has_number = criteria.metric.chars().any(|c| c.is_ascii_digit());
@@ -1151,11 +1222,12 @@ fn execute_validate(path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
                 ));
             }
         }
-        
+
         // Check overview is not placeholder
         if let Some(ref overview) = spec.overview {
             if overview.contains("[") && overview.contains("]") {
-                additional_warnings.push("Overview appears to contain placeholder text".to_string());
+                additional_warnings
+                    .push("Overview appears to contain placeholder text".to_string());
             }
         }
     }
@@ -1195,11 +1267,14 @@ fn execute_validate(path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
         })
         .chain(additional_errors)
         .collect();
-    
-    let all_warnings: Vec<String> = result.warnings.iter().cloned()
+
+    let all_warnings: Vec<String> = result
+        .warnings
+        .iter()
+        .cloned()
         .chain(additional_warnings)
         .collect();
-    
+
     let is_valid = result.valid && all_errors.len() == result.errors.len();
 
     if json {
@@ -1289,7 +1364,12 @@ fn execute_list(json: bool) -> anyhow::Result<()> {
             if let Some(name) = path.file_name() {
                 let has_tasks = path.join("tasks.yaml").exists();
                 let status = if has_tasks { "✓" } else { " " };
-                println!("  {} {} ({})", status, name.to_string_lossy(), path.display());
+                println!(
+                    "  {} {} ({})",
+                    status,
+                    name.to_string_lossy(),
+                    path.display()
+                );
             }
         }
         println!();
@@ -1311,7 +1391,7 @@ fn get_next_spec_number(specs_dir: &std::path::Path) -> anyhow::Result<u32> {
     for entry in std::fs::read_dir(specs_dir)? {
         let entry = entry?;
         let path = entry.path();
-        
+
         // Look for directories (e.g., "001-my-feature/")
         if path.is_dir() {
             if let Some(dir_name) = path.file_name() {
@@ -1339,7 +1419,7 @@ fn find_spec_by_name(specs_dir: &std::path::Path, name: &str) -> anyhow::Result<
     for entry in std::fs::read_dir(specs_dir)? {
         let entry = entry?;
         let path = entry.path();
-        
+
         // Look for directories (e.g., "001-my-feature/")
         if path.is_dir() {
             if let Some(dir_name) = path.file_name() {
@@ -1364,26 +1444,26 @@ fn find_spec_by_name(specs_dir: &std::path::Path, name: &str) -> anyhow::Result<
 struct Task {
     #[tabled(rename = "ID")]
     pub id: String,
-    
+
     #[tabled(rename = "Phase")]
     pub phase: String,
 
     #[tabled(rename = "Title")]
     pub title: String,
-    
+
     #[tabled(skip)]
     pub description: String,
-    
+
     #[tabled(rename = "File")]
     #[serde(default)]
     pub file: String,
-    
+
     #[tabled(skip)]
     pub user_story: Option<String>,
-    
+
     #[tabled(skip)]
     pub parallel: bool,
-    
+
     #[tabled(rename = "Level")]
     #[serde(default = "default_complexity")]
     pub complexity: u8, // 1-5 scale
@@ -1408,9 +1488,15 @@ struct Task {
     pub status: String,
 }
 
-fn default_complexity() -> u8 { 3 }
-fn default_tier() -> String { "standard".to_string() }
-fn default_risk() -> String { "low".to_string() }
+fn default_complexity() -> u8 {
+    3
+}
+fn default_tier() -> String {
+    "standard".to_string()
+}
+fn default_risk() -> String {
+    "low".to_string()
+}
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct TaskFile {

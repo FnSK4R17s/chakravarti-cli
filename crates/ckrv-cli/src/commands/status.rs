@@ -134,7 +134,7 @@ pub async fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Re
                     return Ok(());
                 }
             }
-            
+
             if json {
                 let output = StatusOutput {
                     job_id: args.job_id.clone(),
@@ -162,12 +162,12 @@ pub async fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Re
 /// Check cloud job status
 async fn check_cloud_job_status(job_id: &str, json: bool) -> anyhow::Result<bool> {
     use crate::cloud::client::CloudClient;
-    
+
     let client = match CloudClient::new() {
         Ok(c) => c,
         Err(_) => return Ok(false), // Not authenticated, skip cloud check
     };
-    
+
     match client.get_job(job_id).await {
         Ok(job) => {
             if json {
@@ -181,7 +181,7 @@ async fn check_cloud_job_status(job_id: &str, json: bool) -> anyhow::Result<bool
                     "timeout" => "⏰",
                     _ => "❓",
                 };
-                
+
                 println!("☁️  Cloud Job Status: {} {}", status_emoji, job.status);
                 println!();
                 println!("   Job ID:     {}", job.id);
@@ -204,7 +204,7 @@ async fn check_cloud_job_status(job_id: &str, json: bool) -> anyhow::Result<bool
                     println!("   Error:      {}", error);
                 }
                 println!();
-                
+
                 if job.status == "succeeded" {
                     println!("📦 Pull results: ckrv pull {}", job.id);
                 } else if job.status == "running" || job.status == "pending" {

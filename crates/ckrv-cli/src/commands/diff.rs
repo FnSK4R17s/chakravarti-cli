@@ -5,9 +5,9 @@ use std::path::PathBuf;
 use clap::{Args, ValueEnum};
 use serde::Serialize;
 
-use crate::ui::UiContext;
-use crate::ui::Renderable;
 use crate::ui::components::Banner;
+use crate::ui::Renderable;
+use crate::ui::UiContext;
 
 /// Arguments for the diff command
 #[derive(Args)]
@@ -69,12 +69,17 @@ pub async fn execute(args: DiffArgs, json: bool, ui: &UiContext) -> anyhow::Resu
     let cwd = std::env::current_dir()?;
 
     if !json {
-        println!("{}", Banner::new("CKRV DIFF").subtitle("Review Changes").render(&ui.theme));
+        println!(
+            "{}",
+            Banner::new("CKRV DIFF")
+                .subtitle("Review Changes")
+                .render(&ui.theme)
+        );
     }
 
     // Get current branch
     let current_branch = get_current_branch(&cwd)?;
-    
+
     // Determine base branch
     let base_branch = args.base.unwrap_or_else(|| detect_default_branch(&cwd));
 
@@ -92,7 +97,10 @@ pub async fn execute(args: DiffArgs, json: bool, ui: &UiContext) -> anyhow::Resu
             };
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            println!("⚠️  Currently on base branch '{}'. No diff to show.", base_branch);
+            println!(
+                "⚠️  Currently on base branch '{}'. No diff to show.",
+                base_branch
+            );
             println!("   Switch to a spec branch first: git checkout <spec-branch>");
         }
         return Ok(());
@@ -104,29 +112,39 @@ pub async fn execute(args: DiffArgs, json: bool, ui: &UiContext) -> anyhow::Resu
 
     // Get diff statistics
     let diff_stat = std::process::Command::new("git")
-        .args(["diff", "--stat", &format!("{}...{}", base_branch, current_branch)])
+        .args([
+            "diff",
+            "--stat",
+            &format!("{}...{}", base_branch, current_branch),
+        ])
         .current_dir(&cwd)
         .output()?;
 
     // Get file list with status
     let diff_name_status = std::process::Command::new("git")
-        .args(["diff", "--name-status", &format!("{}...{}", base_branch, current_branch)])
+        .args([
+            "diff",
+            "--name-status",
+            &format!("{}...{}", base_branch, current_branch),
+        ])
         .current_dir(&cwd)
         .output()?;
 
     // Parse files
     let files = parse_name_status(&String::from_utf8_lossy(&diff_name_status.stdout));
-    
+
     // Get numstat for line counts
     let diff_numstat = std::process::Command::new("git")
-        .args(["diff", "--numstat", &format!("{}...{}", base_branch, current_branch)])
+        .args([
+            "diff",
+            "--numstat",
+            &format!("{}...{}", base_branch, current_branch),
+        ])
         .current_dir(&cwd)
         .output()?;
-    
-    let (files, total_added, total_removed) = parse_numstat(
-        &String::from_utf8_lossy(&diff_numstat.stdout),
-        files,
-    );
+
+    let (files, total_added, total_removed) =
+        parse_numstat(&String::from_utf8_lossy(&diff_numstat.stdout), files);
 
     let files_changed = files.len();
     let has_changes = files_changed > 0;
@@ -136,7 +154,9 @@ pub async fn execute(args: DiffArgs, json: bool, ui: &UiContext) -> anyhow::Resu
         if !json {
             println!("🤖 Generating AI summary...\n");
         }
-        generate_ai_summary(&cwd, &base_branch, &current_branch).await.ok()
+        generate_ai_summary(&cwd, &base_branch, &current_branch)
+            .await
+            .ok()
     } else {
         None
     };
@@ -172,8 +192,10 @@ pub async fn execute(args: DiffArgs, json: bool, ui: &UiContext) -> anyhow::Resu
                     "renamed" => "\x1b[36m→\x1b[0m",
                     _ => " ",
                 };
-                println!("   {} {} \x1b[32m+{}\x1b[0m/\x1b[31m-{}\x1b[0m", 
-                    status_icon, file.file, file.insertions, file.deletions);
+                println!(
+                    "   {} {} \x1b[32m+{}\x1b[0m/\x1b[31m-{}\x1b[0m",
+                    status_icon, file.file, file.insertions, file.deletions
+                );
             }
             println!();
         }
@@ -200,7 +222,7 @@ pub async fn execute(args: DiffArgs, json: bool, ui: &UiContext) -> anyhow::Resu
                 .output()?;
 
             let diff_content = String::from_utf8_lossy(&diff_output.stdout);
-            
+
             println!("📄 Full Diff:\n");
             for line in diff_content.lines() {
                 if use_color {
@@ -235,7 +257,7 @@ fn get_current_branch(cwd: &PathBuf) -> anyhow::Result<String> {
         .args(["branch", "--show-current"])
         .current_dir(cwd)
         .output()?;
-    
+
     let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if branch.is_empty() {
         return Err(anyhow::anyhow!("Not on a branch (detached HEAD state)"));
@@ -249,7 +271,7 @@ fn detect_default_branch(cwd: &PathBuf) -> String {
         .args(["branch", "-l", "main", "master"])
         .current_dir(cwd)
         .output();
-    
+
     if let Ok(out) = output {
         let branches = String::from_utf8_lossy(&out.stdout);
         if branches.contains("main") {
@@ -296,7 +318,7 @@ fn parse_numstat(output: &str, mut files: Vec<FileChange>) -> (Vec<FileChange>, 
             let added: usize = parts[0].parse().unwrap_or(0);
             let removed: usize = parts[1].parse().unwrap_or(0);
             let file = parts[2];
-            
+
             total_added += added;
             total_removed += removed;
 
@@ -317,7 +339,7 @@ async fn generate_ai_summary(cwd: &PathBuf, base: &str, current: &str) -> anyhow
         .args(["log", "--oneline", &format!("{}..{}", base, current)])
         .current_dir(cwd)
         .output()?;
-    
+
     let commits = String::from_utf8_lossy(&log_output.stdout);
 
     // Get diff stat
@@ -325,7 +347,7 @@ async fn generate_ai_summary(cwd: &PathBuf, base: &str, current: &str) -> anyhow
         .args(["diff", "--stat", &format!("{}...{}", base, current)])
         .current_dir(cwd)
         .output()?;
-    
+
     let stat = String::from_utf8_lossy(&stat_output.stdout);
 
     // Simple summary without AI for now (can be enhanced with Claude)

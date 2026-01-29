@@ -121,7 +121,7 @@ Chakravarti uses Claude Code CLI as the execution interface, with support for mu
 |---------|-------------------|-----------------|-------------|
 | Claude Code | Claude Subscription | CLI + UI | Default - uses Anthropic's Claude directly |
 | Claude Code | OpenRouter API | CLI + UI | 12+ models (Gemini, DeepSeek, Qwen, Kimi K2, etc.) |
-| Claude Code | GLM Coding Plan | UI only | Z.AI's GLM-4.7 and GLM-4.5-Air |
+| Claude Code | GLM Coding Plan | CLI + UI | Z.AI's GLM-4.7 and GLM-4.5-Air |
 | Codex | OpenAI Subscription | CLI + UI | Native Codex CLI integration |
 
 ### Future Integrations

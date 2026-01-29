@@ -60,7 +60,7 @@ fn check_cloud_auth() -> CloudStatus {
                 Ok(tokens) => {
                     // Try to extract email from JWT payload
                     let email = extract_email_from_jwt(&tokens.access_token);
-                    
+
                     CloudStatus {
                         authenticated: true,
                         email,
@@ -93,7 +93,7 @@ fn extract_email_from_jwt(token: &str) -> Option<String> {
     // Decode the payload (base64url)
     let payload = parts[1];
     let decoded = base64_url_decode(payload)?;
-    
+
     // Parse as JSON and extract email
     let json: serde_json::Value = serde_json::from_slice(&decoded).ok()?;
     json.get("email")
@@ -103,16 +103,16 @@ fn extract_email_from_jwt(token: &str) -> Option<String> {
 
 fn base64_url_decode(input: &str) -> Option<Vec<u8>> {
     use base64::prelude::*;
-    
+
     // Add padding if needed
     let padded = match input.len() % 4 {
         2 => format!("{}==", input),
         3 => format!("{}=", input),
         _ => input.to_string(),
     };
-    
+
     // Replace URL-safe characters
     let standard = padded.replace('-', "+").replace('_', "/");
-    
+
     BASE64_STANDARD.decode(&standard).ok()
 }

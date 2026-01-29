@@ -23,7 +23,7 @@ impl Severity {
             Severity::Info => "ℹ️",
         }
     }
-    
+
     pub fn label(&self) -> &'static str {
         match self {
             Severity::Critical => "Critical",
@@ -87,11 +87,23 @@ pub struct QASummary {
 
 impl QASummary {
     pub fn from_issues(issues: &[QAIssue], files_reviewed: u32) -> Self {
-        let critical = issues.iter().filter(|i| i.severity == Severity::Critical).count() as u32;
-        let major = issues.iter().filter(|i| i.severity == Severity::Major).count() as u32;
-        let minor = issues.iter().filter(|i| i.severity == Severity::Minor).count() as u32;
-        let info = issues.iter().filter(|i| i.severity == Severity::Info).count() as u32;
-        
+        let critical = issues
+            .iter()
+            .filter(|i| i.severity == Severity::Critical)
+            .count() as u32;
+        let major = issues
+            .iter()
+            .filter(|i| i.severity == Severity::Major)
+            .count() as u32;
+        let minor = issues
+            .iter()
+            .filter(|i| i.severity == Severity::Minor)
+            .count() as u32;
+        let info = issues
+            .iter()
+            .filter(|i| i.severity == Severity::Info)
+            .count() as u32;
+
         let verdict = if critical > 0 {
             "fail".to_string()
         } else if major > 0 {
@@ -99,7 +111,7 @@ impl QASummary {
         } else {
             "pass".to_string()
         };
-        
+
         QASummary {
             total_issues: issues.len() as u32,
             critical,
@@ -115,25 +127,38 @@ impl QASummary {
 /// Generate Markdown report for test results
 pub fn generate_test_report(result: &TestResult, branch: &str, base: &str) -> String {
     let mut report = String::new();
-    
+
     report.push_str("# Test Results\n\n");
     report.push_str(&format!("**Branch**: {}\n", branch));
     report.push_str(&format!("**Base**: {}\n", base));
     report.push_str(&format!("**Framework**: {}\n", result.framework));
-    report.push_str(&format!("**Date**: {}\n\n", chrono::Utc::now().format("%Y-%m-%d %H:%M UTC")));
-    
+    report.push_str(&format!(
+        "**Date**: {}\n\n",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M UTC")
+    ));
+
     // Summary table
     report.push_str("## Summary\n\n");
     report.push_str("| Metric | Value |\n");
     report.push_str("|--------|-------|\n");
-    report.push_str(&format!("| Status | {} |\n", if result.success { "✅ PASS" } else { "❌ FAIL" }));
+    report.push_str(&format!(
+        "| Status | {} |\n",
+        if result.success {
+            "✅ PASS"
+        } else {
+            "❌ FAIL"
+        }
+    ));
     report.push_str(&format!("| Total | {} |\n", result.total));
     report.push_str(&format!("| Passed | {} |\n", result.passed));
     report.push_str(&format!("| Failed | {} |\n", result.failed));
     report.push_str(&format!("| Skipped | {} |\n", result.skipped));
-    report.push_str(&format!("| Duration | {:.2}s |\n", result.duration_ms as f64 / 1000.0));
+    report.push_str(&format!(
+        "| Duration | {:.2}s |\n",
+        result.duration_ms as f64 / 1000.0
+    ));
     report.push_str("\n");
-    
+
     // Failures section
     if !result.failures.is_empty() {
         report.push_str("## Failures\n\n");
@@ -149,7 +174,7 @@ pub fn generate_test_report(result: &TestResult, branch: &str, base: &str) -> St
             report.push_str(&format!("```\n{}\n```\n\n", failure.message));
         }
     }
-    
+
     // Next steps
     report.push_str("## Next Steps\n\n");
     if result.success {
@@ -160,7 +185,7 @@ pub fn generate_test_report(result: &TestResult, branch: &str, base: &str) -> St
         report.push_str("- ❌ Fix failing tests\n");
         report.push_str("- Run `ckrv test run` to re-verify\n");
     }
-    
+
     report
 }
 
@@ -168,21 +193,27 @@ pub fn generate_test_report(result: &TestResult, branch: &str, base: &str) -> St
 pub fn generate_qa_report(issues: &[QAIssue], branch: &str, base: &str) -> String {
     let mut report = String::new();
     let summary = QASummary::from_issues(issues, 0);
-    
+
     report.push_str("# QA Review\n\n");
     report.push_str(&format!("**Branch**: {}\n", branch));
     report.push_str(&format!("**Compared to**: {}\n", base));
-    report.push_str(&format!("**Date**: {}\n\n", chrono::Utc::now().format("%Y-%m-%d %H:%M UTC")));
-    
+    report.push_str(&format!(
+        "**Date**: {}\n\n",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M UTC")
+    ));
+
     // Summary
     report.push_str("## Summary\n\n");
-    report.push_str(&format!("**Verdict**: {}\n\n", match summary.verdict.as_str() {
-        "pass" => "✅ PASS - No critical issues",
-        "review" => "🟡 REVIEW - Major issues found",
-        "fail" => "🔴 FAIL - Critical issues found",
-        _ => "Unknown"
-    }));
-    
+    report.push_str(&format!(
+        "**Verdict**: {}\n\n",
+        match summary.verdict.as_str() {
+            "pass" => "✅ PASS - No critical issues",
+            "review" => "🟡 REVIEW - Major issues found",
+            "fail" => "🔴 FAIL - Critical issues found",
+            _ => "Unknown",
+        }
+    ));
+
     report.push_str("| Severity | Count |\n");
     report.push_str("|----------|-------|\n");
     report.push_str(&format!("| 🔴 Critical | {} |\n", summary.critical));
@@ -191,73 +222,90 @@ pub fn generate_qa_report(issues: &[QAIssue], branch: &str, base: &str) -> Strin
     report.push_str(&format!("| ℹ️ Info | {} |\n", summary.info));
     report.push_str(&format!("| **Total** | {} |\n", summary.total_issues));
     report.push_str("\n");
-    
+
     if issues.is_empty() {
         report.push_str("## Issues Found\n\n");
         report.push_str("No issues found. Great job! 🎉\n\n");
         return report;
     }
-    
+
     // Group issues by severity
-    let mut critical: Vec<&QAIssue> = issues.iter().filter(|i| i.severity == Severity::Critical).collect();
-    let mut major: Vec<&QAIssue> = issues.iter().filter(|i| i.severity == Severity::Major).collect();
-    let mut minor: Vec<&QAIssue> = issues.iter().filter(|i| i.severity == Severity::Minor).collect();
-    let mut info: Vec<&QAIssue> = issues.iter().filter(|i| i.severity == Severity::Info).collect();
-    
+    let mut critical: Vec<&QAIssue> = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Critical)
+        .collect();
+    let mut major: Vec<&QAIssue> = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Major)
+        .collect();
+    let mut minor: Vec<&QAIssue> = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Minor)
+        .collect();
+    let mut info: Vec<&QAIssue> = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Info)
+        .collect();
+
     // Sort each group by file
     critical.sort_by(|a, b| a.file.cmp(&b.file));
     major.sort_by(|a, b| a.file.cmp(&b.file));
     minor.sort_by(|a, b| a.file.cmp(&b.file));
     info.sort_by(|a, b| a.file.cmp(&b.file));
-    
+
     report.push_str("## Issues Found\n\n");
-    
+
     if !critical.is_empty() {
         report.push_str(&format!("### 🔴 Critical ({})\n\n", critical.len()));
         for issue in critical {
             report.push_str(&format_issue(issue));
         }
     }
-    
+
     if !major.is_empty() {
         report.push_str(&format!("### 🟡 Major ({})\n\n", major.len()));
         for issue in major {
             report.push_str(&format_issue(issue));
         }
     }
-    
+
     if !minor.is_empty() {
         report.push_str(&format!("### 🟢 Minor ({})\n\n", minor.len()));
         for issue in minor {
             report.push_str(&format_issue(issue));
         }
     }
-    
+
     if !info.is_empty() {
         report.push_str(&format!("### ℹ️ Info ({})\n\n", info.len()));
         for issue in info {
             report.push_str(&format_issue(issue));
         }
     }
-    
+
     report
 }
 
 fn format_issue(issue: &QAIssue) -> String {
     let mut s = String::new();
-    
+
     let location = if let Some(line) = issue.line {
         format!("{}:{}", issue.file, line)
     } else {
         issue.file.clone()
     };
-    
-    s.push_str(&format!("**[{}]** {} - `{}`\n", issue.category.label(), issue.message, location));
-    
+
+    s.push_str(&format!(
+        "**[{}]** {} - `{}`\n",
+        issue.category.label(),
+        issue.message,
+        location
+    ));
+
     if let Some(ref suggestion) = issue.suggestion {
         s.push_str(&format!("  - **Fix**: {}\n", suggestion));
     }
-    
+
     s.push_str("\n");
     s
 }

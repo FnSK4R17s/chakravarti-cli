@@ -41,7 +41,11 @@ pub struct LogEntry {
 
 impl LogEntry {
     /// Create a new log entry with auto-generated ID and timestamp
-    pub fn new(execution_id: impl Into<String>, level: LogLevel, message: impl Into<String>) -> Self {
+    pub fn new(
+        execution_id: impl Into<String>,
+        level: LogLevel,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             execution_id: execution_id.into(),

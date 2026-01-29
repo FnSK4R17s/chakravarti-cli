@@ -40,12 +40,12 @@ Each tool can be authenticated in different ways:
 | Crate | Responsibility |
 |-------|----------------|
 | `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex providers, Docker execution |
-| `ckrv-core` | `RunnerConfig` with OpenRouter fields |
+| `ckrv-core` | `RunnerConfig` with OpenRouter and GLM fields |
 | `ckrv-cli` | Agent config loading, CLI flags |
 | `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
 
-> [!WARNING]
-> **Current Limitation**: GLM Coding Plan is only available via the UI (`ckrv ui`). It has not been implemented in `ckrv-core` runner yet. OpenRouter works from both CLI and UI. See backlog for tracking.
+> [!NOTE]
+> Both GLM Coding Plan and OpenRouter are now supported in both CLI and UI. Configure agents in `~/.config/chakravarti/agents.yaml` for CLI usage, or use the Agent Manager in `ckrv ui`.
 
 ## Agent Architecture
 
@@ -281,6 +281,39 @@ agents:
       model: provider/model-name
       api_key: sk-or-...
 ```
+
+## GLM Coding Plan Integration
+
+For Z.AI GLM Coding Plan agents:
+
+```yaml
+agents:
+  - id: my-glm-agent
+    name: GLM Coding Plan Agent
+    agent_type: claude_glm
+    glm:
+      api_key: your-zai-api-key
+      model: glm-4.7
+      timeout_ms: 3000000  # Optional, defaults to 3000000 (50 minutes)
+```
+
+**Usage via CLI:**
+
+```bash
+# Run a task with GLM agent
+ckrv task run --agent "my-glm-agent" -p "Create hello.txt"
+
+# Full workflow execution with GLM agent
+ckrv run --executor-model my-glm-agent
+```
+
+The GLM configuration sets the following environment variables for Claude Code:
+
+| Variable | Value |
+|----------|-------|
+| `ANTHROPIC_BASE_URL` | `https://api.z.ai/api/anthropic` |
+| `ANTHROPIC_AUTH_TOKEN` | Your Z.AI API key |
+| `API_TIMEOUT_MS` | Custom timeout (default: 3000000) |
 
 ## Best Practices
 

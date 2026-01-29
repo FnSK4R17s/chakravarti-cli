@@ -110,37 +110,72 @@ pub async fn execute(args: TaskArgs, json: bool, ui: &UiContext) -> anyhow::Resu
 
     // Handle Task ID vs Description
     let target = &args.target;
-    let target_is_id = target.starts_with('T') && target.len() == 4 && target[1..].chars().all(char::is_numeric);
+    let target_is_id =
+        target.starts_with('T') && target.len() == 4 && target[1..].chars().all(char::is_numeric);
 
     let (description, task_id): (String, String) = if target_is_id {
-         // Auto-detect spec and look up task
-         let branch_output = std::process::Command::new("git").args(["symbolic-ref", "--short", "HEAD"]).output().ok();
-         let branch = branch_output.and_then(|o| if o.status.success() { String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string()) } else { None });
-         
-         let detected_path = if let Some(b) = branch {
-             let p = cwd.join(".specs").join(&b);
-             let yaml = p.join("tasks.yaml");
-             if yaml.exists() { Some(yaml) } else { None }
-         } else { None };
-         
-         let spec_task = if let Some(path) = detected_path {
-              let content = std::fs::read_to_string(&path).unwrap_or_default();
-              if let Ok(file) = serde_yaml::from_str::<TaskFile>(&content) {
-                  file.tasks.into_iter().find(|t| t.id == *target)
-              } else { None }
-         } else { None };
+        // Auto-detect spec and look up task
+        let branch_output = std::process::Command::new("git")
+            .args(["symbolic-ref", "--short", "HEAD"])
+            .output()
+            .ok();
+        let branch = branch_output.and_then(|o| {
+            if o.status.success() {
+                String::from_utf8(o.stdout)
+                    .ok()
+                    .map(|s| s.trim().to_string())
+            } else {
+                None
+            }
+        });
 
-         if let Some(t) = spec_task {
-              if !json {
-                  eprintln!("Found task {} in spec: {}", t.id, t.title);
-              }
-              let desc = format!("Phase: {}\nTitle: {}\nDescription: {}\nFile: {}", t.phase, t.title, t.description, t.file);
-              (desc, t.id)
-         } else {
-              (target.clone(), args.continue_task.clone().unwrap_or_else(AgentTask::generate_id))
-         }
+        let detected_path = if let Some(b) = branch {
+            let p = cwd.join(".specs").join(&b);
+            let yaml = p.join("tasks.yaml");
+            if yaml.exists() {
+                Some(yaml)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let spec_task = if let Some(path) = detected_path {
+            let content = std::fs::read_to_string(&path).unwrap_or_default();
+            if let Ok(file) = serde_yaml::from_str::<TaskFile>(&content) {
+                file.tasks.into_iter().find(|t| t.id == *target)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(t) = spec_task {
+            if !json {
+                eprintln!("Found task {} in spec: {}", t.id, t.title);
+            }
+            let desc = format!(
+                "Phase: {}\nTitle: {}\nDescription: {}\nFile: {}",
+                t.phase, t.title, t.description, t.file
+            );
+            (desc, t.id)
+        } else {
+            (
+                target.clone(),
+                args.continue_task
+                    .clone()
+                    .unwrap_or_else(AgentTask::generate_id),
+            )
+        }
     } else {
-         (target.clone(), args.continue_task.clone().unwrap_or_else(AgentTask::generate_id))
+        (
+            target.clone(),
+            args.continue_task
+                .clone()
+                .unwrap_or_else(AgentTask::generate_id),
+        )
     };
 
     if !json {
@@ -162,11 +197,16 @@ pub async fn execute(args: TaskArgs, json: bool, ui: &UiContext) -> anyhow::Resu
 
     // Prepare workspace
     let worktree_path = if let Some(path) = args.use_worktree {
-         if !path.exists() {
-             return Err(anyhow::anyhow!("Worktree path does not exist: {}", path.display()));
-         }
-         if !json { eprintln!("Using existing worktree at {}", path.display()); }
-         path
+        if !path.exists() {
+            return Err(anyhow::anyhow!(
+                "Worktree path does not exist: {}",
+                path.display()
+            ));
+        }
+        if !json {
+            eprintln!("Using existing worktree at {}", path.display());
+        }
+        path
     } else if args.dry_run {
         // Skip worktree creation on dry run
         cwd.clone()
@@ -184,7 +224,11 @@ pub async fn execute(args: TaskArgs, json: bool, ui: &UiContext) -> anyhow::Resu
                     Err(e) => {
                         tracing::warn!(error = %e, "Could not create worktree, using simple directory");
                         // Fall back to simple directory
-                        let path = cwd.join(".ckrv").join("tasks").join(&task_id).join("workspace");
+                        let path = cwd
+                            .join(".ckrv")
+                            .join("tasks")
+                            .join(&task_id)
+                            .join("workspace");
                         std::fs::create_dir_all(&path)?;
                         path
                     }
@@ -192,7 +236,11 @@ pub async fn execute(args: TaskArgs, json: bool, ui: &UiContext) -> anyhow::Resu
             }
             Err(_) => {
                 // Not a git repo, use simple directory
-                let path = cwd.join(".ckrv").join("tasks").join(&task_id).join("workspace");
+                let path = cwd
+                    .join(".ckrv")
+                    .join("tasks")
+                    .join(&task_id)
+                    .join("workspace");
                 std::fs::create_dir_all(&path)?;
                 path
             }
@@ -216,18 +264,21 @@ pub async fn execute(args: TaskArgs, json: bool, ui: &UiContext) -> anyhow::Resu
     task.save(&cwd)?;
 
     // Load agent configuration from .chakravarti/agents.yaml
-    let (openrouter_api_key, openrouter_model, openrouter_base_url) = load_agent_config(&cwd, &args.agent);
+    let agent_config = load_agent_config(&cwd, &args.agent);
 
     // Create runner and execute
     // Note: agent_binary is the actual CLI binary (always "claude"),
     // while args.agent is an agent ID used only for config lookup above
     let config = RunnerConfig {
-        agent_binary: "claude".to_string(),  // Always use claude binary
+        agent_binary: "claude".to_string(), // Always use claude binary
         use_sandbox: !args.no_sandbox,
         keep_container: args.keep_container,
-        openrouter_api_key,
-        openrouter_model,
-        openrouter_base_url,
+        openrouter_api_key: agent_config.openrouter_api_key,
+        openrouter_model: agent_config.openrouter_model,
+        openrouter_base_url: agent_config.openrouter_base_url,
+        glm_api_key: agent_config.glm_api_key,
+        glm_model: agent_config.glm_model,
+        glm_timeout_ms: agent_config.glm_timeout_ms,
         ..Default::default()
     };
 
@@ -284,7 +335,10 @@ pub async fn execute(args: TaskArgs, json: bool, ui: &UiContext) -> anyhow::Resu
 }
 
 /// Load a workflow by name or path.
-fn load_workflow(name_or_path: &str, base_dir: &std::path::Path) -> Result<Workflow, anyhow::Error> {
+fn load_workflow(
+    name_or_path: &str,
+    base_dir: &std::path::Path,
+) -> Result<Workflow, anyhow::Error> {
     // Check if it's a file path
     let path = PathBuf::from(name_or_path);
     if path.exists() {
@@ -310,7 +364,10 @@ fn load_workflow(name_or_path: &str, base_dir: &std::path::Path) -> Result<Workf
     }
 
     // Return error if not found
-    Err(anyhow::anyhow!("Workflow '{}' not found. Create it in .ckrv/workflows/ as .yml or .yaml", name_or_path))
+    Err(anyhow::anyhow!(
+        "Workflow '{}' not found. Create it in .ckrv/workflows/ as .yml or .yaml",
+        name_or_path
+    ))
 }
 
 #[derive(Deserialize)]
@@ -327,17 +384,28 @@ struct SpecTask {
     file: String,
 }
 
+/// Agent configuration result for RunnerConfig
+#[derive(Default)]
+struct AgentConfigResult {
+    openrouter_api_key: Option<String>,
+    openrouter_model: Option<String>,
+    openrouter_base_url: Option<String>,
+    glm_api_key: Option<String>,
+    glm_model: Option<String>,
+    glm_timeout_ms: Option<u32>,
+}
+
 /// Load agent configuration from .chakravarti/agents.yaml
-/// Returns (api_key, model, base_url) for OpenRouter if configured
-fn load_agent_config(cwd: &std::path::Path, agent_arg: &str) -> (Option<String>, Option<String>, Option<String>) {
+/// Returns configuration for both OpenRouter and GLM agents
+fn load_agent_config(cwd: &std::path::Path, agent_arg: &str) -> AgentConfigResult {
     // Check global path first
     let agents_path = dirs::config_dir()
         .map(|d| d.join("chakravarti").join("agents.yaml"))
         .filter(|p| p.exists())
         .unwrap_or_else(|| cwd.join(".chakravarti").join("agents.yaml"));
-    
+
     if !agents_path.exists() {
-        return (None, None, None);
+        return AgentConfigResult::default();
     }
 
     #[derive(Deserialize)]
@@ -355,6 +423,7 @@ fn load_agent_config(cwd: &std::path::Path, agent_arg: &str) -> (Option<String>,
         #[allow(dead_code)]
         enabled: bool,
         openrouter: Option<OpenRouterEntry>,
+        glm: Option<GLMEntry>,
     }
 
     #[derive(Deserialize)]
@@ -364,24 +433,49 @@ fn load_agent_config(cwd: &std::path::Path, agent_arg: &str) -> (Option<String>,
         base_url: Option<String>,
     }
 
+    #[derive(Deserialize)]
+    struct GLMEntry {
+        api_key: Option<String>,
+        model: String,
+        timeout_ms: Option<u32>,
+    }
+
     let content = match std::fs::read_to_string(&agents_path) {
         Ok(c) => c,
-        Err(_) => return (None, None, None),
+        Err(_) => return AgentConfigResult::default(),
     };
 
     let file: AgentsFile = match serde_yaml::from_str(&content) {
         Ok(f) => f,
-        Err(_) => return (None, None, None),
+        Err(_) => return AgentConfigResult::default(),
     };
 
-    // Helper to check if agent type is OpenRouter-compatible
-    let is_openrouter_type = |t: &str| -> bool {
-        t == "claude_openrouter" || t == "claude_open_router"
-    };
+    // Helper to check agent type
+    let is_openrouter_type =
+        |t: &str| -> bool { t == "claude_openrouter" || t == "claude_open_router" };
+    let is_glm_type = |t: &str| -> bool { t == "claude_glm" };
 
     // Priority 1: If agent_arg is provided and looks like an agent ID, find that specific agent
     if !agent_arg.is_empty() && agent_arg != "claude" {
         if let Some(agent) = file.agents.iter().find(|a| a.id == agent_arg) {
+            // Check for GLM type
+            if is_glm_type(&agent.agent_type) {
+                if let Some(ref glm_config) = agent.glm {
+                    tracing::info!(
+                        agent_id = %agent.id,
+                        model = %glm_config.model,
+                        has_api_key = glm_config.api_key.is_some(),
+                        "Using specified GLM Coding Plan agent configuration"
+                    );
+                    return AgentConfigResult {
+                        glm_api_key: glm_config.api_key.clone(),
+                        glm_model: Some(glm_config.model.clone()),
+                        glm_timeout_ms: glm_config.timeout_ms,
+                        ..Default::default()
+                    };
+                }
+            }
+            // Check for OpenRouter type
             if is_openrouter_type(&agent.agent_type) {
                 if let Some(ref or_config) = agent.openrouter {
                     tracing::info!(
@@ -390,20 +484,44 @@ fn load_agent_config(cwd: &std::path::Path, agent_arg: &str) -> (Option<String>,
                         has_api_key = or_config.api_key.is_some(),
                         "Using specified OpenRouter agent configuration"
                     );
-                    return (
-                        or_config.api_key.clone(),
-                        Some(or_config.model.clone()),
-                        or_config.base_url.clone(),
-                    );
+                    return AgentConfigResult {
+                        openrouter_api_key: or_config.api_key.clone(),
+                        openrouter_model: Some(or_config.model.clone()),
+                        openrouter_base_url: or_config.base_url.clone(),
+                        ..Default::default()
+                    };
                 }
             }
         }
     }
 
-    // Priority 2: Find the default agent with OpenRouter type
-    let default_openrouter = file.agents.iter().find(|a| {
-        a.is_default && is_openrouter_type(&a.agent_type) && a.openrouter.is_some()
-    });
+    // Priority 2: Find the default GLM agent
+    let default_glm = file
+        .agents
+        .iter()
+        .find(|a| a.is_default && is_glm_type(&a.agent_type) && a.glm.is_some());
+
+    if let Some(agent) = default_glm {
+        if let Some(ref glm_config) = agent.glm {
+            tracing::info!(
+                model = %glm_config.model,
+                has_api_key = glm_config.api_key.is_some(),
+                "Using default GLM Coding Plan agent configuration"
+            );
+            return AgentConfigResult {
+                glm_api_key: glm_config.api_key.clone(),
+                glm_model: Some(glm_config.model.clone()),
+                glm_timeout_ms: glm_config.timeout_ms,
+                ..Default::default()
+            };
+        }
+    }
+
+    // Priority 3: Find the default OpenRouter agent
+    let default_openrouter = file
+        .agents
+        .iter()
+        .find(|a| a.is_default && is_openrouter_type(&a.agent_type) && a.openrouter.is_some());
 
     if let Some(agent) = default_openrouter {
         if let Some(ref or_config) = agent.openrouter {
@@ -412,13 +530,14 @@ fn load_agent_config(cwd: &std::path::Path, agent_arg: &str) -> (Option<String>,
                 has_api_key = or_config.api_key.is_some(),
                 "Using default OpenRouter agent configuration"
             );
-            return (
-                or_config.api_key.clone(),
-                Some(or_config.model.clone()),
-                or_config.base_url.clone(),
-            );
+            return AgentConfigResult {
+                openrouter_api_key: or_config.api_key.clone(),
+                openrouter_model: Some(or_config.model.clone()),
+                openrouter_base_url: or_config.base_url.clone(),
+                ..Default::default()
+            };
         }
     }
 
-    (None, None, None)
+    AgentConfigResult::default()
 }

@@ -60,7 +60,7 @@ impl AcceptanceChecker {
             .logs
             .iter()
             .any(|l| l.to_lowercase().contains("error"));
-        
+
         let errors_criterion = CriterionResult {
             criterion: "No errors in output".to_string(),
             met: !has_errors,
