@@ -6,7 +6,7 @@ compatibility: Claude Code, Cursor, any CLI-capable agent
 metadata:
   version: "0.1.0"
   auto-generated: true
-  generated-at: "2026-01-30T04:08:04Z"
+  generated-at: "2026-01-30T05:07:01Z"
 ---
 
 # Chakravarti CLI
@@ -17,11 +17,27 @@ Command-line interface for Chakravarti
 
 ### ckrv cloud
 
-Cloud execution commands
+Cloud execution commands.
+
+Manage remote job execution via Chakravarti Cloud. Submit jobs, monitor progress, and retrieve results from cloud workers.
+
+Subcommands: login, submit, status, cancel
 
 ```bash
 ckrv cloud
 ```
+
+**Examples**:
+
+Examples:
+# Login to cloud
+ckrv cloud login
+
+# Submit a job
+ckrv cloud submit my-feature
+
+# Check job status
+ckrv cloud status <job-id>
 
 #### ckrv cloud credentials
 
@@ -108,7 +124,11 @@ ckrv cloud whoami
 
 ### ckrv diff
 
-View changes between current branch and base
+View changes between current branch and base.
+
+Shows a summary of modified, added, and deleted files compared to the base branch. Helps verify what will be included in a pull request.
+
+Output can be formatted as JSON for programmatic use.
 
 ```bash
 ckrv diff [OPTIONS]
@@ -124,10 +144,26 @@ ckrv diff [OPTIONS]
 | `--stat` | Show diff statistics only |
 | `--summary` | Generate AI summary of changes |
 
+**Examples**:
+
+Examples:
+# Show diff summary
+ckrv diff
+
+# Show diff against specific branch
+ckrv diff --base main
+
+# Output as JSON
+ckrv diff --json
+
 
 ### ckrv fix
 
-Fix verification errors with AI
+Fix verification errors with AI.
+
+Analyzes failed tests, lint errors, or build issues and uses AI to automatically generate fixes. Runs in an isolated Docker sandbox.
+
+Best used after `ckrv verify` identifies issues.
 
 ```bash
 ckrv fix [OPTIONS]
@@ -143,14 +179,26 @@ ckrv fix [OPTIONS]
 | `--test` | Fix only test failures |
 | `--typecheck` | Fix only type errors |
 
+**Examples**:
+
+Examples:
+# Fix all errors
+ckrv fix
+
+# Fix with specific agent
+ckrv fix --agent claude-3.5
+
+# Fix only test failures
+ckrv fix --tests-only
+
 
 ### ckrv init
 
 Initialize Chakravarti in the current repository.
 
-Creates a `.chakravarti/` directory with default configuration and a `specs/` directory for feature specifications. The configuration file at `.chakravarti/config.yaml` controls agent settings, workflows, and verification rules.
+Creates the `.chakravarti/` directory with default configuration files including `config.yaml` for project settings and initializes the specs directory.
 
-This command must be run inside a Git repository. Use `--force` to re-initialize an existing Chakravarti project.
+This is typically the first command to run when setting up a new project for AI-driven development with Chakravarti.
 
 ```bash
 ckrv init [OPTIONS]
@@ -165,19 +213,20 @@ ckrv init [OPTIONS]
 **Examples**:
 
 Examples:
-# Basic initialization
+# Initialize in current directory
 ckrv init
 
-# Force re-initialization (overwrites existing config)
-ckrv init --force
-
-# Initialize with JSON output for scripting
-ckrv --json init
+# Initialize with verbose output
+ckrv init --verbose
 
 
 ### ckrv logs
 
-Stream or view logs from a cloud job
+Stream or view logs from a cloud job.
+
+Shows real-time output from running jobs or historical logs from completed jobs. Supports filtering by task or agent.
+
+Use --follow for continuous streaming.
 
 ```bash
 ckrv logs <JOB_ID> [OPTIONS]
@@ -196,10 +245,26 @@ ckrv logs <JOB_ID> [OPTIONS]
 | `--follow`, `-f` | Follow log output (stream in real-time) |
 | `--tail`, `-n` | Number of recent log lines to show (default: 100) |
 
+**Examples**:
+
+Examples:
+# Stream logs from running job
+ckrv logs <job-id> --follow
+
+# View completed job logs
+ckrv logs <job-id>
+
+# Filter by task
+ckrv logs <job-id> --task 3
+
 
 ### ckrv plan
 
-Generate execution plan from tasks (in Docker)
+Generate execution plan from tasks using AI.
+
+Analyzes the specification and tasks file to create a detailed implementation plan. Runs in a Docker container for isolation.
+
+The plan breaks down work into atomic steps that AI agents can execute.
 
 ```bash
 ckrv plan [SPEC] [OPTIONS]
@@ -217,10 +282,26 @@ ckrv plan [SPEC] [OPTIONS]
 |------|-------------|
 | `--force`, `-f` | Force regeneration even if plan.yaml already exists |
 
+**Examples**:
+
+Examples:
+# Generate plan for a specification
+ckrv plan my-feature
+
+# Generate plan with GLM model
+ckrv plan my-feature --model glm-4.7
+
+# Skip confirmation prompt
+ckrv plan my-feature --yes
+
 
 ### ckrv promote
 
-Create a pull request for the current branch
+Create a pull request for the current branch.
+
+Pushes the feature branch and creates a pull request on GitHub/GitLab. Auto-generates PR title and description from the specification.
+
+Requires remote repository access and appropriate permissions.
 
 ```bash
 ckrv promote [OPTIONS]
@@ -237,10 +318,26 @@ ckrv promote [OPTIONS]
 | `--remote` | Remote name (default: origin) |
 | `--skip-verify` | Skip verification checks |
 
+**Examples**:
+
+Examples:
+# Create PR with auto-generated description
+ckrv promote
+
+# Create as draft PR
+ckrv promote --draft
+
+# Create PR with custom title
+ckrv promote --title "feat: add user auth"
+
 
 ### ckrv pull
 
-Pull results from a completed cloud job
+Pull results from a completed cloud job.
+
+Downloads all changes made during cloud execution and applies them to the local repository. Creates or updates the feature branch.
+
+Jobs must be in a 'completed' state to pull.
 
 ```bash
 ckrv pull <JOB_ID> [OPTIONS]
@@ -259,14 +356,39 @@ ckrv pull <JOB_ID> [OPTIONS]
 | `--apply` | Apply diff to current worktree (default: true) |
 | `--output` | Output diff to file instead of applying |
 
+**Examples**:
+
+Examples:
+# Pull results to current directory
+ckrv pull <job-id>
+
+# Pull and create new branch
+ckrv pull <job-id> --branch feature/new
+
 
 ### ckrv qa
 
-QA code review and bug analysis
+QA code review and bug analysis.
+
+AI-powered code review and quality assurance. Analyzes changes for potential bugs, security issues, and code quality improvements.
+
+Subcommands: review, bugs, report
 
 ```bash
 ckrv qa
 ```
+
+**Examples**:
+
+Examples:
+# Review current changes
+ckrv qa review
+
+# Analyze for bugs
+ckrv qa bugs
+
+# Generate QA report
+ckrv qa report
 
 #### ckrv qa bugs
 
@@ -316,7 +438,11 @@ ckrv qa review [OPTIONS]
 
 ### ckrv run
 
-Run a job based on a specification
+Run a job based on a specification.
+
+Executes the implementation plan using AI agents in isolated Docker sandboxes. Each task is executed in sequence with full logging and progress tracking.
+
+Results are committed to a feature branch for review.
 
 ```bash
 ckrv run [SPEC] [OPTIONS]
@@ -338,14 +464,42 @@ ckrv run [SPEC] [OPTIONS]
 | `--executor-model`, `-e` | Override the AI model/agent to use for execution |
 | `--optimize`, `-o` | Optimization strategy |
 
+**Examples**:
+
+Examples:
+# Run all tasks for a specification
+ckrv run my-feature
+
+# Run with specific agent
+ckrv run my-feature --agent claude-3.5
+
+# Dry run (show what would be done)
+ckrv run my-feature --dry-run
+
 
 ### ckrv spec
 
-Create or manage feature specifications
+Create or manage feature specifications.
+
+Specifications are the source of truth for AI-driven development. They define what needs to be built, the requirements, and acceptance criteria.
+
+Subcommands: new, list, validate, edit, show
 
 ```bash
 ckrv spec
 ```
+
+**Examples**:
+
+Examples:
+# Create a new specification
+ckrv spec new "Add user authentication"
+
+# List all specifications
+ckrv spec list
+
+# Validate a specification
+ckrv spec validate my-feature
 
 #### ckrv spec clarify
 
@@ -460,11 +614,27 @@ ckrv spec validate [PATH]
 
 ### ckrv test
 
-Run tests in sandbox, plan and write new tests
+Run tests in sandbox, plan and write new tests.
+
+Comprehensive test management with AI assistance. Can run existing tests, analyze coverage gaps, and generate new tests using AI agents.
+
+Subcommands: run, plan, write
 
 ```bash
 ckrv test
 ```
+
+**Examples**:
+
+Examples:
+# Run all tests
+ckrv test run
+
+# Plan tests for uncovered code
+ckrv test plan
+
+# Write new tests with AI
+ckrv test write --agent claude-3.5
 
 #### ckrv test coverage
 
@@ -526,7 +696,11 @@ ckrv test write [OPTIONS]
 
 ### ckrv ui
 
-Start the Web UI dashboard
+Start the Web UI dashboard.
+
+Launches a local web server providing a visual interface for managing specifications, viewing execution progress, and reviewing AI agent output.
+
+Opens automatically in your default browser.
 
 ```bash
 ckrv ui [OPTIONS]
@@ -538,10 +712,26 @@ ckrv ui [OPTIONS]
 |------|-------------|
 | `--port` | Port to listen on (default: 3000) |
 
+**Examples**:
+
+Examples:
+# Start UI on default port
+ckrv ui
+
+# Start on custom port
+ckrv ui --port 8080
+
+# Don't open browser automatically
+ckrv ui --no-open
+
 
 ### ckrv verify
 
-Run tests, lint, and quality checks
+Run tests, lint, and quality checks.
+
+Validates the current code against project quality standards. Runs the test suite, linters, and any custom verification scripts.
+
+Failed verifications can be fixed with `ckrv fix`.
 
 ```bash
 ckrv verify [OPTIONS]
@@ -557,6 +747,18 @@ ckrv verify [OPTIONS]
 | `--save` | Save results to verification.yaml |
 | `--test` | Run only tests |
 | `--typecheck` | Run only type checks |
+
+**Examples**:
+
+Examples:
+# Run all verifications
+ckrv verify
+
+# Run only tests
+ckrv verify --tests-only
+
+# Run in JSON output mode
+ckrv verify --json
 
 
 ## Global Options

@@ -61,35 +61,138 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Initialize Chakravarti in the current repository
-    #[command(display_order = 1)]
+    #[command(
+        display_order = 1,
+        long_about = "Initialize Chakravarti in the current repository.\n\n\
+                      Creates the `.chakravarti/` directory with default configuration files \
+                      including `config.yaml` for project settings and initializes the specs directory.\n\n\
+                      This is typically the first command to run when setting up a new project \
+                      for AI-driven development with Chakravarti.",
+        after_help = "Examples:\n\
+                      # Initialize in current directory\n\
+                      ckrv init\n\n\
+                      # Initialize with verbose output\n\
+                      ckrv init --verbose"
+    )]
     Init(commands::init::InitArgs),
 
     /// Create or manage feature specifications
-    #[command(display_order = 2)]
+    #[command(
+        display_order = 2,
+        long_about = "Create or manage feature specifications.\n\n\
+                      Specifications are the source of truth for AI-driven development. \
+                      They define what needs to be built, the requirements, and acceptance criteria.\n\n\
+                      Subcommands: new, list, validate, edit, show",
+        after_help = "Examples:\n\
+                      # Create a new specification\n\
+                      ckrv spec new \"Add user authentication\"\n\n\
+                      # List all specifications\n\
+                      ckrv spec list\n\n\
+                      # Validate a specification\n\
+                      ckrv spec validate my-feature"
+    )]
     Spec(commands::spec::SpecArgs),
 
     /// Generate execution plan from tasks (in Docker)
-    #[command(display_order = 3)]
+    #[command(
+        display_order = 3,
+        long_about = "Generate execution plan from tasks using AI.\n\n\
+                      Analyzes the specification and tasks file to create a detailed \
+                      implementation plan. Runs in a Docker container for isolation.\n\n\
+                      The plan breaks down work into atomic steps that AI agents can execute.",
+        after_help = "Examples:\n\
+                      # Generate plan for a specification\n\
+                      ckrv plan my-feature\n\n\
+                      # Generate plan with GLM model\n\
+                      ckrv plan my-feature --model glm-4.7\n\n\
+                      # Skip confirmation prompt\n\
+                      ckrv plan my-feature --yes"
+    )]
     Plan(commands::plan::PlanArgs),
 
     /// Run a job based on a specification
-    #[command(display_order = 4)]
+    #[command(
+        display_order = 4,
+        long_about = "Run a job based on a specification.\n\n\
+                      Executes the implementation plan using AI agents in isolated Docker sandboxes. \
+                      Each task is executed in sequence with full logging and progress tracking.\n\n\
+                      Results are committed to a feature branch for review.",
+        after_help = "Examples:\n\
+                      # Run all tasks for a specification\n\
+                      ckrv run my-feature\n\n\
+                      # Run with specific agent\n\
+                      ckrv run my-feature --agent claude-3.5\n\n\
+                      # Dry run (show what would be done)\n\
+                      ckrv run my-feature --dry-run"
+    )]
     Run(commands::run::RunArgs),
 
     /// View changes between current branch and base
-    #[command(display_order = 4)]
+    #[command(
+        display_order = 4,
+        long_about = "View changes between current branch and base.\n\n\
+                      Shows a summary of modified, added, and deleted files compared to the \
+                      base branch. Helps verify what will be included in a pull request.\n\n\
+                      Output can be formatted as JSON for programmatic use.",
+        after_help = "Examples:\n\
+                      # Show diff summary\n\
+                      ckrv diff\n\n\
+                      # Show diff against specific branch\n\
+                      ckrv diff --base main\n\n\
+                      # Output as JSON\n\
+                      ckrv diff --json"
+    )]
     Diff(commands::diff::DiffArgs),
 
     /// Run tests, lint, and quality checks
-    #[command(display_order = 5)]
+    #[command(
+        display_order = 5,
+        long_about = "Run tests, lint, and quality checks.\n\n\
+                      Validates the current code against project quality standards. \
+                      Runs the test suite, linters, and any custom verification scripts.\n\n\
+                      Failed verifications can be fixed with `ckrv fix`.",
+        after_help = "Examples:\n\
+                      # Run all verifications\n\
+                      ckrv verify\n\n\
+                      # Run only tests\n\
+                      ckrv verify --tests-only\n\n\
+                      # Run in JSON output mode\n\
+                      ckrv verify --json"
+    )]
     Verify(commands::verify::VerifyArgs),
 
     /// Create a pull request for the current branch
-    #[command(display_order = 6)]
+    #[command(
+        display_order = 6,
+        long_about = "Create a pull request for the current branch.\n\n\
+                      Pushes the feature branch and creates a pull request on GitHub/GitLab. \
+                      Auto-generates PR title and description from the specification.\n\n\
+                      Requires remote repository access and appropriate permissions.",
+        after_help = "Examples:\n\
+                      # Create PR with auto-generated description\n\
+                      ckrv promote\n\n\
+                      # Create as draft PR\n\
+                      ckrv promote --draft\n\n\
+                      # Create PR with custom title\n\
+                      ckrv promote --title \"feat: add user auth\""
+    )]
     Promote(commands::promote::PromoteArgs),
 
     /// Fix verification errors with AI
-    #[command(display_order = 7)]
+    #[command(
+        display_order = 7,
+        long_about = "Fix verification errors with AI.\n\n\
+                      Analyzes failed tests, lint errors, or build issues and uses AI to \
+                      automatically generate fixes. Runs in an isolated Docker sandbox.\n\n\
+                      Best used after `ckrv verify` identifies issues.",
+        after_help = "Examples:\n\
+                      # Fix all errors\n\
+                      ckrv fix\n\n\
+                      # Fix with specific agent\n\
+                      ckrv fix --agent claude-3.5\n\n\
+                      # Fix only test failures\n\
+                      ckrv fix --tests-only"
+    )]
     Fix(commands::fix::FixArgs),
 
     /// Execute a workflow-based agent task
@@ -105,27 +208,103 @@ pub enum Commands {
     Report(commands::report::ReportArgs),
 
     /// Start the Web UI dashboard
-    #[command(display_order = 8)]
+    #[command(
+        display_order = 8,
+        long_about = "Start the Web UI dashboard.\n\n\
+                      Launches a local web server providing a visual interface for managing \
+                      specifications, viewing execution progress, and reviewing AI agent output.\n\n\
+                      Opens automatically in your default browser.",
+        after_help = "Examples:\n\
+                      # Start UI on default port\n\
+                      ckrv ui\n\n\
+                      # Start on custom port\n\
+                      ckrv ui --port 8080\n\n\
+                      # Don't open browser automatically\n\
+                      ckrv ui --no-open"
+    )]
     Ui(commands::ui::UiArgs),
 
     /// Cloud execution commands
-    #[command(display_order = 9)]
+    #[command(
+        display_order = 9,
+        long_about = "Cloud execution commands.\n\n\
+                      Manage remote job execution via Chakravarti Cloud. Submit jobs, \
+                      monitor progress, and retrieve results from cloud workers.\n\n\
+                      Subcommands: login, submit, status, cancel",
+        after_help = "Examples:\n\
+                      # Login to cloud\n\
+                      ckrv cloud login\n\n\
+                      # Submit a job\n\
+                      ckrv cloud submit my-feature\n\n\
+                      # Check job status\n\
+                      ckrv cloud status <job-id>"
+    )]
     Cloud(commands::cloud::CloudArgs),
 
     /// Stream or view logs from a cloud job
-    #[command(display_order = 10)]
+    #[command(
+        display_order = 10,
+        long_about = "Stream or view logs from a cloud job.\n\n\
+                      Shows real-time output from running jobs or historical logs from \
+                      completed jobs. Supports filtering by task or agent.\n\n\
+                      Use --follow for continuous streaming.",
+        after_help = "Examples:\n\
+                      # Stream logs from running job\n\
+                      ckrv logs <job-id> --follow\n\n\
+                      # View completed job logs\n\
+                      ckrv logs <job-id>\n\n\
+                      # Filter by task\n\
+                      ckrv logs <job-id> --task 3"
+    )]
     Logs(commands::logs::LogsArgs),
 
     /// Pull results from a completed cloud job
-    #[command(display_order = 11)]
+    #[command(
+        display_order = 11,
+        long_about = "Pull results from a completed cloud job.\n\n\
+                      Downloads all changes made during cloud execution and applies them \
+                      to the local repository. Creates or updates the feature branch.\n\n\
+                      Jobs must be in a 'completed' state to pull.",
+        after_help = "Examples:\n\
+                      # Pull results to current directory\n\
+                      ckrv pull <job-id>\n\n\
+                      # Pull and create new branch\n\
+                      ckrv pull <job-id> --branch feature/new"
+    )]
     Pull(commands::pull::PullArgs),
 
     /// Run tests in sandbox, plan and write new tests
-    #[command(display_order = 12)]
+    #[command(
+        display_order = 12,
+        long_about = "Run tests in sandbox, plan and write new tests.\n\n\
+                      Comprehensive test management with AI assistance. Can run existing tests, \
+                      analyze coverage gaps, and generate new tests using AI agents.\n\n\
+                      Subcommands: run, plan, write",
+        after_help = "Examples:\n\
+                      # Run all tests\n\
+                      ckrv test run\n\n\
+                      # Plan tests for uncovered code\n\
+                      ckrv test plan\n\n\
+                      # Write new tests with AI\n\
+                      ckrv test write --agent claude-3.5"
+    )]
     Test(commands::test::TestArgs),
 
     /// QA code review and bug analysis
-    #[command(display_order = 13)]
+    #[command(
+        display_order = 13,
+        long_about = "QA code review and bug analysis.\n\n\
+                      AI-powered code review and quality assurance. Analyzes changes for \
+                      potential bugs, security issues, and code quality improvements.\n\n\
+                      Subcommands: review, bugs, report",
+        after_help = "Examples:\n\
+                      # Review current changes\n\
+                      ckrv qa review\n\n\
+                      # Analyze for bugs\n\
+                      ckrv qa bugs\n\n\
+                      # Generate QA report\n\
+                      ckrv qa report"
+    )]
     Qa(commands::qa::QaArgs),
 }
 
