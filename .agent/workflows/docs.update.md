@@ -1,5 +1,5 @@
 ---
-description: Check documentation freshness and update crate docs to match current code.
+description: Check documentation freshness and update crate docs + CLI command attributes to match current code.
 ---
 
 ## User Input
@@ -15,14 +15,7 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 ## Goal
 
-Ensure crate documentation (`crates/<crate>/docs/README.md`) stays synchronized with the actual code. This workflow follows the process defined in `DOCUMENTATION.md`.
-
-## Operating Constraints
-
-- **Follow DOCUMENTATION.md**: All updates must follow the documentation system guidelines
-- **Preserve frontmatter**: Always maintain the YAML frontmatter with `last_commit`, `last_updated`, and `related_files`
-- **Accurate commits**: Update `last_commit` to the current HEAD commit hash
-- **Semantic changes only**: Only update docs when there are meaningful API changes (not formatting/comments)
+Ensure crate documentation (`crates/<crate>/docs/README.md`) and CLI command attributes (`long_about`, `after_help`) stay synchronized with the actual code.
 
 ## Execution Steps
 
@@ -94,7 +87,7 @@ Output a summary table:
 
 If `--check-only` was specified, stop here and report results.
 
-### 6. Update Documentation (if not check-only)
+### 6. Update Crate README (if not check-only)
 
 For each crate needing updates:
 
@@ -118,93 +111,105 @@ For each crate needing updates:
 cat <updated_doc_path> | head -5
 ```
 
-### 8. Summary Report
+---
+
+## Step 8: CLI Command Attributes (ckrv-cli specific)
+
+When updating `ckrv-cli`, also update CLI command attributes (`long_about`, `after_help`) in the code.
+
+### 8.1 Identify Commands Needing Documentation
+
+// turbo
+```bash
+# List all Commands enum variants in lib.rs
+grep -E "^\s+/// " crates/ckrv-cli/src/lib.rs | head -30
+```
+
+### 8.2 For Each Command
+
+For each command in the `Commands` enum:
+
+1. **Read the crate README** (`crates/ckrv-cli/docs/README.md`) to understand:
+   - What the command does
+   - Its options and arguments
+   - Usage patterns
+
+2. **Read the command implementation** (`commands/<cmd>.rs`) to understand:
+   - Actual behavior
+   - Edge cases
+   - Error conditions
+
+3. **Generate documentation content**:
+   - `long_about`: Detailed multi-paragraph description
+   - `after_help`: Practical examples
+
+### 8.3 Update lib.rs
+
+Add `long_about` and `after_help` to the `#[command(...)]` attribute:
+
+```rust
+/// Short description (shown in command list)
+#[command(
+    display_order = 1,
+    long_about = "Detailed description.\n\n\
+                  This explains what the command does in depth.\n\n\
+                  Include important notes about behavior.",
+    after_help = "Examples:\n\
+                  # Basic usage\n\
+                  ckrv <cmd>\n\n\
+                  # With options\n\
+                  ckrv <cmd> --option"
+)]
+CommandName(commands::cmd::CmdArgs),
+```
+
+### 8.4 Format Guidelines
+
+**For `long_about`:**
+- First paragraph = expanded version of the doc comment
+- Second paragraph = what gets created/modified
+- Third paragraph = important notes or requirements
+- Use `\n\n` between paragraphs
+- Use `\n` for line breaks within paragraphs
+
+**For `after_help`:**
+- Start with "Examples:\n"
+- Use `# comment` format for descriptions
+- Show 2-3 practical examples
+- Include common option combinations
+
+### 8.5 Commands to Document
+
+Priority order for documentation:
+
+| Priority | Commands | Reason |
+|----------|----------|--------|
+| HIGH | init, spec new, plan, run | Core workflow |
+| MEDIUM | verify, promote, test, qa | Quality checks |
+| LOW | cloud, logs, pull, ui | Auxiliary features |
+
+---
+
+## Step 9: Summary Report
 
 Output final summary:
 
 ```markdown
 ## Documentation Update Summary
 
-### Updated
+### Crate READMEs Updated
 - `crates/ckrv-core/docs/README.md` - Added RunnerConfig GLM fields
 - `crates/ckrv-cli/docs/README.md` - Updated agent_lookup description
 
+### CLI Commands Updated (in lib.rs)
+- `Init` - Added long_about and after_help
+- `Spec` - Added long_about and after_help
+
 ### Skipped (no changes)
 - `crates/ckrv-git/docs/README.md`
-- `crates/ckrv-sandbox/docs/README.md`
 
 ### Next Steps
-- Review updated docs for accuracy
-- Commit with: `git commit -m "docs: update crate docs to <NEW_COMMIT>"`
+1. Run `/docs.skills` to generate command documentation files
+2. Run `make skill` to regenerate SKILL.md
+3. Commit with: `git commit -m "docs: update crate docs to <NEW_COMMIT>"`
 ```
-
-## Root README.md
-
-The root `README.md` must also be checked and updated when:
-
-| Section | Check When |
-|---------|------------|
-| Commands table | New CLI commands added |
-| Architecture section | Crates added/removed |
-| Agents table | Agent types or availability changes |
-| Requirements | Dependency version changes |
-
-### Checking Root README
-
-// turbo
-```bash
-# Check for changes that might affect README
-git diff $LAST_KNOWN_COMMIT HEAD -- crates/ckrv-cli/src/main.rs crates/ckrv-cli/src/commands/mod.rs
-```
-
-### Updating Root README
-
-When updating `README.md`:
-
-1. **Commands table**: Sync with actual commands in `src/commands/mod.rs`
-2. **Agents table**: Update availability (CLI only, UI only, CLI + UI)
-3. **Architecture tree**: Ensure crate list is current
-4. **Quick start**: Verify example commands still work
-
-## Cross-Crate Documentation
-
-If changes affect cross-crate docs (`crates/docs/`), also check:
-
-| Doc | Check When |
-|-----|------------|
-| `architecture.md` | Crate dependencies change |
-| `agent-guide.md` | Agent-related code changes (RunnerConfig, agent types) |
-| `cli-commands.md` | Command options/behavior changes |
-| `getting-started.md` | Setup requirements change |
-
-### Cross-Crate Freshness Check
-
-// turbo
-```bash
-# Check cross-crate docs
-for doc in crates/docs/*.md; do
-  commit=$(grep -oP '^last_commit: \K[a-f0-9]+' "$doc" 2>/dev/null || echo "none")
-  echo "$doc: $commit"
-done
-```
-
-## Operating Principles
-
-### Context Efficiency
-
-- **Incremental checks**: Only analyze crates with actual changes
-- **API-focused**: Prioritize public API documentation over internal details
-- **Semantic diffs**: Focus on meaningful changes, ignore formatting
-
-### Documentation Quality
-
-- **Code-first**: Documentation must reflect actual code behavior
-- **Examples**: Include usage examples for new APIs
-- **Tables**: Use tables for quick reference of types/options
-- **Mermaid**: Use diagrams for architecture changes
-
-### Commit Tracking
-
-- **Always update `last_commit`**: Every doc update must include the new commit hash
-- **Related files**: Update `related_files` if new source files become relevant
-- **Date stamps**: Update `last_updated` to current date

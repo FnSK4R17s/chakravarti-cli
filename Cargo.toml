@@ -9,7 +9,9 @@ members = [
     "crates/ckrv-model",
     "crates/ckrv-verify",
     "crates/ckrv-metrics",
-    "crates/ckrv-integrations", "crates/ckrv-ui",
+    "crates/ckrv-integrations",
+    "crates/ckrv-ui",
+    "crates/ckrv-mcp",
 ]
 
 [workspace.package]
@@ -82,6 +84,7 @@ ckrv-model = { path = "crates/ckrv-model" }
 ckrv-verify = { path = "crates/ckrv-verify" }
 ckrv-metrics = { path = "crates/ckrv-metrics" }
 ckrv-integrations = { path = "crates/ckrv-integrations" }
+ckrv-cli = { path = "crates/ckrv-cli" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

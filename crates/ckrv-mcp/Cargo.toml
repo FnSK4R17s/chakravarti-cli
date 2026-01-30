@@ -1,0 +1,27 @@
+[package]
+name = "ckrv-mcp"
+description = "MCP (Model Context Protocol) server for Chakravarti CLI"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "ckrv-mcp"
+path = "src/main.rs"
+
+[dependencies]
+ckrv-cli = { workspace = true }
+
+clap = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
