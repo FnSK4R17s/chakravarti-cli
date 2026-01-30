@@ -1,8 +1,10 @@
 ---
-last_commit: 5160ff1
-last_updated: 2026-01-29
+last_commit: 5a35036
+last_updated: 2026-01-30
 related_files:
   - src/main.rs
+  - src/lib.rs
+  - src/bin/skill_gen.rs
   - src/commands/mod.rs
   - src/commands/test.rs
   - src/commands/qa.rs
@@ -18,7 +20,19 @@ CLI entry point and command handlers for Chakravarti.
 
 This crate provides the main `ckrv` binary and all CLI command implementations. It acts as the user-facing interface to the Chakravarti orchestration engine.
 
+**New in 0.1.0**: The crate now exports public types for AI-native interface generation (SKILL.md and MCP server).
+
 ## Key Types
+
+| Type | Module | Purpose |
+|------|--------|---------|
+| `Cli` | lib.rs | Main CLI struct (clap-derived) |
+| `Commands` | lib.rs | Command enum with all subcommands |
+| `CommandMetadata` | lib.rs | Extracted command info for docs/MCP |
+| `ArgumentMetadata` | lib.rs | Positional argument metadata |
+| `OptionMetadata` | lib.rs | Flag/option metadata |
+
+### Other Exports
 
 - **Commands**: Individual command handlers (`init`, `run`, `spec`, `plan`, `test`, `qa`, `cloud`, etc.)
 - **Services**: Shared functionality for commands (agent lookup, diff analysis, test framework detection)
@@ -31,6 +45,9 @@ This crate provides the main `ckrv` binary and all CLI command implementations. 
 ```
 src/
 ├── main.rs              # Entry point, CLI argument parsing
+├── lib.rs               # Public exports (Cli, Commands, CommandMetadata)
+├── bin/
+│   └── skill_gen.rs     # SKILL.md generator binary
 ├── prompts.rs           # User confirmation prompts
 ├── commands/            # Command implementations
 │   ├── init.rs          # ckrv init
@@ -75,6 +92,56 @@ src/
     ├── design-template.md   # Design doc template
     ├── spec-template.yaml   # Spec file template
     └── tasks-template.yaml  # Tasks file template
+```
+
+## Public API
+
+Exports from `lib.rs`:
+
+```rust
+// CLI types (for external tooling)
+pub use crate::{Cli, Commands};
+
+// Metadata types (for SKILL.md and MCP generation)
+pub use crate::{CommandMetadata, ArgumentMetadata, OptionMetadata};
+
+// Metadata extraction
+pub fn extract_command_metadata() -> CommandMetadata;
+```
+
+### CommandMetadata
+
+```rust
+pub struct CommandMetadata {
+    pub path: Vec<String>,           // ["ckrv", "spec", "new"]
+    pub name: String,                // "new"
+    pub description: String,         // Short description
+    pub long_description: Option<String>,  // Detailed description
+    pub after_help: Option<String>,  // Examples/notes
+    pub arguments: Vec<ArgumentMetadata>,
+    pub options: Vec<OptionMetadata>,
+    pub hidden: bool,
+    pub subcommands: Vec<CommandMetadata>,
+}
+```
+
+## Binaries
+
+| Binary | Purpose |
+|--------|---------|
+| `ckrv` | Main CLI executable |
+| `skill_gen` | Generates SKILL.md for AI agents |
+
+### skill_gen
+
+Generates `.agent/skills/chakravarti-cli/SKILL.md` from clap command definitions:
+
+```bash
+# Generate SKILL.md
+cargo run -p ckrv-cli --bin skill_gen > .agent/skills/chakravarti-cli/SKILL.md
+
+# Or use Makefile
+make skill
 ```
 
 ## Commands
@@ -127,8 +194,13 @@ Client for remote job execution via Chakravarti Cloud:
 // The CLI is typically run as a binary:
 // $ ckrv --help
 
-// For programmatic use (rare):
-use ckrv_cli::commands;
+// For programmatic use (metadata extraction):
+use ckrv_cli::extract_command_metadata;
+
+let metadata = extract_command_metadata();
+for cmd in &metadata.subcommands {
+    println!("{}: {}", cmd.name, cmd.description);
+}
 ```
 
 ## Dependencies
@@ -142,3 +214,6 @@ use ckrv_cli::commands;
 | `clap` | Argument parsing |
 | `console` | Terminal styling |
 | `indicatif` | Progress bars and spinners |
+| `serde` | Serialization for metadata |
+| `chrono` | Timestamps for SKILL.md generation |
+

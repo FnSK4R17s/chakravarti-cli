@@ -11,6 +11,10 @@ rust-version.workspace = true
 name = "ckrv"
 path = "src/main.rs"
 
+[[bin]]
+name = "skill_gen"
+path = "src/bin/skill_gen.rs"
+
 [dependencies]
 ckrv-core = { workspace = true }
 ckrv-spec = { workspace = true }
