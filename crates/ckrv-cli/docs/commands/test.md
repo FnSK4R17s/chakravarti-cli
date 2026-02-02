@@ -1,12 +1,12 @@
 ---
 command: ckrv test
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv test
 
-Run tests in sandbox, plan and write new tests
+Run tests in sandbox, plan and write new tests.
 
 ## Description
 
@@ -21,8 +21,16 @@ Subcommands: run, plan, write
 | Subcommand | Description |
 |------------|-------------|
 | `run` | Run existing tests in sandbox |
-| `plan` | Plan tests for uncovered code |
-| `write` | Write new tests using AI |
+| `plan` | Analyze changes and generate test plan |
+| `write` | Write new tests using test writer agent |
+
+## Options
+
+| Flag | Description |
+|------|-------------|
+| `--agent <agent>` | AI agent to use for test writing |
+| `--base <branch>` | Branch to compare against (default: main) |
+| `--json` | Output in JSON format |
 
 ## Examples
 

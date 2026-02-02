@@ -1,12 +1,12 @@
 ---
 command: ckrv verify
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv verify
 
-Run tests, lint, and quality checks
+Run tests, lint, and quality checks.
 
 ## Description
 
@@ -20,12 +20,12 @@ Failed verifications can be fixed with `ckrv fix`.
 
 | Flag | Description |
 |------|-------------|
-| `--lint` | Run only lint checks |
-| `--type` | Run only type checks |
-| `--test` | Run only tests |
-| `--fix` | Auto-fix issues where possible |
-| `--continue-on-failure` | Continue on failure (run all checks even if some fail) |
+| `--tests-only` | Run only tests |
+| `--lint` | Run linting only |
+| `--typecheck` | Run type checking only |
+| `--fix` | Auto-fix linting issues |
 | `--save` | Save results to verification.yaml |
+| `--json` | Output in JSON format |
 
 ## Examples
 

@@ -1,12 +1,12 @@
 ---
 command: ckrv plan
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv plan
 
-Generate execution plan from tasks (in Docker)
+Generate execution plan from tasks (in Docker).
 
 ## Description
 
@@ -20,13 +20,14 @@ The plan breaks down work into atomic steps that AI agents can execute.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<spec>` | No | Path to the specification directory. If not provided, will detect from branch name. |
+| `<spec-name>` | Yes | Name of the specification to plan |
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
-| `--force`, `-f` | Force regeneration even if plan.yaml already exists |
+| `--model <model>` | AI model to use for planning |
+| `--yes`, `-y` | Skip confirmation prompt |
 
 ## Examples
 

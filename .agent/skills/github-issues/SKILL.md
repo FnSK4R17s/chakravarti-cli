@@ -142,7 +142,63 @@ echo "Creating spec for: $TITLE"
 ckrv spec new --name "issue-$ISSUE_NUM" --description "$BODY"
 ```
 
+## Check for Existing Brainstorms
+
+Before diving into an issue, check if there's already a brainstorm document:
+
+### Quick Lookup
+
+```bash
+# Check if issue #12 has a brainstorm
+ls brainstorming/ | grep -E "^issue-0*12-" && echo "📝 Brainstorm exists!" || echo "No brainstorm yet"
+```
+
+### List Issues with Brainstorms
+
+```bash
+# Show all issues with existing brainstorm docs
+for dir in brainstorming/issue-*/; do
+  [ -d "$dir" ] || continue
+  num=$(echo "$dir" | grep -oE '[0-9]+' | head -1)
+  title=$(head -1 "$dir/notes.md" 2>/dev/null | sed 's/# //')
+  echo "#$num: $title 📝"
+done
+```
+
+### Fetch Issues + Show Brainstorm Status
+
+```bash
+# Fetch open issues and mark those with brainstorms
+REPO=$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')
+curl -s "https://api.github.com/repos/$REPO/issues?state=open&per_page=20" | \
+  jq -r '.[] | "#\(.number) \(.title)"' | \
+  while read line; do
+    num=$(echo "$line" | grep -oE '^#[0-9]+' | tr -d '#')
+    if ls brainstorming/issue-$(printf '%03d' $num)-* 2>/dev/null | grep -q .; then
+      echo "$line 📝"
+    else
+      echo "$line"
+    fi
+  done
+```
+
+**Output example:**
+```
+#29 Add Mistral code
+#12 Create NPM package for quick global install 📝
+#11 Build cloud integration
+#4 Headless operation and logs collection 📝
+```
+
+### View Brainstorm for Issue
+
+```bash
+ISSUE_NUM=12
+cat brainstorming/issue-$(printf '%03d' $ISSUE_NUM)-*/notes.md 2>/dev/null || echo "No brainstorm for #$ISSUE_NUM"
+```
+
 ## References
 
 - [GitHub REST API - Issues](https://docs.github.com/en/rest/issues/issues)
 - [GitHub API Rate Limiting](https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting)
+- [Brainstorming Skill](./../brainstorming/SKILL.md) - Create brainstorm docs from issues

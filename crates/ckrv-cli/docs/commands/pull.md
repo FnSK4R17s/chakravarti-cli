@@ -1,12 +1,12 @@
 ---
 command: ckrv pull
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv pull
 
-Pull results from a completed cloud job
+Pull results from a completed cloud job.
 
 ## Description
 
@@ -20,13 +20,13 @@ Jobs must be in a 'completed' state to pull.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<job-id>` | Yes | Cloud job ID to pull results from |
+| `<job-id>` | Yes | Job ID to pull results from |
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
-| `--branch` | Create new branch with results |
+| `--branch <name>` | Create or checkout specific branch |
 
 ## Examples
 

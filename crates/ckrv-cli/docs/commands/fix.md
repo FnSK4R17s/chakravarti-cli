@@ -1,12 +1,12 @@
 ---
 command: ckrv fix
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv fix
 
-Fix verification errors with AI
+Fix verification errors with AI.
 
 ## Description
 
@@ -20,8 +20,9 @@ Best used after `ckrv verify` identifies issues.
 
 | Flag | Description |
 |------|-------------|
-| `--agent` | Agent to use for fixing |
+| `--agent <agent>` | AI agent to use for fixing |
 | `--tests-only` | Fix only test failures |
+| `--check` | Re-run verification after fix |
 
 ## Examples
 

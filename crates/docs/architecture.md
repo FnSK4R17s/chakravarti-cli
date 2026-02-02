@@ -1,10 +1,11 @@
 ---
-last_commit: 5160ff1
-last_updated: 2026-01-29
+last_commit: 0ad833d
+last_updated: 2026-02-02
 related_files:
   - Cargo.toml
   - crates/ckrv-core/src/lib.rs
   - crates/ckrv-sandbox/src/lib.rs
+  - crates/ckrv-mcp/src/lib.rs
 ---
 
 # Chakravarti CLI Architecture
@@ -32,6 +33,8 @@ graph TD
     UI --> GIT
     UI --> INTEGRATIONS[ckrv-integrations]
     
+    MCP[ckrv-mcp] --> CLI
+    
     VERIFY[ckrv-verify] --> SANDBOX
 ```
 
@@ -49,6 +52,7 @@ graph TD
 | `ckrv-verify` | Test execution, output parsing, acceptance checking | ⚠️ **Unused** |
 | `ckrv-integrations` | External service integrations (GitHub, etc.) | ⚠️ **Stub** |
 | `ckrv-ui` | Web dashboard server, REST API, WebSocket events | ✅ Used |
+| `ckrv-mcp` | MCP server exposing CLI commands as tools for AI agents | ✅ Used |
 
 ## Execution Flow
 

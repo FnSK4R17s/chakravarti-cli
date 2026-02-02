@@ -1,12 +1,12 @@
 ---
 command: ckrv run
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv run
 
-Run a job based on a specification
+Run a job based on a specification.
 
 ## Description
 
@@ -20,17 +20,17 @@ Results are committed to a feature branch for review.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<spec>` | No | Path to the specification file. If not provided, will detect from branch name. |
+| `<spec-name>` | Yes | Name of the specification to run |
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
-| `--optimize`, `-o` | Optimization strategy: `cost`, `time`, or `balanced` (default: balanced) |
-| `--executor-model`, `-e` | Override the AI model/agent to use for execution |
-| `--agent` | Agent to use for execution: claude or codex (default: claude) |
-| `--cloud` | Execute job in Chakravarti Cloud instead of locally |
-| `--credential` | Git credential name to use for cloud execution (for private repos) |
+| `--agent <agent>` | AI agent to use for execution |
+| `--dry-run` | Show what would be done without executing |
+| `--batch <N>` | Run specific batch only |
+| `--parallel <N>` | Max parallel agents (default: 3) |
+| `--no-merge` | Skip auto-merge step |
 
 ## Examples
 

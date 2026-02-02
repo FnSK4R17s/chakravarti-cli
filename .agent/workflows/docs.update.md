@@ -1,5 +1,5 @@
 ---
-description: Check documentation freshness and update crate docs + CLI command attributes to match current code.
+description: Check documentation freshness and update crate docs, top-level docs, and CLI command attributes to match current code.
 ---
 
 ## User Input
@@ -10,12 +10,17 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty). The user may specify:
 - A specific crate to update (e.g., `ckrv-core`, `ckrv-cli`)
+- A specific doc file to update (e.g., `architecture`, `cli-commands`)
 - `--check-only` to only report freshness without updating
-- `--all` to check/update all crates
+- `--all` to check/update all crates and docs
 
 ## Goal
 
-Ensure crate documentation (`crates/<crate>/docs/README.md`) and CLI command attributes (`long_about`, `after_help`) stay synchronized with the actual code.
+Ensure all documentation stays synchronized with the actual code:
+
+1. **Crate documentation** (`crates/<crate>/docs/README.md`)
+2. **Top-level docs** (`crates/docs/*.md` - architecture, cli-commands, agent-guide, getting-started)
+3. **CLI command attributes** (`long_about`, `after_help` in lib.rs)
 
 ## Execution Steps
 
@@ -113,11 +118,204 @@ cat <updated_doc_path> | head -5
 
 ---
 
-## Step 8: CLI Command Attributes (ckrv-cli specific)
+## Step 8-11: Update Top-Level Documentation (`crates/docs/`)
+
+The `crates/docs/` folder contains 4 cross-cutting documentation files that must be kept in sync with the codebase. These aggregate information from **both source code AND crate-level docs**.
+
+| File | Purpose | Primary Sources | Crate Docs to Reference |
+|------|---------|-----------------|-------------------------|
+| `architecture.md` | System design, crate diagram | `crates/*/Cargo.toml` | All `crates/*/docs/README.md` |
+| `cli-commands.md` | Command reference | `ckrv-cli/src/lib.rs` | `crates/ckrv-cli/docs/README.md` |
+| `agent-guide.md` | Adding new AI agents | `ckrv-sandbox/src/` | `crates/ckrv-sandbox/docs/README.md` |
+| `getting-started.md` | New contributor onboarding | Build scripts, Makefile | All crate docs (for overview) |
+
+---
+
+### Step 8: Update `architecture.md`
+
+**Sources of truth:**
+1. The actual crates in `crates/` directory
+2. Each crate's `docs/README.md` for descriptions
+
+// turbo
+```bash
+# List all crates
+ls -d crates/ckrv-* | xargs -I{} basename {}
+```
+
+// turbo
+```bash
+# Extract crates mentioned in architecture.md
+grep -oP '`ckrv-[a-z]+`' crates/docs/architecture.md | sort -u
+```
+
+// turbo
+```bash
+# List available crate docs
+find crates -path "*/docs/README.md" -type f | grep -v node_modules
+```
+
+**Compare the lists.** For any missing crates:
+
+1. **Read the crate's Cargo.toml** to understand its purpose
+2. **Read the crate's `docs/README.md`** (if exists) for:
+   - Description and purpose
+   - Key types and traits
+   - Dependencies on other crates
+3. **Check if it's a dependency** of other crates using:
+   ```bash
+   grep -l "ckrv-<new>" crates/*/Cargo.toml
+   ```
+4. **Add to the Crate Responsibilities table** with appropriate status:
+   - `✅ Used` - actively used in the codebase
+   - `⚠️ Unused` - exists but not integrated
+   - `⚠️ Stub` - placeholder for future work
+
+5. **Update the Mermaid dependency graph** based on Cargo.toml dependencies
+
+6. **Sync descriptions** - ensure the Purpose column matches the crate's README overview
+
+7. **Update frontmatter**:
+   ```yaml
+   last_commit: <NEW_COMMIT>
+   last_updated: <TODAY_DATE>
+   ```
+
+---
+
+### Step 9: Update `cli-commands.md`
+
+**Sources of truth:**
+1. `crates/ckrv-cli/src/lib.rs` Commands enum
+2. `crates/ckrv-cli/docs/README.md` for command documentation
+
+// turbo
+```bash
+# Get all commands from source
+grep -E "^\s+[A-Z][a-zA-Z]+\(" crates/ckrv-cli/src/lib.rs | sed 's/.*\s\+\([A-Z][a-zA-Z]*\)(.*/\1/' | sort
+```
+
+// turbo
+```bash
+# Get commands documented in cli-commands.md
+grep -E "^### \`" crates/docs/cli-commands.md | sed 's/### `\([^`]*\)`.*/\1/' | sort
+```
+
+// turbo
+```bash
+# Check the ckrv-cli crate README for command details
+head -100 crates/ckrv-cli/docs/README.md 2>/dev/null
+```
+
+**Compare the lists.** For any missing commands:
+
+1. **Read the command implementation** in `commands/<cmd>.rs`
+2. **Check ckrv-cli's docs/README.md** for existing command documentation
+3. **Extract Clap attributes** (`about`, `long_about`, subcommands)
+4. **Add a new section** following the existing format:
+   ```markdown
+   ### `<command>`
+   
+   <description from crate README or about attribute>
+   
+   ```bash
+   ckrv <command> [OPTIONS]
+   ```
+   
+   **Options:**
+   - `--<flag>`: <description>
+   
+   **Examples:**
+   ```bash
+   ckrv <command> <example>
+   ```
+   ```
+
+5. **Update frontmatter**
+
+---
+
+### Step 10: Update `agent-guide.md`
+
+**Sources of truth:**
+1. `crates/ckrv-sandbox/src/` agent provider implementations
+2. `crates/ckrv-sandbox/docs/README.md` for agent documentation
+
+// turbo
+```bash
+# List agent provider files
+ls crates/ckrv-sandbox/src/*.rs | xargs -I{} basename {} .rs
+```
+
+// turbo
+```bash
+# Get agents documented in agent-guide.md
+grep -E "^## |^### " crates/docs/agent-guide.md | head -20
+```
+
+// turbo
+```bash
+# Check the ckrv-sandbox crate README for agent details
+head -150 crates/ckrv-sandbox/docs/README.md 2>/dev/null
+```
+
+**For each agent provider file:**
+
+1. **Check if documented** in agent-guide.md
+2. **Read ckrv-sandbox's docs/README.md** for:
+   - Agent configuration patterns
+   - Authentication methods
+   - Docker execution details
+3. **For new agents**, add:
+   - Configuration section
+   - Authentication requirements
+   - Docker image details
+   - Example usage (from crate README if available)
+
+4. **Update frontmatter**
+
+---
+
+### Step 11: Update `getting-started.md`
+
+**Sources of truth:**
+1. `Makefile`, `package.json`, build scripts
+2. All crate `docs/README.md` files for development setup
+
+// turbo
+```bash
+# Check if Makefile targets match getting-started.md
+grep -E "^[a-z-]+:" Makefile | cut -d: -f1 | head -10
+```
+
+// turbo
+```bash
+# Check documented commands
+grep -E "^make |^cargo |^pnpm " crates/docs/getting-started.md | head -10
+```
+
+// turbo
+```bash
+# List all crate docs for development reference
+find crates -path "*/docs/README.md" -exec grep -l "Development\|Setup\|Building" {} \;
+```
+
+**Verify by cross-referencing crate docs:**
+
+1. **Prerequisites** still match actual requirements (check root Cargo.toml)
+2. **Installation steps** work with current build system
+3. **Development workflow** commands are accurate
+4. **Per-crate development notes** - if crate READMEs have dev-specific sections, summarize key points
+
+5. **Update frontmatter**
+
+---
+
+## Step 12: CLI Command Attributes (ckrv-cli specific)
 
 When updating `ckrv-cli`, also update CLI command attributes (`long_about`, `after_help`) in the code.
 
-### 8.1 Identify Commands Needing Documentation
+### 12.1 Identify Commands Needing Documentation
 
 // turbo
 ```bash
@@ -125,7 +323,7 @@ When updating `ckrv-cli`, also update CLI command attributes (`long_about`, `aft
 grep -E "^\s+/// " crates/ckrv-cli/src/lib.rs | head -30
 ```
 
-### 8.2 For Each Command
+### 12.2 For Each Command
 
 For each command in the `Commands` enum:
 
@@ -143,7 +341,7 @@ For each command in the `Commands` enum:
    - `long_about`: Detailed multi-paragraph description
    - `after_help`: Practical examples
 
-### 8.3 Update lib.rs
+### 12.3 Update lib.rs
 
 Add `long_about` and `after_help` to the `#[command(...)]` attribute:
 
@@ -163,7 +361,7 @@ Add `long_about` and `after_help` to the `#[command(...)]` attribute:
 CommandName(commands::cmd::CmdArgs),
 ```
 
-### 8.4 Format Guidelines
+### 12.4 Format Guidelines
 
 **For `long_about`:**
 - First paragraph = expanded version of the doc comment
@@ -178,7 +376,7 @@ CommandName(commands::cmd::CmdArgs),
 - Show 2-3 practical examples
 - Include common option combinations
 
-### 8.5 Commands to Document
+### 12.5 Commands to Document
 
 Priority order for documentation:
 
@@ -190,7 +388,7 @@ Priority order for documentation:
 
 ---
 
-## Step 9: Summary Report
+## Step 13: Summary Report
 
 Output final summary:
 

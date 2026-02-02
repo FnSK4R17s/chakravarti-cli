@@ -1,12 +1,12 @@
 ---
 command: ckrv init
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv init
 
-Initialize Chakravarti in the current repository
+Initialize Chakravarti in the current repository.
 
 ## Description
 
@@ -20,7 +20,7 @@ This is typically the first command to run when setting up a new project for AI-
 
 | Flag | Description |
 |------|-------------|
-| `--force` | Force reinitialization even if already initialized |
+| `--verbose`, `-v` | Enable verbose logging |
 
 ## Examples
 

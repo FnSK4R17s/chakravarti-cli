@@ -1,12 +1,12 @@
 ---
 command: ckrv logs
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv logs
 
-Stream or view logs from a cloud job
+Stream or view logs from a cloud job.
 
 ## Description
 
@@ -20,14 +20,15 @@ Use --follow for continuous streaming.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<job-id>` | Yes | Cloud job ID to view logs for |
+| `<job-id>` | Yes | Job ID to get logs for |
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
-| `--follow` | Stream logs continuously |
-| `--task` | Filter by task number |
+| `--follow`, `-f` | Stream logs in real-time |
+| `--task <N>` | Filter by task number |
+| `--batch <N>` | Show logs for specific batch |
 
 ## Examples
 

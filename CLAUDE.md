@@ -7,6 +7,26 @@ Last updated: 2026-01-29
 > 
 > Never run `git commit`, `git push`, or any git commands that modify repository state. Only the user commits and pushes code.
 
+> [!IMPORTANT]
+> **SPECS FOLDER RULES**
+> 
+> The `specs/` folder is **strictly for automation workflows only**. Do NOT create or modify files in `specs/` unless:
+> 1. The user explicitly asks to create a spec
+> 2. Using `/speckit.specify`, `/speckit.plan`, `/speckit.tasks` or similar workflows
+> 
+> **For casual brainstorming/discussion about features:**
+> - Create files in `brainstorming/` folder instead
+> - Use the template at `.templates/brainstorm.notes.md`
+> - Name folders as `issue-{NNN}-{slug}/` to link to GitHub issues
+> - Example: `brainstorming/issue-012-npm-package/notes.md`
+> 
+> **When discussing GitHub issues:**
+> 1. First check `brainstorming/` for existing plans: `ls brainstorming/ | grep "issue-0{NUM}"`
+> 2. Reference existing brainstorms before creating new ones
+> 3. See the **brainstorming** skill for workflow details
+> 
+> This separation ensures `specs/` contains only validated, ready-to-execute specifications.
+
 ## Overview
 
 Chakravarti is a spec-driven autonomous agent orchestration engine. It transforms high-level specifications into shipping code by orchestrating AI agents across isolated Git worktrees and Docker sandboxes.

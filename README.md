@@ -1,9 +1,9 @@
-<h1 align="center">Chakravarti CLI</h1>
+<h1 align="center">Chakravarti-cli</h1>
 
 <p align="center">
-  <strong>Spec-driven Agent Orchestration Engine</strong><br>
-  <em>The Universal Orchestrator for AI Coding.</em><br>
-  <sub>Turn your ideas into code, one spec at a time.</sub>
+  <strong>Cross-Platform Orchestration Engine for AI Coding Agents</strong><br>
+  <em>Use all your AI coding subscriptions together.</em><br>
+  <sub>You write specs. Your agents implement them. Together.</sub>
 </p>
 
 <p align="center">
@@ -14,9 +14,13 @@
 
 ---
 
-Chakravarti (`ckrv`) is an autonomous coding engine that transforms high-level specifications into shipping code. It orchestrates AI agents across isolated Git worktrees and Docker sandboxes to ensure safety and code integrity.
+**Chakravarti-cli (`ckrv`)** is a cross-platform orchestration engine for AI coding agents.
 
-Each spec generates a complete workflow—from **scope** to **plan** to **implementation**—with full control to review and refine at every stage.
+You write specifications. `ckrv` coordinates multiple AI agents—Claude Code, Codex, Gemini, and others—to implement them in parallel. You pay for multiple AI coding subscriptions but can't use them together? *Finally, someone built this.*
+
+The companies behind these tools will never build cross-provider support themselves. Anthropic won't help you use Codex. OpenAI won't integrate Claude. `ckrv` lives in the gap between their incentives—it's the only tool that lets you use all your AI subscriptions together.
+
+Each spec generates a complete workflow—from **scope** to **plan** to **implementation**—with full control to review and refine at every stage. All execution happens in Docker sandboxes on isolated Git worktrees for safety and code integrity.
 
 ## Installation
 
@@ -102,6 +106,7 @@ crates/
 ├── ckrv-git          # Git operations, worktree management
 ├── ckrv-sandbox      # Docker execution, agent providers
 ├── ckrv-spec         # Spec file loading and validation
+├── ckrv-mcp          # MCP server for AI agent integration
 ├── ckrv-model        # LLM provider abstraction (⚠️ unused)
 ├── ckrv-metrics      # Cost/time tracking, file storage
 ├── ckrv-verify       # Test execution and parsing (⚠️ unused)
@@ -128,13 +133,14 @@ Chakravarti uses Claude Code CLI as the execution interface, with support for mu
 
 The following agents are planned for future releases:
 
-- **Gemini CLI** - Google's Gemini models
-- **Cursor CLI** - Cursor's AI coding assistant
-- **Amp** - Sourcegraph's Amp agent
-- **Qwen Code** - Alibaba's Qwen coding models
-- **Opencode** - Open source coding CLI
-- **Factory Droid** - Factory's autonomous developer
-- **GitHub Copilot** - GitHub Copilot via CLI
+- **Gemini CLI** - Google's Gemini models ([#31](https://github.com/FnSK4R17s/chakravarti-cli/issues/31))
+- **Cursor CLI** - Cursor's AI coding assistant ([#32](https://github.com/FnSK4R17s/chakravarti-cli/issues/32))
+- **Amp** - Ampcode AI coding agent ([#33](https://github.com/FnSK4R17s/chakravarti-cli/issues/33))
+- **Qwen Code** - Alibaba's Qwen coding models ([#34](https://github.com/FnSK4R17s/chakravarti-cli/issues/34))
+- **Opencode** - Open source coding CLI ([#35](https://github.com/FnSK4R17s/chakravarti-cli/issues/35))
+- **Factory Droid** - Factory's autonomous developer ([#36](https://github.com/FnSK4R17s/chakravarti-cli/issues/36))
+- **GitHub Copilot** - GitHub Copilot via CLI ([#37](https://github.com/FnSK4R17s/chakravarti-cli/issues/37))
+- **Mistral Vibe** - Mistral AI's coding assistant ([#29](https://github.com/FnSK4R17s/chakravarti-cli/issues/29))
 
 See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 

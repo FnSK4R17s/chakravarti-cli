@@ -1,6 +1,6 @@
 ---
-last_commit: 5160ff1
-last_updated: 2026-01-29
+last_commit: 0ad833d
+last_updated: 2026-02-02
 related_files:
   - crates/ckrv-sandbox/src/agent/mod.rs
   - crates/ckrv-sandbox/src/agent/claude.rs

@@ -1,12 +1,12 @@
 ---
 command: ckrv diff
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv diff
 
-View changes between current branch and base
+View changes between current branch and base.
 
 ## Description
 
@@ -20,7 +20,10 @@ Output can be formatted as JSON for programmatic use.
 
 | Flag | Description |
 |------|-------------|
-| `--base` | Branch to compare against (default: main) |
+| `--base <branch>` | Compare against specific branch (default: main) |
+| `--json` | Output as JSON |
+| `--stat` | Show file statistics only |
+| `--files` | List changed files only |
 
 ## Examples
 

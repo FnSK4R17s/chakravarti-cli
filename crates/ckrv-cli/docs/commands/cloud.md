@@ -1,12 +1,12 @@
 ---
 command: ckrv cloud
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv cloud
 
-Cloud execution commands
+Cloud execution commands.
 
 ## Description
 
@@ -20,11 +20,10 @@ Subcommands: login, submit, status, cancel
 
 | Subcommand | Description |
 |------------|-------------|
-| `login` | Login to Chakravarti Cloud |
-| `submit` | Submit a job to cloud |
-| `status` | Check job status |
-| `cancel` | Cancel a running job |
-| `credentials` | Manage git credentials for private repositories |
+| `login` | Authenticate with cloud |
+| `submit <spec>` | Submit a job for execution |
+| `status <job-id>` | Check job status |
+| `cancel <job-id>` | Cancel a running job |
 
 ## Examples
 

@@ -1,12 +1,12 @@
 ---
 command: ckrv spec
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 039d181
+last_commit: 0ad833d
 ---
 
 # ckrv spec
 
-Create or manage feature specifications
+Create or manage feature specifications.
 
 ## Description
 
@@ -20,11 +20,11 @@ Subcommands: new, list, validate, edit, show
 
 | Subcommand | Description |
 |------------|-------------|
-| `new` | Create a new specification |
+| `new <description>` | Create a new specification from description |
 | `list` | List all specifications |
-| `validate` | Validate a specification |
+| `validate` | Validate specification syntax |
 | `edit` | Edit an existing specification |
-| `show` | Show specification details |
+| `show` | Display specification details |
 
 ## Examples
 
