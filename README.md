@@ -22,6 +22,11 @@ The companies behind these tools will never build cross-provider support themsel
 
 Each spec generates a complete workflow—from **scope** to **plan** to **implementation**—with full control to review and refine at every stage. All execution happens in Docker sandboxes on isolated Git worktrees for safety and code integrity.
 
+> [!WARNING]
+> **🚧 Beta Software** — This project is under active development. Workflows and commands may be incomplete or broken. Your feedback helps make this better!
+>
+> 💬 **Have feedback or found a bug?** Reach out at [**@_Shikh4r_** on X](https://x.com/_Shikh4r_)
+
 ## Installation
 
 ```bash

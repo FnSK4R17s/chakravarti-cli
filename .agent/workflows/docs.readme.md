@@ -209,6 +209,7 @@ Update architecture section:
 
 **DO NOT change:**
 - Badge links (lines 10-12)
+- Beta warning banner (the `[!WARNING]` admonition after introduction)
 - Screenshot paths
 - License section
 - External links (DeepWiki, etc.)
