@@ -1,6 +1,6 @@
 ---
-last_commit: 0ad833d
-last_updated: 2026-02-02
+last_commit: 34d5c95
+last_updated: 2026-02-03
 related_files:
   - Cargo.toml
   - crates/ckrv-core/src/lib.rs

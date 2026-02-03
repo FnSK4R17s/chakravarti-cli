@@ -1,7 +1,7 @@
 ---
-command: ckrv promote
+command: promote
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 0ad833d
+last_commit: 34d5c95
 ---
 
 # ckrv promote
@@ -9,8 +9,6 @@ last_commit: 0ad833d
 Create a pull request for the current branch.
 
 ## Description
-
-Create a pull request for the current branch.
 
 Pushes the feature branch and creates a pull request on GitHub/GitLab. Auto-generates PR title and description from the specification.
 
@@ -20,11 +18,11 @@ Requires remote repository access and appropriate permissions.
 
 | Flag | Description |
 |------|-------------|
-| `--push` | Push to remote first |
+| `--title <TITLE>` | Custom PR title |
 | `--draft` | Create as draft PR |
-| `--open` | Open PR URL in browser |
-| `--base <branch>` | Target branch (default: main) |
-| `--title <title>` | Custom PR title |
+| `--no-push` | Don't push, only create PR |
+| `--verbose`, `-v` | Enable verbose logging |
+| `--json` | Output format: JSON instead of human-readable |
 
 ## Examples
 

@@ -1,7 +1,7 @@
 ---
-command: ckrv init
+command: init
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 0ad833d
+last_commit: 34d5c95
 ---
 
 # ckrv init
@@ -9,8 +9,6 @@ last_commit: 0ad833d
 Initialize Chakravarti in the current repository.
 
 ## Description
-
-Initialize Chakravarti in the current repository.
 
 Creates the `.chakravarti/` directory with default configuration files including `config.yaml` for project settings and initializes the specs directory.
 
@@ -21,6 +19,8 @@ This is typically the first command to run when setting up a new project for AI-
 | Flag | Description |
 |------|-------------|
 | `--verbose`, `-v` | Enable verbose logging |
+| `--json` | Output format: JSON instead of human-readable |
+| `--quiet`, `-q` | Suppress non-essential output |
 
 ## Examples
 

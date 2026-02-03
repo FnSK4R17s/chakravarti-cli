@@ -1,11 +1,13 @@
 ---
-last_commit: c1bb442
-last_updated: 2026-01-21
+last_commit: 34d5c95
+last_updated: 2026-02-03
 ---
 
 # Chakravarti CLI
 
-Spec-driven Agent Orchestration Engine - turn specifications into shipping code.
+**Cross-Platform Orchestration Engine for AI Coding Agents**
+
+*Use all your AI coding subscriptions together.*
 
 ## Installation
 
@@ -60,6 +62,8 @@ ckrv promote --push --open
 | `ckrv run` | Execute orchestration (Plan → Execute → Merge) |
 | `ckrv diff` | View changes between branches |
 | `ckrv verify` | Run tests, linting, and type checking |
+| `ckrv test` | Run, plan, and write tests using AI agents |
+| `ckrv qa` | QA code review and bug analysis |
 | `ckrv fix` | Use AI to fix verification errors |
 | `ckrv promote` | Push changes and create a Pull Request |
 | `ckrv ui` | Launch the Web UI dashboard |
@@ -70,24 +74,31 @@ ckrv promote --push --open
 
 Chakravarti uses Claude Code CLI as the execution interface:
 
-- **Claude Code (Native)** - Default agent
-- **OpenAI Codex** - Native CLI integration
-- **OpenRouter Models** - Plug in 12+ models via Claude Code CLI
+| Agent | Authentication | Description |
+|-------|----------------|-------------|
+| Claude Code | Claude Subscription | Default - uses Anthropic's Claude directly |
+| Claude Code | OpenRouter API | 12+ models (Gemini, DeepSeek, Qwen, Kimi K2, etc.) |
+| Claude Code | GLM Coding Plan | Z.AI's GLM-4.7 and GLM-4.5-Air |
+| Codex | OpenAI Subscription | Native Codex CLI integration |
 
 ## Features
 
-- 🤖 **Multi-Agent Support** - Claude, Codex, OpenRouter models
+- 🤖 **Multi-Agent Support** - Claude, Codex, OpenRouter, GLM models
 - 🔒 **Isolated Execution** - Git worktree isolation
 - 🐳 **Docker Sandboxing** - Safe containerized execution
 - 📊 **Metrics Tracking** - Token usage & cost
 - 🌐 **Web UI Dashboard** - Visual workflow management
+- 🧪 **AI Test Writing** - Auto-generate tests with AI agents
+- 🔍 **AI QA Review** - Code review and bug analysis
 
 ## Documentation
 
-- [Architecture](../crates/docs/architecture.md) - System design
-- [Getting Started](../crates/docs/getting-started.md) - Setup guide
-- [CLI Commands](../crates/docs/cli-commands.md) - Full reference
-- [Agent Guide](../crates/docs/agent-guide.md) - Adding agents
+For full documentation, see the [GitHub repository](https://github.com/FnSK4R17s/chakravarti-cli):
+
+- [Architecture](https://github.com/FnSK4R17s/chakravarti-cli/blob/main/crates/docs/architecture.md)
+- [Getting Started](https://github.com/FnSK4R17s/chakravarti-cli/blob/main/crates/docs/getting-started.md)
+- [CLI Commands](https://github.com/FnSK4R17s/chakravarti-cli/blob/main/crates/docs/cli-commands.md)
+- [Agent Guide](https://github.com/FnSK4R17s/chakravarti-cli/blob/main/crates/docs/agent-guide.md)
 
 ## Requirements
 

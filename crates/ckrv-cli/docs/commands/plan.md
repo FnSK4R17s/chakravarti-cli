@@ -1,16 +1,14 @@
 ---
-command: ckrv plan
+command: plan
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 0ad833d
+last_commit: 34d5c95
 ---
 
 # ckrv plan
 
-Generate execution plan from tasks (in Docker).
+Generate execution plan from tasks using AI.
 
 ## Description
-
-Generate execution plan from tasks using AI.
 
 Analyzes the specification and tasks file to create a detailed implementation plan. Runs in a Docker container for isolation.
 
@@ -20,14 +18,16 @@ The plan breaks down work into atomic steps that AI agents can execute.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<spec-name>` | Yes | Name of the specification to plan |
+| `<spec>` | Yes | Name of the specification to plan |
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
-| `--model <model>` | AI model to use for planning |
+| `--model <MODEL>` | AI model to use for planning (e.g., glm-4.7) |
 | `--yes`, `-y` | Skip confirmation prompt |
+| `--verbose`, `-v` | Enable verbose logging |
+| `--json` | Output format: JSON instead of human-readable |
 
 ## Examples
 

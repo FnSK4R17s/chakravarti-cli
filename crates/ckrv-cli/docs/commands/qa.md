@@ -1,7 +1,7 @@
 ---
-command: ckrv qa
+command: qa
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 0ad833d
+last_commit: 34d5c95
 ---
 
 # ckrv qa
@@ -9,8 +9,6 @@ last_commit: 0ad833d
 QA code review and bug analysis.
 
 ## Description
-
-QA code review and bug analysis.
 
 AI-powered code review and quality assurance. Analyzes changes for potential bugs, security issues, and code quality improvements.
 
@@ -20,18 +18,9 @@ Subcommands: review, bugs, report
 
 | Subcommand | Description |
 |------------|-------------|
-| `review` | Review code quality of changes |
+| `review` | Review current changes for issues |
 | `bugs` | Analyze for potential bugs |
-| `report` | Generate full QA report |
-
-## Options
-
-| Flag | Description |
-|------|-------------|
-| `--base <branch>` | Branch to compare against (default: main) |
-| `--output <file>` | Save report to file |
-| `--json` | Output in JSON format |
-| `--full` | Include all analysis types (quality, bugs, security) |
+| `report` | Generate comprehensive QA report |
 
 ## Examples
 

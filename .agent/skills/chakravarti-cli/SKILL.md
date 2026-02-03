@@ -6,7 +6,7 @@ compatibility: Claude Code, Cursor, any CLI-capable agent
 metadata:
   version: "0.1.0"
   auto-generated: true
-  generated-at: "2026-02-02T13:22:25Z"
+  generated-at: "2026-02-03T09:43:55Z"
 ---
 
 # Chakravarti CLI

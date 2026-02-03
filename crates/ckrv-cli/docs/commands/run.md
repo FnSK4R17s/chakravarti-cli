@@ -1,7 +1,7 @@
 ---
-command: ckrv run
+command: run
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 0ad833d
+last_commit: 34d5c95
 ---
 
 # ckrv run
@@ -9,8 +9,6 @@ last_commit: 0ad833d
 Run a job based on a specification.
 
 ## Description
-
-Run a job based on a specification.
 
 Executes the implementation plan using AI agents in isolated Docker sandboxes. Each task is executed in sequence with full logging and progress tracking.
 
@@ -20,17 +18,17 @@ Results are committed to a feature branch for review.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<spec-name>` | Yes | Name of the specification to run |
+| `<spec>` | Yes | Name of the specification to execute |
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
-| `--agent <agent>` | AI agent to use for execution |
+| `--agent <AGENT>` | AI agent to use (e.g., claude-3.5, codex) |
 | `--dry-run` | Show what would be done without executing |
-| `--batch <N>` | Run specific batch only |
-| `--parallel <N>` | Max parallel agents (default: 3) |
-| `--no-merge` | Skip auto-merge step |
+| `--resume` | Resume from last checkpoint |
+| `--verbose`, `-v` | Enable verbose logging |
+| `--json` | Output format: JSON instead of human-readable |
 
 ## Examples
 
