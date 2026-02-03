@@ -1,3 +1,29 @@
+/**
+ * @module AgentManager
+ * @description
+ * Configuration and management interface for AI coding agents. Allows users
+ * to add, edit, delete, and configure multiple agent types (Claude, OpenRouter,
+ * GLM, Codex) with different capability levels for task assignment.
+ *
+ * @context
+ * Rendered as the main content of the Agents page in the dashboard. Users
+ * configure agents here which are then available for task execution in the
+ * ExecutionRunner. Supports role assignments (QA, Test Writer) and default selection.
+ *
+ * @dependencies
+ * - AgentCliModal: Opens interactive CLI for testing agent commands
+ * - useQuery/useMutation: React Query for CRUD operations on agents
+ * - shadcn/ui components: Card, Badge, Dialog, Select for consistent UI
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <AgentManager />
+ *
+ * // Agents are stored in the backend and fetched on mount
+ * // Users can add new agents via the "Add Agent" button
+ */
+
+// === IMPORTS ===
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -49,7 +75,9 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
-// Types - Only currently supported agent types
+// === TYPES ===
+
+/** Supported agent types for task execution. */
 type AgentType = 'claude' | 'claude_open_router' | 'claude_glm' | 'codex';
 
 interface OpenRouterConfig {
@@ -66,20 +94,47 @@ interface GLMConfig {
     timeout_ms?: number;
 }
 
+/**
+ * Configuration for an AI agent that can execute tasks.
+ * 
+ * @example
+ * const claudeAgent: AgentConfig = {
+ *   id: 'claude-default',
+ *   name: 'Claude Code',
+ *   agent_type: 'claude',
+ *   level: 5,
+ *   is_default: true,
+ *   enabled: true
+ * };
+ */
 export interface AgentConfig {
+    /** Unique identifier for the agent */
     id: string;
+    /** Display name shown in the UI */
     name: string;
+    /** Type of agent: claude, claude_open_router, claude_glm, or codex */
     agent_type: AgentType;
-    level: number;          // 1-5, capability level (5 = strongest)
+    /** Capability level 1-5 (5 = strongest, for complex tasks) */
+    level: number;
+    /** Whether this agent is the default for task execution */
     is_default: boolean;
+    /** Whether this agent is designated for QA reviews */
     is_qa_agent?: boolean;
+    /** Whether this agent is designated for test writing */
     is_test_writer?: boolean;
+    /** Whether this agent is enabled and available for use */
     enabled: boolean;
+    /** Optional description of the agent's capabilities */
     description?: string;
+    /** OpenRouter configuration (for claude_open_router type) */
     openrouter?: OpenRouterConfig;
+    /** GLM configuration (for claude_glm type) */
     glm?: GLMConfig;
+    /** Path to the agent binary (for codex type) */
     binary_path?: string;
+    /** Additional command-line arguments for the agent */
     extra_args?: string[];
+    /** Environment variables to set when running the agent */
     env_vars?: Record<string, string>;
 }
 
@@ -91,7 +146,9 @@ interface OpenRouterModel {
     pricing?: string;
 }
 
-// API functions
+// === API FUNCTIONS ===
+
+/** Fetches all configured agents from the backend. */
 const fetchAgents = async (): Promise<{ agents: AgentConfig[] }> => {
     const res = await fetch('/api/agents');
     return res.json();
@@ -167,13 +224,24 @@ const AGENT_TYPE_INFO: Record<AgentType, { label: string; icon: React.ReactNode;
 
 const AgentManager: React.FC = () => {
     const queryClient = useQueryClient();
+
+    // === STATE ===
+
+    // --- Modal State ---
+    /** Agent currently being edited in the form modal */
     const [editingAgent, setEditingAgent] = useState<AgentConfig | null>(null);
+    /** Show the add new agent modal */
     const [showAddModal, setShowAddModal] = useState(false);
-    const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
-    const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
+    /** Agent config for CLI launch modal */
     const [cliAgent, setCliAgent] = useState<AgentConfig | null>(null);
 
-    // Queries
+    // --- UI State ---
+    /** Set of agent IDs with expanded detail views */
+    const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
+    /** Results from agent connectivity tests, keyed by agent ID */
+    const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({})
+
+    // === QUERIES ===
     const { data: agentsData, isLoading: isLoadingAgents } = useQuery({
         queryKey: ['agents'],
         queryFn: fetchAgents,
@@ -184,7 +252,7 @@ const AgentManager: React.FC = () => {
         queryFn: fetchModels,
     });
 
-    // Mutations
+    // === MUTATIONS ===
     const upsertMutation = useMutation({
         mutationFn: upsertAgent,
         onSuccess: () => {
@@ -242,6 +310,8 @@ const AgentManager: React.FC = () => {
     const agents = agentsData?.agents || [];
     const models = modelsData?.models || [];
 
+    // === HANDLERS ===
+
     const toggleExpanded = (id: string) => {
         setExpandedAgents((prev) => {
             const next = new Set(prev);
@@ -250,6 +320,8 @@ const AgentManager: React.FC = () => {
             return next;
         });
     };
+
+    // === RENDER ===
 
     if (isLoadingAgents) {
         return (
@@ -331,6 +403,8 @@ const AgentManager: React.FC = () => {
         </div>
     );
 };
+
+// === SUB-COMPONENTS ===
 
 // Agent Card Component using shadcn Card and Badge
 interface AgentCardProps {
@@ -567,6 +641,7 @@ interface AgentModalProps {
 }
 
 const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave, isLoading }) => {
+    /** Form state for editing/creating an agent */
     const [form, setForm] = useState<AgentConfig>(() =>
         agent || {
             id: `agent-${Date.now()}`,
@@ -588,6 +663,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
 
     // Get current provider from the selected model
     const currentModelProvider = form.openrouter?.model ? getProvider(form.openrouter.model) : 'anthropic';
+    /** Currently selected AI provider for model filtering */
     const [selectedProvider, setSelectedProvider] = useState(currentModelProvider);
 
     // Get unique providers from models

@@ -1,3 +1,28 @@
+/**
+ * @module TestFixModal
+ * @description
+ * Modal dialog for running AI-powered test fix agent. Opens a sandboxed terminal
+ * where the AI agent can analyze test failures and apply fixes. Includes error
+ * copying and agent-assisted debugging.
+ *
+ * @context
+ * Opened from TestRunner when tests fail. Provides interactive terminal for AI
+ * agent to diagnose and fix test issues. Uses the same terminal infrastructure
+ * as AgentCliModal.
+ *
+ * @dependencies
+ * - xterm: Terminal emulator for interactive shell
+ * - shadcn/ui components: Dialog, Badge, Button, Card for consistent UI
+ *
+ * @example
+ * <TestFixModal
+ *   error={testErrorOutput}
+ *   baseBranch="main"
+ *   onClose={() => setShowFixModal(false)}
+ * />
+ */
+
+// === IMPORTS ===
 import React, { useEffect, useRef, useState } from 'react';
 import { Circle, X, Bot, Wrench, Copy, Check } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
@@ -15,15 +40,20 @@ interface TestFixModalProps {
 }
 
 export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, onClose }) => {
+    // === REFS ===
     const terminalRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<Terminal | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
     const sessionIdRef = useRef(`test-fix-${Date.now()}`);
 
+    // === STATE ===
+    /** WebSocket connection status */
     const [status, setStatus] = useState<'connecting' | 'connected' | 'error' | 'disconnected'>('connecting');
+    /** Docker container ID running the fix agent */
     const [containerId, setContainerId] = useState<string | null>(null);
 
+    // Terminal initialization: wait for DOM, create xterm, and connect WebSocket for fix agent
     useEffect(() => {
         let mounted = true;
 
@@ -236,6 +266,7 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
         disconnected: 'Completed'
     }[status];
 
+    /** Whether the error text was recently copied to clipboard */
     const [copied, setCopied] = useState(false);
 
     const handleCopyError = async () => {

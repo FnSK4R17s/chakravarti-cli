@@ -1,3 +1,29 @@
+/**
+ * @module PlanEditor
+ * @description
+ * Visual editor for viewing and editing execution plans. Displays batches of tasks
+ * in DAG view, list view, or raw YAML form. Allows reassigning agents to batches
+ * and visualizes task dependencies and cost estimates.
+ *
+ * @context
+ * Rendered as the main content of the Plan page in the dashboard. Users review and
+ * modify execution plans here before running them in ExecutionRunner. Auto-selects
+ * spec based on current git branch.
+ *
+ * @dependencies
+ * - useAutoSelectedSpec: Auto-selects spec based on current git branch
+ * - useQuery: React Query for fetching specs, plans, models, agents
+ * - shadcn/ui components: Card, Badge, Tabs, Dialog for consistent UI
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <PlanEditor />
+ *
+ * // Shows DAG of task batches with model assignments
+ * // Supports editing model assignments per batch
+ */
+
+// === IMPORTS ===
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
@@ -29,21 +55,48 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 
-// Types
+// === TYPES ===
+
 interface ModelAssignment {
     default: string;
     overrides: Record<string, string>;
 }
 
+/**
+ * An execution batch containing tasks to run together.
+ * Batches form a DAG based on dependencies.
+ * 
+ * @example
+ * const batch: Batch = {
+ *   id: 'batch-1',
+ *   name: 'Phase 1 Setup',
+ *   task_ids: ['T001', 'T002'],
+ *   depends_on: [],
+ *   model_assignment: { default: 'claude-sonnet-4-20250514', overrides: {} },
+ *   execution_strategy: 'parallel',
+ *   estimated_cost: 0.05,
+ *   estimated_time: '5m',
+ *   reasoning: 'Independent setup tasks'
+ * };
+ */
 interface Batch {
+    /** Unique batch identifier */
     id: string;
+    /** Human-readable batch name */
     name: string;
+    /** IDs of tasks included in this batch */
     task_ids: string[];
+    /** IDs of batches that must complete before this one */
     depends_on: string[];
+    /** Model selection for this batch */
     model_assignment: ModelAssignment;
+    /** Execution strategy: 'parallel' or 'sequential' */
     execution_strategy: string;
+    /** Estimated cost in USD */
     estimated_cost: number;
+    /** Estimated execution time (e.g., '5m', '1h') */
     estimated_time: string;
+    /** Reasoning for batch grouping */
     reasoning: string;
 }
 
@@ -82,7 +135,8 @@ interface AgentConfig {
     };
 }
 
-// API Functions
+// === API FUNCTIONS ===
+
 const fetchSpecs = async (): Promise<{ specs: Spec[] }> => {
     const res = await fetch('/api/specs');
     return res.json();
@@ -112,6 +166,8 @@ const fetchModels = async (): Promise<{ models: ModelInfo[] }> => {
     return res.json();
 };
 
+// === HELPER FUNCTIONS ===
+
 // Helper: Get model config with color and icon based on ID
 const getModelConfig = (modelId: string, modelInfoList: ModelInfo[]) => {
     const info = modelInfoList.find(m => m.id === modelId);
@@ -137,6 +193,8 @@ const getModelConfig = (modelId: string, modelInfoList: ModelInfo[]) => {
         contextWindow: info?.context_length
     };
 };
+
+// === SUB-COMPONENTS ===
 
 // Components using shadcn Badge
 const ModelBadge: React.FC<{ model: string; size?: 'sm' | 'md' | 'lg'; models: ModelInfo[] }> = ({ model, size = 'md', models }) => {
@@ -183,6 +241,7 @@ const BatchEditModal: React.FC<{
     onSave: (batchId: string, modelAssignment: ModelAssignment) => void;
     agents: AgentConfig[];
 }> = ({ batch, isOpen, onClose, onSave, agents }) => {
+    /** Currently selected agent ID for model assignment */
     const [selectedAgent, setSelectedAgent] = useState<string>('');
 
     // Initialize with batch's current model when modal opens
@@ -316,6 +375,7 @@ const BatchCard: React.FC<{
     onEdit?: () => void;
     models: ModelInfo[]
 }> = ({ batch, isSelected, onClick, onEdit, models }) => {
+    /** Whether the batch details are expanded */
     const [expanded, setExpanded] = useState(false);
 
     return (
@@ -599,24 +659,39 @@ const SpecListView: React.FC<{
     );
 };
 
+// === MAIN COMPONENT ===
+
 // Main Plan Editor
 export default function PlanEditor() {
     const queryClient = useQueryClient();
 
+    // === STATE ===
+
+    // --- Spec Selection ---
     // Auto-select spec based on current branch
     const { selectedSpec: autoSelectedSpec, isLoading: isLoadingAutoSpec } = useAutoSelectedSpec();
 
-    // Allow manual override but default to auto-selected
+    /** Manual spec override when user explicitly selects a different spec */
     const [manualSpecOverride, setManualSpecOverride] = useState<string | null>(null);
     const selectedSpecName = manualSpecOverride ?? autoSelectedSpec;
 
+    // --- UI State ---
+    /** Current view mode: DAG visualization, list, timeline, cost analysis, or raw YAML */
     const [view, setView] = useState<'dag' | 'list' | 'timeline' | 'cost' | 'code'>('dag');
+    /** Currently selected batch ID for detail panel */
     const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
+    /** Timestamp of last successful save */
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+    /** Batch currently being edited in modal */
     const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
+
+    // --- Plan Data ---
+    /** Local copy of batches for editing */
     const [editableBatches, setEditableBatches] = useState<Batch[]>([]);
+    /** Track unsaved changes for save prompt */
     const [hasChanges, setHasChanges] = useState(false);
 
+    // === QUERIES ===
     // Data Fetching (for manual selection fallback)
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({ queryKey: ['specs'], queryFn: fetchSpecs });
     const { data: modelsData } = useQuery({ queryKey: ['openrouter-models'], queryFn: fetchModels });
@@ -626,6 +701,8 @@ export default function PlanEditor() {
         queryFn: () => fetchPlan(selectedSpecName!),
         enabled: !!selectedSpecName
     });
+
+    // === EFFECTS ===
 
     // Initialize editable batches when plan data loads
     useEffect(() => {

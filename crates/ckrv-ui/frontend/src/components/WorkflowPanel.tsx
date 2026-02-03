@@ -1,9 +1,34 @@
+/**
+ * @module WorkflowPanel
+ * @description
+ * Pipeline visualization showing the spec → tasks → execution → review workflow.
+ * Displays stage progress with specs, tasks, running jobs, and review readiness.
+ * Updates in real-time as workflow progresses.
+ *
+ * @context
+ * Displayed in the dashboard as an overview of the current workflow state. Shows
+ * counts and items at each stage with hints for next actions.
+ *
+ * @dependencies
+ * - useQuery: React Query for fetching specs and tasks
+ * - shadcn/ui components: Card, Badge, ScrollArea for consistent UI
+ *
+ * @example
+ * // Rendered as part of the dashboard layout
+ * <WorkflowPanel />
+ *
+ * // Shows horizontal pipeline: Specs → Tasks → Execution → Review
+ */
+
+// === IMPORTS ===
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, ListChecks, Play, ArrowRight, CheckCircle2, Circle, Loader2, GitBranch, CheckCheck, GitPullRequest, ShieldCheck, GitCompare } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+
+// === TYPES ===
 
 interface Spec {
     name: string;
@@ -30,6 +55,8 @@ interface TasksResponse {
     spec_id: string;
 }
 
+// === API FUNCTIONS ===
+
 const fetchSpecs = async (): Promise<SpecsResponse> => {
     const res = await fetch('/api/specs');
     if (!res.ok) return { specs: [], count: 0 };
@@ -42,7 +69,10 @@ const fetchTasks = async (): Promise<TasksResponse> => {
     return res.json();
 };
 
+// === MAIN COMPONENT ===
+
 export const WorkflowPanel: React.FC = () => {
+    // === QUERIES ===
     const { data: specsData, isLoading: specsLoading } = useQuery({
         queryKey: ['specs'],
         queryFn: fetchSpecs,
@@ -177,6 +207,8 @@ export const WorkflowPanel: React.FC = () => {
         </Card>
     );
 };
+
+// === SUB-COMPONENTS ===
 
 interface PipelineStageProps {
     icon: React.ReactNode;

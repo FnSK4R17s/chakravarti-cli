@@ -1,3 +1,24 @@
+/**
+ * @module useCodeTab
+ * @description
+ * Custom hook for managing CodePage tab state with session storage persistence.
+ * Remembers the active tab when navigating away and restores it on return.
+ * Resets when browser session ends.
+ *
+ * @context
+ * Used by CodePage to persist active tab across navigation. Enables seamless
+ * workflow continuation without losing context.
+ *
+ * @dependencies
+ * - CodeTabType: Union type for valid tab values
+ * - sessionStorage: Browser storage for state persistence
+ *
+ * @example
+ * const [activeTab, setActiveTab] = useCodeTab('spec');
+ * // Tab choice persists across page navigations within session
+ */
+
+// === IMPORTS ===
 import { useState } from 'react';
 import type { CodeTabType } from '../types';
 

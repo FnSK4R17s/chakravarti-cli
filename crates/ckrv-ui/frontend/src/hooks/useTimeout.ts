@@ -1,12 +1,23 @@
 /**
- * useTimeout Hook (T013)
- * 
- * Custom hook for managing timeouts with automatic cleanup on unmount.
- * Prevents memory leaks from orphaned setTimeout calls.
- * 
- * Addresses BUG-005: Auto-Collapse Timer Creates Memory Leak
+ * @module useTimeout
+ * @description
+ * Custom hook for managing timeouts with automatic cleanup on unmount. Tracks
+ * all active timeout IDs and clears them to prevent memory leaks from orphaned
+ * setTimeout calls.
+ *
+ * @context
+ * Used for any delayed operations that need reliable cleanup. Addresses memory
+ * leak issues from timers that fire after component unmounts.
+ *
+ * @dependencies
+ * - window.setTimeout/clearTimeout: Browser timer APIs
+ *
+ * @example
+ * const { set, clear, clearAll } = useTimeout();
+ * const id = set(() => console.log('delayed'), 1000);
  */
 
+// === IMPORTS ===
 import { useRef, useCallback, useEffect } from 'react';
 
 export interface UseTimeoutReturn {

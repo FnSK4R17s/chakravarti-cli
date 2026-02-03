@@ -1,3 +1,24 @@
+/**
+ * @module useWorkflowProgress
+ * @description
+ * Custom hook for tracking workflow progress across all stages. Auto-selects
+ * the spec based on current git branch and determines stage completion status
+ * based on file existence (tasks.yaml, plan.md, implementation).
+ *
+ * @context
+ * Used by CodePage to show visual progress indicators on tabs. Returns an array
+ * of WorkflowStage objects with completion status for each stage.
+ *
+ * @dependencies
+ * - useQuery: React Query for fetching status and specs
+ * - WorkflowStage, CodeTabType: Types for workflow representation
+ *
+ * @example
+ * const stages = useWorkflowProgress(overrideSpec);
+ * // stages: [{ id: 'spec', status: 'complete' }, { id: 'tasks', status: 'pending' }, ...]
+ */
+
+// === IMPORTS ===
 import { useQuery } from '@tanstack/react-query';
 import type { WorkflowStage, CodeTabType } from '../types';
 

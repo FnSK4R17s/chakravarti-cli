@@ -1,6 +1,27 @@
 /**
- * NewSpecDialog - Dialog for creating new specs from natural language description
+ * @module NewSpecDialog
+ * @description
+ * Dialog for creating new specifications from natural language descriptions.
+ * Users describe their feature and AI generates a comprehensive spec with user
+ * stories and requirements.
+ *
+ * @context
+ * Opened from ChatDashboard or via navigation. Provides feature description input
+ * with optional custom name. Shows next steps after spec creation.
+ *
+ * @dependencies
+ * - useCreateSpec: Hook for spec creation mutation
+ * - shadcn/ui components: Dialog, Input, Textarea, Button for consistent UI
+ *
+ * @example
+ * <NewSpecDialog
+ *   open={showDialog}
+ *   onOpenChange={setShowDialog}
+ *   onSuccess={(specId) => navigateToSpec(specId)}
+ * />
  */
+
+// === IMPORTS ===
 import { useState } from 'react';
 import {
     Dialog,
@@ -28,8 +49,12 @@ export function NewSpecDialog({
     onOpenChange,
     onSuccess,
 }: NewSpecDialogProps) {
+    // === STATE ===
+    /** Feature description input text */
     const [description, setDescription] = useState('');
+    /** Optional custom spec name */
     const [name, setName] = useState('');
+    /** Validation or API error message */
     const [error, setError] = useState<string | null>(null);
 
     const createSpec = useCreateSpec();

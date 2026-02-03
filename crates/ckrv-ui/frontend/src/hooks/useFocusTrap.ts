@@ -1,12 +1,23 @@
 /**
- * useFocusTrap Hook (T012)
- * 
- * Custom hook for trapping focus within a container element.
- * Used for modal dialogs to prevent focus from escaping.
- * 
- * Addresses BUG-010: Focus Trap Missing in Modals
+ * @module useFocusTrap
+ * @description
+ * Custom hook for trapping focus within a container element. Used for modal
+ * dialogs to prevent focus from escaping. Handles Tab/Shift+Tab navigation
+ * and restores focus on unmount.
+ *
+ * @context
+ * Applied to modal dialogs and overlays to ensure keyboard navigation stays
+ * within the modal. Addresses accessibility requirements for focus management.
+ *
+ * @dependencies
+ * - FOCUSABLE_SELECTORS: CSS selectors for focusable elements
+ *
+ * @example
+ * const { containerRef, activate, deactivate } = useFocusTrap();
+ * <div ref={containerRef}>Modal content with trapped focus</div>
  */
 
+// === IMPORTS ===
 import { useRef, useEffect, useCallback, type RefObject } from 'react';
 
 const FOCUSABLE_SELECTORS = [

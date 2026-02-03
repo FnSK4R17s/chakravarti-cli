@@ -1,3 +1,27 @@
+/**
+ * @module LogTerminal
+ * @description
+ * xterm.js-based terminal component for displaying execution logs. Features
+ * debounced resizing, theme integration with CSS variables, and clipboard support.
+ * Provides a read-only terminal view for log output.
+ *
+ * @context
+ * Used in ExecutionRunner and other components that need terminal-style log display.
+ * Exposes the Terminal instance via onMount callback for parent control.
+ *
+ * @dependencies
+ * - xterm: Terminal emulator for log display
+ * - FitAddon: Automatic terminal sizing
+ * - shadcn/ui Card: Container styling
+ *
+ * @example
+ * <LogTerminal
+ *   onMount={(term) => termRef.current = term}
+ *   className="h-[400px]"
+ * />
+ */
+
+// === IMPORTS ===
 import { useEffect, useRef, useCallback } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -38,6 +62,7 @@ export const LogTerminal: React.FC<LogTerminalProps> = ({ onMount, className }) 
         }, 50); // 50ms debounce - responsive but prevents rapid-fire calls
     }, []);
 
+    // Terminal initialization: create xterm instance, setup theme, attach WebGL renderer
     useEffect(() => {
         if (!terminalRef.current || xtermRef.current) return;
 

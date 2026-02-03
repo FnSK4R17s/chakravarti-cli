@@ -1,7 +1,24 @@
 /**
- * Hook for fetching and managing run history data.
+ * @module useRunHistory
+ * @description
+ * Hooks for fetching and managing run history data including creating, updating,
+ * and deleting runs. Provides both API functions and React Query hooks for
+ * run history operations.
+ *
+ * @context
+ * Used in ExecutionRunner and RunHistoryPanel for displaying and managing past
+ * execution runs. Supports batch status updates and run lifecycle management.
+ *
+ * @dependencies
+ * - useQuery, useMutation: React Query for data operations
+ * - HistoryListResponse, HistoryDetailResponse: Types for run history API
+ *
+ * @example
+ * const { data: history } = useRunHistory(specName);
+ * const createRun = useCreateRun();
  */
 
+// === IMPORTS ===
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { HistoryListResponse, HistoryDetailResponse, CreateRunResponse } from '../types/history';
 

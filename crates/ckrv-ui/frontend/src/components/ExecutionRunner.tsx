@@ -1,3 +1,32 @@
+/**
+ * @module ExecutionRunner
+ * @description
+ * Main execution orchestration component for running spec-based batch executions.
+ * Manages WebSocket connections, batch status tracking, log streaming, and provides
+ * real-time visual feedback for AI agent execution progress across multiple batches.
+ *
+ * @context
+ * Rendered as the main content of the Execute page in the dashboard. Users select a spec
+ * with an execution plan, then start/stop/monitor executions. Supports both terminal and
+ * carousel views for batch logs, with automatic branch merging on completion.
+ *
+ * @dependencies
+ * - useAutoSelectedSpec: Auto-selects spec based on current git branch
+ * - useRunHistory: Fetches historical run data for log recovery
+ * - useWebSocketReconnect: Handles WebSocket connection resilience
+ * - BatchLogCarousel: Displays batch logs in a carousel format
+ * - LogTerminal: Classic terminal-style log display
+ * - CompletionSummary: Shows execution summary after completion
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <ExecutionRunner />
+ *
+ * // Auto-selects spec from current branch, or allows manual selection
+ * // Supports dry-run mode for testing without actual execution
+ */
+
+// === IMPORTS ===
 import React, { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
@@ -19,7 +48,12 @@ import { fetchLogs } from '../services/logService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-// Types
+// === TYPES ===
+
+/**
+ * Represents a batch of tasks to be executed together.
+ * Batches can have dependencies on other batches and are assigned to specific models.
+ */
 interface Batch {
     id: string;
     name: string;
@@ -70,7 +104,9 @@ interface WsMessage {
     error?: string;
 }
 
-// API functions
+// === API FUNCTIONS ===
+
+/** Fetches all available specs from the backend. */
 const fetchSpecs = async (): Promise<{ specs: Spec[] }> => {
     const res = await fetch('/api/specs');
     return res.json();
@@ -134,7 +170,9 @@ const mergeAllBranches = async (spec: string): Promise<{
     return res.json();
 };
 
-// Model configuration helper
+// === CONSTANTS ===
+
+/** Returns model display configuration based on model ID for visual differentiation. */
 const getModelConfig = (modelId: string) => {
     if (modelId.includes('claude') || modelId.includes('gpt-4')) {
         return { name: 'Claude', short: 'CL', tier: 'heavy', color: 'amber', icon: Brain };
@@ -154,7 +192,9 @@ const statusConfig: Record<BatchStatus, { color: string; textColor: string; bord
     failed: { color: 'bg-red-900/30', textColor: 'text-red-400', borderColor: 'border-red-500', icon: AlertTriangle },
 };
 
-// Progress Ring Component (smaller version)
+// === HELPER COMPONENTS ===
+
+/** Circular progress indicator that displays completion percentage. */
 const ProgressRing: React.FC<{ progress: number; size?: number; strokeWidth?: number }> = ({
     progress, size = 48, strokeWidth = 4
 }) => {
@@ -424,40 +464,64 @@ function getGridLayout(count: number): { cols: number; rows: number } {
     return { cols: 4, rows: 3 }; // Max 12
 }
 
-// Main Execution Runner
+// === MAIN COMPONENT ===
+
+/**
+ * Main execution orchestration component.
+ * Manages the complete execution lifecycle from spec selection to completion.
+ */
 export default function ExecutionRunner() {
     const queryClient = useQueryClient();
 
-    // Auto-select spec based on current branch
-    const { selectedSpec: autoSelectedSpec, isLoading: isLoadingAutoSpec } = useAutoSelectedSpec();
+    // === STATE ===
 
-    // Allow manual override but default to auto-selected
+    // --- Spec Selection ---
+    // Spec selection state
+    const { selectedSpec: autoSelectedSpec, isLoading: isLoadingAutoSpec } = useAutoSelectedSpec();
+    /** Manual spec override when user selects a different spec from the list */
     const [manualSpecOverride, setManualSpecOverride] = useState<string | null>(null);
     const selectedSpecName = manualSpecOverride ?? autoSelectedSpec;
 
+    // --- Core Execution State ---
+    /** All batches loaded from the execution plan */
     const [batches, setBatches] = useState<Batch[]>([]);
+    /** Current execution status: idle, starting, running, reconnecting, completed, failed, aborted */
     const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>('idle');
+    /** Logs keyed by batch ID for the log carousel */
     const [batchLogs, setBatchLogs] = useState<Record<string, LogEntry[]>>({});
+    /** Set of batch IDs that have completed execution */
     const [completedBatches, setCompletedBatches] = useState<Set<string>>(new Set());
+    /** Elapsed execution time in seconds */
     const [elapsedTime, setElapsedTime] = useState(0);
-    const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
-    const [orchestratorMinimized, setOrchestratorMinimized] = useState(false);
-    // T046: View mode toggle - 'terminal' for classic view, 'carousel' for new batch carousel
-    const [logViewMode, setLogViewMode] = useState<'terminal' | 'carousel'>('carousel');
-    // Agent selection for execution (claude or codex)
 
+    // --- UI State ---
+    /** Currently expanded batch ID in the batch list */
+    const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
+    /** Whether the orchestrator panel is minimized */
+    const [orchestratorMinimized, setOrchestratorMinimized] = useState(false);
+    /** View mode toggle - 'terminal' for classic view, 'carousel' for new batch carousel (T046) */
+    const [logViewMode, setLogViewMode] = useState<'terminal' | 'carousel'>('carousel');
+
+    // --- Git Integration State ---
+    /** List of unmerged branches from completed batches */
     const [unmergedBranches, setUnmergedBranches] = useState<UnmergedBranch[]>([]);
+    /** Whether a merge operation is in progress */
     const [isMerging, setIsMerging] = useState(false);
+    /** Result message from the last merge operation */
     const [mergeResult, setMergeResult] = useState<{ success: boolean; message: string } | null>(null);
-    // Track when batches completed (for auto-collapse after 5s)
+    /** Timestamp when each batch completed (for auto-collapse after 5s) */
     const [batchCompletedAt, setBatchCompletedAt] = useState<Record<string, number>>({});
 
-    // T030: Completion summary state
+    // --- Completion State (T030) ---
+    /** Show the completion summary modal */
     const [showCompletionSummary, setShowCompletionSummary] = useState(false);
+    /** Error message to display in completion summary */
     const [completionError, setCompletionError] = useState<string | null>(null);
 
-    // T024: WebSocket reconnection state (BUG-002)
+    // --- WebSocket Reconnection State (T024, BUG-002) ---
+    /** Number of WebSocket reconnection attempts */
     const [wsRetryCount, setWsRetryCount] = useState(0);
+    /** Countdown seconds until next reconnection attempt */
     const [wsRetryCountdown, setWsRetryCountdown] = useState(0);
 
     // T022: Track last seen timestamp for WebSocket reconnection
@@ -472,6 +536,7 @@ export default function ExecutionRunner() {
     // T026: Use timeout hook for automatic cleanup (BUG-005)
     const { set: setTimeout, clearAll: clearAllTimeouts } = useTimeout();
 
+    // === REFS ===
     const wsRef = useRef<WebSocket | null>(null);
     const runIdRef = useRef<string>('');
     const timerRef = useRef<number | null>(null);
@@ -481,6 +546,8 @@ export default function ExecutionRunner() {
     // T020: Message batching refs for requestAnimationFrame (BUG-001)
     const pendingMessagesRef = useRef<WsMessage[]>([]);
     const rafIdRef = useRef<number | null>(null);
+
+    // === QUERIES ===
 
     // Fetch specs (for manual selection fallback)
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({
@@ -498,7 +565,9 @@ export default function ExecutionRunner() {
     // Fetch run history to get the latest run ID for loading historical logs
     const { data: runHistoryData } = useRunHistory(selectedSpecName);
 
-    // Update batches when plan data changes
+    // === EFFECTS ===
+
+    // Sync batches with plan data when it changes
     useEffect(() => {
         if (planData?.batches) {
             setBatches(planData.batches.map(b => {
@@ -635,6 +704,7 @@ export default function ExecutionRunner() {
         };
     }, [clearAllTimeouts]);
 
+    // Timer effect: start/stop elapsed time counter based on execution status
     useEffect(() => {
         if (executionStatus === 'running' || executionStatus === 'reconnecting') {
             startTimeRef.current = Date.now();
@@ -652,6 +722,9 @@ export default function ExecutionRunner() {
         };
     }, [executionStatus]);
 
+    // === HANDLERS ===
+
+    /** Adds a log entry to both the terminal and batch-specific logs. */
     const addLog = useCallback((message: string, type: LogEntry['type'] = 'info', batchId?: string) => {
         const time = new Date().toLocaleTimeString('en-US', {
             hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -1140,6 +1213,7 @@ export default function ExecutionRunner() {
         }
     }, [selectedSpecName]);
 
+    // Load unmerged branches when execution completes or on initial load
     useEffect(() => {
         if (selectedSpecName && (executionStatus === 'idle' || executionStatus === 'completed')) {
             loadUnmergedBranches();
@@ -1196,6 +1270,8 @@ export default function ExecutionRunner() {
     }
 
     const { cols, rows } = getGridLayout(activeBatches.length);
+
+    // === RENDER ===
 
     return (
         <div className="h-full flex flex-col bg-background text-foreground font-sans">

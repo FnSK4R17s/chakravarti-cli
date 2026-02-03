@@ -1,3 +1,23 @@
+/**
+ * @module useCommand
+ * @description
+ * Hook for executing CLI commands via the API. Provides mutations for init,
+ * spec new, spec tasks, and run commands with automatic cache invalidation
+ * after successful execution.
+ *
+ * @context
+ * Used by CommandPalette and other components to trigger CLI operations.
+ * Wraps API calls with React Query mutations for consistent loading/error states.
+ *
+ * @dependencies
+ * - useMutation, useQueryClient: React Query for command execution
+ *
+ * @example
+ * const { runInit, isInitPending, runExec } = useCommand();
+ * await runInit();
+ */
+
+// === IMPORTS ===
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface CommandResult {
@@ -26,7 +46,7 @@ export const useCommand = () => {
     });
 
     const specNew = useMutation({
-        mutationFn: (description: string) => 
+        mutationFn: (description: string) =>
             fetch('/api/command/spec/new', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

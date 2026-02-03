@@ -1,12 +1,29 @@
 /**
- * BarebonesExecutor - Simplified execution runner
- * 
- * A minimal implementation that:
- * - Runs execution for the selected spec
- * - Shows batch progress as simple pills
- * - Displays logs in a scrollable area
- * - Provides Run/Stop controls
+ * @module BarebonesExecutor
+ * @description
+ * Simplified execution runner providing a minimal interface for running specs.
+ * Shows batch progress as pills, displays logs in a scrollable area, and provides
+ * Run/Stop controls. A lighter alternative to the full ExecutionRunner.
+ *
+ * @context
+ * Used as a simpler alternative to ExecutionRunner for basic execution needs.
+ * Auto-selects spec based on current git branch and displays real-time execution
+ * progress via WebSocket connection.
+ *
+ * @dependencies
+ * - useAutoSelectedSpec: Auto-selects spec based on current git branch
+ * - useQuery: React Query for fetching plan data
+ * - shadcn/ui components: Card, Badge, Button for consistent UI
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <BarebonesExecutor />
+ *
+ * // Provides Run/Stop controls with batch progress pills
+ * // Logs are displayed in a terminal-style scrollable area
  */
+
+// === IMPORTS ===
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
@@ -18,22 +35,37 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-// Types
+// === TYPES ===
+
+/**
+ * Simplified batch representation for the executor's UI.
+ */
 interface SimpleBatch {
+    /** Unique batch identifier */
     id: string;
+    /** Human-readable batch name */
     name: string;
+    /** Current execution status */
     status: 'pending' | 'running' | 'done' | 'error';
 }
 
+/**
+ * A log entry displayed in the execution log panel.
+ */
 interface LogLine {
+    /** Formatted timestamp (HH:MM:SS) */
     time: string;
+    /** Log message content */
     message: string;
+    /** Log type for styling: info, error, success, or batch marker */
     type: 'info' | 'error' | 'success' | 'batch';
 }
 
+/** Current execution status for the barebones executor. */
 type ExecutionStatus = 'idle' | 'running' | 'done' | 'error';
 
-// API functions
+// === API FUNCTIONS ===
+
 const fetchPlan = async (spec: string): Promise<{ success: boolean; batches: { id: string; name: string; status?: string }[] }> => {
     const res = await fetch(`/api/plans/detail?spec=${spec}`);
     return res.json();
@@ -66,7 +98,8 @@ const generatePlan = async (spec: string): Promise<{ success: boolean }> => {
     return res.json();
 };
 
-// Format timestamp
+// === HELPER FUNCTIONS ===
+
 const formatTime = (date: Date): string => {
     return date.toLocaleTimeString('en-US', { hour12: false });
 };
@@ -76,21 +109,33 @@ const generateRunId = (): string => {
     return `run-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
+// === MAIN COMPONENT ===
+
 export default function BarebonesExecutor() {
+    // === STATE ===
+
+    // --- Spec Selection ---
     // Auto-select spec based on current branch
     const { selectedSpec, isLoading: isLoadingSpec } = useAutoSelectedSpec();
 
-    // Core state
+    // --- Execution State ---
+    /** Current execution status: idle, running, done, or error */
     const [status, setStatus] = useState<ExecutionStatus>('idle');
+    /** Batch execution progress with status for each batch */
     const [batches, setBatches] = useState<SimpleBatch[]>([]);
+    /** Log entries from the execution */
     const [logs, setLogs] = useState<LogLine[]>([]);
+    /** Error message if execution failed */
     const [error, setError] = useState<string | null>(null);
+    /** Track if plan generation is in progress */
     const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
 
     // Refs
     const wsRef = useRef<WebSocket | null>(null);
     const runIdRef = useRef<string>('');
     const logsEndRef = useRef<HTMLDivElement>(null);
+
+    // === QUERIES ===
 
     // Fetch plan for selected spec
     const { data: planData, refetch: refetchPlan } = useQuery({
@@ -101,15 +146,21 @@ export default function BarebonesExecutor() {
 
     const hasPlan = planData?.success && planData?.batches?.length > 0;
 
+    // === EFFECTS ===
+
     // Auto-scroll logs
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
+    // === HANDLERS ===
+
     // Add log entry
     const addLog = useCallback((message: string, type: LogLine['type'] = 'info') => {
         setLogs(prev => [...prev, { time: formatTime(new Date()), message, type }]);
     }, []);
+
+    // === EFFECTS (continued) ===
 
     // Initialize batches from plan - read actual status from YAML
     useEffect(() => {

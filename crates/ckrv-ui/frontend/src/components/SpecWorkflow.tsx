@@ -1,13 +1,40 @@
 /**
- * SpecWorkflow - Workflow control component for spec management
- * Provides buttons for clarify, design, and tasks generation with progress indicators
+ * @module SpecWorkflow
+ * @description
+ * Workflow control panel for managing spec-to-implementation progression. Provides
+ * step-by-step buttons for clarification resolution, design generation, and task
+ * generation with visual progress indicators.
+ *
+ * @context
+ * Displayed in SpecEditor sidebar. Shows current workflow stage and enables
+ * triggering next steps. Each step becomes available after previous completes.
+ *
+ * @dependencies
+ * - useValidateSpec, useGenerateDesign, useGenerateTasks: Hooks for workflow actions
+ * - toast: Sonner toast notifications for feedback
+ * - shadcn/ui components: Button, Badge for consistent UI
+ *
+ * @example
+ * <SpecWorkflow
+ *   specName="my-feature"
+ *   unresolvedClarifications={2}
+ *   hasDesign={false}
+ *   hasTasks={false}
+ *   onClarifyClick={openClarifyModal}
+ * />
  */
+
+// === IMPORTS ===
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Loader2, CheckCircle2, AlertCircle, FileText, ListTodo, Lightbulb, Sparkles } from 'lucide-react';
 import { useValidateSpec, useGenerateDesign, useGenerateTasks } from '../hooks/useSpec';
 import { toast } from 'sonner';
+
+// ============================================================
+// TYPES
+// ============================================================
 
 interface SpecWorkflowProps {
     specName: string;
@@ -30,13 +57,21 @@ export function SpecWorkflow({
     onTasksComplete,
     onValidationComplete,
 }: SpecWorkflowProps) {
+    // === STATE ===
+    /** Result from spec validation (valid flag and errors list) */
     const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[] } | null>(null);
+    /** Track if an async operation is in progress */
     const [isProcessing, setIsProcessing] = useState(false);
+    /** Error message from failed operations */
     const [error, setError] = useState<string | null>(null);
 
     const validateMutation = useValidateSpec();
     const designMutation = useGenerateDesign();
     const tasksMutation = useGenerateTasks();
+
+    // ============================================================
+    // HANDLERS
+    // ============================================================
 
     const handleValidate = async () => {
         setIsProcessing(true);

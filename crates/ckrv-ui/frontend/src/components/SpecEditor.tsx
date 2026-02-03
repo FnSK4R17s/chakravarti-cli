@@ -1,3 +1,31 @@
+/**
+ * @module SpecEditor
+ * @description
+ * Read-only viewer for feature specifications. Displays spec content in visual,
+ * outline, or YAML views. Shows user stories, requirements, success criteria,
+ * and clarifications. Includes a workflow panel for spec-to-tasks progression.
+ *
+ * @context
+ * Rendered as the main content of the Spec page in the dashboard. Users review
+ * specs, resolve clarifications, and trigger design/task generation here.
+ * Auto-selects spec based on current git branch.
+ *
+ * @dependencies
+ * - useAutoSelectedSpec: Auto-selects spec based on current git branch
+ * - useClarifications: Hook for fetching and submitting clarifications
+ * - SpecWorkflow: Sidebar panel showing spec-to-implementation workflow
+ * - ClarifyModal: Modal for resolving spec clarifications
+ * - shadcn/ui components: Card, Badge, Tabs, Collapsible for consistent UI
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <SpecEditor />
+ *
+ * // Displays spec in visual, outline, or YAML view
+ * // Includes workflow sidebar for design and task generation
+ */
+
+// === IMPORTS ===
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
@@ -15,7 +43,8 @@ import { SpecWorkflow } from './SpecWorkflow';
 import { ClarifyModal } from './ClarifyModal';
 import { useClarifications, useSubmitClarifications, type Clarification } from '../hooks/useSpec';
 
-// Types matching the NEW spec.yaml format
+// === TYPES ===
+
 interface AcceptanceScenario {
     given: string;
     when: string;
@@ -55,17 +84,42 @@ interface SpecClarification {
     resolved: string | null;
 }
 
+/**
+ * Detailed specification data from spec.yaml.
+ * Contains the full spec content for display and editing.
+ * 
+ * @example
+ * const spec: SpecDetail = {
+ *   id: '018-frontend-docs',
+ *   branch: '018-frontend-docs',
+ *   overview: 'Add documentation to frontend components',
+ *   user_stories: [...],
+ *   requirements: { functional: [...] },
+ *   success_criteria: [...]
+ * };
+ */
 interface SpecDetail {
+    /** Unique spec identifier (e.g., 018-frontend-docs) */
     id: string;
+    /** Git branch for this spec */
     branch?: string;
+    /** Creation timestamp */
     created?: string;
+    /** Spec status: draft, ready, in_progress, done */
     status?: string;
+    /** High-level spec overview (2-4 sentences) */
     overview: string;
+    /** User stories describing the feature from user perspective */
     user_stories: UserStory[];
+    /** Functional and non-functional requirements */
     requirements: Requirements;
+    /** Measurable success criteria */
     success_criteria: SuccessCriterion[];
+    /** Edge cases to consider */
     edge_cases?: string[];
+    /** Assumptions made during spec creation */
     assumptions?: string[];
+    /** Clarification questions for ambiguous areas */
     clarifications?: SpecClarification[];
 }
 
@@ -79,7 +133,8 @@ interface SpecListItem {
     implementation_branch: string | null;
 }
 
-// API functions
+// === API FUNCTIONS ===
+
 const fetchSpecs = async (): Promise<{ specs: SpecListItem[], count: number }> => {
     const res = await fetch('/api/specs');
     return res.json();
@@ -90,6 +145,8 @@ const fetchSpecDetail = async (name: string): Promise<{ success: boolean; spec?:
     return res.json();
 };
 
+// === SUB-COMPONENTS ===
+
 // Collapsible Section Component
 const Section: React.FC<{
     title: string;
@@ -99,6 +156,7 @@ const Section: React.FC<{
     color?: 'slate' | 'blue' | 'green' | 'amber' | 'purple' | 'cyan';
     icon?: React.ReactNode;
 }> = ({ title, count, children, defaultOpen = true, color = 'slate', icon }) => {
+    /** Whether this collapsible section is expanded */
     const [isOpen, setIsOpen] = useState(defaultOpen);
     const colorClasses = {
         slate: 'border-border bg-muted/50',
@@ -150,6 +208,7 @@ const PriorityBadge: React.FC<{ priority: string }> = ({ priority }) => {
 
 // User Story Card
 const UserStoryCard: React.FC<{ story: UserStory }> = ({ story }) => {
+    /** Whether this user story card is expanded to show details */
     const [expanded, setExpanded] = useState(false);
 
     return (
@@ -329,22 +388,36 @@ const SpecListView: React.FC<{
     );
 };
 
-// Main Spec Editor Component
+// === MAIN COMPONENT ===
+
 export const SpecEditor: React.FC = () => {
     const queryClient = useQueryClient();
 
+    // === STATE ===
+
+    // --- Spec Selection ---
     // Auto-select spec based on current branch
     const { selectedSpec: autoSelectedSpec, isLoading: isLoadingAutoSpec } = useAutoSelectedSpec();
 
-    // Allow manual override but default to auto-selected
+    /** Manual spec override when user explicitly selects a different spec */
     const [manualSpecOverride, setManualSpecOverride] = useState<string | null>(null);
     const selectedSpecName = manualSpecOverride ?? autoSelectedSpec;
 
+    // --- Spec Data ---
+    /** Loaded spec detail for display */
     const [spec, setSpec] = useState<SpecDetail | null>(null);
+    /** Raw YAML content for the code view */
     const [rawYaml, setRawYaml] = useState<string | undefined>();
+
+    // --- UI State ---
+    /** Current view mode: visual cards, outline tree, or raw YAML */
     const [view, setView] = useState<'visual' | 'outline' | 'code'>('visual');
+    /** Show the clarification modal for answering spec questions */
     const [showClarifyModal, setShowClarifyModal] = useState(false);
+    /** Show the workflow progress panel sidebar */
     const [showWorkflowPanel, setShowWorkflowPanel] = useState(true);
+
+    // === QUERIES ===
 
     // Fetch specs list (for manual selection fallback)
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({

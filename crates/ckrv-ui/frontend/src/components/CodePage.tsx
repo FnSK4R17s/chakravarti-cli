@@ -1,3 +1,29 @@
+/**
+ * @module CodePage
+ * @description
+ * Unified code workflow page consolidating Spec, Tasks, Plan, and Run views into
+ * a single tabbed interface. Reduces navigation complexity while keeping all
+ * functionality accessible with visual progress indicators.
+ *
+ * @context
+ * Rendered as the main content of the Code page in the dashboard. Tab state persists
+ * in session storage so users return to their last active tab.
+ *
+ * @dependencies
+ * - useCodeTab: Custom hook for tab state with session persistence
+ * - useWorkflowProgress: Hook for fetching workflow stage completion status
+ * - SpecEditor, TaskEditor, PlanEditor, BarebonesExecutor: Tab content components
+ * - shadcn/ui Tabs: Tab navigation component
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <CodePage />
+ *
+ * // With initial tab selection
+ * <CodePage initialTab="tasks" selectedSpec="my-feature" />
+ */
+
+// === IMPORTS ===
 import React from 'react';
 import { FileText, ListTodo, Workflow, Rocket, CheckCircle2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -24,18 +50,6 @@ interface CodePageProps {
     selectedSpec?: string;
 }
 
-/**
- * CodePage - Unified code workflow page
- * 
- * Consolidates Spec, Tasks, Plan, and Run pages into a single tabbed interface.
- * This reduces navigation complexity while keeping all functionality accessible.
- * 
- * Features:
- * - Tab-based navigation between Spec, Tasks, Plan, and Run views
- * - Session persistence of active tab (remembers tab when navigating away/back)
- * - Visual progress indicators showing workflow stage completion
- * - Keyboard accessibility (arrow keys navigate between tabs)
- */
 const CodePage: React.FC<CodePageProps> = ({
     initialTab = 'spec',
     selectedSpec

@@ -1,3 +1,28 @@
+/**
+ * @module Dashboard
+ * @description
+ * Main application layout providing sidebar navigation, header with status indicators,
+ * and content area. Renders navigation icons for all pages and displays connection,
+ * Docker, and cloud status in the header.
+ *
+ * @context
+ * Root layout component wrapping all page content. Used in App.tsx to provide
+ * consistent navigation and status display across all pages.
+ *
+ * @dependencies
+ * - useConnection: Hook for monitoring server connection status
+ * - useQuery: React Query for fetching Docker and cloud status
+ * - useNavigation: Context for page navigation
+ * - shadcn/ui components: Button, Badge, Tooltip for consistent UI
+ *
+ * @example
+ * // Wraps page content in App.tsx
+ * <DashboardLayout>
+ *   <PageComponent />
+ * </DashboardLayout>
+ */
+
+// === IMPORTS ===
 import React, { type ReactNode, useState } from 'react';
 import { Code2, Layers, ChevronRight, Loader2, Container, Bot, Cloud, FlaskConical, ShieldCheck, PanelLeftClose, PanelLeft, Settings, GitBranch } from 'lucide-react';
 import { useConnection, type ConnectionStatus } from '../hooks/useConnection';
@@ -7,6 +32,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+
+// === TYPES ===
 
 interface DockerStatus {
     available: boolean;
@@ -23,10 +50,15 @@ interface DashboardLayoutProps {
     children: ReactNode;
 }
 
+// === MAIN COMPONENT ===
+
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+    // === STATE ===
     const { status } = useConnection(5000);
     const { currentPage, setCurrentPage } = useNavigation();
     const [sidebarExpanded, setSidebarExpanded] = useState(false);
+
+    // === QUERIES ===
 
     // Fetch status to check if initialized and get branch
     const { data: systemStatus } = useQuery<{ is_ready: boolean; active_branch?: string }>({
@@ -218,6 +250,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         </div>
     );
 };
+
+// === SUB-COMPONENTS ===
 
 interface NavItemProps {
     icon: ReactNode;

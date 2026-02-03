@@ -1,14 +1,36 @@
 /**
- * T044, T048: BatchLogTerminal component for displaying logs from a single batch
+ * @module BatchLogTerminal
+ * @description
+ * Terminal-style component for displaying logs from a single batch execution.
+ * Features consistent dark theme styling, auto-scroll to bottom, and compact
+ * display optimized for carousel view.
  *
- * Features:
- * - Consistent dark theme styling (matching app design)
- * - Auto-scroll to bottom
- * - Compact log display for carousel view
+ * @context
+ * Used within BatchLogCarousel to display individual batch logs. Shows batch
+ * name, status indicator, model used, and scrollable log content with
+ * color-coded entries.
+ *
+ * @dependencies
+ * - lucide-react: Icons for status indicators
+ *
+ * @example
+ * <BatchLogTerminal
+ *   batchId="batch-1"
+ *   batchName="Stage 1"
+ *   batchIndex={0}
+ *   status="running"
+ *   logs={batchLogs}
+ *   model="claude-sonnet-4"
+ * />
  */
 
+// === IMPORTS ===
 import React, { useRef, useEffect } from 'react';
 import { Loader2, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+
+// ============================================================
+// CONSTANTS
+// ============================================================
 
 // Consistent gray theme matching the app's dark design
 const BATCH_THEME = {
@@ -18,6 +40,10 @@ const BATCH_THEME = {
     header: 'bg-[#252526]'
 };
 
+
+// ============================================================
+// TYPES
+// ============================================================
 
 export type BatchStatus = 'pending' | 'waiting' | 'running' | 'completed' | 'failed';
 
@@ -46,6 +72,10 @@ export interface BatchLogTerminalProps {
     model?: string;
 }
 
+
+// ============================================================
+// SUB-COMPONENTS
+// ============================================================
 
 const StatusIcon: React.FC<{ status: BatchStatus }> = ({ status }) => {
     switch (status) {

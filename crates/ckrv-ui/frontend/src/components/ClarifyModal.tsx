@@ -1,7 +1,29 @@
 /**
- * ClarifyModal - Interactive clarification dialog
- * Allows users to answer clarification questions for a spec
+ * @module ClarifyModal
+ * @description
+ * Interactive dialog for answering spec clarification questions. Presents questions
+ * one at a time with radio options and visual progress indicators. Supports navigation
+ * between questions and batch submission.
+ *
+ * @context
+ * Opened from SpecEditor when there are unresolved clarifications. Users answer
+ * questions to refine the specification before task generation.
+ *
+ * @dependencies
+ * - useClarifications: Hook for clarification data
+ * - shadcn/ui components: Dialog, RadioGroup, Badge, Button for consistent UI
+ *
+ * @example
+ * <ClarifyModal
+ *   open={showModal}
+ *   onOpenChange={setShowModal}
+ *   specName="my-feature"
+ *   clarifications={unresolvedClarifications}
+ *   onSubmit={handleSubmitAnswers}
+ * />
  */
+
+// === IMPORTS ===
 import { useState } from 'react';
 import {
     Dialog,
@@ -17,6 +39,10 @@ import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Loader2, ChevronLeft, ChevronRight, HelpCircle, CheckCircle2 } from 'lucide-react';
 import { type Clarification } from '../hooks/useSpec';
+
+// ============================================================
+// TYPES
+// ============================================================
 
 interface ClarifyModalProps {
     open: boolean;
@@ -35,7 +61,13 @@ export function ClarifyModal({
     onSubmit,
     isSubmitting = false,
 }: ClarifyModalProps) {
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    /** Index of the currently displayed clarification question */
     const [currentIndex, setCurrentIndex] = useState(0);
+    /** Map of clarification topics to their selected answers */
     const [answers, setAnswers] = useState<Record<string, string>>({});
 
     // Filter to only unresolved clarifications
@@ -50,6 +82,10 @@ export function ClarifyModal({
     const isLast = currentIndex === unresolved.length - 1;
     const hasAnswer = current && answers[current.topic];
     const allAnswered = unresolved.every(c => answers[c.topic]);
+
+    // ============================================================
+    // HANDLERS
+    // ============================================================
 
     const handleAnswer = (answer: string) => {
         if (!current) return;
@@ -117,8 +153,8 @@ export function ClarifyModal({
                                     <div
                                         key={idx}
                                         className={`flex items-start space-x-3 p-4 rounded-lg border transition-colors ${isSelected
-                                                ? 'bg-accent/10 border-accent/50'
-                                                : 'bg-muted/20 border-border/50 hover:border-border'
+                                            ? 'bg-accent/10 border-accent/50'
+                                            : 'bg-muted/20 border-border/50 hover:border-border'
                                             }`}
                                     >
                                         <RadioGroupItem
@@ -207,10 +243,10 @@ export function ClarifyModal({
                         <div
                             key={idx}
                             className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex
-                                    ? 'bg-accent'
-                                    : answers[unresolved[idx].topic]
-                                        ? 'bg-green-500'
-                                        : 'bg-muted'
+                                ? 'bg-accent'
+                                : answers[unresolved[idx].topic]
+                                    ? 'bg-green-500'
+                                    : 'bg-muted'
                                 }`}
                         />
                     ))}

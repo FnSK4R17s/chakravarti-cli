@@ -9,6 +9,7 @@
 #
 # OPTIONS:
 #   --json              Output in JSON format
+#   --ignore-plan       Skip plan.md requirement (for checklists before planning)
 #   --require-tasks     Require tasks.md to exist (for implementation phase)
 #   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
 #   --paths-only        Only output path variables (no validation)
@@ -23,6 +24,7 @@ set -e
 
 # Parse command line arguments
 JSON_MODE=false
+IGNORE_PLAN=false
 REQUIRE_TASKS=false
 INCLUDE_TASKS=false
 PATHS_ONLY=false
@@ -31,6 +33,9 @@ for arg in "$@"; do
     case "$arg" in
         --json)
             JSON_MODE=true
+            ;;
+        --ignore-plan)
+            IGNORE_PLAN=true
             ;;
         --require-tasks)
             REQUIRE_TASKS=true
@@ -49,6 +54,7 @@ Consolidated prerequisite checking for Spec-Driven Development workflow.
 
 OPTIONS:
   --json              Output in JSON format
+  --ignore-plan       Skip plan.md requirement (for checklists before planning)
   --require-tasks     Require tasks.md to exist (for implementation phase)
   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
   --paths-only        Only output path variables (no prerequisite validation)
@@ -57,6 +63,9 @@ OPTIONS:
 EXAMPLES:
   # Check task prerequisites (plan.md required)
   ./check-prerequisites.sh --json
+  
+  # Check checklist prerequisites (spec.md only, plan not required)
+  ./check-prerequisites.sh --json --ignore-plan
   
   # Check implementation prerequisites (plan.md + tasks.md required)
   ./check-prerequisites.sh --json --require-tasks --include-tasks
@@ -106,9 +115,11 @@ if [[ ! -d "$FEATURE_DIR" ]]; then
     exit 1
 fi
 
-if [[ ! -f "$IMPL_PLAN" ]]; then
+# Check for plan.md unless --ignore-plan is set
+if ! $IGNORE_PLAN && [[ ! -f "$IMPL_PLAN" ]]; then
     echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
     echo "Run /speckit.plan first to create the implementation plan." >&2
+    echo "Or use --ignore-plan if running checklists before planning." >&2
     exit 1
 fi
 

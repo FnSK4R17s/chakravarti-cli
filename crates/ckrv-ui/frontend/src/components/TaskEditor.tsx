@@ -1,3 +1,30 @@
+/**
+ * @module TaskEditor
+ * @description
+ * Task management interface for viewing and editing implementation tasks generated
+ * from specs. Displays tasks grouped by phase with filtering, status tracking, and
+ * the ability to execute individual tasks via AI agents.
+ *
+ * @context
+ * Rendered as the main content of the Tasks page in the dashboard. Users review
+ * generated tasks, update statuses, and trigger plan generation here. Auto-selects
+ * spec based on current git branch.
+ *
+ * @dependencies
+ * - useAutoSelectedSpec: Auto-selects spec based on current git branch
+ * - useQuery/useMutation: React Query for task operations
+ * - TaskDetailModal: Modal for viewing and executing individual tasks
+ * - shadcn/ui components: Card, Badge, Select, Tabs for consistent UI
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <TaskEditor />
+ *
+ * // Displays tasks grouped by phase with filtering and status tracking
+ * // Supports executing tasks via integrated terminal
+ */
+
+// === IMPORTS ===
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
@@ -23,20 +50,55 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 
-// Types matching backend
+// === TYPES ===
+
+/**
+ * A task from the spec's tasks.yaml file.
+ * Represents a single unit of work to be implemented.
+ * 
+ * @example
+ * const task: Task = {
+ *   id: 'T001',
+ *   phase: 'Phase 1 - Setup',
+ *   title: 'Add configuration module',
+ *   description: 'Create config loading and validation',
+ *   file: 'src/config.ts',
+ *   user_story: null,
+ *   parallel: true,
+ *   complexity: 3,
+ *   model_tier: 'standard',
+ *   estimated_tokens: 5000,
+ *   risk: 'low',
+ *   context_required: ['utils.ts'],
+ *   status: 'pending'
+ * };
+ */
 interface Task {
+    /** Unique task identifier (e.g., T001, T002) */
     id: string;
+    /** Phase grouping for the task */
     phase: string;
+    /** Brief task title */
     title: string;
+    /** Detailed task description */
     description: string;
+    /** Target file path for this task */
     file: string;
+    /** Associated user story, if any */
     user_story: string | null;
+    /** Whether task can run in parallel with others */
     parallel: boolean;
+    /** Complexity score (1-5) */
     complexity: number;
+    /** Model tier: 'light', 'standard', or 'heavy' */
     model_tier: string;
+    /** Estimated token usage */
     estimated_tokens: number;
+    /** Risk level: 'low', 'medium', 'high', or 'critical' */
     risk: string;
+    /** File paths needed for context */
     context_required: string[];
+    /** Current status: 'pending', 'in_progress', 'done', 'blocked' */
     status: string;
 }
 
@@ -48,7 +110,8 @@ interface SpecListItem {
     has_implementation: boolean;
 }
 
-// API functions
+// === API FUNCTIONS ===
+
 const fetchSpecs = async (): Promise<{ specs: SpecListItem[], count: number }> => {
     const res = await fetch('/api/specs');
     return res.json();
@@ -86,7 +149,8 @@ const generatePlan = async (): Promise<{ success: boolean; message?: string }> =
     return res.json();
 };
 
-// Badge Components using shadcn Badge
+// === SUB-COMPONENTS ===
+
 const RiskBadge: React.FC<{ risk: string }> = ({ risk }) => {
     const variants: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
         low: 'success',
@@ -239,6 +303,7 @@ const PhaseGroup: React.FC<{
     expandedTasks: Set<string>;
     toggleExpand: (id: string) => void;
 }> = ({ phase, tasks, onStatusChange, expandedTasks, toggleExpand }) => {
+    /** Whether this phase group is collapsed */
     const [collapsed, setCollapsed] = useState(false);
     const completedCount = tasks.filter(t => t.status === 'completed').length;
     const totalTokens = tasks.reduce((sum, t) => sum + t.estimated_tokens, 0);
@@ -489,24 +554,40 @@ const SpecListView: React.FC<{
     );
 };
 
-// Main Task Editor Component
+// === MAIN COMPONENT ===
+
 export const TaskEditor: React.FC = () => {
     const queryClient = useQueryClient();
 
+    // === STATE ===
+
+    // --- Spec Selection ---
     // Auto-select spec based on current branch
     const { selectedSpec: autoSelectedSpec, isLoading: isLoadingAutoSpec } = useAutoSelectedSpec();
 
-    // Allow manual override but default to auto-selected
+    /** Manual spec override when user explicitly selects a different spec */
     const [manualSpecOverride, setManualSpecOverride] = useState<string | null>(null);
     const selectedSpecName = manualSpecOverride ?? autoSelectedSpec;
 
+    // --- Task Data ---
+    /** All tasks for the selected spec */
     const [tasks, setTasks] = useState<Task[]>([]);
+    /** Raw YAML content for the code view */
     const [rawYaml, setRawYaml] = useState<string | undefined>();
+
+    // --- UI State ---
+    /** Current view mode: phase grouping or raw YAML code */
     const [view, setView] = useState<'phase' | 'code'>('phase');
+    /** Track unsaved changes for save prompt */
     const [hasChanges, setHasChanges] = useState(false);
+    /** Set of task IDs with expanded details visible */
     const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+    /** Filter state for phase, status, risk, tier, and parallel toggle */
     const [filters, setFilters] = useState({ phase: '__all__', status: '__all__', risk: '__all__', tier: '__all__', parallelOnly: false });
+    /** Currently selected task for the detail modal */
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+    // === QUERIES ===
 
     // Fetch specs list (for manual selection fallback)
     const { data: specsData, isLoading: isLoadingSpecs } = useQuery({
@@ -529,6 +610,8 @@ export const TaskEditor: React.FC = () => {
             setHasChanges(false);
         }
     }, [tasksDetailData]);
+
+    // === MUTATIONS ===
 
     // Save mutation
     const saveMutation = useMutation({
@@ -571,6 +654,8 @@ export const TaskEditor: React.FC = () => {
             });
         },
     });
+
+    // === HANDLERS ===
 
     const handleStatusChange = (taskId: string, status: string) => {
         // Update local state immediately
