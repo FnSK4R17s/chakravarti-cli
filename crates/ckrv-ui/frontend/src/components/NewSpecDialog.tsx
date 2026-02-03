@@ -107,7 +107,7 @@ export function NewSpecDialog({
                     {/* Description */}
                     <div className="space-y-2">
                         <Label htmlFor="description" className="text-foreground">
-                            Feature Description <span className="text-red-400">*</span>
+                            Feature Description <span className="text-error">*</span>
                         </Label>
                         <Textarea
                             id="description"
@@ -142,7 +142,7 @@ export function NewSpecDialog({
 
                     {/* Error Display */}
                     {error && (
-                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                        <div className="p-3 rounded-lg bg-error/10 border border-error/30 text-error text-sm">
                             {error}
                         </div>
                     )}

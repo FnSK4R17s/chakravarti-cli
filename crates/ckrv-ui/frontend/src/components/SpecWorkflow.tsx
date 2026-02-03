@@ -141,7 +141,7 @@ export function SpecWorkflow({
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-foreground">Workflow</h3>
                 {isComplete && (
-                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                    <Badge className="bg-success/20 text-success border-success/30">
                         <CheckCircle2 className="w-3 h-3 mr-1" />
                         Ready
                     </Badge>
@@ -150,7 +150,7 @@ export function SpecWorkflow({
 
             {/* Error Display */}
             {error && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                <div className="p-3 rounded-lg bg-error/10 border border-error/30 text-error text-sm">
                     <AlertCircle className="w-4 h-4 inline mr-2" />
                     {error}
                 </div>
@@ -159,8 +159,8 @@ export function SpecWorkflow({
             {/* Validation Result */}
             {validationResult && (
                 <div className={`p-3 rounded-lg text-sm ${validationResult.valid
-                    ? 'bg-green-500/10 border border-green-500/30 text-green-400'
-                    : 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400'
+                    ? 'bg-success/10 border border-success/30 text-success'
+                    : 'bg-warning/10 border border-warning/30 text-warning'
                     }`}>
                     {validationResult.valid ? (
                         <>
@@ -185,16 +185,16 @@ export function SpecWorkflow({
             <div className="space-y-3">
                 {/* Step 1: Clarify */}
                 <div className={`flex items-center justify-between p-3 rounded-lg border ${needsClarification
-                    ? 'bg-yellow-500/5 border-yellow-500/30'
+                    ? 'bg-warning/5 border-warning/30'
                     : 'bg-muted/30 border-border/30'
                     }`}>
                     <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${needsClarification ? 'bg-yellow-500/20' : 'bg-green-500/20'
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${needsClarification ? 'bg-warning/20' : 'bg-success/20'
                             }`}>
                             {needsClarification ? (
-                                <Lightbulb className="w-4 h-4 text-yellow-400" />
+                                <Lightbulb className="w-4 h-4 text-warning" />
                             ) : (
-                                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                                <CheckCircle2 className="w-4 h-4 text-success" />
                             )}
                         </div>
                         <div>
@@ -211,7 +211,7 @@ export function SpecWorkflow({
                             size="sm"
                             variant="outline"
                             onClick={onClarifyClick}
-                            className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+                            className="border-warning/30 text-warning hover:bg-warning/10"
                         >
                             Resolve
                         </Button>
@@ -226,10 +226,10 @@ export function SpecWorkflow({
                         : 'bg-muted/10 border-border/20 opacity-50'
                     }`}>
                     <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${hasDesign ? 'bg-green-500/20' : canDesign ? 'bg-accent/20' : 'bg-muted/30'
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${hasDesign ? 'bg-success/20' : canDesign ? 'bg-accent/20' : 'bg-muted/30'
                             }`}>
                             {hasDesign ? (
-                                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                                <CheckCircle2 className="w-4 h-4 text-success" />
                             ) : (
                                 <FileText className="w-4 h-4 text-accent" />
                             )}
@@ -271,10 +271,10 @@ export function SpecWorkflow({
                         : 'bg-muted/10 border-border/20 opacity-50'
                     }`}>
                     <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${hasTasks ? 'bg-green-500/20' : canGenerateTasks ? 'bg-accent/20' : 'bg-muted/30'
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${hasTasks ? 'bg-success/20' : canGenerateTasks ? 'bg-accent/20' : 'bg-muted/30'
                             }`}>
                             {hasTasks ? (
-                                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                                <CheckCircle2 className="w-4 h-4 text-success" />
                             ) : (
                                 <ListTodo className="w-4 h-4 text-accent" />
                             )}

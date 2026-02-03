@@ -197,11 +197,11 @@ const TestResultCard: React.FC<{ result: TestResult }> = ({ result }) => {
                     <div className="text-sm text-muted-foreground">Total</div>
                     <div className="text-2xl font-bold">{result.total}</div>
                 </Card>
-                <Card className="p-4 border-accent-green/30">
+                <Card className="p-4 border-success/30">
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
-                        <CheckCircle2 size={14} className="text-accent-green" /> Passed
+                        <CheckCircle2 size={14} className="text-success" /> Passed
                     </div>
-                    <div className="text-2xl font-bold text-accent-green">{result.passed}</div>
+                    <div className="text-2xl font-bold text-success">{result.passed}</div>
                 </Card>
                 <Card className="p-4 border-destructive/30">
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
@@ -209,11 +209,11 @@ const TestResultCard: React.FC<{ result: TestResult }> = ({ result }) => {
                     </div>
                     <div className="text-2xl font-bold text-destructive">{result.failed}</div>
                 </Card>
-                <Card className="p-4 border-accent-amber/30">
+                <Card className="p-4 border-warning/30">
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
-                        <AlertTriangle size={14} className="text-accent-amber" /> Skipped
+                        <AlertTriangle size={14} className="text-warning" /> Skipped
                     </div>
-                    <div className="text-2xl font-bold text-accent-amber">{result.skipped}</div>
+                    <div className="text-2xl font-bold text-warning">{result.skipped}</div>
                 </Card>
                 <Card className="p-4">
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
@@ -295,13 +295,13 @@ const TestPlanCard: React.FC<{ plan: TestPlanOutput }> = ({ plan }) => {
                                         <Badge variant="outline">{file.change_type}</Badge>
                                     </td>
                                     <td className="px-4 py-2 text-center">
-                                        <span className="text-accent-green">+{file.lines_added}</span>
+                                        <span className="text-success">+{file.lines_added}</span>
                                         {' / '}
                                         <span className="text-destructive">-{file.lines_removed}</span>
                                     </td>
                                     <td className="px-4 py-2 text-center">
                                         {file.has_tests ? (
-                                            <CheckCircle2 className="inline text-accent-green" size={16} />
+                                            <CheckCircle2 className="inline text-success" size={16} />
                                         ) : (
                                             <XCircle className="inline text-destructive" size={16} />
                                         )}
@@ -341,7 +341,7 @@ const TestPlanCard: React.FC<{ plan: TestPlanOutput }> = ({ plan }) => {
                 </div>
             ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                    <CheckCircle2 size={48} className="inline text-accent-green mb-2" />
+                    <CheckCircle2 size={48} className="inline text-success mb-2" />
                     <p className="font-medium text-foreground">All changed files have tests!</p>
                 </div>
             )}
@@ -350,8 +350,8 @@ const TestPlanCard: React.FC<{ plan: TestPlanOutput }> = ({ plan }) => {
 };
 
 const CoverageCard: React.FC<{ coverage: CoverageResult }> = ({ coverage }) => {
-    const coverageColor = coverage.coverage_percent >= 80 ? 'text-accent-green' :
-        coverage.coverage_percent >= 50 ? 'text-accent-amber' : 'text-destructive';
+    const coverageColor = coverage.coverage_percent >= 80 ? 'text-success' :
+        coverage.coverage_percent >= 50 ? 'text-warning' : 'text-destructive';
 
     return (
         <div className="space-y-4">
@@ -391,9 +391,9 @@ const CoverageCard: React.FC<{ coverage: CoverageResult }> = ({ coverage }) => {
                     <div className="text-sm text-muted-foreground">Testable Files</div>
                     <div className="text-2xl font-bold">{coverage.total}</div>
                 </Card>
-                <Card className="p-4 text-center border-accent-green/30">
+                <Card className="p-4 text-center border-success/30">
                     <div className="text-sm text-muted-foreground">With Tests</div>
-                    <div className="text-2xl font-bold text-accent-green">{coverage.covered}</div>
+                    <div className="text-2xl font-bold text-success">{coverage.covered}</div>
                 </Card>
                 <Card className="p-4 text-center border-destructive/30">
                     <div className="text-sm text-muted-foreground">Without Tests</div>
@@ -402,16 +402,16 @@ const CoverageCard: React.FC<{ coverage: CoverageResult }> = ({ coverage }) => {
             </div>
 
             {/* Status Message */}
-            <div className={`text-center py-4 rounded-lg ${coverage.coverage_percent >= 80 ? 'bg-accent-green/10' : 'bg-accent-amber/10'}`}>
+            <div className={`text-center py-4 rounded-lg ${coverage.coverage_percent >= 80 ? 'bg-success/10' : 'bg-warning/10'}`}>
                 {coverage.coverage_percent >= 80 ? (
                     <>
-                        <CheckCircle2 size={24} className="inline text-accent-green mb-1" />
-                        <p className="font-medium text-accent-green">Good coverage! All changed files have tests.</p>
+                        <CheckCircle2 size={24} className="inline text-success mb-1" />
+                        <p className="font-medium text-success">Good coverage! All changed files have tests.</p>
                     </>
                 ) : (
                     <>
-                        <AlertTriangle size={24} className="inline text-accent-amber mb-1" />
-                        <p className="font-medium text-accent-amber">Coverage below 80%. Run test plan to see what needs tests.</p>
+                        <AlertTriangle size={24} className="inline text-warning mb-1" />
+                        <p className="font-medium text-warning">Coverage below 80%. Run test plan to see what needs tests.</p>
                     </>
                 )}
             </div>
@@ -653,11 +653,11 @@ export default function TestRunner() {
                             </TabsTrigger>
                             <TabsTrigger value="plan" className="data-[state=active]:bg-background">
                                 <FileSearch size={14} className="mr-1" /> Plan
-                                {planExists && <CheckCircle2 size={12} className="ml-1 text-green-500" />}
+                                {planExists && <CheckCircle2 size={12} className="ml-1 text-success" />}
                             </TabsTrigger>
                             <TabsTrigger value="write" className="data-[state=active]:bg-background">
                                 <FileEdit size={14} className="mr-1" /> Write
-                                {writeExists && <CheckCircle2 size={12} className="ml-1 text-green-500" />}
+                                {writeExists && <CheckCircle2 size={12} className="ml-1 text-success" />}
                             </TabsTrigger>
                             <TabsTrigger value="coverage" className="data-[state=active]:bg-background">
                                 <BarChart3 size={14} className="mr-1" /> Coverage
@@ -742,11 +742,11 @@ export default function TestRunner() {
 
                                 {/* Show completed test results */}
                                 {writeExists && writeStatus && (
-                                    <Card className="p-4 border-green-500/50 bg-green-500/5">
+                                    <Card className="p-4 border-success/50 bg-success/5">
                                         <div className="flex items-start gap-3">
-                                            <CheckCircle2 className="text-green-500 shrink-0 mt-0.5" size={20} />
+                                            <CheckCircle2 className="text-success shrink-0 mt-0.5" size={20} />
                                             <div className="flex-1">
-                                                <h4 className="font-medium text-green-700 dark:text-green-400">Tests Written Successfully</h4>
+                                                <h4 className="font-medium text-success dark:text-success">Tests Written Successfully</h4>
                                                 <div className="text-sm text-muted-foreground mt-2 space-y-1">
                                                     {writeStatus.completed_at && (
                                                         <div>
@@ -780,9 +780,9 @@ export default function TestRunner() {
                                 )}
 
                                 {!agentData?.agent && (
-                                    <Card className="p-6 border-accent-amber/50 bg-accent-amber/5">
+                                    <Card className="p-6 border-warning/50 bg-warning/5">
                                         <div className="flex items-start gap-3">
-                                            <AlertTriangle className="text-accent-amber shrink-0" size={20} />
+                                            <AlertTriangle className="text-warning shrink-0" size={20} />
                                             <div>
                                                 <h4 className="font-medium">No Test Writer Agent Configured</h4>
                                                 <p className="text-sm text-muted-foreground mt-1">

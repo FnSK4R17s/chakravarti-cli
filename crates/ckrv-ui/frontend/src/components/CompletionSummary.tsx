@@ -68,13 +68,13 @@ function StatCard({
     color: 'emerald' | 'blue' | 'purple' | 'teal' | 'red' | 'gray' | 'orange';
 }) {
     const colorClasses = {
-        emerald: 'border-accent-green/30 text-accent-green',
-        blue: 'border-accent-cyan/30 text-accent-cyan',
-        purple: 'border-accent-purple/30 text-accent-purple',
-        teal: 'border-accent-cyan/30 text-accent-cyan',
+        emerald: 'border-success/30 text-success',
+        blue: 'border-info/30 text-info',
+        purple: 'border-primary/30 text-primary',
+        teal: 'border-info/30 text-info',
         red: 'border-destructive/30 text-destructive',
         gray: 'border-border text-muted-foreground',
-        orange: 'border-accent-amber/30 text-accent-amber',
+        orange: 'border-warning/30 text-warning',
     };
 
     return (
@@ -105,17 +105,17 @@ function SuccessSummary({
     mergedBranches?: string[];
 }) {
     return (
-        <Card className="border-accent-green/40 bg-card">
-            <CardContent className="p-6 bg-accent-green-dim rounded-lg">
+        <Card className="border-success/40 bg-card">
+            <CardContent className="p-6 bg-success/20 rounded-lg">
                 <div className="flex items-center gap-4 mb-4">
-                    <div className="w-14 h-14 rounded-full bg-accent-green/20 flex items-center justify-center">
-                        <Trophy className="w-7 h-7 text-accent-green" />
+                    <div className="w-14 h-14 rounded-full bg-success/20 flex items-center justify-center">
+                        <Trophy className="w-7 h-7 text-success" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-accent-green">
+                        <h2 className="text-xl font-bold text-success">
                             {dryRun ? '🧪 Dry Run Complete' : 'Execution Complete!'}
                         </h2>
-                        <p className="text-accent-green/80 text-sm">
+                        <p className="text-success/80 text-sm">
                             All {summary.total_batches} batches completed successfully
                         </p>
                     </div>
@@ -181,15 +181,15 @@ function PartialSuccessSummary({
     error?: string | null;
 }) {
     return (
-        <Card className="border-accent-amber/40 bg-card">
-            <CardContent className="p-6 bg-accent-amber-dim rounded-lg">
+        <Card className="border-warning/40 bg-card">
+            <CardContent className="p-6 bg-warning/20 rounded-lg">
                 <div className="flex items-center gap-4 mb-4">
-                    <div className="w-14 h-14 rounded-full bg-accent-amber/20 flex items-center justify-center">
-                        <AlertTriangle className="w-7 h-7 text-accent-amber" />
+                    <div className="w-14 h-14 rounded-full bg-warning/20 flex items-center justify-center">
+                        <AlertTriangle className="w-7 h-7 text-warning" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-accent-amber">Partial Success</h2>
-                        <p className="text-accent-amber/80 text-sm">
+                        <h2 className="text-xl font-bold text-warning">Partial Success</h2>
+                        <p className="text-warning/80 text-sm">
                             {summary.completed_batches} of {summary.total_batches} batches completed
                         </p>
                     </div>

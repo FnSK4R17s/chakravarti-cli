@@ -35,6 +35,7 @@ import {
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+import { getTerminalTheme } from '@/lib/theme';
 import type { AgentConfig } from './AgentManager';
 import {
     Dialog,
@@ -214,7 +215,7 @@ const AgentSelector: React.FC<{
 
     if (agents.length === 0) {
         return (
-            <div className="text-accent-amber text-sm flex items-center gap-2">
+            <div className="text-warning text-sm flex items-center gap-2">
                 <AlertTriangle size={16} />
                 No agents configured. Add one in Agent Manager.
             </div>
@@ -247,7 +248,7 @@ const AgentSelector: React.FC<{
                         <SelectItem key={agent.id} value={agent.id}>
                             <div className="flex items-center justify-between w-full gap-4">
                                 <div className="flex items-center gap-2">
-                                    <Bot size={16} className={agent.is_default ? 'text-accent-amber' : 'text-muted-foreground'} />
+                                    <Bot size={16} className={agent.is_default ? 'text-warning' : 'text-muted-foreground'} />
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <span className="font-medium">{agent.name}</span>
@@ -297,26 +298,12 @@ const EmbeddedTerminal: React.FC<{
         const init = async () => {
             if (!terminalRef.current) return;
 
-            // Create xterm instance
+            // Create xterm instance with theme-aware colors
             const term = new Terminal({
                 cursorBlink: true,
                 fontSize: 13,
-                fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-                theme: {
-                    background: '#0d1117',
-                    foreground: '#c9d1d9',
-                    cursor: '#58a6ff',
-                    cursorAccent: '#0d1117',
-                    selectionBackground: '#3392FF44',
-                    black: '#484f58',
-                    red: '#ff7b72',
-                    green: '#3fb950',
-                    yellow: '#d29922',
-                    blue: '#58a6ff',
-                    magenta: '#bc8cff',
-                    cyan: '#39c5cf',
-                    white: '#b1bac4',
-                },
+                fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
+                theme: getTerminalTheme(),
                 convertEol: true,
                 scrollback: 5000,
             });
@@ -410,8 +397,8 @@ const EmbeddedTerminal: React.FC<{
                 <div className="flex items-center gap-3">
                     <TerminalIcon size={16} className="text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">Task Execution</span>
-                    <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-accent-green' :
-                        status === 'connecting' ? 'bg-accent-amber animate-pulse' :
+                    <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-success' :
+                        status === 'connecting' ? 'bg-warning animate-pulse' :
                             status === 'error' ? 'bg-destructive' : 'bg-muted-foreground'
                         }`} />
                 </div>
@@ -425,7 +412,7 @@ const EmbeddedTerminal: React.FC<{
                 </div>
             </CardHeader>
             <CardContent className="flex-1 p-0">
-                <div ref={terminalRef} className="w-full h-full bg-[#0d1117] p-2" />
+                <div ref={terminalRef} className="w-full h-full bg-background p-2" />
             </CardContent>
         </Card>
     );
@@ -546,7 +533,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                             {task.file && (
                                 <div className="mb-6">
                                     <h3 className="text-sm font-medium text-muted-foreground mb-2">Target File</h3>
-                                    <code className="text-sm text-accent-cyan bg-accent-cyan-dim px-3 py-2 rounded block">
+                                    <code className="text-sm text-info bg-info/20 px-3 py-2 rounded block">
                                         {task.file}
                                     </code>
                                 </div>
@@ -631,7 +618,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                                 </>
                             )}
                             {task.status === 'completed' && (
-                                <div className="text-accent-green flex items-center gap-2">
+                                <div className="text-success flex items-center gap-2">
                                     <CheckCircle2 size={18} />
                                     Task completed
                                 </div>

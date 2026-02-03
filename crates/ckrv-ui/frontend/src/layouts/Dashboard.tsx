@@ -32,6 +32,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import ThemeSwitcher from '@/components/theme-switcher-01';
 
 // === TYPES ===
 
@@ -113,11 +114,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 {/* Logo */}
                 <div className={cn("flex items-center gap-3 mb-6", sidebarExpanded ? "px-4" : "justify-center")}>
                     <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center font-mono font-bold text-sm shrink-0"
-                        style={{
-                            background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
-                            color: 'var(--bg-primary)'
-                        }}
+                        className="w-10 h-10 rounded-lg flex items-center justify-center font-mono font-bold text-sm shrink-0 bg-gradient-to-br from-primary to-primary/60 text-primary-foreground"
                     >
                         CK
                     </div>
@@ -224,11 +221,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
 
                     {/* Center - Branch indicator */}
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border">
-                        <GitBranch size={14} className="text-accent-cyan" />
+                        <GitBranch size={14} className="text-primary" />
                         <span className="font-mono text-sm text-foreground">{currentBranch}</span>
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {/* Theme Toggle */}
+                        <ThemeSwitcher />
                         {/* Cloud status */}
                         <CloudIndicator status={cloudStatus} />
                         {/* Docker status */}

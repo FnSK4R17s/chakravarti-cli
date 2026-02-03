@@ -28,6 +28,7 @@ import { Circle, X, Bot, Wrench, Copy, Check } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+import { getTerminalTheme } from '@/lib/theme';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -68,7 +69,7 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
             if (!mounted) return;
             if (!terminalRef.current) return;
 
-            // Create xterm instance
+            // Create xterm instance with theme-aware colors
             const term = new Terminal({
                 cursorBlink: true,
                 fontSize: 14,
@@ -78,29 +79,7 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
                 rows: 30,
                 convertEol: true,
                 allowProposedApi: true,
-                theme: {
-                    background: '#1e1e1e',
-                    foreground: '#d4d4d4',
-                    cursor: '#d4d4d4',
-                    cursorAccent: '#1e1e1e',
-                    selectionBackground: '#264f78',
-                    black: '#1e1e1e',
-                    red: '#f44747',
-                    green: '#608b4e',
-                    yellow: '#dcdcaa',
-                    blue: '#569cd6',
-                    magenta: '#c586c0',
-                    cyan: '#4ec9b0',
-                    white: '#d4d4d4',
-                    brightBlack: '#808080',
-                    brightRed: '#f44747',
-                    brightGreen: '#608b4e',
-                    brightYellow: '#dcdcaa',
-                    brightBlue: '#569cd6',
-                    brightMagenta: '#c586c0',
-                    brightCyan: '#4ec9b0',
-                    brightWhite: '#ffffff',
-                },
+                theme: getTerminalTheme(),
             });
 
             const fitAddon = new FitAddon();
@@ -288,7 +267,7 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
             >
                 <DialogHeader className="px-4 py-3 shrink-0 border-b border-border bg-muted">
                     <div className="flex items-center gap-3">
-                        <Bot size={16} className="text-purple-400" />
+                        <Bot size={16} className="text-primary" />
                         <DialogTitle className="text-sm">
                             AI Test Fix Agent
                         </DialogTitle>
@@ -316,7 +295,7 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
                         >
                             {copied ? (
                                 <>
-                                    <Check size={14} className="text-green-500" />
+                                    <Check size={14} className="text-success" />
                                     Copied!
                                 </>
                             ) : (
@@ -343,8 +322,7 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
                     <Card className="h-full w-full overflow-hidden rounded-lg border-border">
                         <div
                             ref={terminalRef}
-                            className="w-full h-full p-2"
-                            style={{ background: '#1e1e1e', minHeight: '400px' }}
+                            className="w-full h-full p-2 bg-background min-h-[400px]"
                         />
                     </Card>
                 </div>

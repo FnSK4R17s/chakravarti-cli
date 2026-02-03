@@ -216,10 +216,10 @@ const testAgent = async (agent: AgentConfig) => {
 
 // Agent type display info - Only supported types
 const AGENT_TYPE_INFO: Record<AgentType, { label: string; icon: React.ReactNode; color: string }> = {
-    claude: { label: 'Claude Code', icon: <Bot size={16} />, color: 'var(--accent-amber)' },
-    claude_open_router: { label: 'Claude + OpenRouter', icon: <Sparkles size={16} />, color: 'var(--accent-purple)' },
-    claude_glm: { label: 'GLM Coding Plan', icon: <Zap size={16} />, color: 'var(--accent-cyan)' },
-    codex: { label: 'OpenAI Codex', icon: <Zap size={16} />, color: 'var(--accent-green)' },
+    claude: { label: 'Claude Code', icon: <Bot size={16} />, color: 'hsl(var(--warning))' },
+    claude_open_router: { label: 'Claude + OpenRouter', icon: <Sparkles size={16} />, color: 'hsl(var(--primary))' },
+    claude_glm: { label: 'GLM Coding Plan', icon: <Zap size={16} />, color: 'hsl(var(--info))' },
+    codex: { label: 'OpenAI Codex', icon: <Zap size={16} />, color: 'hsl(var(--success))' },
 };
 
 const AgentManager: React.FC = () => {
@@ -441,7 +441,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
     const typeInfo = AGENT_TYPE_INFO[agent.agent_type] || AGENT_TYPE_INFO.claude;
 
     return (
-        <Card className={agent.is_default ? 'border-primary' : ''}>
+        <Card>
             <Collapsible open={expanded} onOpenChange={onToggleExpand}>
                 {/* Main row */}
                 <CardContent className="p-3">
@@ -535,10 +535,10 @@ const AgentCard: React.FC<AgentCardProps> = ({
                                 )}
                             </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onSetQa} title={agent.is_qa_agent ? 'QA Agent' : 'Set as QA agent'}>
-                                <Shield size={14} className={agent.is_qa_agent ? 'text-green-500' : 'text-muted-foreground'} />
+                                <Shield size={14} className={agent.is_qa_agent ? 'text-success' : 'text-muted-foreground'} />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onSetTestWriter} title={agent.is_test_writer ? 'Test Writer' : 'Set as Test Writer'}>
-                                <FileCode size={14} className={agent.is_test_writer ? 'text-blue-500' : 'text-muted-foreground'} />
+                                <FileCode size={14} className={agent.is_test_writer ? 'text-primary' : 'text-muted-foreground'} />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit} title="Edit agent">
                                 <Settings2 size={14} className="text-muted-foreground" />
@@ -568,7 +568,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <span className="text-muted-foreground">Model:</span>
-                                    <code className="px-1.5 py-0.5 rounded bg-muted text-accent-cyan">
+                                    <code className="px-1.5 py-0.5 rounded bg-muted text-info">
                                         {agent.openrouter.model}
                                     </code>
                                 </div>
@@ -595,7 +595,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <span className="text-muted-foreground">Model:</span>
-                                    <code className="px-1.5 py-0.5 rounded bg-muted text-accent-cyan">
+                                    <code className="px-1.5 py-0.5 rounded bg-muted text-info">
                                         {agent.glm.model}
                                     </code>
                                 </div>
@@ -879,11 +879,11 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                     {models.find(m => m.id === form.openrouter?.model) && (
                                         <Card className="p-3 text-xs space-y-2">
                                             <div className="flex items-center justify-between">
-                                                <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-accent-cyan">
+                                                <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-info">
                                                     {form.openrouter?.model}
                                                 </code>
                                                 {models.find(m => m.id === form.openrouter?.model)?.pricing && (
-                                                    <span className="text-accent-green">
+                                                    <span className="text-success">
                                                         {models.find(m => m.id === form.openrouter?.model)?.pricing}
                                                     </span>
                                                 )}
@@ -954,8 +954,8 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                         {form.agent_type === 'claude_glm' && (
                             <Card className="p-4 space-y-4">
                                 <div className="flex items-center gap-2">
-                                    <Zap size={14} className="text-accent-cyan" />
-                                    <span className="text-xs font-medium text-accent-cyan">GLM Coding Plan Configuration</span>
+                                    <Zap size={14} className="text-info" />
+                                    <span className="text-xs font-medium text-info">GLM Coding Plan Configuration</span>
                                 </div>
 
                                 {/* Model Selection */}

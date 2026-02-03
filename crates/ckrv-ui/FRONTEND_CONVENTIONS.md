@@ -102,13 +102,13 @@ const STATUS_TRANSITION_MS = 200;
 /** Maximum log lines to show in collapsed view */
 const COLLAPSED_LOG_LINES = 5;
 
-/** Status colors following design system */
-const STATUS_COLORS = {
-  pending: 'text-gray-400',
-  running: 'text-blue-500',
-  completed: 'text-green-500',
-  failed: 'text-red-500',
-} as const;
+/**
+ * IMPORTANT: Import theme colors from the centralized theme module.
+ * Never hardcode Tailwind color classes like 'text-red-500'.
+ * 
+ * @see src/lib/theme.ts for all available color constants
+ */
+import { STATUS_COLORS, STATUS_BG, LOG_COLORS } from '@/lib/theme';
 
 // ============================================================
 // COMPONENT
@@ -515,12 +515,112 @@ try {
 
 ---
 
+## Theme System
+
+The frontend uses **shadcn/ui CSS variables** for theming, enabling easy theme swapping with community themes from [tweakcn.com](https://tweakcn.com).
+
+### Swapping Themes
+
+To change the theme, run:
+
+```bash
+npx shadcn@latest add https://tweakcn.com/r/themes/<theme-name>.json
+```
+
+**Current theme:** `darkmatter`
+
+**Available themes at tweakcn.com:**
+- darkmatter (current)
+- catppuccin
+- rosepine
+- dracula
+- nord
+- tokyo-night
+- and many more...
+
+### Color Palette
+
+The theme provides these semantic colors:
+
+| Variable | Usage | Dark Mode Example |
+|----------|-------|-------------------|
+| `--primary` | Main action, active states | Orange |
+| `--secondary` | Secondary actions | Teal |
+| `--muted` | Inactive backgrounds | Dark gray |
+| `--muted-foreground` | Muted text | Gray |
+| `--destructive` | Destructive actions | Teal (theme-specific) |
+| `--success` | Success states | Green |
+| `--warning` | Warning states | Amber |
+| `--error` | Error states | Red |
+| `--info` | Info/waiting states | Teal |
+
+### Using Theme Colors (Tailwind Classes)
+
+**ALWAYS use semantic Tailwind classes:**
+
+```typescript
+// ✅ GOOD - uses theme semantic colors
+<span className="text-error">Error message</span>
+<span className="text-success">Completed</span>
+<span className="text-primary">Active</span>
+<span className="text-muted-foreground">Muted text</span>
+<div className="bg-card border-border">Card</div>
+
+// ❌ BAD - hardcoded colors break theming
+<span className="text-red-500">Error</span>
+<span className="text-green-400">Success</span>
+```
+
+### Theme Helper Functions
+
+For dynamic status-based styling, use the helpers in `@/lib/theme.ts`:
+
+```typescript
+import { getStatusClass, getLogClass, getAgentClasses } from '@/lib/theme';
+
+// Status-based coloring
+<span className={getStatusClass(task.status)}>{task.status}</span>
+
+// Log type coloring
+<span className={getLogClass('error')}>Error log</span>
+
+// Agent provider styling
+const agent = getAgentClasses('anthropic');
+<span className={agent.text}>Claude</span>
+```
+
+### Available Theme Classes
+
+| Category | Classes |
+|----------|---------|
+| **Text** | `text-primary`, `text-secondary`, `text-muted-foreground`, `text-foreground`, `text-success`, `text-warning`, `text-error`, `text-info` |
+| **Background** | `bg-background`, `bg-card`, `bg-muted`, `bg-primary`, `bg-success`, `bg-warning`, `bg-error`, `bg-info` |
+| **Border** | `border-border`, `border-primary`, `border-success`, `border-warning`, `border-error`, `border-info` |
+
+### Custom Semantic Extensions
+
+We extend the base shadcn theme with app-specific semantic colors:
+
+| Variable | Purpose |
+|----------|---------|
+| `--success` | Green for completed states |
+| `--warning` | Amber for warning/running states |
+| `--error` | Red for failed/error states |
+| `--info` | Teal for info/waiting states |
+
+These are defined in `src/index.css` and work like any other theme color.
+
+---
+
 ## Changelog
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-02-03 | Migrated to shadcn/tweakcn theme system (darkmatter). Replaced all hardcoded colors. | Antigravity |
+| 2026-02-03 | Added centralized theme.ts with OKLCH-based color tokens | Antigravity |
 | 2026-02-03 | Initial version | Claude + Shikhar |
 
 ---
 
 *This document should be updated when patterns evolve or new conventions are established.*
+

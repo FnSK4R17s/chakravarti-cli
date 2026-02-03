@@ -30,33 +30,21 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
             className={`
                 ${fullScreen ? 'fixed inset-0 z-50' : 'absolute inset-0 z-10'}
                 flex items-center justify-center
+                ${transparent ? 'bg-black/30 backdrop-blur-sm' : 'bg-background'}
             `}
-            style={{
-                background: transparent
-                    ? 'rgba(0, 0, 0, 0.3)'
-                    : 'var(--bg-primary)',
-                backdropFilter: transparent ? 'blur(2px)' : 'none',
-            }}
             role="status"
             aria-live="polite"
             aria-busy="true"
         >
             <div
-                className="flex flex-col items-center gap-3 p-6 rounded-lg"
-                style={{
-                    background: transparent ? 'var(--bg-tertiary)' : 'transparent',
-                }}
+                className={`flex flex-col items-center gap-3 p-6 rounded-lg ${transparent ? 'bg-card' : ''}`}
             >
                 <Loader2
                     size={32}
-                    className="animate-spin"
-                    style={{ color: 'var(--accent-cyan)' }}
+                    className="animate-spin text-primary"
                 />
                 {message && (
-                    <span
-                        className="text-sm"
-                        style={{ color: 'var(--text-secondary)' }}
-                    >
+                    <span className="text-sm text-muted-foreground">
                         {message}
                     </span>
                 )}

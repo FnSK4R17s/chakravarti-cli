@@ -156,16 +156,16 @@ export function formatElapsedTime(seconds: number | null): string {
 export function getRunStatusColor(status: RunStatus): string {
     switch (status) {
         case 'completed':
-            return 'text-green-500';
+            return 'text-success';
         case 'failed':
-            return 'text-red-500';
+            return 'text-error';
         case 'running':
-            return 'text-blue-500';
+            return 'text-primary';
         case 'aborted':
-            return 'text-orange-500';
+            return 'text-warning';
         case 'pending':
         default:
-            return 'text-gray-400';
+            return 'text-muted-foreground';
     }
 }
 

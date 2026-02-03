@@ -411,10 +411,10 @@ export default function BarebonesExecutor() {
                 <CardHeader className="py-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className={`w-3 h-3 rounded-full ${status === 'running' ? 'bg-yellow-500 animate-pulse' :
-                                status === 'done' ? 'bg-green-500' :
-                                    status === 'error' ? 'bg-red-500' :
-                                        'bg-gray-500'
+                            <div className={`w-3 h-3 rounded-full ${status === 'running' ? 'bg-warning animate-pulse' :
+                                status === 'done' ? 'bg-success' :
+                                    status === 'error' ? 'bg-error' :
+                                        'bg-muted'
                                 }`} />
                             <CardTitle className="text-lg font-mono">{selectedSpec}</CardTitle>
                             <Badge variant="outline" className="text-xs">
@@ -445,7 +445,7 @@ export default function BarebonesExecutor() {
                                 <Button
                                     onClick={handleRun}
                                     disabled={!hasPlan}
-                                    className="bg-green-600 hover:bg-green-700"
+                                    className="bg-success hover:bg-success"
                                 >
                                     <Play size={16} className="mr-2" />
                                     Run
@@ -486,8 +486,8 @@ export default function BarebonesExecutor() {
                                                 batch.status === 'error' ? 'destructive' :
                                                     'outline'
                                     }
-                                    className={`gap-1 ${batch.status === 'done' ? 'bg-green-600' :
-                                        batch.status === 'running' ? 'bg-yellow-600' : ''
+                                    className={`gap-1 ${batch.status === 'done' ? 'bg-success' :
+                                        batch.status === 'running' ? 'bg-warning' : ''
                                         }`}
                                 >
                                     {batch.status === 'done' && <Check size={12} />}
@@ -517,13 +517,13 @@ export default function BarebonesExecutor() {
                             logs.map((log, i) => (
                                 <div
                                     key={i}
-                                    className={`leading-relaxed ${log.type === 'error' ? 'text-red-400' :
-                                        log.type === 'success' ? 'text-green-400' :
-                                            log.type === 'batch' ? 'text-yellow-400' :
-                                                'text-gray-300'
+                                    className={`leading-relaxed ${log.type === 'error' ? 'text-error' :
+                                        log.type === 'success' ? 'text-success' :
+                                            log.type === 'batch' ? 'text-warning' :
+                                                'text-muted-foreground'
                                         }`}
                                 >
-                                    <span className="text-gray-500">[{log.time}]</span>{' '}
+                                    <span className="text-muted-foreground">[{log.time}]</span>{' '}
                                     {log.message}
                                 </div>
                             ))
@@ -535,8 +535,8 @@ export default function BarebonesExecutor() {
 
             {/* Error display */}
             {error && (
-                <Card className="border-red-500/50 bg-red-500/10">
-                    <CardContent className="py-3 flex items-center gap-2 text-red-400">
+                <Card className="border-error/50 bg-error/10">
+                    <CardContent className="py-3 flex items-center gap-2 text-error">
                         <AlertTriangle size={16} />
                         <span className="text-sm">{error}</span>
                     </CardContent>

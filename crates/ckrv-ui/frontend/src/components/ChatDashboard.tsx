@@ -142,9 +142,9 @@ export const ChatDashboard: React.FC = () => {
                 <div className="text-center mb-8">
                     {/* Terminal-style Logo */}
                     <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-muted rounded-lg border border-border">
-                        <span className="text-accent-cyan font-mono text-lg">$</span>
+                        <span className="text-primary font-mono text-lg">$</span>
                         <span className="font-mono font-bold text-xl text-foreground">ckrv</span>
-                        <span className="w-2 h-5 bg-accent-cyan animate-pulse" />
+                        <span className="w-2 h-5 bg-primary animate-pulse" />
                     </div>
                     <h1 className="text-3xl font-bold text-foreground mb-2">
                         {latestSpec?.has_implementation
@@ -169,7 +169,7 @@ export const ChatDashboard: React.FC = () => {
                         {latestSpec?.has_implementation ? (
                             /* Implementation Complete - Guide to Tests */
                             <>
-                                <div className="flex items-center justify-center gap-2 text-green-400 mb-4">
+                                <div className="flex items-center justify-center gap-2 text-success mb-4">
                                     <CheckCircle2 size={20} />
                                     <span className="text-sm font-medium">All coding tasks completed</span>
                                 </div>
@@ -203,10 +203,7 @@ export const ChatDashboard: React.FC = () => {
                                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                     <Button
                                         onClick={() => setCurrentPage('code')}
-                                        className="gap-2"
-                                        style={{
-                                            background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
-                                        }}
+                                        className="gap-2 bg-gradient-to-r from-primary to-primary/70"
                                     >
                                         <ArrowRight size={18} />
                                         Go to Code Page
@@ -320,7 +317,7 @@ export const ChatDashboard: React.FC = () => {
                         {/* Success feedback */}
                         {createSpecMutation.isSuccess && (
                             <div className="mt-6 text-center">
-                                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-green-dim text-accent-green text-sm">
+                                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-success/20 text-success text-sm">
                                     <Sparkles size={16} />
                                     Specification created! Check the Code page.
                                 </div>

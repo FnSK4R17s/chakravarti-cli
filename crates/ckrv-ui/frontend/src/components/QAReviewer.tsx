@@ -156,8 +156,8 @@ const runReport = async (base: string, full: boolean): Promise<{ success: boolea
 
 const severityConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
     critical: { icon: AlertCircle, color: 'text-destructive', bgColor: 'bg-destructive/10', borderColor: 'border-destructive/50' },
-    major: { icon: AlertTriangle, color: 'text-accent-amber', bgColor: 'bg-accent-amber/10', borderColor: 'border-accent-amber/50' },
-    minor: { icon: Info, color: 'text-accent-cyan', bgColor: 'bg-accent-cyan/10', borderColor: 'border-accent-cyan/50' },
+    major: { icon: AlertTriangle, color: 'text-warning', bgColor: 'bg-warning/10', borderColor: 'border-warning/50' },
+    minor: { icon: Info, color: 'text-info', bgColor: 'bg-info/10', borderColor: 'border-info/50' },
     info: { icon: Info, color: 'text-muted-foreground', bgColor: 'bg-muted', borderColor: 'border-border' },
 };
 
@@ -213,9 +213,9 @@ const IssueCard: React.FC<{ issue: QAIssue; isExpanded: boolean; onToggle: () =>
                     {issue.suggestion && (
                         <div className="border-t border-border bg-muted/30 p-4">
                             <div className="flex items-start gap-2">
-                                <CheckCircle2 size={16} className="text-accent-green shrink-0 mt-0.5" />
+                                <CheckCircle2 size={16} className="text-success shrink-0 mt-0.5" />
                                 <div>
-                                    <div className="text-sm font-medium text-accent-green">Suggested Fix</div>
+                                    <div className="text-sm font-medium text-success">Suggested Fix</div>
                                     <div className="text-sm text-muted-foreground mt-1">{issue.suggestion}</div>
                                 </div>
                             </div>
@@ -230,9 +230,9 @@ const IssueCard: React.FC<{ issue: QAIssue; isExpanded: boolean; onToggle: () =>
 // Summary Card Component
 const SummaryCard: React.FC<{ summary: QASummary }> = ({ summary }) => {
     const verdictConfig = {
-        pass: { color: 'text-accent-green', bg: 'bg-accent-green/10', icon: CheckCircle2, label: 'Passed' },
+        pass: { color: 'text-success', bg: 'bg-success/10', icon: CheckCircle2, label: 'Passed' },
         fail: { color: 'text-destructive', bg: 'bg-destructive/10', icon: AlertCircle, label: 'Failed' },
-        review: { color: 'text-accent-amber', bg: 'bg-accent-amber/10', icon: AlertTriangle, label: 'Needs Review' },
+        review: { color: 'text-warning', bg: 'bg-warning/10', icon: AlertTriangle, label: 'Needs Review' },
     };
 
     const v = verdictConfig[summary.verdict];
@@ -260,17 +260,17 @@ const SummaryCard: React.FC<{ summary: QASummary }> = ({ summary }) => {
                     </div>
                     <div className="text-2xl font-bold text-destructive">{summary.critical}</div>
                 </Card>
-                <Card className="p-4 text-center border-accent-amber/30">
+                <Card className="p-4 text-center border-warning/30">
                     <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                        <AlertTriangle size={14} className="text-accent-amber" /> Major
+                        <AlertTriangle size={14} className="text-warning" /> Major
                     </div>
-                    <div className="text-2xl font-bold text-accent-amber">{summary.major}</div>
+                    <div className="text-2xl font-bold text-warning">{summary.major}</div>
                 </Card>
-                <Card className="p-4 text-center border-accent-cyan/30">
+                <Card className="p-4 text-center border-info/30">
                     <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                        <Info size={14} className="text-accent-cyan" /> Minor
+                        <Info size={14} className="text-info" /> Minor
                     </div>
-                    <div className="text-2xl font-bold text-accent-cyan">{summary.minor}</div>
+                    <div className="text-2xl font-bold text-info">{summary.minor}</div>
                 </Card>
                 <Card className="p-4 text-center">
                     <div className="text-sm text-muted-foreground">Files Reviewed</div>
@@ -298,7 +298,7 @@ const IssuesList: React.FC<{ issues: QAIssue[] }> = ({ issues }) => {
     if (issues.length === 0) {
         return (
             <div className="text-center py-12">
-                <CheckCircle2 size={48} className="inline text-accent-green mb-3" />
+                <CheckCircle2 size={48} className="inline text-success mb-3" />
                 <p className="text-lg font-medium text-foreground">No issues found!</p>
                 <p className="text-sm text-muted-foreground mt-1">Your code looks great.</p>
             </div>
@@ -335,7 +335,7 @@ const IssuesList: React.FC<{ issues: QAIssue[] }> = ({ issues }) => {
 
             {grouped.major.length > 0 && (
                 <div>
-                    <h4 className="font-medium text-accent-amber flex items-center gap-2 mb-2">
+                    <h4 className="font-medium text-warning flex items-center gap-2 mb-2">
                         <AlertTriangle size={16} /> Major ({grouped.major.length})
                     </h4>
                     <div className="space-y-2">
@@ -353,7 +353,7 @@ const IssuesList: React.FC<{ issues: QAIssue[] }> = ({ issues }) => {
 
             {grouped.minor.length > 0 && (
                 <div>
-                    <h4 className="font-medium text-accent-cyan flex items-center gap-2 mb-2">
+                    <h4 className="font-medium text-info flex items-center gap-2 mb-2">
                         <Info size={16} /> Minor ({grouped.minor.length})
                     </h4>
                     <div className="space-y-2">
@@ -554,9 +554,9 @@ export default function QAReviewer() {
                                 </div>
 
                                 {!agentData?.agent && (
-                                    <Card className="p-6 border-accent-amber/50 bg-accent-amber/5">
+                                    <Card className="p-6 border-warning/50 bg-warning/5">
                                         <div className="flex items-start gap-3">
-                                            <AlertTriangle className="text-accent-amber shrink-0" size={20} />
+                                            <AlertTriangle className="text-warning shrink-0" size={20} />
                                             <div>
                                                 <h4 className="font-medium">No QA Agent Configured</h4>
                                                 <p className="text-sm text-muted-foreground mt-1">
