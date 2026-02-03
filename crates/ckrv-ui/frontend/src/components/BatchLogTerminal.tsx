@@ -12,6 +12,7 @@
  *
  * @dependencies
  * - lucide-react: Icons for status indicators
+ * - @/lib/theme: Centralized theme constants
  *
  * @example
  * <BatchLogTerminal
@@ -27,17 +28,18 @@
 // === IMPORTS ===
 import React, { useRef, useEffect } from 'react';
 import { Loader2, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import { LOG_CLASSES, getStatusClass } from '@/lib/theme';
 
 // ============================================================
 // CONSTANTS
 // ============================================================
 
-// Consistent gray theme matching the app's dark design
+// Theme using shadcn semantic classes
 const BATCH_THEME = {
-    bg: 'bg-gray-900/50',
-    border: 'border-gray-700',
-    text: 'text-gray-300',
-    header: 'bg-[#252526]'
+    bg: 'bg-card',
+    border: 'border-border',
+    text: 'text-muted-foreground',
+    header: 'bg-muted'
 };
 
 
@@ -114,14 +116,6 @@ export const BatchLogTerminal: React.FC<BatchLogTerminalProps> = ({
         }
     }, [logs, autoScroll]);
 
-    const statusColors: Record<BatchStatus, string> = {
-        pending: 'text-gray-400',
-        waiting: 'text-gray-400',
-        running: 'text-amber-400',
-        completed: 'text-emerald-400',
-        failed: 'text-red-400',
-    };
-
     // Format model name for display (e.g., "claude-sonnet-4-20250514" -> "Claude Sonnet 4")
     const formatModelName = (modelId: string | undefined): string => {
         if (!modelId) return '';
@@ -154,7 +148,7 @@ export const BatchLogTerminal: React.FC<BatchLogTerminalProps> = ({
 
                     {/* Model Chip */}
                     {model && (
-                        <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-700 text-gray-300 border border-gray-600">
+                        <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-muted text-muted-foreground border border-border">
                             {formatModelName(model)}
                         </span>
                     )}
@@ -165,7 +159,7 @@ export const BatchLogTerminal: React.FC<BatchLogTerminalProps> = ({
                         </span>
                     )}
                 </div>
-                <div className={`flex items-center gap-1.5 text-xs ${statusColors[status]}`}>
+                <div className={`flex items-center gap-1.5 text-xs ${getStatusClass(status)}`}>
                     <StatusIcon status={status} />
                     <span className="capitalize">{status}</span>
                 </div>
@@ -175,7 +169,7 @@ export const BatchLogTerminal: React.FC<BatchLogTerminalProps> = ({
             {/* Log Content */}
             <div
                 ref={scrollRef}
-                className="flex-1 min-h-0 overflow-y-auto p-2 font-mono text-xs scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
+                className="flex-1 min-h-0 overflow-y-auto p-2 font-mono text-xs custom-scrollbar"
                 style={{ maxHeight: 'calc(100% - 44px)' }}
             >
                 {logs.length === 0 ? (
@@ -185,7 +179,7 @@ export const BatchLogTerminal: React.FC<BatchLogTerminalProps> = ({
                 ) : (
                     logs.map((log, i) => (
                         <div key={i} className="flex gap-2 leading-relaxed">
-                            <span className="text-muted-foreground shrink-0">{log.time}</span>
+                            <span className={LOG_CLASSES.timestamp + ' shrink-0'}>{log.time}</span>
                             <span className={getLogTypeColor(log.type)}>{log.message}</span>
                         </div>
                     ))
@@ -195,20 +189,25 @@ export const BatchLogTerminal: React.FC<BatchLogTerminalProps> = ({
     );
 };
 
+/**
+ * Get the appropriate color class for a log entry type.
+ * Uses centralized theme constants from @/lib/theme.
+ */
 function getLogTypeColor(type: BatchLogEntry['type']): string {
     switch (type) {
         case 'success':
         case 'batch_complete':
-            return 'text-emerald-400';
+            return LOG_CLASSES.success;
         case 'error':
         case 'batch_error':
-            return 'text-red-400';
+            return LOG_CLASSES.error;
         case 'start':
         case 'batch_start':
-            return 'text-amber-400';
+            return LOG_CLASSES.warning;
         default:
             return 'text-foreground';
     }
 }
 
 export default BatchLogTerminal;
+

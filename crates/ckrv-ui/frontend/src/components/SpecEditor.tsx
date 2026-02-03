@@ -160,11 +160,11 @@ const Section: React.FC<{
     const [isOpen, setIsOpen] = useState(defaultOpen);
     const colorClasses = {
         slate: 'border-border bg-muted/50',
-        blue: 'border-accent-cyan bg-accent-cyan-dim',
-        green: 'border-accent-green bg-accent-green-dim',
-        amber: 'border-accent-amber bg-accent-amber-dim',
-        purple: 'border-accent-purple bg-accent-purple-dim',
-        cyan: 'border-cyan-500/30 bg-cyan-500/5'
+        blue: 'border-info bg-info/20',
+        green: 'border-success bg-success/20',
+        amber: 'border-warning bg-warning/20',
+        purple: 'border-primary bg-primary/20',
+        cyan: 'border-info/30 bg-info/5'
     };
 
     return (
@@ -252,9 +252,9 @@ const UserStoryCard: React.FC<{ story: UserStory }> = ({ story }) => {
                                 <label className="text-xs text-muted-foreground uppercase tracking-wide">Acceptance Scenarios</label>
                                 {story.acceptance_scenarios.map((ac, i) => (
                                     <div key={i} className="ml-2 mt-2 text-sm text-muted-foreground space-y-1 p-2 bg-muted/30 rounded">
-                                        <div><span className="text-accent-purple font-medium">Given:</span> {ac.given}</div>
-                                        <div><span className="text-accent-cyan font-medium">When:</span> {ac.when}</div>
-                                        <div><span className="text-accent-green font-medium">Then:</span> {ac.then}</div>
+                                        <div><span className="text-primary font-medium">Given:</span> {ac.given}</div>
+                                        <div><span className="text-info font-medium">When:</span> {ac.when}</div>
+                                        <div><span className="text-success font-medium">Then:</span> {ac.then}</div>
                                     </div>
                                 ))}
                             </div>
@@ -294,25 +294,25 @@ const OutlineView: React.FC<{ spec: SpecDetail }> = ({ spec }) => (
     <div className="font-mono text-sm space-y-1">
         <div className="text-muted-foreground">spec:</div>
         <div className="pl-4">
-            <div><span className="text-accent-purple">id:</span> <span className="text-foreground">{spec.id}</span></div>
-            {spec.branch && <div><span className="text-accent-purple">branch:</span> <span className="text-muted-foreground">{spec.branch}</span></div>}
-            {spec.status && <div><span className="text-accent-purple">status:</span> <span className="text-muted-foreground">{spec.status}</span></div>}
-            <div><span className="text-accent-purple">overview:</span> <span className="text-muted-foreground truncate inline-block max-w-md">{spec.overview?.slice(0, 80)}...</span></div>
+            <div><span className="text-primary">id:</span> <span className="text-foreground">{spec.id}</span></div>
+            {spec.branch && <div><span className="text-primary">branch:</span> <span className="text-muted-foreground">{spec.branch}</span></div>}
+            {spec.status && <div><span className="text-primary">status:</span> <span className="text-muted-foreground">{spec.status}</span></div>}
+            <div><span className="text-primary">overview:</span> <span className="text-muted-foreground truncate inline-block max-w-md">{spec.overview?.slice(0, 80)}...</span></div>
             <div className="mt-2">
-                <span className="text-accent-purple">user_stories:</span> <span className="text-muted-foreground">({spec.user_stories?.length || 0})</span>
+                <span className="text-primary">user_stories:</span> <span className="text-muted-foreground">({spec.user_stories?.length || 0})</span>
                 {spec.user_stories?.map(s => (
                     <div key={s.id} className="pl-4 text-muted-foreground">- {s.id}: {s.title}</div>
                 ))}
             </div>
             <div className="mt-2">
-                <span className="text-accent-purple">requirements.functional:</span> <span className="text-muted-foreground">({spec.requirements?.functional?.length || 0})</span>
+                <span className="text-primary">requirements.functional:</span> <span className="text-muted-foreground">({spec.requirements?.functional?.length || 0})</span>
             </div>
             <div className="mt-2">
-                <span className="text-accent-purple">success_criteria:</span> <span className="text-muted-foreground">({spec.success_criteria?.length || 0})</span>
+                <span className="text-primary">success_criteria:</span> <span className="text-muted-foreground">({spec.success_criteria?.length || 0})</span>
             </div>
             {spec.clarifications && spec.clarifications.length > 0 && (
                 <div className="mt-2">
-                    <span className="text-accent-purple">clarifications:</span> <span className="text-yellow-400">({spec.clarifications.filter(c => !c.resolved).length} unresolved)</span>
+                    <span className="text-primary">clarifications:</span> <span className="text-warning">({spec.clarifications.filter(c => !c.resolved).length} unresolved)</span>
                 </div>
             )}
         </div>
@@ -526,9 +526,9 @@ export const SpecEditor: React.FC = () => {
             {/* Clarifications Alert */}
             {unresolvedCount > 0 && (
                 <div className="shrink-0 mx-4 mt-2">
-                    <Card className="border-yellow-500/50 bg-yellow-500/5">
+                    <Card className="border-warning/50 bg-warning/5">
                         <CardContent className="p-3 flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-yellow-400">
+                            <div className="flex items-center gap-2 text-warning">
                                 <Lightbulb size={18} />
                                 <span className="text-sm font-medium">
                                     {unresolvedCount} clarification{unresolvedCount > 1 ? 's' : ''} needed
@@ -537,7 +537,7 @@ export const SpecEditor: React.FC = () => {
                             <Button
                                 size="sm"
                                 variant="outline"
-                                className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
+                                className="border-warning/50 text-warning hover:bg-warning/10"
                                 onClick={() => setShowClarifyModal(true)}
                             >
                                 Resolve Now
@@ -587,7 +587,7 @@ export const SpecEditor: React.FC = () => {
                                         <div key={sc.id} className="py-2 border-b border-border last:border-0">
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="secondary" className="font-mono text-xs">{sc.id}</Badge>
-                                                <CheckCircle2 size={14} className="text-accent-green" />
+                                                <CheckCircle2 size={14} className="text-success" />
                                             </div>
                                             <p className="text-sm text-secondary-foreground mt-1">{sc.metric}</p>
                                             {sc.measurement && (
@@ -606,7 +606,7 @@ export const SpecEditor: React.FC = () => {
                                     <div className="space-y-1 mt-2">
                                         {spec.edge_cases.map((ec, i) => (
                                             <div key={i} className="flex items-start gap-2 py-1 text-sm text-muted-foreground">
-                                                <AlertCircle size={14} className="mt-1 flex-shrink-0 text-accent-amber" />
+                                                <AlertCircle size={14} className="mt-1 flex-shrink-0 text-warning" />
                                                 {ec}
                                             </div>
                                         ))}
@@ -634,18 +634,18 @@ export const SpecEditor: React.FC = () => {
                                     title="Clarifications"
                                     count={spec.clarifications.filter(c => !c.resolved).length}
                                     color="amber"
-                                    icon={<Lightbulb size={16} className="text-yellow-400" />}
+                                    icon={<Lightbulb size={16} className="text-warning" />}
                                 >
                                     <div className="space-y-3 mt-2">
                                         {spec.clarifications.map((cl, i) => (
-                                            <div key={i} className={`p-3 rounded-lg border ${cl.resolved ? 'border-green-500/30 bg-green-500/5' : 'border-yellow-500/30 bg-yellow-500/5'}`}>
+                                            <div key={i} className={`p-3 rounded-lg border ${cl.resolved ? 'border-success/30 bg-success/5' : 'border-warning/30 bg-warning/5'}`}>
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <Badge variant={cl.resolved ? 'success' : 'warning'}>{cl.topic}</Badge>
-                                                    {cl.resolved && <CheckCircle2 size={14} className="text-green-400" />}
+                                                    {cl.resolved && <CheckCircle2 size={14} className="text-success" />}
                                                 </div>
                                                 <p className="text-sm text-foreground">{cl.question}</p>
                                                 {cl.resolved && (
-                                                    <p className="text-sm text-green-400 mt-2">
+                                                    <p className="text-sm text-success mt-2">
                                                         <span className="font-medium">Answer:</span> {cl.resolved}
                                                     </p>
                                                 )}
@@ -735,7 +735,7 @@ export const SpecEditor: React.FC = () => {
                     <span>{spec.success_criteria?.length || 0} success criteria</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-accent-green"></span>
+                    <span className="w-2 h-2 rounded-full bg-success"></span>
                     <span>Read-only view</span>
                 </div>
             </div>

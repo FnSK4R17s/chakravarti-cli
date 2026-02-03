@@ -185,11 +185,11 @@ const getModelConfig = (modelId: string) => {
 
 // Status configuration
 const statusConfig: Record<BatchStatus, { color: string; textColor: string; borderColor: string; icon: React.ElementType; spin?: boolean }> = {
-    pending: { color: 'bg-slate-800/50', textColor: 'text-slate-400', borderColor: 'border-slate-600', icon: Circle },
-    waiting: { color: 'bg-blue-900/30', textColor: 'text-blue-400', borderColor: 'border-blue-500', icon: Clock },
-    running: { color: 'bg-amber-900/30', textColor: 'text-amber-400', borderColor: 'border-amber-500', icon: Loader2, spin: true },
-    completed: { color: 'bg-emerald-900/30', textColor: 'text-emerald-400', borderColor: 'border-emerald-500', icon: CheckCircle2 },
-    failed: { color: 'bg-red-900/30', textColor: 'text-red-400', borderColor: 'border-red-500', icon: AlertTriangle },
+    pending: { color: 'bg-muted/50', textColor: 'text-muted-foreground', borderColor: 'border-border', icon: Circle },
+    waiting: { color: 'bg-primary/30', textColor: 'text-primary', borderColor: 'border-primary', icon: Clock },
+    running: { color: 'bg-warning/30', textColor: 'text-warning', borderColor: 'border-warning', icon: Loader2, spin: true },
+    completed: { color: 'bg-success/30', textColor: 'text-success', borderColor: 'border-success', icon: CheckCircle2 },
+    failed: { color: 'bg-error/30', textColor: 'text-error', borderColor: 'border-error', icon: AlertTriangle },
 };
 
 // === HELPER COMPONENTS ===
@@ -206,7 +206,7 @@ const ProgressRing: React.FC<{ progress: number; size?: number; strokeWidth?: nu
         <div className="relative" style={{ width: size, height: size }}>
             <svg className="transform -rotate-90" width={size} height={size}>
                 <circle
-                    className="text-gray-700"
+                    className="text-muted-foreground"
                     strokeWidth={strokeWidth}
                     stroke="currentColor"
                     fill="transparent"
@@ -215,7 +215,7 @@ const ProgressRing: React.FC<{ progress: number; size?: number; strokeWidth?: nu
                     cy={size / 2}
                 />
                 <circle
-                    className="text-emerald-500 transition-all duration-500"
+                    className="text-success transition-all duration-500"
                     strokeWidth={strokeWidth}
                     strokeDasharray={circumference}
                     strokeDashoffset={offset}
@@ -228,7 +228,7 @@ const ProgressRing: React.FC<{ progress: number; size?: number; strokeWidth?: nu
                 />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-sm font-bold text-gray-200">{Math.round(progress)}%</span>
+                <span className="text-sm font-bold text-muted-foreground">{Math.round(progress)}%</span>
             </div>
         </div>
     );
@@ -291,7 +291,7 @@ const BatchLogPanel: React.FC<{
     const colorMap: Record<string, string> = {
         sky: 'bg-sky-900/30 text-sky-300',
         violet: 'bg-violet-900/30 text-violet-300',
-        amber: 'bg-amber-900/30 text-amber-300',
+        amber: 'bg-warning/30 text-warning',
     };
 
     return (
@@ -301,22 +301,22 @@ const BatchLogPanel: React.FC<{
             ${isExpanded ? 'col-span-2 row-span-2' : ''}
         `}>
             {/* Header */}
-            <div className="flex items-center justify-between px-3 py-2 bg-gray-900/50 border-b border-gray-700/50">
+            <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border/50">
                 <div className="flex items-center gap-2 min-w-0">
                     <div className={`p-1 rounded ${statusCfg.textColor}`}>
                         <StatusIcon size={14} className={statusCfg.spin ? 'animate-spin' : ''} />
                     </div>
-                    <span className="font-medium text-sm text-gray-200 truncate">{batch.name}</span>
-                    <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${colorMap[modelConfig.color] || 'bg-gray-700 text-gray-300'}`}>
+                    <span className="font-medium text-sm text-muted-foreground truncate">{batch.name}</span>
+                    <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${colorMap[modelConfig.color] || 'bg-muted text-muted-foreground'}`}>
                         <ModelIcon size={10} />
                         <span>{modelConfig.short}</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-500">{logs.length} lines</span>
+                    <span className="text-xs text-muted-foreground">{logs.length} lines</span>
                     <button
                         onClick={onToggleExpand}
-                        className="p-1 hover:bg-gray-700 rounded transition-colors"
+                        className="p-1 hover:bg-muted rounded transition-colors"
                         aria-label={isExpanded ? 'Minimize panel' : 'Maximize panel'}
                     >
                         {isExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
@@ -328,11 +328,11 @@ const BatchLogPanel: React.FC<{
             <div
                 ref={logsContainerRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto bg-gray-900/30 p-2 font-mono text-xs min-h-0 relative"
+                className="flex-1 overflow-y-auto bg-muted/30 p-2 font-mono text-xs min-h-0 relative"
                 data-testid="batch-log-container"
             >
                 {logs.length === 0 ? (
-                    <div className="text-gray-500 text-center py-4 flex items-center justify-center gap-2">
+                    <div className="text-muted-foreground text-center py-4 flex items-center justify-center gap-2">
                         {status === 'pending' && <Circle size={12} />}
                         {status === 'waiting' && <Clock size={12} className="animate-pulse" />}
                         {status === 'running' && <Loader2 size={12} className="animate-spin" />}
@@ -347,18 +347,18 @@ const BatchLogPanel: React.FC<{
                 ) : (
                     logs.map((log, i) => {
                         const textColor = {
-                            success: 'text-emerald-400',
-                            batch_complete: 'text-emerald-400',
-                            error: 'text-red-400',
-                            batch_error: 'text-red-400',
-                            start: 'text-amber-400',
-                            batch_start: 'text-cyan-400',
-                            info: 'text-gray-400',
-                        }[log.type] || 'text-gray-400';
+                            success: 'text-success',
+                            batch_complete: 'text-success',
+                            error: 'text-error',
+                            batch_error: 'text-error',
+                            start: 'text-warning',
+                            batch_start: 'text-info',
+                            info: 'text-muted-foreground',
+                        }[log.type] || 'text-muted-foreground';
 
                         return (
                             <div key={i} className={`py-0.5 ${textColor} break-all`}>
-                                <span className="text-gray-600 mr-2">{log.time}</span>
+                                <span className="text-muted-foreground mr-2">{log.time}</span>
                                 {log.message}
                             </div>
                         );
@@ -371,7 +371,7 @@ const BatchLogPanel: React.FC<{
             {isUserScrolled && logs.length > 0 && (
                 <button
                     onClick={handleScrollToBottom}
-                    className="absolute bottom-12 right-4 p-2 rounded-full bg-gray-800/90 hover:bg-gray-700 border border-gray-600 shadow-lg transition-all duration-200 flex items-center gap-1 text-xs text-gray-300"
+                    className="absolute bottom-12 right-4 p-2 rounded-full bg-muted/90 hover:bg-muted border border-border shadow-lg transition-all duration-200 flex items-center gap-1 text-xs text-muted-foreground"
                     style={{ backdropFilter: 'blur(4px)' }}
                     aria-label="Scroll to bottom"
                     data-testid="scroll-to-bottom-button"
@@ -1297,8 +1297,8 @@ export default function ExecutionRunner() {
                                     onClick={handlePlan}
                                     disabled={selectedSpecHasPlan}
                                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors ${selectedSpecHasPlan
-                                        ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-                                        : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                                        ? 'bg-muted/50 text-muted-foreground cursor-not-allowed'
+                                        : 'bg-muted hover:bg-muted text-muted-foreground'
                                         }`}
                                     data-testid="generate-plan-button"
                                     aria-label="Generate plan in Docker"
@@ -1312,8 +1312,8 @@ export default function ExecutionRunner() {
                                     onClick={handleRun}
                                     disabled={batches.length > 0 && completedBatches.size === batches.length}
                                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-all ${batches.length > 0 && completedBatches.size === batches.length
-                                        ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-                                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 hover:scale-105 active:scale-95'
+                                        ? 'bg-muted/50 text-muted-foreground cursor-not-allowed'
+                                        : 'bg-success hover:bg-success text-white shadow-lg shadow-emerald-900/20 hover:scale-105 active:scale-95'
                                         }`}
                                     data-testid="run-button"
                                     aria-label="Start execution"
@@ -1326,7 +1326,7 @@ export default function ExecutionRunner() {
                         ) : (
                             <button
                                 onClick={handleStop}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-900/50 hover:bg-red-900 border border-red-800 text-red-300 font-medium text-xs transition-colors"
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-error/50 hover:bg-error border border-error text-error font-medium text-xs transition-colors"
                                 data-testid="stop-button"
                                 aria-label="Stop execution"
                             >
@@ -1338,18 +1338,18 @@ export default function ExecutionRunner() {
                         {/* T024: WebSocket reconnection indicator (BUG-002) */}
                         {executionStatus === 'reconnecting' && (
                             <div
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-900/50 border border-amber-800 text-amber-300 text-xs font-medium"
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-warning/50 border border-warning text-warning text-xs font-medium"
                                 data-testid="reconnecting-indicator"
                             >
                                 <Loader2 size={14} className={isPending ? 'animate-spin' : 'animate-spin'} />
                                 <span>Reconnecting in {wsRetryCountdown}s</span>
-                                <span className="text-amber-500">(attempt {wsRetryCount}/{3})</span>
+                                <span className="text-warning">(attempt {wsRetryCount}/{3})</span>
                             </div>
                         )}
 
                         <button
                             onClick={handleReset}
-                            className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 transition-colors"
+                            className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
                             title="Reset state"
                             aria-label="Reset execution state"
                         >
@@ -1364,43 +1364,43 @@ export default function ExecutionRunner() {
                     {/* Top Section: Progress & Stats */}
                     <div className="flex gap-4 shrink-0 h-24">
                         {/* Overall Progress */}
-                        <div className="w-64 bg-gray-900/50 rounded-xl border border-gray-800 p-4 flex items-center gap-4">
+                        <div className="w-64 bg-muted/50 rounded-xl border border-border p-4 flex items-center gap-4">
                             <ProgressRing progress={progress} size={56} strokeWidth={6} />
                             <div>
-                                <div className="text-2xl font-bold text-gray-200">
+                                <div className="text-2xl font-bold text-muted-foreground">
                                     {completedBatches.size}/{batches.length}
                                 </div>
-                                <div className="text-xs text-gray-500 font-medium">BATCHES COMPLETED</div>
+                                <div className="text-xs text-muted-foreground font-medium">BATCHES COMPLETED</div>
                             </div>
                         </div>
 
                         {/* Stats Cards */}
                         <div className="flex-1 grid grid-cols-2 gap-4">
-                            <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-4 flex flex-col justify-center relative overflow-hidden group">
-                                <div className="absolute right-2 top-2 p-1.5 bg-gray-800/50 rounded-lg text-gray-500 group-hover:bg-cyan-900/30 group-hover:text-cyan-400 transition-colors">
+                            <div className="bg-muted/50 rounded-xl border border-border p-4 flex flex-col justify-center relative overflow-hidden group">
+                                <div className="absolute right-2 top-2 p-1.5 bg-muted/50 rounded-lg text-muted-foreground group-hover:bg-info/30 group-hover:text-info transition-colors">
                                     <Timer size={16} />
                                 </div>
-                                <div className="text-2xl font-mono font-bold text-gray-200 tabular-nums">
+                                <div className="text-2xl font-mono font-bold text-muted-foreground tabular-nums">
                                     {formatElapsedTime(elapsedTime)}
                                 </div>
-                                <div className="text-xs text-gray-500 font-medium mt-1">ELAPSED TIME</div>
+                                <div className="text-xs text-muted-foreground font-medium mt-1">ELAPSED TIME</div>
                             </div>
 
-                            <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-4 flex flex-col justify-center relative overflow-hidden group">
-                                <div className="absolute right-2 top-2 p-1.5 bg-gray-800/50 rounded-lg text-gray-500 group-hover:bg-emerald-900/30 group-hover:text-emerald-400 transition-colors">
+                            <div className="bg-muted/50 rounded-xl border border-border p-4 flex flex-col justify-center relative overflow-hidden group">
+                                <div className="absolute right-2 top-2 p-1.5 bg-muted/50 rounded-lg text-muted-foreground group-hover:bg-success/30 group-hover:text-success transition-colors">
                                     <DollarSign size={16} />
                                 </div>
-                                <div className="text-2xl font-mono font-bold text-gray-200 tabular-nums">
+                                <div className="text-2xl font-mono font-bold text-muted-foreground tabular-nums">
                                     ${estimatedCost.toFixed(4)}
                                 </div>
-                                <div className="text-xs text-gray-500 font-medium mt-1">ESTIMATED COST</div>
+                                <div className="text-xs text-muted-foreground font-medium mt-1">ESTIMATED COST</div>
                             </div>
                         </div>
                     </div>
 
                     {/* Middle Section: Batch Grid (if active) */}
                     {activeBatches.length > 0 && (
-                        <div className="flex-1 min-h-0 bg-gray-900/30 rounded-xl border border-gray-800/50 p-2 overflow-y-auto">
+                        <div className="flex-1 min-h-0 bg-muted/30 rounded-xl border border-border/50 p-2 overflow-y-auto">
                             <div className={`grid grid-cols-${cols} grid-rows-${rows} gap-2 h-full`}>
                                 {activeBatches.map(batch => (
                                     <BatchLogPanel
@@ -1417,23 +1417,23 @@ export default function ExecutionRunner() {
 
                     {/* Bottom Section: Orchestrator Log with View Toggle */}
                     <div className={`
-                         rounded-xl border border-gray-700 overflow-hidden shrink-0 flex flex-col
-                         transition-all duration-300 shadow-xl
+                         rounded-xl border border-border overflow-hidden shrink-0 flex flex-col
+                         transition-all duration-300 shadow-xl bg-card
                          ${orchestratorMinimized ? 'h-10' : 'h-80'}
-                     `} style={{ background: '#1e1e1e' }}>
-                        <div className="px-4 py-2 bg-[#252526] border-b border-[#333] flex items-center justify-between shrink-0 h-10">
+                     `}>
+                        <div className="px-4 py-2 bg-card border-b border-border flex items-center justify-between shrink-0 h-10">
                             <div className="flex items-center gap-3">
-                                <h3 className="font-semibold flex items-center gap-2 text-sm text-gray-300">
-                                    <TerminalIcon size={14} className="text-emerald-400" />
+                                <h3 className="font-semibold flex items-center gap-2 text-sm text-muted-foreground">
+                                    <TerminalIcon size={14} className="text-success" />
                                     {logViewMode === 'carousel' ? 'Batch Logs' : 'Orchestrator Log'}
                                 </h3>
                                 {/* T046: View mode toggle buttons */}
-                                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+                                <div className="flex items-center bg-muted rounded-lg p-0.5">
                                     <button
                                         onClick={() => setLogViewMode('carousel')}
                                         className={`px-2 py-1 text-xs rounded transition-colors ${logViewMode === 'carousel'
-                                            ? 'bg-emerald-600 text-white'
-                                            : 'text-gray-400 hover:text-gray-200'
+                                            ? 'bg-success text-white'
+                                            : 'text-muted-foreground hover:text-muted-foreground'
                                             }`}
                                         title="Carousel view - swipe between batches"
                                     >
@@ -1442,8 +1442,8 @@ export default function ExecutionRunner() {
                                     <button
                                         onClick={() => setLogViewMode('terminal')}
                                         className={`px-2 py-1 text-xs rounded transition-colors ${logViewMode === 'terminal'
-                                            ? 'bg-emerald-600 text-white'
-                                            : 'text-gray-400 hover:text-gray-200'
+                                            ? 'bg-success text-white'
+                                            : 'text-muted-foreground hover:text-muted-foreground'
                                             }`}
                                         title="Terminal view - all logs in one stream"
                                     >
@@ -1451,14 +1451,14 @@ export default function ExecutionRunner() {
                                     </button>
                                 </div>
                                 {logViewMode === 'carousel' && carouselBatches.length > 0 && (
-                                    <span className="text-xs text-gray-500">
+                                    <span className="text-xs text-muted-foreground">
                                         {carouselBatches.filter(b => b.status === 'completed').length}/{carouselBatches.length} complete
                                     </span>
                                 )}
                             </div>
                             <button
                                 onClick={() => setOrchestratorMinimized(!orchestratorMinimized)}
-                                className="p-1 hover:bg-white/10 rounded transition-colors text-gray-400"
+                                className="p-1 hover:bg-white/10 rounded transition-colors text-muted-foreground"
                             >
                                 {orchestratorMinimized ? <Maximize2 size={12} /> : <Minimize2 size={12} />}
                             </button>
@@ -1507,46 +1507,46 @@ export default function ExecutionRunner() {
 
             {/* Merge Panel - Slide over */}
             {unmergedBranches.length > 0 && (executionStatus === 'completed' || executionStatus === 'idle') && (
-                <div className="absolute right-4 bottom-20 w-80 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden animate-slide-up">
-                    <div className="p-3 border-b border-gray-700 flex items-center justify-between bg-gray-800/50">
+                <div className="absolute right-4 bottom-20 w-80 bg-muted border border-border rounded-xl shadow-2xl overflow-hidden animate-slide-up">
+                    <div className="p-3 border-b border-border flex items-center justify-between bg-muted/50">
                         <div className="flex items-center gap-2">
-                            <GitMerge size={16} className="text-purple-400" />
-                            <span className="font-medium text-sm text-gray-200">Merge Candidates</span>
+                            <GitMerge size={16} className="text-primary" />
+                            <span className="font-medium text-sm text-muted-foreground">Merge Candidates</span>
                         </div>
-                        <span className="text-xs bg-purple-900/30 text-purple-300 px-1.5 py-0.5 rounded-full border border-purple-800">
+                        <span className="text-xs bg-primary/30 text-primary px-1.5 py-0.5 rounded-full border border-primary">
                             {unmergedBranches.length}
                         </span>
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                         {unmergedBranches.map(branch => (
-                            <div key={branch.name} className="p-3 border-b border-gray-800 hover:bg-gray-800/30 transition-colors">
+                            <div key={branch.name} className="p-3 border-b border-border hover:bg-muted/30 transition-colors">
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className="text-xs font-mono text-purple-300">{branch.name}</span>
+                                    <span className="text-xs font-mono text-primary">{branch.name}</span>
                                     {branch.is_clean ? (
-                                        <CheckCircle2 size={12} className="text-emerald-500" />
+                                        <CheckCircle2 size={12} className="text-success" />
                                     ) : (
                                         <div title="Working directory not clean">
-                                            <AlertTriangle size={12} className="text-amber-500" />
+                                            <AlertTriangle size={12} className="text-warning" />
                                         </div>
                                     )}
                                 </div>
-                                <div className="text-xs text-gray-500 truncate">{branch.batch_name}</div>
-                                <div className="text-[10px] text-gray-600 mt-1">
+                                <div className="text-xs text-muted-foreground truncate">{branch.batch_name}</div>
+                                <div className="text-[10px] text-muted-foreground mt-1">
                                     {branch.ahead_commits} commits ahead
                                 </div>
                             </div>
                         ))}
                     </div>
-                    <div className="p-3 bg-gray-800/50">
+                    <div className="p-3 bg-muted/50">
                         {mergeResult ? (
-                            <div className={`text-xs p-2 rounded mb-2 ${mergeResult.success ? 'bg-emerald-900/20 text-emerald-400' : 'bg-red-900/20 text-red-400'}`}>
+                            <div className={`text-xs p-2 rounded mb-2 ${mergeResult.success ? 'bg-success/20 text-success' : 'bg-error/20 text-error'}`}>
                                 {mergeResult.message}
                             </div>
                         ) : null}
                         <button
                             onClick={handleMergeAll}
                             disabled={isMerging}
-                            className="w-full py-1.5 rounded bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            className="w-full py-1.5 rounded bg-primary hover:bg-primary text-white text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {isMerging ? (
                                 <>

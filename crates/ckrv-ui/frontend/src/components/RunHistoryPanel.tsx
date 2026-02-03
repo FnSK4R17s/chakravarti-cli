@@ -60,13 +60,13 @@ interface RunHistoryPanelProps {
 function StatusIcon({ status }: { status: RunStatus }) {
     switch (status) {
         case 'completed':
-            return <CheckCircle2 className="w-4 h-4 text-accent-green" />;
+            return <CheckCircle2 className="w-4 h-4 text-success" />;
         case 'failed':
             return <XCircle className="w-4 h-4 text-destructive" />;
         case 'running':
-            return <Loader2 className="w-4 h-4 text-accent-cyan animate-spin" />;
+            return <Loader2 className="w-4 h-4 text-info animate-spin" />;
         case 'aborted':
-            return <Slash className="w-4 h-4 text-accent-amber" />;
+            return <Slash className="w-4 h-4 text-warning" />;
         case 'pending':
         default:
             return <Circle className="w-4 h-4 text-muted-foreground" />;

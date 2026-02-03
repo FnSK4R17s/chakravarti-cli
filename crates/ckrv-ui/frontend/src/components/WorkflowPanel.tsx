@@ -175,7 +175,7 @@ export const WorkflowPanel: React.FC = () => {
                         ) : inProgressTasks === 0 ? (
                             <EmptyState text="Ready to run" hint="ckrv run" />
                         ) : (
-                            <div className="flex items-center gap-2 text-sm text-accent-purple">
+                            <div className="flex items-center gap-2 text-sm text-primary">
                                 <Loader2 size={14} className="animate-spin" />
                                 <span>{inProgressTasks} running</span>
                             </div>
@@ -225,17 +225,17 @@ const PipelineStage: React.FC<PipelineStageProps> = ({
     icon, title, count, status, color, loading, subtitle, children
 }) => {
     const colorMap = {
-        cyan: 'var(--accent-cyan)',
-        green: 'var(--accent-green)',
-        purple: 'var(--accent-purple)',
-        amber: 'var(--accent-amber)',
+        cyan: 'hsl(var(--info))',
+        green: 'hsl(var(--success))',
+        purple: 'hsl(var(--primary))',
+        amber: 'hsl(var(--warning))',
     };
 
     const dimColorMap = {
-        cyan: 'var(--accent-cyan-dim)',
-        green: 'var(--accent-green-dim)',
-        purple: 'var(--accent-purple-dim)',
-        amber: 'var(--accent-amber-dim)',
+        cyan: 'hsl(var(--info) / 0.2)',
+        green: 'hsl(var(--success) / 0.2)',
+        purple: 'hsl(var(--primary) / 0.2)',
+        amber: 'hsl(var(--warning) / 0.2)',
     };
 
     const accentColor = colorMap[color];
@@ -275,7 +275,7 @@ const PipelineStage: React.FC<PipelineStageProps> = ({
                 </div>
                 <div
                     className="text-lg font-mono font-bold"
-                    style={{ color: count > 0 ? accentColor : 'var(--text-muted)' }}
+                    style={{ color: count > 0 ? accentColor : 'hsl(var(--muted-foreground))' }}
                 >
                     {loading ? <Loader2 size={18} className="animate-spin" /> : count}
                 </div>
@@ -296,10 +296,10 @@ const SpecItem: React.FC<{ spec: Spec }> = ({ spec }) => {
                 className="w-1.5 h-1.5 rounded-full"
                 style={{
                     background: spec.has_implementation
-                        ? 'var(--accent-cyan)'
+                        ? 'hsl(var(--info))'
                         : spec.has_tasks
-                            ? 'var(--accent-green)'
-                            : 'var(--accent-amber)'
+                            ? 'hsl(var(--success))'
+                            : 'hsl(var(--warning))'
                 }}
             />
             <span className="font-mono truncate flex-1 text-secondary-foreground">
@@ -308,7 +308,7 @@ const SpecItem: React.FC<{ spec: Spec }> = ({ spec }) => {
             {spec.has_implementation ? (
                 <Badge variant="default" className="text-[10px] h-4 px-1">merged</Badge>
             ) : spec.has_tasks ? (
-                <CheckCircle2 size={12} className="text-accent-green" />
+                <CheckCircle2 size={12} className="text-success" />
             ) : null}
         </div>
     );
@@ -318,9 +318,9 @@ const TaskItem: React.FC<{ task: Task }> = ({ task }) => {
     const getStatusIcon = () => {
         switch (task.status) {
             case 'completed':
-                return <CheckCircle2 size={12} className="text-accent-green" />;
+                return <CheckCircle2 size={12} className="text-success" />;
             case 'in_progress':
-                return <Loader2 size={12} className="animate-spin text-accent-cyan" />;
+                return <Loader2 size={12} className="animate-spin text-info" />;
             default:
                 return <Circle size={12} className="text-muted-foreground" />;
         }
@@ -370,7 +370,7 @@ const ImplementationDetails: React.FC<ImplementationDetailsProps> = ({ branch, t
 
         {/* Branch info */}
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
-            <GitBranch size={12} className="text-accent-cyan" />
+            <GitBranch size={12} className="text-info" />
             <span
                 className="font-mono truncate text-secondary-foreground"
                 title={branch}
@@ -381,7 +381,7 @@ const ImplementationDetails: React.FC<ImplementationDetailsProps> = ({ branch, t
 
         {/* Tasks count */}
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
-            <CheckCircle2 size={12} className="text-accent-green" />
+            <CheckCircle2 size={12} className="text-success" />
             <span className="text-secondary-foreground">
                 {tasksCompleted} tasks completed
             </span>
@@ -398,7 +398,7 @@ const ReviewSteps: React.FC = () => (
     <div className="space-y-2">
         {/* Diff */}
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
-            <GitCompare size={12} className="text-accent-cyan" />
+            <GitCompare size={12} className="text-info" />
             <span className="text-secondary-foreground">View Diff</span>
             <code className="ml-auto text-[10px] font-mono text-muted-foreground">
                 ckrv diff
@@ -407,7 +407,7 @@ const ReviewSteps: React.FC = () => (
 
         {/* Verify */}
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
-            <ShieldCheck size={12} className="text-accent-amber" />
+            <ShieldCheck size={12} className="text-warning" />
             <span className="text-secondary-foreground">Verify</span>
             <code className="ml-auto text-[10px] font-mono text-muted-foreground">
                 ckrv verify
@@ -416,7 +416,7 @@ const ReviewSteps: React.FC = () => (
 
         {/* Promote */}
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
-            <GitPullRequest size={12} className="text-accent-green" />
+            <GitPullRequest size={12} className="text-success" />
             <span className="text-secondary-foreground">Create PR</span>
             <code className="ml-auto text-[10px] font-mono text-muted-foreground">
                 ckrv promote

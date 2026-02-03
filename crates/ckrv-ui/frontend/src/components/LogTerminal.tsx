@@ -27,6 +27,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { Card } from '@/components/ui/card';
+import { getTerminalTheme } from '@/lib/theme';
 
 interface LogTerminalProps {
     onMount?: (term: Terminal) => void;
@@ -66,44 +67,13 @@ export const LogTerminal: React.FC<LogTerminalProps> = ({ onMount, className }) 
     useEffect(() => {
         if (!terminalRef.current || xtermRef.current) return;
 
-        // T039/T040: Get theme colors from CSS variables (BUG-012)
-        const computedStyle = getComputedStyle(document.documentElement);
-        const getCSSVar = (name: string, fallback: string): string => {
-            const value = computedStyle.getPropertyValue(name).trim();
-            return value || fallback;
-        };
-
-        // Create xterm instance with theme derived from CSS variables
+        // Create xterm instance with theme-aware colors
         const term = new Terminal({
             cursorBlink: true,
             fontSize: 13,
             fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
             convertEol: true, // Handle \n as \r\n
-            theme: {
-                // Background colors from design system
-                background: getCSSVar('--bg-tertiary', '#1e1e1e'),
-                foreground: getCSSVar('--text-primary', '#d4d4d4'),
-                cursor: getCSSVar('--text-primary', '#d4d4d4'),
-                cursorAccent: getCSSVar('--bg-tertiary', '#1e1e1e'),
-                selectionBackground: getCSSVar('--accent-cyan-dim', '#264f78'),
-                // ANSI colors - using accent colors where applicable
-                black: getCSSVar('--bg-tertiary', '#1e1e1e'),
-                red: getCSSVar('--accent-red', '#f44747'),
-                green: getCSSVar('--accent-green', '#608b4e'),
-                yellow: getCSSVar('--accent-amber', '#dcdcaa'),
-                blue: '#569cd6', // VS Code blue
-                magenta: getCSSVar('--accent-purple', '#c586c0'),
-                cyan: getCSSVar('--accent-cyan', '#4ec9b0'),
-                white: getCSSVar('--text-primary', '#d4d4d4'),
-                brightBlack: getCSSVar('--text-muted', '#808080'),
-                brightRed: getCSSVar('--accent-red', '#f44747'),
-                brightGreen: getCSSVar('--accent-green', '#608b4e'),
-                brightYellow: getCSSVar('--accent-amber', '#dcdcaa'),
-                brightBlue: '#569cd6', // VS Code blue
-                brightMagenta: getCSSVar('--accent-purple', '#c586c0'),
-                brightCyan: getCSSVar('--accent-cyan', '#4ec9b0'),
-                brightWhite: '#ffffff',
-            },
+            theme: getTerminalTheme(),
         });
 
         const fitAddon = new FitAddon();

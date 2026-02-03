@@ -27,6 +27,7 @@ import { Terminal as TerminalIcon, Circle, X } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+import { getTerminalTheme } from '@/lib/theme';
 import type { AgentConfig } from './AgentManager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -95,7 +96,7 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                 return;
             }
 
-            // Create xterm instance with full terminal support
+            // Create xterm instance with theme-aware colors
             const term = new Terminal({
                 cursorBlink: true,
                 fontSize: 14,
@@ -105,29 +106,7 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                 rows: 30,
                 convertEol: true,
                 allowProposedApi: true,
-                theme: {
-                    background: '#1e1e1e',
-                    foreground: '#d4d4d4',
-                    cursor: '#d4d4d4',
-                    cursorAccent: '#1e1e1e',
-                    selectionBackground: '#264f78',
-                    black: '#1e1e1e',
-                    red: '#f44747',
-                    green: '#608b4e',
-                    yellow: '#dcdcaa',
-                    blue: '#569cd6',
-                    magenta: '#c586c0',
-                    cyan: '#4ec9b0',
-                    white: '#d4d4d4',
-                    brightBlack: '#808080',
-                    brightRed: '#f44747',
-                    brightGreen: '#608b4e',
-                    brightYellow: '#dcdcaa',
-                    brightBlue: '#569cd6',
-                    brightMagenta: '#c586c0',
-                    brightCyan: '#4ec9b0',
-                    brightWhite: '#ffffff',
-                },
+                theme: getTerminalTheme(),
             });
 
             const fitAddon = new FitAddon();
@@ -339,8 +318,7 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                     <Card className="h-full w-full overflow-hidden rounded-lg border-border">
                         <div
                             ref={terminalRef}
-                            className="w-full h-full p-2"
-                            style={{ background: '#1e1e1e', minHeight: '400px' }}
+                            className="w-full h-full p-2 bg-background min-h-[400px]"
                         />
                     </Card>
                 </div>

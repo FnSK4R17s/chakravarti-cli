@@ -198,15 +198,15 @@ export const BatchLogCarousel: React.FC<BatchLogCarouselProps> = ({
 function getStatusDotColor(status: BatchStatus): string {
     switch (status) {
         case 'running':
-            return 'bg-amber-500 animate-pulse';
+            return 'bg-warning animate-pulse';
         case 'completed':
-            return 'bg-emerald-500';
+            return 'bg-success';
         case 'failed':
-            return 'bg-red-500';
+            return 'bg-error';
         case 'waiting':
-            return 'bg-blue-500';
+            return 'bg-primary';
         default:
-            return 'bg-slate-500';
+            return 'bg-muted-foreground';
     }
 }
 

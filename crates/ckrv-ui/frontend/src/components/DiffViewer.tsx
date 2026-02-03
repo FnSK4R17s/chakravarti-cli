@@ -95,10 +95,10 @@ const statusIcons: Record<string, React.ElementType> = {
 };
 
 const statusColors: Record<string, string> = {
-    added: 'text-accent-green',
-    modified: 'text-accent-amber',
+    added: 'text-success',
+    modified: 'text-warning',
     deleted: 'text-destructive',
-    renamed: 'text-accent-cyan',
+    renamed: 'text-info',
 };
 
 // Parse diff content into lines with styling
@@ -162,14 +162,14 @@ const FileDiffView: React.FC<{ file: FileDiff; isExpanded: boolean; onToggle: ()
                                 let textColor = 'text-muted-foreground';
 
                                 if (line.type === 'add') {
-                                    bgColor = 'bg-accent-green/10';
-                                    textColor = 'text-accent-green';
+                                    bgColor = 'bg-success/10';
+                                    textColor = 'text-success';
                                 } else if (line.type === 'remove') {
                                     bgColor = 'bg-destructive/10';
                                     textColor = 'text-destructive';
                                 } else if (line.type === 'hunk') {
-                                    bgColor = 'bg-accent-cyan/10';
-                                    textColor = 'text-accent-cyan';
+                                    bgColor = 'bg-info/10';
+                                    textColor = 'text-info';
                                 } else if (line.type === 'header') {
                                     textColor = 'text-muted-foreground';
                                 }
@@ -177,7 +177,7 @@ const FileDiffView: React.FC<{ file: FileDiff; isExpanded: boolean; onToggle: ()
                                 return (
                                     <div
                                         key={i}
-                                        className={`px-4 py-0.5 ${bgColor} ${textColor} border-l-2 ${line.type === 'add' ? 'border-accent-green' :
+                                        className={`px-4 py-0.5 ${bgColor} ${textColor} border-l-2 ${line.type === 'add' ? 'border-success' :
                                             line.type === 'remove' ? 'border-destructive' :
                                                 'border-transparent'
                                             }`}
@@ -378,7 +378,7 @@ export default function DiffViewer() {
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                        <Check size={48} className="text-accent-green mb-4" />
+                        <Check size={48} className="text-success mb-4" />
                         <p className="text-lg font-medium text-foreground">No differences</p>
                         <p className="text-sm mt-1">
                             {baseBranch} and {targetBranch} are identical

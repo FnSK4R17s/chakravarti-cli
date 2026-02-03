@@ -117,7 +117,7 @@ export function ClarifyModal({
                 <DialogHeader>
                     <div className="flex items-center justify-between">
                         <DialogTitle className="flex items-center gap-2 text-foreground">
-                            <HelpCircle className="w-5 h-5 text-yellow-400" />
+                            <HelpCircle className="w-5 h-5 text-warning" />
                             Clarification Needed
                         </DialogTitle>
                         <Badge variant="outline" className="text-muted-foreground">
@@ -245,7 +245,7 @@ export function ClarifyModal({
                             className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex
                                 ? 'bg-accent'
                                 : answers[unresolved[idx].topic]
-                                    ? 'bg-green-500'
+                                    ? 'bg-success'
                                     : 'bg-muted'
                                 }`}
                         />

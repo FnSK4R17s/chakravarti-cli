@@ -227,8 +227,8 @@ export const SpecNewDialog: React.FC<SpecNewDialogProps> = ({ open, onOpenChange
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-accent-green-dim">
-                            <Sparkles size={20} className="text-accent-green" />
+                        <div className="p-2 rounded-lg bg-success/20">
+                            <Sparkles size={20} className="text-success" />
                         </div>
                         <div>
                             <DialogTitle>New Specification</DialogTitle>
@@ -309,17 +309,17 @@ const CommandButton: React.FC<CommandButtonProps> = ({
     icon, label, description, command, action, disabled, loading, color
 }) => {
     const colorClasses = {
-        cyan: 'bg-accent-cyan-dim text-accent-cyan hover:border-accent-cyan hover:glow-cyan',
-        green: 'bg-accent-green-dim text-accent-green hover:border-accent-green hover:glow-green',
-        amber: 'bg-accent-amber-dim text-accent-amber hover:border-accent-amber hover:glow-amber',
-        purple: 'bg-accent-purple-dim text-accent-purple hover:border-accent-purple hover:glow-purple',
+        cyan: 'bg-info/20 text-info hover:border-info',
+        green: 'bg-success/20 text-success hover:border-success',
+        amber: 'bg-warning/20 text-warning hover:border-warning',
+        purple: 'bg-primary/20 text-primary hover:border-primary',
     };
 
     const arrowColors = {
-        cyan: 'text-accent-cyan',
-        green: 'text-accent-green',
-        amber: 'text-accent-amber',
-        purple: 'text-accent-purple',
+        cyan: 'text-info',
+        green: 'text-success',
+        amber: 'text-warning',
+        purple: 'text-primary',
     };
 
     return (

@@ -1,4 +1,4 @@
-import { useState, createContext, useContext } from 'react';
+import { useState, createContext, useContext, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
@@ -81,28 +81,42 @@ function App() {
     const [lastResult, setLastResult] = useState<CommandResult | null>(null);
     const [currentPage, setCurrentPage] = useState<PageType>('dashboard');
 
+    // Initialize theme from localStorage on mount
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+
+        const root = document.documentElement;
+        if (isDark) {
+            root.classList.add('dark');
+            root.classList.remove('light');
+        } else {
+            root.classList.remove('dark');
+            root.classList.add('light');
+        }
+    }, []);
+
     return (
         <ErrorBoundary>
             <QueryClientProvider client={queryClient}>
-                <div className="dark">
-                    <TooltipProvider delayDuration={200}>
-                        <NavigationContext.Provider value={{ currentPage, setCurrentPage }}>
-                            <CommandResultContext.Provider value={{ lastResult, setLastResult }}>
-                                <DashboardLayout>
-                                    <ErrorBoundary>
-                                        {currentPage === 'dashboard' && <DashboardPage />}
-                                        {currentPage === 'agents' && <AgentsPage />}
-                                        {currentPage === 'code' && <CodePage />}
-                                        {currentPage === 'test' && <TestPage />}
-                                        {currentPage === 'qa' && <QAPage />}
-                                        {currentPage === 'settings' && <SettingsPage />}
-                                    </ErrorBoundary>
-                                </DashboardLayout>
-                            </CommandResultContext.Provider>
-                        </NavigationContext.Provider>
-                    </TooltipProvider>
-                    <Toaster />
-                </div>
+                <TooltipProvider delayDuration={200}>
+                    <NavigationContext.Provider value={{ currentPage, setCurrentPage }}>
+                        <CommandResultContext.Provider value={{ lastResult, setLastResult }}>
+                            <DashboardLayout>
+                                <ErrorBoundary>
+                                    {currentPage === 'dashboard' && <DashboardPage />}
+                                    {currentPage === 'agents' && <AgentsPage />}
+                                    {currentPage === 'code' && <CodePage />}
+                                    {currentPage === 'test' && <TestPage />}
+                                    {currentPage === 'qa' && <QAPage />}
+                                    {currentPage === 'settings' && <SettingsPage />}
+                                </ErrorBoundary>
+                            </DashboardLayout>
+                        </CommandResultContext.Provider>
+                    </NavigationContext.Provider>
+                </TooltipProvider>
+                <Toaster />
             </QueryClientProvider>
         </ErrorBoundary>
     );

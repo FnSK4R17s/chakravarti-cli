@@ -88,7 +88,7 @@ const CodePage: React.FC<CodePageProps> = ({
                                     className={`relative gap-2 px-4 py-2 rounded-t-lg rounded-b-none border-b-2 transition-all
                                         data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-primary
                                         ${isComplete
-                                            ? 'text-foreground border-transparent data-[state=inactive]:text-accent-green'
+                                            ? 'text-foreground border-transparent data-[state=inactive]:text-success'
                                             : 'text-muted-foreground border-transparent data-[state=inactive]:hover:text-foreground'
                                         }`}
                                     data-testid={`code-tab-${tab.id}`}
@@ -98,7 +98,7 @@ const CodePage: React.FC<CodePageProps> = ({
                                     {isComplete && (
                                         <CheckCircle2
                                             size={14}
-                                            className="text-accent-green ml-1"
+                                            className="text-success ml-1"
                                             data-testid={`code-tab-${tab.id}-complete`}
                                         />
                                     )}
