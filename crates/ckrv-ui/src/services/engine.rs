@@ -1,3 +1,62 @@
+//! # Execution Engine
+//!
+//! Core orchestration engine for running AI agent tasks.
+//!
+//! ## Overview
+//!
+//! The `ExecutionEngine` is responsible for:
+//! - Loading and parsing execution plans (plan.yaml)
+//! - Scheduling batches with dependency resolution
+//! - Creating isolated Git worktrees for each batch
+//! - Executing tasks in Docker sandboxes
+//! - Streaming logs to connected WebSocket clients
+//! - Persisting execution history
+//!
+//! ## Architecture
+//!
+//! ```text
+//! ExecutionPlan
+//!       │
+//!       ▼
+//! ┌─────────────┐
+//! │   Batch 1   │──────────────────────────────┐
+//! │  (no deps)  │                              │
+//! └─────────────┘                              │
+//!       │                                      │
+//!       ▼                                      ▼
+//! ┌─────────────┐                       ┌─────────────┐
+//! │   Batch 2   │                       │   Batch 3   │
+//! │ depends:[1] │                       │ depends:[1] │
+//! └─────────────┘                       └─────────────┘
+//!       │                                      │
+//!       └──────────────┬───────────────────────┘
+//!                      ▼
+//!                ┌─────────────┐
+//!                │   Batch 4   │
+//!                │depends:[2,3]│
+//!                └─────────────┘
+//! ```
+//!
+//! ## Key Types
+//!
+//! - [`ExecutionEngine`] - Main orchestrator
+//! - [`ExecutionPlan`] - Parsed plan.yaml structure
+//! - [`Batch`] - Group of tasks to execute together
+//! - [`LogMessage`] - Real-time log event
+//!
+//! ## Example
+//!
+//! ```rust,ignore
+//! use ckrv_ui::services::engine::ExecutionEngine;
+//! use tokio::sync::mpsc;
+//!
+//! let (tx, rx) = mpsc::channel(100);
+//! let engine = ExecutionEngine::new(project_root, tx);
+//!
+//! engine.run_spec("my-feature".to_string(), false, None, "claude".to_string(), None)
+//!     .await?;
+//! ```
+
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::time::Duration;

@@ -1,3 +1,47 @@
+//! # Command Service
+//!
+//! CLI command execution wrapper for web UI integration.
+//!
+//! ## Overview
+//!
+//! The `CommandService` provides async wrappers around Chakravarti CLI commands,
+//! enabling the web UI to execute operations like:
+//! - Repository initialization (`ckrv init`)
+//! - Specification creation (`ckrv spec new`)
+//! - Task generation (`ckrv spec tasks`)
+//! - Plan generation (`ckrv plan`)
+//! - Execution (`ckrv run`)
+//! - Verification (`ckrv verify`)
+//!
+//! ## Features
+//!
+//! - **Real-time streaming**: Stdout/stderr are streamed via WebSocket
+//! - **Event emission**: Progress updates broadcast to all connected clients
+//! - **Error classification**: stderr lines classified as errors vs info logs
+//! - **State management**: Updates `AppState` with current mode (idle, running, etc.)
+//!
+//! ## Example
+//!
+//! ```rust,ignore
+//! use ckrv_ui::services::command::CommandService;
+//!
+//! let service = CommandService::new();
+//! let result = service.run_init(&state).await;
+//!
+//! match result {
+//!     Ok(msg) => println!("Success: {}", msg),
+//!     Err(e) => eprintln!("Failed: {}", e),
+//! }
+//! ```
+//!
+//! ## Event Types
+//!
+//! The service emits these orchestration events:
+//! - `Log` - Informational messages
+//! - `Error` - Error messages
+//! - `Success` - Operation completed successfully
+//! - `StepStart` / `StepEnd` - Execution phase boundaries
+
 use crate::hub::OrchestrationEvent;
 use crate::state::{AppState, SystemMode};
 use chrono::Utc;

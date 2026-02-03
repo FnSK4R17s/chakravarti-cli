@@ -1,3 +1,19 @@
+//! # Plan API
+//!
+//! REST handlers for execution plan management.
+//!
+//! ## Endpoints
+//!
+//! - `GET /api/plans/detail` - Load plan.yaml for a spec
+//! - `POST /api/plans/save` - Save modified plan
+//! - `GET /api/plans/models` - List OpenRouter models with pricing
+//!
+//! ## Key Types
+//!
+//! - [`Plan`] - Execution plan structure (batches)
+//! - [`Batch`] - Group of tasks with model assignment
+//! - [`ModelInfo`] - OpenRouter model metadata
+
 use crate::state::AppState;
 use axum::{
     extract::{Query, State},

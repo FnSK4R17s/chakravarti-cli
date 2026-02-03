@@ -1,3 +1,38 @@
+//! # Web Server
+//!
+//! Axum-based HTTP server for the Chakravarti web dashboard.
+//!
+//! ## Overview
+//!
+//! This module configures and starts the web server that serves:
+//! - Static frontend assets (embedded via `rust-embed`)
+//! - REST API endpoints for CRUD operations
+//! - WebSocket endpoints for real-time streaming
+//! - Server-Sent Events for orchestration updates
+//!
+//! ## Entry Point
+//!
+//! Use [`start_server`] to launch the server on a given port:
+//!
+//! ```rust,ignore
+//! ckrv_ui::start_server(3000).await?;
+//! ```
+//!
+//! ## Route Organization
+//!
+//! Routes are organized by domain:
+//! - `/api/specs/*` - Specification management
+//! - `/api/tasks/*` - Task management
+//! - `/api/execution/*` - Execution control
+//! - `/api/agents/*` - Agent configuration
+//! - `/api/test/*` - Test commands
+//! - `/api/qa/*` - QA commands
+//! - `/api/history/*` - Run history
+//!
+//! ## Environment Variables
+//!
+//! - `CKRV_PROJECT_ROOT` - Override project root (used in tests)
+
 use axum::{
     body::Body,
     extract::State,
