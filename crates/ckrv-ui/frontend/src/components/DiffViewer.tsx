@@ -1,3 +1,26 @@
+/**
+ * @module DiffViewer
+ * @description
+ * Git diff visualization component for comparing changes between branches.
+ * Shows file-by-file diffs with syntax highlighting, addition/deletion counts,
+ * and branch selection controls.
+ *
+ * @context
+ * Rendered as the main content of the Code/Diff page in the dashboard. Users
+ * select base and target branches to view file changes with inline diff display.
+ *
+ * @dependencies
+ * - useQuery: React Query for fetching branches and diffs
+ * - shadcn/ui components: Card, Badge, Select, Collapsible for consistent UI
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <DiffViewer />
+ *
+ * // Compares base branch to target branch with file-level diff display
+ */
+
+// === IMPORTS ===
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -197,9 +220,21 @@ const BranchSelector: React.FC<{
 
 // Main DiffViewer component
 export default function DiffViewer() {
+    // === STATE ===
+
+    // --- Branch Selection ---
+    /** Base branch for comparison */
     const [baseBranch, setBaseBranch] = useState<string>('');
+    /** Target branch to compare against base */
     const [targetBranch, setTargetBranch] = useState<string>('');
+
+    // --- UI State ---
+    /** Set of file paths that are expanded to show diff content */
     const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+
+    // ============================================================
+    // EFFECTS
+    // ============================================================
 
     // Fetch branches
     const { data: branchesData, isLoading: loadingBranches } = useQuery({
@@ -223,6 +258,10 @@ export default function DiffViewer() {
         queryFn: () => fetchDiff(baseBranch, targetBranch),
         enabled: !!baseBranch && !!targetBranch,
     });
+
+    // ============================================================
+    // HANDLERS
+    // ============================================================
 
     const toggleFile = (path: string) => {
         setExpandedFiles(prev => {

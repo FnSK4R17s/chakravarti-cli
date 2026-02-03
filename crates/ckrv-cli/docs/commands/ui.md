@@ -1,7 +1,7 @@
 ---
-command: ckrv ui
+command: ui
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 0ad833d
+last_commit: 34d5c95
 ---
 
 # ckrv ui
@@ -9,8 +9,6 @@ last_commit: 0ad833d
 Start the Web UI dashboard.
 
 ## Description
-
-Start the Web UI dashboard.
 
 Launches a local web server providing a visual interface for managing specifications, viewing execution progress, and reviewing AI agent output.
 
@@ -20,8 +18,9 @@ Opens automatically in your default browser.
 
 | Flag | Description |
 |------|-------------|
-| `--port <port>` | Server port (default: 3000) |
+| `--port <PORT>` | Port number for the web server (default: 3000) |
 | `--no-open` | Don't open browser automatically |
+| `--verbose`, `-v` | Enable verbose logging |
 
 ## Examples
 

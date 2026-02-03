@@ -1,12 +1,26 @@
 /**
- * useWebSocketReconnect Hook (T011)
- * 
+ * @module useWebSocketReconnect
+ * @description
  * Custom hook for managing WebSocket connections with automatic reconnection.
- * Implements exponential backoff with visible countdown.
- * 
- * Addresses BUG-002: WebSocket Connection Not Reconnected on Network Failure
+ * Implements exponential backoff with visible countdown for retry attempts.
+ * Handles connection lifecycle and provides send/receive capabilities.
+ *
+ * @context
+ * Used for all WebSocket connections in the UI. Provides resilient connections
+ * that automatically recover from network failures with user-visible status.
+ *
+ * @dependencies
+ * - WebSocket: Browser WebSocket API
+ * - Exponential backoff algorithm for retry delays
+ *
+ * @example
+ * const { state, connect, send, disconnect } = useWebSocketReconnect({
+ *   maxRetries: 3,
+ *   onMessage: handleMessage,
+ * });
  */
 
+// === IMPORTS ===
 import { useRef, useState, useCallback, useEffect } from 'react';
 
 export interface WebSocketState {

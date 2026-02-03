@@ -41,6 +41,8 @@ Chakravarti is a spec-driven autonomous agent orchestration engine. It transform
 | [Getting Started](crates/docs/getting-started.md) | Setup, build commands, first contribution |
 | [CLI Commands](crates/docs/cli-commands.md) | All commands with options and exit codes |
 | [Agent Guide](crates/docs/agent-guide.md) | Adding new AI agent integrations |
+| [Rust Conventions](crates/RUST_CONVENTIONS.md) | Rust patterns, CLI documentation (`long_about`, `after_help`) |
+| [Frontend Conventions](crates/ckrv-ui/FRONTEND_CONVENTIONS.md) | React/TypeScript patterns, JSDoc requirements |
 
 **Per-crate documentation** is in `crates/<crate>/docs/README.md`.
 
@@ -126,6 +128,13 @@ See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 
 ## Code Style
 
+> [!IMPORTANT]
+> **When writing Rust code, follow the conventions in [`crates/RUST_CONVENTIONS.md`](crates/RUST_CONVENTIONS.md).**
+> 
+> Key requirements for `ckrv-cli`:
+> - Every command needs `long_about` and `after_help` attributes
+> - These power the SKILL.md generation and MCP server tools
+
 - Follow Rust standard conventions
 - Use `rustfmt` for formatting
 - Pass `clippy` with no warnings
@@ -152,6 +161,15 @@ See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 - Run `cargo test --workspace` before committing
 
 ## Frontend Development
+
+> [!IMPORTANT]
+> **When writing frontend code, always follow the conventions in [`crates/ckrv-ui/FRONTEND_CONVENTIONS.md`](crates/ckrv-ui/FRONTEND_CONVENTIONS.md).**
+> 
+> Key requirements:
+> - Every file needs a `@module` header with `@description`, `@context`, `@dependencies`
+> - All Props interfaces must have JSDoc documentation
+> - State variables need comments explaining their purpose
+> - Components over 500 lines must be split
 
 ### Tech Stack
 

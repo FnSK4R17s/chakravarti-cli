@@ -1,15 +1,28 @@
 /**
- * T045, T047: BatchLogCarousel component for displaying multiple batch log terminals
+ * @module BatchLogCarousel
+ * @description
+ * Carousel component for navigating between multiple batch log terminals.
+ * Uses shadcn/ui Carousel with dot navigation indicators and auto-advance
+ * to the currently active batch.
  *
- * Uses shadcn/ui Carousel to display batch logs with navigation.
+ * @context
+ * Used in ExecutionRunner to display logs from multiple batches. Allows users
+ * to navigate between batches with visual status indicators showing
+ * pending/running/completed/failed states.
  *
- * Features:
- * - Horizontal carousel navigation between batches
- * - "Batch X of Y" indicator
- * - Dot navigation indicators
- * - Auto-advance to active batch
+ * @dependencies
+ * - BatchLogTerminal: Individual terminal display component
+ * - shadcn/ui Carousel: Navigation carousel component
+ *
+ * @example
+ * <BatchLogCarousel
+ *   batches={batchData}
+ *   activeBatchId={currentBatchId}
+ *   onBatchChange={handleBatchChange}
+ * />
  */
 
+// === IMPORTS ===
 import React, { useCallback, useEffect } from 'react';
 import {
     Carousel,
@@ -46,9 +59,20 @@ export const BatchLogCarousel: React.FC<BatchLogCarouselProps> = ({
     activeBatchId,
     onBatchChange,
 }) => {
+    // ============================================================
+    // STATE
+    // ============================================================
+    // === STATE ===
+    /** Carousel API instance for programmatic control */
     const [api, setApi] = React.useState<CarouselApi>();
+    /** Current slide index (1-based for display) */
     const [current, setCurrent] = React.useState(0);
+    /** Total number of slides */
     const [count, setCount] = React.useState(0);
+
+    // ============================================================
+    // EFFECTS
+    // ============================================================
 
     // Initialize carousel state
     useEffect(() => {
@@ -81,6 +105,10 @@ export const BatchLogCarousel: React.FC<BatchLogCarouselProps> = ({
             api.scrollTo(activeIndex);
         }
     }, [api, activeBatchId, batches]);
+
+    // ============================================================
+    // HANDLERS
+    // ============================================================
 
     // Navigate to specific batch by index
     const goToBatch = useCallback((index: number) => {

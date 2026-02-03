@@ -1,7 +1,7 @@
 ---
-command: ckrv test
+command: test
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 0ad833d
+last_commit: 34d5c95
 ---
 
 # ckrv test
@@ -9,8 +9,6 @@ last_commit: 0ad833d
 Run tests in sandbox, plan and write new tests.
 
 ## Description
-
-Run tests in sandbox, plan and write new tests.
 
 Comprehensive test management with AI assistance. Can run existing tests, analyze coverage gaps, and generate new tests using AI agents.
 
@@ -20,17 +18,9 @@ Subcommands: run, plan, write
 
 | Subcommand | Description |
 |------------|-------------|
-| `run` | Run existing tests in sandbox |
-| `plan` | Analyze changes and generate test plan |
-| `write` | Write new tests using test writer agent |
-
-## Options
-
-| Flag | Description |
-|------|-------------|
-| `--agent <agent>` | AI agent to use for test writing |
-| `--base <branch>` | Branch to compare against (default: main) |
-| `--json` | Output in JSON format |
+| `run` | Execute tests in Docker sandbox |
+| `plan` | Analyze coverage and plan new tests |
+| `write` | Generate new tests with AI |
 
 ## Examples
 

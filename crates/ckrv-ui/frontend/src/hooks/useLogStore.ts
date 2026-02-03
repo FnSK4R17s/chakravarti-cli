@@ -1,11 +1,24 @@
 /**
- * T021-T022, T039-T043: Log store hook for managing execution log history
+ * @module useLogStore
+ * @description
+ * Log store hooks for managing execution log history with React Query integration.
+ * Provides fetching, caching, timestamp tracking, and localStorage persistence
+ * for WebSocket reconnection support.
  *
- * Provides React Query integration for fetching and caching log history,
- * tracks the last seen timestamp for reconnection support,
- * and persists timestamps to localStorage for page refresh recovery.
+ * @context
+ * Used in ExecutionRunner and LogViewer for managing log state. Handles reconnection
+ * scenarios by tracking last-seen timestamps and fetching missed logs.
+ *
+ * @dependencies
+ * - useQuery, useInfiniteQuery: React Query for data fetching
+ * - localStorage: For timestamp persistence across page refreshes
+ * - fetchLogs, fetchLogsSince: Log service API functions
+ *
+ * @example
+ * const { lastSeenTimestamp, updateFromLogs, fetchMissedLogs } = useLogStore(executionId);
  */
 
+// === IMPORTS ===
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { fetchLogs, fetchTailLogs, fetchLogsSince, deleteLogs } from '../services/logService';

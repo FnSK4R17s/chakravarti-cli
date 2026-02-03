@@ -1,10 +1,29 @@
 /**
- * Completion Summary Component
- * 
- * Displays a clear summary when execution runs complete, including
- * batch statistics, elapsed time, and merged branches.
+ * @module CompletionSummary
+ * @description
+ * Summary display component shown when execution runs complete. Shows batch statistics,
+ * elapsed time, merged branches, and appropriate feedback based on success/failure status.
+ * Supports success, partial success, and failure states with distinct visual styling.
+ *
+ * @context
+ * Rendered in ExecutionRunner after a run completes. Provides clear visual feedback
+ * and actionable next steps based on execution outcome.
+ *
+ * @dependencies
+ * - RunSummary, RunStatus: Types from history module
+ * - formatElapsedTime: Utility for duration formatting
+ * - shadcn/ui components: Card, Badge, Button for consistent UI
+ *
+ * @example
+ * <CompletionSummary
+ *   status="completed"
+ *   summary={runSummary}
+ *   elapsedSeconds={123}
+ *   mergedBranches={['feature-a', 'feature-b']}
+ * />
  */
 
+// === IMPORTS ===
 import {
     CheckCircle2, XCircle, Clock, GitMerge,
     Trophy, AlertTriangle, Layers, Timer
@@ -14,6 +33,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { RunSummary, RunStatus } from '../types/history';
 import { formatElapsedTime } from '../types/history';
+
+// ============================================================
+// TYPES
+// ============================================================
 
 interface CompletionSummaryProps {
     status: RunStatus;
@@ -25,6 +48,10 @@ interface CompletionSummaryProps {
     onClose?: () => void;
     onViewHistory?: () => void;
 }
+
+// ============================================================
+// SUB-COMPONENTS
+// ============================================================
 
 /**
  * Stat Card Component using shadcn Card

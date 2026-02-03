@@ -1,3 +1,28 @@
+/**
+ * @module LogViewer
+ * @description
+ * Live event log viewer for monitoring orchestration events. Displays real-time
+ * logs via SSE with filtering, auto-scroll management, and export capabilities.
+ * Includes a "Fix with AI" action for error recovery.
+ *
+ * @context
+ * Used in the dashboard to show live execution logs. Connects to /api/events SSE
+ * endpoint for real-time updates. Integrates with CommandPalette context for
+ * displaying command results.
+ *
+ * @dependencies
+ * - EventSource: SSE for real-time log streaming
+ * - useCommandResult: Context for command result display
+ * - shadcn/ui components: Card, Badge, ScrollArea, Select for consistent UI
+ *
+ * @example
+ * // Rendered as part of the dashboard layout
+ * <LogViewer />
+ *
+ * // Supports filtering by type and text, export to file
+ */
+
+// === IMPORTS ===
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { type OrchestrationEvent } from '../types';
 import { useMutation } from '@tanstack/react-query';
@@ -19,16 +44,25 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 
+// === MAIN COMPONENT ===
+
 export const LogViewer: React.FC = () => {
+    // === STATE ===
+    /** Array of orchestration events received via SSE */
     const [logs, setLogs] = useState<OrchestrationEvent[]>([]);
+    /** Text filter for searching log messages */
     const [filter, setFilter] = useState<string>('');
+    /** Whether to automatically scroll to new logs */
     const [autoScroll, setAutoScroll] = useState(true);
+    /** Filter logs by type (all, info, error, etc.) */
     const [typeFilter, setTypeFilter] = useState<string>('all');
-    // T034: Track if user has manually paused auto-scroll
+    /** T034: Track if user has manually paused auto-scroll */
     const [userPausedScroll, setUserPausedScroll] = useState(false);
     const viewportRef = useRef<HTMLDivElement>(null);
     const lastScrollTopRef = useRef(0);
     const { lastResult, setLastResult } = useCommandResult();
+
+    // === HANDLERS ===
 
     // T032/T034/T035: Scroll detection for auto-scroll lock and resume
     const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -62,6 +96,8 @@ export const LogViewer: React.FC = () => {
         }
     }, []);
 
+    // === MUTATIONS ===
+
     // Fix with AI mutation
     const fixMutation = useMutation({
         mutationFn: async () => {
@@ -75,6 +111,9 @@ export const LogViewer: React.FC = () => {
         },
     });
 
+    // === EFFECTS ===
+
+    // SSE subscription: connect to /api/events and parse incoming log messages
     useEffect(() => {
         const evtSource = new EventSource('/api/events');
 
@@ -92,6 +131,7 @@ export const LogViewer: React.FC = () => {
         };
     }, []);
 
+    // Auto-scroll effect: scroll to bottom when new logs arrive if autoScroll is enabled
     useEffect(() => {
         if (autoScroll && viewportRef.current) {
             viewportRef.current.scrollTop = viewportRef.current.scrollHeight;

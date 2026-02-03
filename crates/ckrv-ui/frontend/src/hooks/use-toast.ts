@@ -1,3 +1,23 @@
+/**
+ * @module use-toast
+ * @description
+ * Toast notification hook providing state management and dispatch functions.
+ * Uses a reducer pattern with memory state for showing, updating, and dismissing
+ * toast messages with automatic removal after timeout.
+ *
+ * @context
+ * Used throughout the application for user feedback. Maintains a queue of toasts
+ * with configurable limit and auto-dismiss delay.
+ *
+ * @dependencies
+ * - ToastProps, ToastActionElement: Types from UI toast component
+ *
+ * @example
+ * const { toast, dismiss } = useToast();
+ * toast({ title: "Success", description: "Operation completed" });
+ */
+
+// === IMPORTS ===
 import * as React from "react"
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"

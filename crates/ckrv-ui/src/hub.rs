@@ -1,3 +1,32 @@
+//! # Event Hub
+//!
+//! Pub-sub infrastructure for broadcasting orchestration events.
+//!
+//! ## Overview
+//!
+//! The `Hub` provides a broadcast channel that allows services to publish
+//! events (logs, errors, step transitions) that are received by all connected
+//! WebSocket clients in real-time.
+//!
+//! ## Key Types
+//!
+//! - [`Hub`] - Broadcast channel wrapper
+//! - [`OrchestrationEvent`] - Event payload variants
+//! - [`SharedHub`] - Thread-safe shared reference
+//!
+//! ## Example
+//!
+//! ```rust,ignore
+//! let hub = Hub::new();
+//! let rx = hub.subscribe();
+//!
+//! hub.broadcast(OrchestrationEvent::Log {
+//!     message: "Starting...".into(),
+//!     timestamp: Utc::now().to_rfc3339(),
+//!     metadata: None,
+//! });
+//! ```
+
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::broadcast;

@@ -1,6 +1,25 @@
 /**
- * useSpec - Hook for spec state management and API interactions
+ * @module useSpec
+ * @description
+ * Comprehensive hooks for spec state management and API interactions. Includes
+ * fetching specs, creating, validating, generating design and tasks, and
+ * handling clarifications.
+ *
+ * @context
+ * Central spec management module used throughout the UI. Provides individual
+ * hooks for specific operations and a composite useSpecWorkflow hook for
+ * full workflow orchestration.
+ *
+ * @dependencies
+ * - useQuery, useMutation: React Query for data operations
+ * - Spec, SpecDetail, Clarification: Types for spec data structures
+ *
+ * @example
+ * const { data: specs } = useSpecs();
+ * const { spec, validate, generateTasksDoc } = useSpecWorkflow(specName);
  */
+
+// === IMPORTS ===
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 

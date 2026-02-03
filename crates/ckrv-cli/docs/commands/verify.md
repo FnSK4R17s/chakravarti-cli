@@ -1,7 +1,7 @@
 ---
-command: ckrv verify
+command: verify
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 0ad833d
+last_commit: 34d5c95
 ---
 
 # ckrv verify
@@ -9,8 +9,6 @@ last_commit: 0ad833d
 Run tests, lint, and quality checks.
 
 ## Description
-
-Run tests, lint, and quality checks.
 
 Validates the current code against project quality standards. Runs the test suite, linters, and any custom verification scripts.
 
@@ -20,12 +18,10 @@ Failed verifications can be fixed with `ckrv fix`.
 
 | Flag | Description |
 |------|-------------|
-| `--tests-only` | Run only tests |
-| `--lint` | Run linting only |
-| `--typecheck` | Run type checking only |
-| `--fix` | Auto-fix linting issues |
-| `--save` | Save results to verification.yaml |
-| `--json` | Output in JSON format |
+| `--tests-only` | Run only tests, skip linting |
+| `--lint-only` | Run only linting, skip tests |
+| `--verbose`, `-v` | Enable verbose logging |
+| `--json` | Output format: JSON instead of human-readable |
 
 ## Examples
 

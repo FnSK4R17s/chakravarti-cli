@@ -1,3 +1,27 @@
+/**
+ * @module AgentCliModal
+ * @description
+ * Modal dialog providing an interactive terminal for executing AI agent commands
+ * in a sandboxed Docker container. Supports full xterm.js terminal with copy/paste,
+ * WebSocket communication, and agent-specific configurations.
+ *
+ * @context
+ * Opened from AgentManager when a user clicks "Open Terminal" on an agent. Provides
+ * a real terminal experience with the selected agent's configuration applied.
+ *
+ * @dependencies
+ * - xterm: Terminal emulator for interactive shell
+ * - AgentConfig: Type from AgentManager for agent configuration
+ * - shadcn/ui components: Dialog, Badge, Button for consistent UI
+ *
+ * @example
+ * <AgentCliModal
+ *   agent={selectedAgent}
+ *   onClose={() => setShowTerminal(false)}
+ * />
+ */
+
+// === IMPORTS ===
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as TerminalIcon, Circle, X } from 'lucide-react';
 import { Terminal } from '@xterm/xterm';
@@ -8,6 +32,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+
+// ============================================================
+// API FUNCTIONS
+// ============================================================
 
 // API functions
 const startTerminalSession = async (sessionId: string, agent: AgentConfig) => {
@@ -40,9 +68,17 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
     const fitAddonRef = useRef<FitAddon | null>(null);
     const sessionIdRef = useRef(`term-${agent.id}-${Date.now()}`);
 
+    // === STATE ===
+    /** WebSocket connection status */
     const [status, setStatus] = useState<'connecting' | 'connected' | 'error' | 'disconnected'>('connecting');
+    /** Docker container ID running the agent */
     const [containerId, setContainerId] = useState<string | null>(null);
 
+    // ============================================================
+    // EFFECTS
+    // ============================================================
+
+    // Terminal initialization: wait for DOM, create xterm, and connect WebSocket
     useEffect(() => {
         let mounted = true;
 
@@ -234,6 +270,10 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
             stopTerminalSession(sessionIdRef.current).catch(() => { });
         };
     }, [agent.id]);
+
+    // ============================================================
+    // HANDLERS
+    // ============================================================
 
     const handleClose = () => {
         wsRef.current?.close();

@@ -1,3 +1,24 @@
+/**
+ * @module useAutoSelectedSpec
+ * @description
+ * Hook for automatically determining the current spec based on the active git branch.
+ * Matches branch names to spec names (e.g., "015-feature-name" on branch matches
+ * spec "015-feature-name") with fallback to partial matching.
+ *
+ * @context
+ * Used in SpecEditor, TaskEditor, and other components to auto-select the relevant
+ * spec without manual user selection. Makes branch-per-feature workflows seamless.
+ *
+ * @dependencies
+ * - useQuery: React Query for fetching status and specs
+ * - SystemStatus, SpecListItem: Types for git status and spec info
+ *
+ * @example
+ * const { selectedSpec, availableSpecs, activeBranch } = useAutoSelectedSpec();
+ * // selectedSpec will be the spec matching the current branch, or null
+ */
+
+// === IMPORTS ===
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { SystemStatus } from '../types';

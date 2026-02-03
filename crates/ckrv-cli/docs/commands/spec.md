@@ -1,7 +1,7 @@
 ---
-command: ckrv spec
+command: spec
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 0ad833d
+last_commit: 34d5c95
 ---
 
 # ckrv spec
@@ -9,8 +9,6 @@ last_commit: 0ad833d
 Create or manage feature specifications.
 
 ## Description
-
-Create or manage feature specifications.
 
 Specifications are the source of truth for AI-driven development. They define what needs to be built, the requirements, and acceptance criteria.
 
@@ -20,11 +18,11 @@ Subcommands: new, list, validate, edit, show
 
 | Subcommand | Description |
 |------------|-------------|
-| `new <description>` | Create a new specification from description |
+| `new` | Create a new specification |
 | `list` | List all specifications |
-| `validate` | Validate specification syntax |
+| `validate` | Validate a specification |
 | `edit` | Edit an existing specification |
-| `show` | Display specification details |
+| `show` | Show specification details |
 
 ## Examples
 

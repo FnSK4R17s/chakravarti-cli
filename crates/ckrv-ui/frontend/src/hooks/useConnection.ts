@@ -1,3 +1,23 @@
+/**
+ * @module useConnection
+ * @description
+ * Hook for monitoring backend connectivity. Pings /api/status periodically to
+ * check if the backend is alive and reports connected/disconnected/connecting states.
+ *
+ * @context
+ * Used for showing connection status indicators and warning users when backend
+ * is unreachable. Enables graceful degradation when network fails.
+ *
+ * @dependencies
+ * - fetch: For making health check requests
+ * - AbortController: For request timeout handling
+ *
+ * @example
+ * const { status, lastChecked, checkNow } = useConnection(5000);
+ * // status: 'connected' | 'disconnected' | 'connecting'
+ */
+
+// === IMPORTS ===
 import { useState, useEffect, useCallback } from 'react';
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting';

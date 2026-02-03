@@ -1,3 +1,28 @@
+/**
+ * @module QAReviewer
+ * @description
+ * Quality Assurance interface for reviewing code quality, finding bugs, and generating
+ * reports. Provides three main functions: code review, bug scanning, and full report
+ * generation using an AI-powered QA agent.
+ *
+ * @context
+ * Rendered as the main content of the QA page in the dashboard. Users run code reviews
+ * against a base branch, scan for potential bugs, and generate comprehensive QA reports.
+ * Requires a QA agent to be configured in Agent Manager.
+ *
+ * @dependencies
+ * - useQuery/useMutation: React Query for QA operations
+ * - shadcn/ui components: Card, Badge, Tabs, ScrollArea for consistent UI
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <QAReviewer />
+ *
+ * // Supports three tabs: Review, Bugs, Report
+ * // Issues are grouped by severity (critical, major, minor, info)
+ */
+
+// === IMPORTS ===
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
@@ -20,32 +45,69 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
-// Types
+// === TYPES ===
+
+/**
+ * A quality assurance issue found during code review.
+ */
 interface QAIssue {
+    /** Unique issue identifier */
     id: string;
+    /** File path where the issue was found */
     file: string;
+    /** Line number of the issue, if applicable */
     line?: number;
+    /** Severity: critical blocks release, info is advisory */
     severity: 'critical' | 'major' | 'minor' | 'info';
+    /** Issue category (e.g., code_quality, security, performance) */
     category: string;
+    /** Description of the issue */
     message: string;
+    /** Suggested fix or improvement */
     suggestion?: string;
 }
 
+/**
+ * Summary statistics from a QA review.
+ */
 interface QASummary {
+    /** Total number of issues found */
     total_issues: number;
+    /** Count of critical severity issues */
     critical: number;
+    /** Count of major severity issues */
     major: number;
+    /** Count of minor severity issues */
     minor: number;
+    /** Count of informational issues */
     info: number;
+    /** Number of files reviewed */
     files_reviewed: number;
+    /** Overall verdict: pass, fail, or needs review */
     verdict: 'pass' | 'fail' | 'review';
 }
 
+/**
+ * Complete output from a QA review run.
+ * 
+ * @example
+ * const review: QAReviewOutput = {
+ *   report_id: 'qa-123',
+ *   base_branch: 'main',
+ *   issues: [...],
+ *   summary: { total_issues: 5, critical: 0, ... }
+ * };
+ */
 interface QAReviewOutput {
+    /** Unique report identifier */
     report_id: string;
+    /** Base branch used for diff comparison */
     base_branch: string;
+    /** List of issues found */
     issues: QAIssue[];
+    /** Summary statistics */
     summary: QASummary;
+    /** ID of the agent that performed the review */
     agent_id?: string;
 }
 
@@ -56,7 +118,8 @@ interface Agent {
     is_qa_agent?: boolean;
 }
 
-// API functions
+// === API FUNCTIONS ===
+
 const fetchQAAgent = async (): Promise<{ agent: Agent | null }> => {
     const res = await fetch('/api/qa/agent');
     return res.json();
@@ -89,7 +152,8 @@ const runReport = async (base: string, full: boolean): Promise<{ success: boolea
     return res.json();
 };
 
-// Severity configuration
+// === CONSTANTS ===
+
 const severityConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
     critical: { icon: AlertCircle, color: 'text-destructive', bgColor: 'bg-destructive/10', borderColor: 'border-destructive/50' },
     major: { icon: AlertTriangle, color: 'text-accent-amber', bgColor: 'bg-accent-amber/10', borderColor: 'border-accent-amber/50' },
@@ -106,6 +170,8 @@ const categoryIcons: Record<string, React.ElementType> = {
     documentation: FileText,
     best_practice: CheckCircle2,
 };
+
+// === SUB-COMPONENTS ===
 
 // Issue Card Component
 const IssueCard: React.FC<{ issue: QAIssue; isExpanded: boolean; onToggle: () => void }> = ({
@@ -217,6 +283,7 @@ const SummaryCard: React.FC<{ summary: QASummary }> = ({ summary }) => {
 
 // Issues List Component
 const IssuesList: React.FC<{ issues: QAIssue[] }> = ({ issues }) => {
+    /** Set of issue IDs that are currently expanded to show details */
     const [expandedIssues, setExpandedIssues] = useState<Set<string>>(new Set());
 
     const toggleIssue = (id: string) => {
@@ -323,13 +390,28 @@ const IssuesList: React.FC<{ issues: QAIssue[] }> = ({ issues }) => {
     );
 };
 
-// Main QAReviewer component
+// === MAIN COMPONENT ===
+
 export default function QAReviewer() {
+    // === STATE ===
+
+    // --- Configuration ---
+    /** Base branch for diff comparison (defaults to main/master) */
     const [baseBranch, setBaseBranch] = useState('main');
+
+    // --- UI State ---
+    /** Active tab in the QA interface: review, bugs, or report */
     const [activeTab, setActiveTab] = useState('review');
+
+    // --- QA Data ---
+    /** Results from the code review analysis */
     const [reviewResult, setReviewResult] = useState<QAReviewOutput | null>(null);
+    /** Issues found by the bug analysis */
     const [bugIssues, setBugIssues] = useState<QAIssue[] | null>(null);
+    /** Full report markdown output */
     const [fullReport, setFullReport] = useState<string | null>(null);
+
+    // === QUERIES ===
 
     // Fetch QA agent
     const { data: agentData, isLoading: loadingAgent } = useQuery({
@@ -337,7 +419,7 @@ export default function QAReviewer() {
         queryFn: fetchQAAgent,
     });
 
-    // Mutations
+    // === MUTATIONS ===
     const reviewMutation = useMutation({
         mutationFn: () => runReview(baseBranch),
         onSuccess: (data) => {

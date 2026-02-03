@@ -113,7 +113,7 @@ For each crate needing updates:
 // turbo
 ```bash
 # Confirm docs compile (no broken markdown)
-cat <updated_doc_path> | head -5
+cat <updated_doc_path>
 ```
 
 ---
@@ -204,7 +204,7 @@ grep -E "^### \`" crates/docs/cli-commands.md | sed 's/### `\([^`]*\)`.*/\1/' | 
 // turbo
 ```bash
 # Check the ckrv-cli crate README for command details
-head -100 crates/ckrv-cli/docs/README.md 2>/dev/null
+cat crates/ckrv-cli/docs/README.md 2>/dev/null
 ```
 
 **Compare the lists.** For any missing commands:
@@ -250,13 +250,13 @@ ls crates/ckrv-sandbox/src/*.rs | xargs -I{} basename {} .rs
 // turbo
 ```bash
 # Get agents documented in agent-guide.md
-grep -E "^## |^### " crates/docs/agent-guide.md | head -20
+grep -E "^## |^### " crates/docs/agent-guide.md
 ```
 
 // turbo
 ```bash
 # Check the ckrv-sandbox crate README for agent details
-head -150 crates/ckrv-sandbox/docs/README.md 2>/dev/null
+cat crates/ckrv-sandbox/docs/README.md 2>/dev/null
 ```
 
 **For each agent provider file:**
@@ -285,13 +285,13 @@ head -150 crates/ckrv-sandbox/docs/README.md 2>/dev/null
 // turbo
 ```bash
 # Check if Makefile targets match getting-started.md
-grep -E "^[a-z-]+:" Makefile | cut -d: -f1 | head -10
+grep -E "^[a-z-]+:" Makefile | cut -d: -f1
 ```
 
 // turbo
 ```bash
 # Check documented commands
-grep -E "^make |^cargo |^pnpm " crates/docs/getting-started.md | head -10
+grep -E "^make |^cargo |^pnpm " crates/docs/getting-started.md
 ```
 
 // turbo
@@ -320,7 +320,7 @@ When updating `ckrv-cli`, also update CLI command attributes (`long_about`, `aft
 // turbo
 ```bash
 # List all Commands enum variants in lib.rs
-grep -E "^\s+/// " crates/ckrv-cli/src/lib.rs | head -30
+grep -E "^\s+/// " crates/ckrv-cli/src/lib.rs
 ```
 
 ### 12.2 For Each Command
@@ -411,3 +411,9 @@ Output final summary:
 2. Run `make skill` to regenerate SKILL.md
 3. Commit with: `git commit -m "docs: update crate docs to <NEW_COMMIT>"`
 ```
+
+---
+
+## Next Workflow
+
+Read the **docs-order** skill to determine what workflow to run next based on what was changed.

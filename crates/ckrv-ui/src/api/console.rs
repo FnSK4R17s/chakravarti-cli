@@ -1,3 +1,22 @@
+//! # Console API
+//!
+//! Interactive command execution via Docker sandbox.
+//!
+//! ## Overview
+//!
+//! Provides a way to execute arbitrary shell commands in the project
+//! context, optionally using a Docker sandbox for isolation.
+//!
+//! ## Endpoints
+//!
+//! - `POST /api/agents/cli` - Execute a command
+//!
+//! ## Session Management
+//!
+//! When `keep_container` is true, commands are executed in a persistent
+//! Docker container associated with the agent ID, allowing stateful
+//! interactions across multiple requests.
+
 use crate::state::AppState;
 use axum::{extract::State, response::IntoResponse, Json};
 use ckrv_sandbox::{DefaultAllowList, DockerSandbox, ExecuteConfig, LocalSandbox, Sandbox};

@@ -1,14 +1,15 @@
 # Contributing to Chakravarti
 
-Thank you for your interest in contributing to Chakravarti! This document provides guidelines and setup instructions for development.
+Thank you for your interest in contributing to chakravarti-cli! This document provides guidelines and setup instructions for development.
 
 ## Development Setup
 
 ### Prerequisites
 
-- Rust 1.75 or later
-- Docker (optional, for container sandbox testing)
-- Git
+- **Rust 1.75+**: Install via [rustup](https://rustup.rs/)
+- **Docker**: For sandboxed execution ([Docker Desktop](https://www.docker.com/products/docker-desktop/) or [Podman](https://podman.io/))
+- **Git 2.20+**: For worktree operations
+- **Node.js 18+**: For UI development (optional)
 
 ### Getting Started
 
@@ -25,37 +26,69 @@ cargo test --workspace
 
 # Run the CLI
 cargo run -p ckrv-cli -- --help
+
+# Install locally
+make install
 ```
 
-### Environment Setup
+### Agent Setup
 
-For full functionality, set up API keys:
+`ckrv` invokes AI agents via their CLI tools—no API keys needed. Install the agents you want to use:
 
-```bash
-# Create secrets directory (already in .gitignore)
-mkdir -p .chakravarti/secrets
+- **Claude Code**: [claude.ai/code](https://claude.ai/code) (requires Claude subscription)
+- **Codex**: [OpenAI Codex CLI](https://github.com/openai/codex-cli) (requires OpenAI subscription)
 
-# Add your keys
-echo "OPENAI_API_KEY=sk-..." > .chakravarti/secrets/.env
-echo "ANTHROPIC_API_KEY=sk-ant-..." >> .chakravarti/secrets/.env
+Configure agents in `~/.config/chakravarti/agents.yaml`:
+
+```yaml
+agents:
+  - name: claude-default
+    agent_type: claude
+    is_default: true
+  - name: codex
+    agent_type: codex
 ```
 
 ## Project Structure
 
 ```
 crates/
-├── ckrv-cli/       # Main CLI binary
-├── ckrv-core/      # Core types, job, plan, orchestrator
-├── ckrv-spec/      # Spec parsing (YAML/JSON)
-├── ckrv-model/     # LLM provider abstraction (⚠️ unused)
-├── ckrv-git/       # Git operations (git2 + shell)
-├── ckrv-sandbox/   # Docker execution, agent providers
-├── ckrv-verify/    # Test execution and parsing (⚠️ unused)
-├── ckrv-metrics/   # Cost/time tracking, file storage
-└── ckrv-ui/        # Web dashboard server + frontend
+├── ckrv-cli/          # Main CLI binary
+├── ckrv-core/         # Core types, job, plan, orchestrator
+├── ckrv-spec/         # Spec parsing (YAML/JSON)
+├── ckrv-git/          # Git operations (git2 + shell)
+├── ckrv-sandbox/      # Docker execution, agent providers
+├── ckrv-mcp/          # MCP server for AI agent integration
+├── ckrv-model/        # LLM provider abstraction (⚠️ unused)
+├── ckrv-metrics/      # Cost/time tracking, file storage
+├── ckrv-verify/       # Test execution and parsing (⚠️ unused)
+├── ckrv-integrations/ # External integrations stub (⚠️ stub)
+└── ckrv-ui/           # Web dashboard server + frontend
 ```
 
 ## Development Workflow
+
+### Running the CLI
+
+```bash
+# From the workspace root
+cargo run -p ckrv-cli -- --help
+
+# Or after installing
+ckrv --help
+```
+
+### Running the Web UI
+
+```bash
+# Start the backend server
+cargo run -p ckrv-cli -- ui --port 3000
+
+# For frontend development (in another terminal)
+cd crates/ckrv-ui/frontend
+npm install
+npm run dev
+```
 
 ### Running Tests
 
@@ -66,11 +99,8 @@ cargo test --workspace
 # Specific crate
 cargo test -p ckrv-core
 
-# With output
-cargo test -p ckrv-model -- --nocapture
-
-# Integration tests (require API keys)
-cargo test --test integration -- --ignored
+# With coverage (requires cargo-llvm-cov)
+cargo llvm-cov --workspace
 ```
 
 ### Code Quality
@@ -106,17 +136,17 @@ cargo build --release
 1. **CLI** parses arguments and loads spec
 2. **Spec** validates and normalizes the specification
 3. **Orchestrator** creates job and manages lifecycle
-4. **Sandbox** selects agent (Claude, Codex) and executes in Docker
+4. **Sandbox** invokes agent CLI (`claude`, `codex`) in Docker
 5. **Git** manages worktrees and branches
-6. **Metrics** tracks costs and timing
+6. **Metrics** tracks execution time
 
 > **Note**: Steps 4-6 run in a loop with retries until verification passes.
 
 ### Key Traits
 
-- `AgentProvider` - AI agent abstraction (Claude, Codex)
+- `AgentProvider` - AI agent CLI invocation (Claude, Codex)
 - `WorktreeManager` - Git worktree lifecycle
-- `Sandbox` - Command execution isolation
+- `Sandbox` - Docker container execution
 - `Orchestrator` - Job lifecycle management
 
 ## Pull Request Process
@@ -141,7 +171,7 @@ Use conventional commits:
 - `refactor:` Code refactoring
 - `chore:` Maintenance
 
-Example: `feat(router): add budget tracking for cost optimization`
+Example: `feat(sandbox): add Gemini CLI support`
 
 ## Adding a New Agent
 

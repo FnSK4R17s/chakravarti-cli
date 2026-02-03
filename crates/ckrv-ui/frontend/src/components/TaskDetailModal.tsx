@@ -1,3 +1,30 @@
+/**
+ * @module TaskDetailModal
+ * @description
+ * Modal dialog for viewing task details and executing individual tasks via AI agents.
+ * Shows task metadata, description, dependencies, and provides agent selection for
+ * task execution with an embedded terminal.
+ *
+ * @context
+ * Opened from TaskEditor when a user clicks on a task card. Provides detailed view
+ * of the task and allows executing it with a selected AI agent. Terminal output
+ * is shown in real-time during execution.
+ *
+ * @dependencies
+ * - AgentConfig: Type from AgentManager for agent selection
+ * - xterm: Terminal emulator for execution output
+ * - shadcn/ui components: Dialog, Card, Badge, Select for consistent UI
+ *
+ * @example
+ * <TaskDetailModal
+ *   task={selectedTask}
+ *   specName="my-feature"
+ *   onClose={() => setSelectedTask(null)}
+ *   onStatusChange={handleStatusChange}
+ * />
+ */
+
+// === IMPORTS ===
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -27,7 +54,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 
-// Types
+// === TYPES ===
+
 interface Task {
     id: string;
     phase: string;
@@ -44,14 +72,30 @@ interface Task {
     status: string;
 }
 
+/**
+ * Props for TaskDetailModal component.
+ * 
+ * @example
+ * <TaskDetailModal
+ *   task={selectedTask}
+ *   specName="018-frontend-docs"
+ *   onClose={() => setSelectedTask(null)}
+ *   onStatusChange={(id, status) => updateTask(id, status)}
+ * />
+ */
 interface TaskDetailModalProps {
+    /** The task to display details for */
     task: Task;
+    /** Name of the spec containing this task */
     specName: string;
+    /** Callback when modal is closed */
     onClose: () => void;
+    /** Callback when task status changes */
     onStatusChange: (taskId: string, status: string) => void;
 }
 
-// API functions
+// === API FUNCTIONS ===
+
 const fetchAgents = async (): Promise<{ agents: AgentConfig[] }> => {
     const res = await fetch('/api/agents');
     return res.json();
@@ -75,7 +119,8 @@ const stopTerminalSession = async (sessionId: string) => {
     return res.json();
 };
 
-// Badge Components using shadcn Badge
+// === SUB-COMPONENTS ===
+
 const RiskBadge: React.FC<{ risk: string }> = ({ risk }) => {
     const variants: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
         low: 'success',
@@ -242,8 +287,10 @@ const EmbeddedTerminal: React.FC<{
     const wsRef = useRef<WebSocket | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
     const sessionIdRef = useRef(`task-${task.id}-${Date.now()}`);
+    /** WebSocket connection status for the terminal */
     const [status, setStatus] = useState<'connecting' | 'connected' | 'error' | 'disconnected'>('connecting');
 
+    // Terminal initialization: create xterm, fit addon, and WebSocket connection for agent
     useEffect(() => {
         let mounted = true;
 
@@ -384,6 +431,8 @@ const EmbeddedTerminal: React.FC<{
     );
 };
 
+// === HELPER FUNCTIONS ===
+
 // Build task command for agent
 function buildTaskCommand(task: Task): string {
     // Build a prompt for the agent based on the task
@@ -405,15 +454,21 @@ function buildTaskCommand(task: Task): string {
     return `claude -p "${prompt.replace(/"/g, '\\"')}"`;
 }
 
-// Main Modal Component using shadcn Dialog
+// === MAIN COMPONENT ===
+
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     task,
     specName,
     onClose,
     onStatusChange,
 }) => {
+    // === STATE ===
+    /** Currently selected agent for task execution */
     const [selectedAgent, setSelectedAgent] = useState<AgentConfig | null>(null);
+    /** Whether the terminal panel is visible */
     const [showTerminal, setShowTerminal] = useState(false);
+
+    // === HANDLERS ===
 
     const handleStartExecution = () => {
         if (!selectedAgent) return;

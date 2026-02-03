@@ -1,3 +1,40 @@
+//! # CLI UI Subsystem
+//!
+//! Rich terminal rendering layer for the Chakravarti CLI.
+//!
+//! ## Overview
+//!
+//! This module provides a consistent, themed UI for all CLI output. It handles:
+//! - Terminal capability detection (colors, unicode, interactivity)
+//! - Themed output with consistent styling
+//! - Spinner animations for long-running operations
+//! - Markdown rendering in the terminal
+//! - Panel-based success/error messaging
+//!
+//! ## Key Types
+//!
+//! - [`UiContext`] - Main entry point, holds theme and rendering state
+//! - [`Theme`] - Color palette and styling configuration
+//! - [`Renderable`] - Trait for components that can be rendered
+//!
+//! ## Example
+//!
+//! ```rust,ignore
+//! use ckrv_cli::ui::UiContext;
+//!
+//! let ui = UiContext::new(false); // Not in JSON mode
+//! ui.success("Done", "Operation completed successfully");
+//!
+//! let spinner = ui.spinner("Processing...");
+//! // ... do work ...
+//! spinner.success("Finished!");
+//! ```
+//!
+//! ## Silent Mode
+//!
+//! When `--json` is passed, the UI enters "silent mode" where all
+//! decorative output is suppressed and only structured JSON is emitted.
+
 pub mod components;
 pub mod spinner;
 pub mod terminal;

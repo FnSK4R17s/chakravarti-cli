@@ -1,9 +1,29 @@
 /**
- * Run History Panel Component
- * 
- * Displays a list of past runs for a specification with status indicators.
+ * @module RunHistoryPanel
+ * @description
+ * Panel displaying past execution runs for a specification with status indicators.
+ * Shows run summaries, elapsed time, and merged branch counts. Supports selection
+ * and deletion of historical runs.
+ *
+ * @context
+ * Used in ExecutionRunner as a sidebar or collapsible panel. Users can select
+ * past runs to view details or delete completed runs.
+ *
+ * @dependencies
+ * - Run, RunStatus: Types from history module
+ * - formatElapsedTime, formatRelativeTime: Time formatting utilities
+ * - shadcn/ui components: Card, Badge, ScrollArea for consistent UI
+ *
+ * @example
+ * <RunHistoryPanel
+ *   runs={runHistory}
+ *   selectedRunId={currentRunId}
+ *   onSelectRun={handleSelectRun}
+ *   onDeleteRun={handleDeleteRun}
+ * />
  */
 
+// === IMPORTS ===
 import {
     Clock, CheckCircle2, XCircle, Loader2,
     Slash, Circle, ChevronRight, Trash2, History
@@ -17,6 +37,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Run, RunStatus } from '../types/history';
 import { formatElapsedTime, formatRelativeTime } from '../types/history';
 
+// ============================================================
+// TYPES
+// ============================================================
+
 interface RunHistoryPanelProps {
     runs: Run[];
     selectedRunId: string | null;
@@ -25,6 +49,10 @@ interface RunHistoryPanelProps {
     isLoading?: boolean;
     error?: string | null;
 }
+
+// ============================================================
+// SUB-COMPONENTS
+// ============================================================
 
 /**
  * Get status icon component
@@ -186,6 +214,10 @@ function LoadingSkeleton() {
         </div>
     );
 }
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
 
 /**
  * Run History Panel using shadcn Card and ScrollArea

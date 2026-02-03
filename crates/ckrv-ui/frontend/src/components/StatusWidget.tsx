@@ -1,3 +1,26 @@
+/**
+ * @module StatusWidget
+ * @description
+ * Widget displaying repository status including git initialization state, current
+ * branch, and project mode. Provides a git init button when repository is not
+ * initialized.
+ *
+ * @context
+ * Displayed in the dashboard sidebar or settings page. Shows real-time repository
+ * state with auto-refresh. Enables one-click git initialization.
+ *
+ * @dependencies
+ * - useQuery: React Query for status fetching
+ * - shadcn/ui components: Card, Badge, Button, Alert for consistent UI
+ *
+ * @example
+ * // Rendered as part of the sidebar
+ * <StatusWidget />
+ *
+ * // Shows initialization status, branch, and mode
+ */
+
+// === IMPORTS ===
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type SystemStatus } from '../types';
@@ -8,15 +31,26 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
+// ============================================================
+// API
+// ============================================================
+
 const fetchStatus = async (): Promise<SystemStatus> => {
     const res = await fetch('/api/status');
     if (!res.ok) throw new Error('Failed to fetch status');
     return res.json();
 };
 
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+
 export const StatusWidget: React.FC = () => {
     const queryClient = useQueryClient();
+    // === State ===
+    /** Whether git init is currently running */
     const [isRunningGitInit, setIsRunningGitInit] = useState(false);
+    /** Result message from the last git init operation */
     const [gitInitResult, setGitInitResult] = useState<{ success: boolean; message: string } | null>(null);
 
     const { data: status, error, isLoading } = useQuery({
@@ -25,6 +59,7 @@ export const StatusWidget: React.FC = () => {
         refetchInterval: 5000,
     });
 
+    // === Handlers ===
     const runGitInit = async () => {
         setIsRunningGitInit(true);
         setGitInitResult(null);
@@ -160,6 +195,10 @@ export const StatusWidget: React.FC = () => {
         </Card>
     );
 };
+
+// ============================================================
+// SUB-COMPONENTS
+// ============================================================
 
 interface StatusRowProps {
     icon: React.ReactNode;

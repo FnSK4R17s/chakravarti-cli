@@ -1,3 +1,28 @@
+/**
+ * @module CommandPalette
+ * @description
+ * Command interface providing quick actions for the chakravarti CLI workflow.
+ * Displays available commands based on current workflow state with a context
+ * for sharing command results with other components.
+ *
+ * @context
+ * Rendered in the dashboard sidebar or main area. Provides initialization and
+ * spec creation actions. Commands are automatically enabled/disabled based on
+ * workflow state.
+ *
+ * @dependencies
+ * - useQuery/useMutation: React Query for command execution
+ * - SpecNewDialog: Modal for creating new specifications
+ * - shadcn/ui components: Card, Button, Dialog for consistent UI
+ *
+ * @example
+ * <CommandPalette />
+ *
+ * // Use with context to share command results
+ * const { lastResult } = useCommandResult();
+ */
+
+// === IMPORTS ===
 import React, { useState, createContext, useContext } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import {
@@ -18,6 +43,10 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
+// ============================================================
+// CONTEXT
+// ============================================================
+
 // Context for sharing command results with LogViewer
 interface CommandResultContextType {
     lastResult: { command: string; result: { success: boolean; message?: string } } | null;
@@ -31,6 +60,10 @@ export const CommandResultContext = createContext<CommandResultContextType>({
 
 export const useCommandResult = () => useContext(CommandResultContext);
 
+// ============================================================
+// TYPES
+// ============================================================
+
 interface CommandResult {
     success: boolean;
     message?: string;
@@ -42,9 +75,14 @@ interface SystemStatus {
     mode: string;
 }
 
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+
 export const CommandPalette: React.FC = () => {
     const queryClient = useQueryClient();
     const { setLastResult } = useCommandResult();
+    /** Whether the new spec modal is visible */
     const [showSpecModal, setShowSpecModal] = useState(false);
 
     // Fetch status to determine workflow state
@@ -162,6 +200,10 @@ export const CommandPalette: React.FC = () => {
     );
 };
 
+// ============================================================
+// SUB-COMPONENTS
+// ============================================================
+
 export interface SpecNewDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -170,6 +212,7 @@ export interface SpecNewDialogProps {
 }
 
 export const SpecNewDialog: React.FC<SpecNewDialogProps> = ({ open, onOpenChange, onSubmit, isLoading }) => {
+    /** Feature description input text */
     const [description, setDescription] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {

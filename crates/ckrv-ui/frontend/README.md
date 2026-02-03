@@ -1,73 +1,108 @@
-# React + TypeScript + Vite
+# ckrv-ui Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React-based dashboard for the Chakravarti CLI orchestration system.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This is the frontend application for `ckrv-ui`, providing a visual interface for:
 
-## React Compiler
+- **Spec Management**: Create, view, and edit feature specifications
+- **Task Tracking**: Monitor implementation tasks and progress
+- **Plan Visualization**: View execution plans as DAGs with model assignments
+- **Execution Monitoring**: Real-time logs and batch progress tracking
+- **Agent Configuration**: Manage AI agent configurations
+- **Test & QA**: Run tests and quality reviews
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Architecture
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── components/       # React components (27 files)
+│   ├── AgentManager.tsx      # Agent configuration UI
+│   ├── ExecutionRunner.tsx   # Main execution dashboard
+│   ├── PlanEditor.tsx        # DAG-based plan visualization
+│   ├── SpecEditor.tsx        # Specification viewer
+│   ├── TaskEditor.tsx        # Task management interface
+│   ├── TestRunner.tsx        # Test execution interface
+│   ├── QAReviewer.tsx        # Quality assurance UI
+│   └── ...                   # 20 more components
+├── hooks/            # Custom React hooks (12 files)
+│   ├── useSpec.ts            # Spec CRUD operations
+│   ├── useLogStore.ts        # Centralized log management
+│   ├── useWebSocketReconnect.ts # Auto-reconnecting WebSocket
+│   └── ...                   # 9 more hooks
+├── layouts/          # Layout components
+│   └── Dashboard.tsx         # Main app layout with navigation
+├── lib/              # Utility functions
+└── types/            # TypeScript definitions
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Install dependencies
+npm install
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Type checking
+npm run check
 ```
+
+## Components
+
+All components include `@module` JSDoc headers with:
+- Description of purpose
+- Context of where component is used
+- Dependencies (hooks, parent components)
+- Example usage patterns
+
+Large components (>400 lines) include section comments:
+- `// === IMPORTS ===`
+- `// === TYPES ===`
+- `// === MAIN COMPONENT ===`
+- `// === STATE ===`
+- `// === HANDLERS ===`
+- `// === SUB-COMPONENTS ===`
+
+## Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `useSpec` | Fetch and manage specifications |
+| `useLogStore` | Centralized log state management |
+| `useWebSocketReconnect` | Auto-reconnecting WebSocket |
+| `useAutoSelectedSpec` | Branch-based spec selection |
+| `useFocusTrap` | Modal focus management |
+| `useRunHistory` | Execution history tracking |
+| `useWorkflowProgress` | Pipeline progress tracking |
+
+## API Integration
+
+The frontend communicates with the Rust backend via:
+- **REST API**: `/api/*` endpoints for CRUD operations
+- **SSE**: `/api/events` for real-time log streaming
+- **WebSocket**: `/ws/*` for interactive terminal sessions
+
+## UI Framework
+
+Built with:
+- **React 19** with TypeScript
+- **Vite** for fast development
+- **shadcn/ui** component library
+- **TanStack Query** for data fetching
+- **Lucide** icons
+
+## AI Context
+
+This documentation is designed for AI agents. Each file includes:
+1. `@module` header explaining purpose and context
+2. Section comments for navigation in large files
+3. Type definitions for all props and state
+4. Example usage patterns
+
+See individual component files for detailed documentation.

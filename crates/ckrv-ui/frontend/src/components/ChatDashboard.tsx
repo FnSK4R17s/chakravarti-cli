@@ -1,9 +1,38 @@
+/**
+ * @module ChatDashboard
+ * @description
+ * Main landing page for the chakravarti UI providing a chat-like interface for
+ * creating new specifications. Shows existing spec status and guides users through
+ * the workflow with contextual actions.
+ *
+ * @context
+ * Rendered as the default/home page of the dashboard. Users describe features to
+ * create specs, or navigate to existing spec workflows. Adapts UI based on whether
+ * specs exist and their implementation status.
+ *
+ * @dependencies
+ * - useQuery/useMutation: React Query for status and spec operations
+ * - useNavigation: Context for navigating between pages
+ * - shadcn/ui components: Button for consistent UI
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <ChatDashboard />
+ *
+ * // Provides spec creation with suggestion chips and workflow guidance
+ */
+
+// === IMPORTS ===
 import React, { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { Sparkles, Send, Loader2, Code2, Terminal, Globe, Wrench, FileCode, Zap, ArrowRight, Plus, TestTube2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useNavigation } from '../App';
+
+// ============================================================
+// TYPES
+// ============================================================
 
 interface SystemStatus {
     is_ready: boolean;
@@ -22,6 +51,10 @@ interface SpecsResponse {
     count: number;
 }
 
+// ============================================================
+// CONSTANTS
+// ============================================================
+
 const suggestionChips = [
     { icon: <Code2 size={14} />, label: 'REST API', prompt: 'Build a REST API with authentication and CRUD endpoints' },
     { icon: <Terminal size={14} />, label: 'CLI Tool', prompt: 'Create a command-line tool with argument parsing' },
@@ -31,10 +64,17 @@ const suggestionChips = [
     { icon: <Zap size={14} />, label: 'Fix Bug', prompt: 'Debug and fix an issue in the codebase' },
 ];
 
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+
 export const ChatDashboard: React.FC = () => {
     const queryClient = useQueryClient();
     const { setCurrentPage } = useNavigation();
+    // === State ===
+    /** Feature description input text */
     const [description, setDescription] = useState('');
+    /** Whether the new spec input form is visible */
     const [showNewSpecInput, setShowNewSpecInput] = useState(false);
 
     // Check if initialized
@@ -80,6 +120,7 @@ export const ChatDashboard: React.FC = () => {
         },
     });
 
+    // === Handlers ===
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (description.trim() && isInitialized) {

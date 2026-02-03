@@ -1,12 +1,29 @@
 /**
- * ErrorBoundary Component
- * 
- * Catches JavaScript errors anywhere in the child component tree,
- * logs those errors, and displays a fallback UI.
- * 
- * Migrated to use shadcn Alert and Button components.
+ * @module ErrorBoundary
+ * @description
+ * React error boundary that catches JavaScript errors in the component tree,
+ * logs errors, and displays a user-friendly fallback UI with retry option.
+ *
+ * @context
+ * Should wrap major sections of the application to prevent entire UI crashes.
+ * Provides a consistent error display using shadcn Alert and Button components.
+ *
+ * @dependencies
+ * - shadcn/ui components: Alert, Button, Card for consistent UI
+ * - lucide-react: Icons for error display
+ *
+ * @example
+ * <ErrorBoundary>
+ *   <MyComponent />
+ * </ErrorBoundary>
+ *
+ * // With custom fallback
+ * <ErrorBoundary fallback={<CustomError />}>
+ *   <MyComponent />
+ * </ErrorBoundary>
  */
 
+// === IMPORTS ===
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';

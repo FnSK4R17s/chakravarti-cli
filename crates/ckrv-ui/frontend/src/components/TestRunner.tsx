@@ -1,3 +1,29 @@
+/**
+ * @module TestRunner
+ * @description
+ * Test management interface for running, planning, writing, and tracking test coverage.
+ * Integrates with AI agents to generate tests for uncovered code and provides
+ * visibility into test results with failure details.
+ *
+ * @context
+ * Rendered as the main content of the Test page in the dashboard. Users run tests,
+ * generate test plans, trigger AI-powered test writing, and monitor coverage here.
+ * Requires a test writer agent to be configured for automated test generation.
+ *
+ * @dependencies
+ * - useQuery/useMutation: React Query for test operations
+ * - TestFixModal: Modal for AI-assisted test fixing
+ * - shadcn/ui components: Card, Badge, Tabs, ScrollArea for consistent UI
+ *
+ * @example
+ * // Rendered directly as a page component
+ * <TestRunner />
+ *
+ * // Supports running tests, generating plans, and AI-powered test writing
+ * // Shows test results with pass/fail counts and failure details
+ */
+
+// === IMPORTS ===
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
@@ -21,7 +47,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { TestFixModal } from './TestFixModal';
 
-// Types
+// === TYPES ===
+
 interface TestResult {
     success: boolean;
     total: number;
@@ -30,22 +57,48 @@ interface TestResult {
     skipped: number;
     duration_ms: number;
     failures: TestFailure[];
+    /** Test framework used (e.g., vitest, jest, pytest) */
     framework: string;
 }
 
+/**
+ * Details of a failed test case.
+ */
 interface TestFailure {
+    /** Test name or description */
     name: string;
+    /** Path to the test file */
     file: string;
+    /** Line number where the failure occurred */
     line?: number;
+    /** Error message from the test runner */
     message: string;
+    /** Standard output captured during test */
     stdout?: string;
+    /** Standard error captured during test */
     stderr?: string;
 }
 
+/**
+ * Output from the test planning phase.
+ * Contains analysis of changed files and proposed test coverage.
+ * 
+ * @example
+ * const plan: TestPlanOutput = {
+ *   plan_id: 'plan-123',
+ *   base_branch: 'main',
+ *   changed_files: [...],
+ *   proposed_tests: [...]
+ * };
+ */
 interface TestPlanOutput {
+    /** Unique identifier for this test plan */
     plan_id: string;
+    /** Base branch for diff comparison */
     base_branch: string;
+    /** List of files changed since base branch */
     changed_files: ChangedFileInfo[];
+    /** Tests recommended by the AI agent */
     proposed_tests: ProposedTest[];
 }
 
@@ -78,7 +131,8 @@ interface Agent {
     is_test_writer?: boolean;
 }
 
-// API functions
+// === API FUNCTIONS ===
+
 const fetchTestWriterAgent = async (): Promise<{ agent: Agent | null }> => {
     const res = await fetch('/api/test/agent');
     return res.json();
@@ -120,8 +174,10 @@ const checkCoverage = async (base: string): Promise<{ success: boolean; coverage
     return res.json();
 };
 
-// Subcomponents
+// === SUB-COMPONENTS ===
+
 const TestResultCard: React.FC<{ result: TestResult }> = ({ result }) => {
+    /** Set of failure indices that are expanded to show details */
     const [expandedFailures, setExpandedFailures] = useState<Set<number>>(new Set());
 
     const toggleFailure = (idx: number) => {
@@ -365,15 +421,33 @@ const CoverageCard: React.FC<{ coverage: CoverageResult }> = ({ coverage }) => {
 
 // Main TestRunner component
 export default function TestRunner() {
+    // === STATE ===
+
+    // --- Configuration ---
+    /** Base branch for diff comparison (defaults to main/master) */
     const [baseBranch, setBaseBranch] = useState('main');
+
+    // --- UI State ---
+    /** Active tab in the test interface: run, plan, write, or coverage */
     const [activeTab, setActiveTab] = useState('run');
-    const [testResult, setTestResult] = useState<TestResult | null>(null);
-    const [testPlan, setTestPlan] = useState<TestPlanOutput | null>(null);
-    const [coverage, setCoverage] = useState<CoverageResult | null>(null);
-    const [lastError, setLastError] = useState<string | null>(null);
+    /** Show the fix test modal for AI-assisted fixes */
     const [showFixModal, setShowFixModal] = useState(false);
+    /** Show the agent prompt dialog for custom test instructions */
     const [showAgentPrompt, setShowAgentPrompt] = useState(false);
+    /** Custom prompt text for the test writer agent */
     const [agentPrompt, setAgentPrompt] = useState('');
+
+    // --- Test Data ---
+    /** Results from the last test run */
+    const [testResult, setTestResult] = useState<TestResult | null>(null);
+    /** Generated test plan from AI analysis */
+    const [testPlan, setTestPlan] = useState<TestPlanOutput | null>(null);
+    /** Coverage analysis results */
+    const [coverage, setCoverage] = useState<CoverageResult | null>(null);
+    /** Last error message from a failed operation */
+    const [lastError, setLastError] = useState<string | null>(null);
+
+    // === EFFECTS ===
 
     // Auto-detect default branch on mount
     React.useEffect(() => {
@@ -390,6 +464,7 @@ export default function TestRunner() {
     }, []);
 
     // Check if test plan exists and load it
+    /** Whether a saved test plan exists */
     const [planExists, setPlanExists] = React.useState(false);
 
     const checkPlanStatus = React.useCallback(() => {
@@ -407,12 +482,15 @@ export default function TestRunner() {
             });
     }, []);
 
+    // Initial check for plan status on component mount
     React.useEffect(() => {
         checkPlanStatus();
     }, [checkPlanStatus]);
 
     // Check if tests have been written
+    /** Whether tests have been written for the current plan */
     const [writeExists, setWriteExists] = React.useState(false);
+    /** Status details of the test writing operation */
     const [writeStatus, setWriteStatus] = React.useState<{
         completed_at?: string;
         status?: string;
@@ -444,6 +522,7 @@ export default function TestRunner() {
             });
     }, []);
 
+    // Check write status on component mount
     React.useEffect(() => {
         checkWriteStatus();
     }, [checkWriteStatus]);
@@ -454,7 +533,8 @@ export default function TestRunner() {
         queryFn: fetchTestWriterAgent,
     });
 
-    // Mutations
+    // === MUTATIONS ===
+
     const runMutation = useMutation({
         mutationFn: () => runTests(baseBranch),
         onSuccess: (data) => {
@@ -517,6 +597,8 @@ export default function TestRunner() {
     });
 
     const isLoading = runMutation.isPending || planMutation.isPending || writeMutation.isPending || coverageMutation.isPending;
+
+    // === RENDER ===
 
     return (
         <div className="h-full flex flex-col bg-background text-foreground">
