@@ -15,10 +15,10 @@ You **MUST** consider the user input before proceeding (if not empty). The user 
 
 ## Goal
 
-Keep the main `README.md` aligned with:
-1. **Guiding documents** (`guiding_docs/vision.md`) - for messaging, positioning, and value proposition
-2. **Generated crate docs** (`crates/*/docs/README.md`) - for technical accuracy
-3. **CLI command docs** (`crates/docs/cli-commands.md`) - for command reference
+Keep these documentation files aligned with source code and guiding documents:
+1. **README.md** - Main project readme
+2. **CONTRIBUTING.md** - Contribution guide (syncs build commands, dev workflow)
+3. **npm/README.md** - NPM package readme (simplified version of main README)
 
 ## Source of Truth Hierarchy
 
@@ -26,8 +26,9 @@ Keep the main `README.md` aligned with:
 |----------|--------|----------|
 | 1 | `guiding_docs/vision.md` | Tagline, value prop, target user, product description |
 | 2 | `crates/docs/cli-commands.md` | Command table, usage examples |
-| 3 | `crates/*/docs/README.md` | Architecture, crate descriptions |
-| 4 | `crates/ckrv-cli/src/lib.rs` | Command list (Commands enum) |
+| 3 | `crates/docs/getting-started.md` | Build commands, dev workflow → CONTRIBUTING.md |
+| 4 | `crates/*/docs/README.md` | Architecture, crate descriptions |
+| 5 | `crates/ckrv-cli/src/lib.rs` | Command list (Commands enum) |
 
 ---
 
@@ -37,7 +38,7 @@ Keep the main `README.md` aligned with:
 
 // turbo
 ```bash
-cat guiding_docs/vision.md | head -100
+cat guiding_docs/vision.md
 ```
 
 Extract key messaging elements:
@@ -66,10 +67,10 @@ Identify sections that need alignment:
 // turbo
 ```bash
 # CLI commands reference
-cat crates/docs/cli-commands.md 2>/dev/null | head -80
+cat crates/docs/cli-commands.md 2>/dev/null
 
 # Architecture
-cat crates/docs/architecture.md 2>/dev/null | head -50
+cat crates/docs/architecture.md 2>/dev/null
 ```
 
 ### 4. Check Commands Enum for Accuracy
@@ -224,10 +225,10 @@ Update architecture section:
 // turbo
 ```bash
 # Check markdown renders correctly
-head -30 README.md
+cat README.md
 
 # Verify no broken links
-grep -oE '\[.*\]\(.*\)' README.md | head -20
+grep -oE '\[.*\]\(.*\)' README.md
 ```
 
 ---
@@ -246,12 +247,109 @@ grep -oE '\[.*\]\(.*\)' README.md | head -20
 
 ---
 
+## Step 9: Update CONTRIBUTING.md
+
+Sync CONTRIBUTING.md with getting-started.md for build commands and dev workflow.
+
+### 9.1 Read Sources
+
+// turbo
+```bash
+cat CONTRIBUTING.md
+```
+
+// turbo
+```bash
+cat crates/docs/getting-started.md
+```
+
+### 9.2 Sync Build Commands
+
+Ensure CONTRIBUTING.md has accurate:
+- Prerequisites (Rust version, pnpm, Docker)
+- Build commands (`cargo build`, `pnpm install`, etc.)
+- Test commands (`cargo test`, `pnpm test`)
+- Development workflow
+
+### 9.3 Update Sections
+
+| CONTRIBUTING Section | Source |
+|---------------------|--------|
+| Prerequisites | `getting-started.md` → Prerequisites |
+| Building | `getting-started.md` → Building |
+| Testing | `getting-started.md` → Testing |
+| Code Style | `CLAUDE.md` → Code Style |
+
+---
+
+## Step 10: Update npm/README.md
+
+Create a simplified README for the npm package.
+
+### 10.1 Read Current
+
+// turbo
+```bash
+cat npm/README.md 2>/dev/null || echo "File doesn't exist"
+```
+
+### 10.2 Generate npm README
+
+The npm/README.md should be a **simplified version** of the main README:
+
+```markdown
+# chakravarti-cli
+
+<tagline from vision.md>
+
+## Installation
+
+\`\`\`bash
+npm install -g chakravarti-cli
+\`\`\`
+
+## Quick Start
+
+\`\`\`bash
+ckrv init
+ckrv spec new "Add user authentication"
+ckrv plan
+ckrv run
+\`\`\`
+
+## Commands
+
+<simplified command table from README>
+
+## Documentation
+
+For full documentation, see the [GitHub repository](https://github.com/FnSK4R17s/chakravarti-cli).
+
+## License
+
+MIT
+```
+
+**Key differences from main README:**
+- No badges (npm adds its own)
+- No screenshots
+- No architecture section
+- No development section
+- Link to GitHub for full docs
+
+---
+
 ## Summary Report
 
 After updates, output:
 
 ```markdown
 ## README Update Summary
+
+### Files Updated
+- ✅ README.md - Aligned with vision.md messaging
+- ✅ CONTRIBUTING.md - Synced build commands from getting-started.md
+- ✅ npm/README.md - Updated installation and quick start
 
 ### Sections Updated
 - ✅ Header/Tagline - Aligned with vision.md messaging
@@ -262,9 +360,18 @@ After updates, output:
 ### Sources Used
 - guiding_docs/vision.md (messaging)
 - crates/docs/cli-commands.md (commands)
+- crates/docs/getting-started.md (build commands)
 - crates/ckrv-cli/src/lib.rs (command verification)
 
 ### Next Steps
-1. Review changes: `git diff README.md`
-2. Commit with: `git commit -m "docs: align README with vision and generated docs"`
+1. Review changes: `git diff README.md CONTRIBUTING.md npm/README.md`
+2. Commit with: `git commit -m "docs: align READMEs with vision and generated docs"`
 ```
+
+---
+
+## Workflow Order
+
+Read the **docs-order** skill to see the full documentation workflow sequence.
+
+`/docs.readme` is typically the final step in the chain.

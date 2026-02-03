@@ -36,7 +36,7 @@ Store this as `NEW_COMMIT`.
 // turbo
 ```bash
 # List commands that have long_about in lib.rs
-grep -B2 "long_about" crates/ckrv-cli/src/lib.rs | grep "///" | head -20
+grep -B2 "long_about" crates/ckrv-cli/src/lib.rs | grep "///"
 ```
 
 ### 3. Create Output Directory
@@ -174,3 +174,9 @@ make skill
 - Only generates docs for commands that have `long_about` in code
 - Subcommands go in subdirectories matching command hierarchy
 - Run `make skill` after to regenerate SKILL.md
+
+---
+
+## Next Workflow
+
+Read the **docs-order** skill to determine what workflow to run next based on what was changed.
