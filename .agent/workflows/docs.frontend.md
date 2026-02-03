@@ -145,12 +145,14 @@ for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; 
   component=$(basename "$file" .tsx)
   
   # Count documented state (comments before useState)
-  documented=$(grep -B 1 "useState" "$file" | grep -c "\/\*\*\|\/\/")
+  documented=$(grep -B 1 "useState" "$file" 2>/dev/null | grep -c "/\*\*\|//" 2>/dev/null | tr -d '\n')
+  documented=${documented:-0}
   
   # Count actual useState calls
-  actual=$(grep -c "useState" "$file")
+  actual=$(grep -c "useState" "$file" 2>/dev/null | tr -d '\n')
+  actual=${actual:-0}
   
-  if [ "$actual" -gt 0 ]; then
+  if [ "$actual" -gt 0 ] 2>/dev/null; then
     coverage=$((documented * 100 / actual))
     if [ "$coverage" -lt 100 ]; then
       echo "⚠️  $component: $documented/$actual useState documented ($coverage%)"
@@ -177,16 +179,17 @@ for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; 
     /useEffect/ {
       if (prev !~ /\/\*\*|\/\//) {
         count++
-        print NR": "$0
       }
     }
     { prev = $0 }
-    END { print "TOTAL:"count }
-  ' "$file" | tail -1 | cut -d: -f2)
+    END { print count+0 }
+  ' "$file" 2>/dev/null | tr -d '\n')
+  undocumented=${undocumented:-0}
   
-  total=$(grep -c "useEffect" "$file")
+  total=$(grep -c "useEffect" "$file" 2>/dev/null | tr -d '\n')
+  total=${total:-0}
   
-  if [ "$total" -gt 0 ] && [ "${undocumented:-0}" -gt 0 ]; then
+  if [ "$total" -gt 0 ] 2>/dev/null && [ "$undocumented" -gt 0 ] 2>/dev/null; then
     echo "⚠️  $component: $undocumented/$total useEffect undocumented"
   fi
 done
@@ -225,15 +228,17 @@ for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; 
   component=$(basename "$file" .tsx)
   
   # Count exported functions/components
-  exports=$(grep -c "^export " "$file")
+  exports=$(grep -c "^export " "$file" 2>/dev/null | tr -d '\n')
+  exports=${exports:-0}
   
   # Count @example blocks
-  examples=$(grep -c "@example" "$file")
+  examples=$(grep -c "@example" "$file" 2>/dev/null | tr -d '\n')
+  examples=${examples:-0}
   
-  if [ "$exports" -gt 0 ]; then
-    if [ "$examples" -eq 0 ]; then
+  if [ "$exports" -gt 0 ] 2>/dev/null; then
+    if [ "$examples" -eq 0 ] 2>/dev/null; then
       echo "❌ $component: No @example blocks ($exports exports)"
-    elif [ "$examples" -lt "$exports" ]; then
+    elif [ "$examples" -lt "$exports" ] 2>/dev/null; then
       echo "⚠️  $component: $examples examples for $exports exports"
     else
       echo "✅ $component: $examples examples"
@@ -312,12 +317,14 @@ done
 
 for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
   component=$(basename "$file" .tsx)
-  lines=$(wc -l < "$file")
+  lines=$(wc -l < "$file" 2>/dev/null | tr -d ' \n')
+  lines=${lines:-0}
   
   # Only check files > 200 lines
-  if [ "$lines" -gt 200 ]; then
-    sections=$(grep -c "// ===" "$file")
-    if [ "$sections" -lt 3 ]; then
+  if [ "$lines" -gt 200 ] 2>/dev/null; then
+    sections=$(grep -c "// ===" "$file" 2>/dev/null | tr -d '\n')
+    sections=${sections:-0}
+    if [ "$sections" -lt 3 ] 2>/dev/null; then
       echo "⚠️  $component ($lines lines): Missing section comments (found $sections, want 3+)"
     fi
   fi
@@ -390,49 +397,167 @@ Save to: `crates/ckrv-ui/docs/drift-report.md`
 
 ---
 
-## Phase 5: Apply Documentation
+## Phase 5: Apply Documentation (MANDATORY)
 
-### Step 5.1: Generate Module Headers
+**This phase MUST edit files to add missing documentation. Do not just report - actually make the changes.**
 
-For files missing @module headers, generate them:
+### Step 5.1: Priority Order
+
+Apply documentation in this order (highest impact first):
+
+1. **Critical components** (>600 lines): ExecutionRunner, AgentManager, PlanEditor, TestRunner, TaskEditor, SpecEditor
+2. **Warning components** (400-600 lines): TaskDetailModal, QAReviewer, BarebonesExecutor
+3. **All hooks** in `src/hooks/`
+4. **Remaining components**
+
+### Step 5.2: Add Module Headers
+
+**For EACH file missing @module header, edit the file and add this at the very top:**
 
 ```typescript
 /**
  * @module ${ComponentName}
  * @description
- * ${INFERRED_FROM_CODE}
+ * ${INFER_DESCRIPTION_FROM_COMPONENT_NAME_AND_JSX}
+ * 
+ * Example: "Manages agent configuration and displays available AI coding agents."
  *
  * @context
- * ${INFERRED_FROM_IMPORTS_AND_USAGE}
+ * ${DESCRIBE_WHERE_THIS_COMPONENT_IS_USED}
  *
  * @dependencies
- * ${EXTRACTED_FROM_IMPORTS}
+ * ${LIST_KEY_IMPORTS_LIKE_HOOKS_AND_EXTERNAL_LIBS}
  */
 ```
 
-### Step 5.2: Generate Props Documentation
+**Action for each file:**
+1. Read the file to understand what it does
+2. Edit the file - insert the @module block at line 1 (before imports)
+3. Move to next file
 
-For undocumented Props interfaces:
+### Step 5.3: Add Props Documentation
 
+**For EACH Props interface without JSDoc, edit the file and add documentation:**
+
+Find patterns like:
 ```typescript
-/**
- * Props for ${ComponentName}.
- * ${INFERRED_PURPOSE}
- */
-interface ${ComponentName}Props {
-  /** ${INFERRED_FROM_USAGE_OR_NAME} */
-  ${propName}: ${propType};
+interface ExecutionRunnerProps {
+  specId: string;
+  onComplete?: () => void;
 }
 ```
 
-### Step 5.3: Generate State Comments
+Replace with:
+```typescript
+/**
+ * Props for ExecutionRunner.
+ * Controls the execution of a spec through the agent orchestration pipeline.
+ */
+interface ExecutionRunnerProps {
+  /** The ID of the spec to execute */
+  specId: string;
+  /** Callback fired when execution completes (success or failure) */
+  onComplete?: () => void;
+}
+```
 
-For undocumented useState:
+**Action for each interface:**
+1. Find the interface in the file
+2. Add JSDoc block above it
+3. Add JSDoc comment above each prop
+
+### Step 5.4: Add Section Comments to Large Components
+
+**For components >400 lines, add section organization comments:**
 
 ```typescript
-/** ${INFERRED_FROM_VARIABLE_NAME_AND_USAGE} */
-const [${stateName}, set${StateName}] = useState<${Type}>(${initialValue});
+// ============================================================
+// STATE
+// ============================================================
+
+const [isLoading, setIsLoading] = useState(false);
+// ... more state
+
+// ============================================================
+// EFFECTS
+// ============================================================
+
+useEffect(() => {
+  // ...
+}, []);
+
+// ============================================================
+// HANDLERS
+// ============================================================
+
+const handleSubmit = () => {
+  // ...
+};
+
+// ============================================================
+// RENDER HELPERS
+// ============================================================
+
+const renderTaskList = () => {
+  // ...
+};
+
+// ============================================================
+// MAIN RENDER
+// ============================================================
+
+return (
+  // ...
+);
 ```
+
+**Action:**
+1. Identify logical sections in the component
+2. Add `// ====...` separator comments before each section
+3. Ensure at least: STATE, EFFECTS, HANDLERS, RENDER sections are marked
+
+### Step 5.5: Document Complex State
+
+**For components with >5 useState calls, add comments explaining each:**
+
+```typescript
+// ============================================================
+// EXECUTION STATE
+// ============================================================
+// These states track the current execution lifecycle
+
+/** Current execution status: idle, running, paused, or completed */
+const [status, setStatus] = useState<ExecutionStatus>('idle');
+
+/** Error from the most recent execution attempt, null if successful */
+const [error, setError] = useState<Error | null>(null);
+
+/** IDs of tasks currently being executed in parallel */
+const [runningTaskIds, setRunningTaskIds] = useState<string[]>([]);
+```
+
+**Action:**
+1. Group related useState calls together
+2. Add section comment explaining the group
+3. Add inline comment above each useState explaining its purpose
+
+### Step 5.6: Verification
+
+After applying documentation, verify by running:
+
+```bash
+# Check module headers were added
+for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
+  name=$(basename "$file")
+  if head -10 "$file" | grep -q "@module"; then
+    echo "✅ $name"
+  else
+    echo "❌ $name - STILL MISSING @module header"
+  fi
+done
+```
+
+**If any files still show ❌, go back and add the missing documentation.**
 
 ---
 
@@ -587,46 +712,25 @@ Connect to `/ws` for real-time updates.
 ```
 
 ---
-
-## Automation: Pre-Commit Hook
-
-Add to `.husky/pre-commit`:
-
-```bash
-#!/bin/bash
-
-# Quick drift check on staged files
-staged_tsx=$(git diff --cached --name-only | grep "\.tsx$")
-
-for file in $staged_tsx; do
-  # Check for @module header
-  if ! head -30 "$file" | grep -q "@module"; then
-    echo "❌ $file: Missing @module header"
-    echo "   Run: /docs.frontend --component $(basename $file .tsx)"
-    exit 1
-  fi
-  
-  # Check Props interface has JSDoc
-  if grep -q "interface.*Props" "$file"; then
-    if ! grep -B 5 "interface.*Props" "$file" | grep -q "/\*\*"; then
-      echo "❌ $file: Props interface missing JSDoc"
-      exit 1
-    fi
-  fi
-done
-
-echo "✅ Documentation checks passed"
-```
-
 ---
 
 ## Notes
 
-- **Drift detection focuses on discrepancies** between what's documented and what exists
+- **This workflow APPLIES documentation** - Phase 5 actually edits files to add missing docs
+- **Drift detection** finds discrepancies between what's documented and what exists
 - **Convention compliance** ensures new code follows patterns that make LLM editing easier
-- **Generated docs are stubs** - need human review for accuracy
+- **Review after running** - generated docs need human review for accuracy
 - Run this workflow regularly (weekly or in CI) to catch documentation rot early
 - The goal is making every file **self-contained context** for LLMs
+
+### What This Workflow Modifies
+
+| File Type | What Gets Added |
+|-----------|-----------------|
+| `*.tsx` components | @module headers, Props JSDoc, section comments, state comments |
+| `*.ts` hooks | @module headers, @returns documentation |
+| `frontend/README.md` | Complete project documentation (replaces Vite boilerplate) |
+| `docs/drift-report.md` | Generated analysis report |
 
 ---
 
