@@ -251,6 +251,8 @@ These are Tailwind v4 directives - the IDE linter doesn't recognize them but the
 - YAML configuration (`~/.config/chakravarti/agents.yaml`) (016-glm-cli-support)
 - Rust 1.75 + clap 4.4 (already in workspace), serde, serde_json, tokio (017-ai-native-interface)
 - File system (SKILL.md), no database required (017-ai-native-interface)
+- Rust 1.75+ + axum 0.8, tauri 2.0, ts-rs 7.x, thiserror 1.x (019-transport-crate)
+- File-based (YAML configs, spec files) - unchanged (019-transport-crate)
 
 ## Recent Changes
 - 016-glm-cli-support: Added Rust 1.75+ + tokio, bollard (Docker), serde
