@@ -5,7 +5,8 @@
 //! ## Overview
 //!
 //! This crate provides the HTTP server and WebSocket infrastructure for the
-//! Chakravarti web UI. It exposes APIs for:
+//! Chakravarti web UI. It leverages the `ckrv-transport` crate for all API
+//! handlers and exposes a unified web server that serves:
 //! - Specification management (CRUD, status)
 //! - Execution control (start, stop, resume)
 //! - Real-time log streaming via WebSocket
@@ -15,33 +16,36 @@
 //! ## Architecture
 //!
 //! ```text
-//! ┌─────────────────────────────────────────────────────────┐
-//! │                    Browser (React)                       │
-//! └──────────────────────────┬──────────────────────────────┘
+//! ┌─────────────────────────────────────────────────────────────────┐
+//! │                    Browser (React)                               │
+//! └──────────────────────────┬──────────────────────────────────────┘
 //!                            │ HTTP/WebSocket
-//! ┌──────────────────────────▼──────────────────────────────┐
-//! │                    ckrv-ui Server                        │
-//! │  ┌───────────┐  ┌───────────┐  ┌───────────┐            │
-//! │  │  api/     │  │ services/ │  │  models/  │            │
-//! │  │  routes   │  │  engine   │  │   types   │            │
-//! │  └─────┬─────┘  └─────┬─────┘  └───────────┘            │
-//! │        │              │                                  │
-//! │        └──────────────┼──────────────────────────────────┤
-//! │                       ▼                                  │
-//! │                 ┌───────────┐                            │
-//! │                 │   hub     │  ← Event broadcasting      │
-//! │                 └───────────┘                            │
-//! └──────────────────────────────────────────────────────────┘
+//! ┌──────────────────────────▼──────────────────────────────────────┐
+//! │                    ckrv-ui Server                                │
+//! │  ┌─────────────────────────────────────────────────────────┐    │
+//! │  │                 ckrv-transport                           │    │
+//! │  │   handlers/ → axum/ → Router                            │    │
+//! │  └─────────────────────────────────────────────────────────┘    │
+//! │                              │                                   │
+//! │  ┌───────────┐  ┌───────────┐  ┌───────────┐                    │
+//! │  │  server   │  │ services  │  │   hub     │ ← Event broadcast  │
+//! │  └───────────┘  └───────────┘  └───────────┘                    │
+//! └──────────────────────────────────────────────────────────────────┘
 //! ```
 //!
 //! ## Modules
 //!
-//! - [`api`] - HTTP route handlers (REST + WebSocket)
 //! - [`hub`] - Event broadcasting to connected clients
 //! - [`models`] - Data types for logs, history, etc.
 //! - [`server`] - Axum server setup and lifecycle
 //! - [`services`] - Business logic (execution, commands)
-//! - [`state`] - Shared application state
+//!
+//! ## Re-exports
+//!
+//! Types from `ckrv-transport` are re-exported for convenience:
+//! - [`AppState`] - Shared application state
+//! - [`SystemStatus`] - Current orchestration status
+//! - [`SystemMode`] - Active mode (idle, planning, running, etc.)
 //!
 //! ## Example
 //!
@@ -55,11 +59,12 @@
 //! }
 //! ```
 
-pub mod api;
-pub mod hub;
 pub mod models;
 pub mod server;
 pub mod services;
-pub mod state;
 
+// Re-export types from ckrv-transport for backward compatibility
+pub use ckrv_transport::{AppState, Hub, OrchestrationEvent, SharedHub, SystemMode, SystemStatus};
+
+// Re-export the main entry point
 pub use server::start_server;

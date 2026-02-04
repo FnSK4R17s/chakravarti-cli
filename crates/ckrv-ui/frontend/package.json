@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "generate:types": "cd ../../.. && cargo test -p ckrv-transport --features typescript export_typescript_types -- --ignored && echo 'TypeScript types generated at src/types/api.generated.ts'",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"

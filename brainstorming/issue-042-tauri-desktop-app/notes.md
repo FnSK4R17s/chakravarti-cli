@@ -1847,3 +1847,212 @@ test('can create and run spec', async ({ page }) => {
 - [Tauri GitHub Actions](https://github.com/tauri-apps/tauri-action)
 - [Vision Document](../../guiding_docs/vision.md) - Product principles alignment
 
+---
+
+## 9. Frontend Restructuring Proposal ✅ NEW
+
+**Date Added**: 2026-02-04
+**Status**: Proposed - Pending Implementation
+
+### Problem
+
+Currently, the React frontend lives inside `crates/ckrv-ui/frontend/`. This creates an issue for Tauri:
+
+```
+crates/ckrv-ui/
+├── src/                    # Rust - Axum server
+└── frontend/               # React app (bundled into Rust via rust-embed)
+
+crates/ckrv-tauri/          # How does this access the frontend?
+└── src-tauri/
+```
+
+**Options considered**:
+1. **Symlink** - Fragile, doesn't work on Windows
+2. **Copy at build time** - Duplicates artifacts, confusing
+3. **Move to ckrv-transport** - Wrong abstraction level
+4. **Separate ckrv-frontend folder** ← RECOMMENDED
+
+### Proposed Structure
+
+Move the frontend to a standalone location that both `ckrv-ui` and `ckrv-tauri` can reference:
+
+```
+crates/
+├── ckrv-frontend/              # ← NEW: Standalone React app
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── tsconfig.json
+│   ├── index.html
+│   └── src/
+│       ├── App.tsx
+│       ├── main.tsx
+│       ├── components/
+│       │   ├── ui/             # shadcn/ui components
+│       │   └── ...
+│       ├── pages/
+│       │   ├── SpecsPage.tsx
+│       │   ├── AgentsPage.tsx
+│       │   └── ...
+│       ├── hooks/
+│       ├── lib/
+│       │   ├── api.ts          # Unified API layer
+│       │   └── transport/
+│       │       ├── http.ts     # Axum transport (fetch)
+│       │       ├── tauri.ts    # Tauri transport (invoke)
+│       │       └── mock.ts     # Test transport
+│       └── types/
+│           └── api.generated.ts  # Generated from ckrv-transport
+│
+├── ckrv-ui/                    # Web server (Axum)
+│   └── src/
+│       └── server.rs           # rust-embed: "../ckrv-frontend/dist"
+│
+├── ckrv-tauri/                 # Desktop app (future)
+│   ├── src-tauri/
+│   │   ├── Cargo.toml
+│   │   ├── tauri.conf.json     # frontendDist: "../ckrv-frontend/dist"
+│   │   └── src/
+│   │       └── main.rs
+│   └── (no src/ - uses ckrv-frontend)
+│
+└── ckrv-transport/             # API layer (unchanged)
+    └── src/
+        ├── handlers/           # Shared business logic
+        ├── axum/               # Axum wrappers
+        ├── tauri/              # Tauri wrappers
+        └── types/              # With ts-rs for TS generation
+```
+
+### How Each Consumer Uses the Frontend
+
+**ckrv-ui (Axum)**:
+```rust
+// crates/ckrv-ui/src/server.rs
+use rust_embed::RustEmbed;
+
+#[derive(RustEmbed)]
+#[folder = "../ckrv-frontend/dist"]  // Points to shared frontend
+struct FrontendAssets;
+```
+
+**ckrv-tauri (Desktop)**:
+```json
+// crates/ckrv-tauri/src-tauri/tauri.conf.json
+{
+  "build": {
+    "beforeBuildCommand": "cd ../ckrv-frontend && npm run build",
+    "beforeDevCommand": "cd ../ckrv-frontend && npm run dev",
+    "frontendDist": "../ckrv-frontend/dist",
+    "devUrl": "http://localhost:5173"
+  }
+}
+```
+
+### Build Workflow
+
+```bash
+# Development (web)
+cd crates/ckrv-frontend && npm run dev
+cd crates/ckrv-ui && cargo run         # Proxies to Vite dev server
+
+# Development (desktop)
+cd crates/ckrv-tauri && cargo tauri dev  # Runs beforeDevCommand automatically
+
+# Production (web)
+cd crates/ckrv-frontend && npm run build
+cd crates/ckrv-ui && cargo build --release
+
+# Production (desktop)
+cd crates/ckrv-tauri && cargo tauri build  # Runs beforeBuildCommand automatically
+```
+
+### TypeScript Type Generation
+
+Types flow from Rust to TypeScript:
+
+```
+ckrv-transport/src/types/*.rs
+        │
+        │ [cargo test -p ckrv-transport --features typescript]
+        │ [ts-rs generates types]
+        ▼
+ckrv-frontend/src/types/api.generated.ts
+```
+
+The `generate:types` npm script in `ckrv-frontend/package.json`:
+```json
+{
+  "scripts": {
+    "generate:types": "cd ../ckrv-transport && cargo test --features typescript export_typescript_types -- --ignored"
+  }
+}
+```
+
+### Migration Steps
+
+1. **Create `crates/ckrv-frontend/`** as a new directory
+2. **Move `crates/ckrv-ui/frontend/*`** → `crates/ckrv-frontend/`
+3. **Update rust-embed path** in `ckrv-ui/src/server.rs`:
+   ```rust
+   #[folder = "../ckrv-frontend/dist"]
+   ```
+4. **Update README** and scripts to reflect new location
+5. **Update type generation path** in export_types.rs:
+   ```rust
+   .join("ckrv-frontend/src/types/api.generated.ts")
+   ```
+6. **Test both web and desktop builds**
+
+### Benefits
+
+| Aspect | Before (ckrv-ui/frontend) | After (ckrv-frontend) |
+|--------|--------------------------|----------------------|
+| **Ownership** | Tied to Axum server | Standalone, shared |
+| **Tauri access** | Needs symlink/copy | Direct reference |
+| **Type generation** | Path: `ckrv-ui/frontend/...` | Path: `ckrv-frontend/...` |
+| **Build isolation** | Mixed with Rust crate | Clean separation |
+| **Dev workflow** | `cd ckrv-ui/frontend` | `cd ckrv-frontend` |
+
+### Architecture Diagram
+
+```
+                    ┌─────────────────┐
+                    │   ckrv-core     │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │ ckrv-transport  │  API handlers + types
+                    └────────┬────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              │                             │
+              ▼                             ▼
+     ┌─────────────────┐          ┌─────────────────┐
+     │    ckrv-ui      │          │  ckrv-tauri     │
+     │  (Axum server)  │          │  (Desktop app)  │
+     └────────┬────────┘          └────────┬────────┘
+              │                             │
+              │    ┌─────────────────┐      │
+              └───►│  ckrv-frontend  │◄─────┘
+                   │  (React app)    │
+                   │  Shared by both │
+                   └─────────────────┘
+```
+
+### Decision
+
+**Recommendation**: Proceed with restructuring to `crates/ckrv-frontend/`
+
+**Rationale**:
+- Clean separation of concerns
+- Standard pattern for multi-platform apps
+- Enables Tauri without code duplication
+- No runtime overhead (compile-time choice)
+
+**Trade-offs**:
+- One-time migration effort
+- Path updates in multiple files
+- Breaking change for anyone with custom scripts pointing to old path
+

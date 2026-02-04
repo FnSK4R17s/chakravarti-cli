@@ -42,9 +42,8 @@
 //! - `Success` - Operation completed successfully
 //! - `StepStart` / `StepEnd` - Execution phase boundaries
 
-use crate::hub::OrchestrationEvent;
-use crate::state::{AppState, SystemMode};
 use chrono::Utc;
+use ckrv_transport::{AppState, SystemMode, OrchestrationEvent};
 use std::process::{Command, Stdio};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
@@ -1406,8 +1405,7 @@ impl CommandService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hub::Hub;
-    use crate::state::{AppState, SystemStatus};
+    use ckrv_transport::{AppState, Hub, SystemStatus};
     use std::path::PathBuf;
     use std::sync::Arc;
     use tokio::sync::RwLock;

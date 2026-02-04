@@ -28,11 +28,11 @@
 
 **Purpose**: Create crate structure and foundational types
 
-- [ ] T001 Add `ckrv-transport` to workspace members in `Cargo.toml` (root)
-- [ ] T002 Create `crates/ckrv-transport/Cargo.toml` with feature flags (axum, tauri)
-- [ ] T003 [P] Create `crates/ckrv-transport/src/lib.rs` with module structure and feature gates
-- [ ] T004 [P] Create `crates/ckrv-transport/src/error.rs` with TransportError enum
-- [ ] T005 [P] Create `crates/ckrv-transport/src/state.rs` with AppState struct (migrate from ckrv-ui)
+- [X] T001 Add `ckrv-transport` to workspace members in `Cargo.toml` (root)
+- [X] T002 Create `crates/ckrv-transport/Cargo.toml` with feature flags (axum, tauri)
+- [X] T003 [P] Create `crates/ckrv-transport/src/lib.rs` with module structure and feature gates
+- [X] T004 [P] Create `crates/ckrv-transport/src/error.rs` with TransportError enum
+- [X] T005 [P] Create `crates/ckrv-transport/src/state.rs` with AppState struct (migrate from ckrv-ui)
 
 **Checkpoint**: Crate compiles with `cargo build -p ckrv-transport`
 
@@ -44,16 +44,16 @@
 
 **⚠️ CRITICAL**: No handler migration can begin until this phase is complete
 
-- [ ] T006 Create `crates/ckrv-transport/src/types/mod.rs` re-exporting all types
-- [ ] T007 [P] Create `crates/ckrv-transport/src/types/common.rs` with SystemStatus, DockerStatus
-- [ ] T008 [P] Create `crates/ckrv-transport/src/types/agents.rs` with AgentConfig, AgentType, etc.
-- [ ] T009 [P] Create `crates/ckrv-transport/src/types/specs.rs` with SpecSummary, SpecStatus, etc.
-- [ ] T010 [P] Create `crates/ckrv-transport/src/types/execution.rs` with ExecutionRun, TaskRun, etc.
-- [ ] T011 [P] Create `crates/ckrv-transport/src/types/history.rs` with RunSummary, RunDetail
-- [ ] T012 [P] Create `crates/ckrv-transport/src/types/test_qa.rs` with test and QA request/response types
-- [ ] T013 Create `crates/ckrv-transport/src/handlers/mod.rs` re-exporting all handlers
-- [ ] T014 Create `crates/ckrv-transport/src/axum/mod.rs` with create_router() stub and feature gate
-- [ ] T015 Create `crates/ckrv-transport/src/tauri/mod.rs` with get_invoke_handlers() stub and feature gate
+- [X] T006 Create `crates/ckrv-transport/src/types/mod.rs` re-exporting all types
+- [X] T007 [P] Create `crates/ckrv-transport/src/types/common.rs` with SystemStatus, DockerStatus
+- [X] T008 [P] Create `crates/ckrv-transport/src/types/agents.rs` with AgentConfig, AgentType, etc.
+- [X] T009 [P] Create `crates/ckrv-transport/src/types/specs.rs` with SpecSummary, SpecStatus, etc.
+- [X] T010 [P] Create `crates/ckrv-transport/src/types/execution.rs` with ExecutionRun, TaskRun, etc.
+- [X] T011 [P] Create `crates/ckrv-transport/src/types/history.rs` with RunSummary, RunDetail
+- [X] T012 [P] Create `crates/ckrv-transport/src/types/test_qa.rs` with test and QA request/response types
+- [X] T013 Create `crates/ckrv-transport/src/handlers/mod.rs` re-exporting all handlers
+- [X] T014 Create `crates/ckrv-transport/src/axum/mod.rs` with create_router() stub and feature gate
+- [X] T015 Create `crates/ckrv-transport/src/tauri/mod.rs` with get_invoke_handlers() stub and feature gate
 
 **Checkpoint**: Foundation ready - `cargo build -p ckrv-transport --features axum` compiles
 
@@ -69,69 +69,69 @@
 
 ### Low Complexity Handlers (Group 1)
 
-- [ ] T016 [P] [US2] Migrate status handler to `crates/ckrv-transport/src/handlers/status.rs`
-- [ ] T017 [P] [US2] Migrate docker handler to `crates/ckrv-transport/src/handlers/docker.rs`
-- [ ] T018 [P] [US2] Migrate cloud handler to `crates/ckrv-transport/src/handlers/cloud.rs`
-- [ ] T019 [P] [US2] Create Axum wrapper for status in `crates/ckrv-transport/src/axum/status.rs`
-- [ ] T020 [P] [US2] Create Axum wrapper for docker in `crates/ckrv-transport/src/axum/docker.rs`
-- [ ] T021 [P] [US2] Create Axum wrapper for cloud in `crates/ckrv-transport/src/axum/cloud.rs`
+- [X] T016 [P] [US2] Migrate status handler to `crates/ckrv-transport/src/handlers/status.rs`
+- [X] T017 [P] [US2] Migrate docker handler to `crates/ckrv-transport/src/handlers/docker.rs`
+- [X] T018 [P] [US2] Migrate cloud handler to `crates/ckrv-transport/src/handlers/cloud.rs`
+- [X] T019 [P] [US2] Create Axum wrapper for status in `crates/ckrv-transport/src/axum/status.rs`
+- [X] T020 [P] [US2] Create Axum wrapper for docker in `crates/ckrv-transport/src/axum/docker.rs`
+- [X] T021 [P] [US2] Create Axum wrapper for cloud in `crates/ckrv-transport/src/axum/cloud.rs`
 
 ### Medium Complexity Handlers (Group 2)
 
-- [ ] T022 [P] [US2] Migrate agents handler to `crates/ckrv-transport/src/handlers/agents.rs`
-- [ ] T023 [P] [US2] Migrate specs handler to `crates/ckrv-transport/src/handlers/specs.rs`
-- [ ] T024 [P] [US2] Migrate plans handler to `crates/ckrv-transport/src/handlers/plans.rs`
-- [ ] T025 [P] [US2] Migrate tasks handler to `crates/ckrv-transport/src/handlers/tasks.rs`
-- [ ] T026 [P] [US2] Create Axum wrapper for agents in `crates/ckrv-transport/src/axum/agents.rs`
-- [ ] T027 [P] [US2] Create Axum wrapper for specs in `crates/ckrv-transport/src/axum/specs.rs`
-- [ ] T028 [P] [US2] Create Axum wrapper for plans in `crates/ckrv-transport/src/axum/plans.rs`
-- [ ] T029 [P] [US2] Create Axum wrapper for tasks in `crates/ckrv-transport/src/axum/tasks.rs`
+- [X] T022 [P] [US2] Migrate agents handler to `crates/ckrv-transport/src/handlers/agents.rs`
+- [X] T023 [P] [US2] Migrate specs handler to `crates/ckrv-transport/src/handlers/specs.rs`
+- [X] T024 [P] [US2] Migrate plans handler to `crates/ckrv-transport/src/handlers/plans.rs`
+- [X] T025 [P] [US2] Migrate tasks handler to `crates/ckrv-transport/src/handlers/tasks.rs`
+- [X] T026 [P] [US2] Create Axum wrapper for agents in `crates/ckrv-transport/src/axum/agents.rs`
+- [X] T027 [P] [US2] Create Axum wrapper for specs in `crates/ckrv-transport/src/axum/specs.rs`
+- [X] T028 [P] [US2] Create Axum wrapper for plans in `crates/ckrv-transport/src/axum/plans.rs`
+- [X] T029 [P] [US2] Create Axum wrapper for tasks in `crates/ckrv-transport/src/axum/tasks.rs`
 
 ### Medium Complexity Handlers (Group 3)
 
-- [ ] T030 [P] [US2] Migrate history handler to `crates/ckrv-transport/src/handlers/history.rs`
-- [ ] T031 [P] [US2] Migrate commands handler to `crates/ckrv-transport/src/handlers/commands.rs`
-- [ ] T032 [P] [US2] Migrate console handler to `crates/ckrv-transport/src/handlers/console.rs`
-- [ ] T033 [P] [US2] Migrate diff handler to `crates/ckrv-transport/src/handlers/diff.rs`
-- [ ] T034 [P] [US2] Create Axum wrapper for history in `crates/ckrv-transport/src/axum/history.rs`
-- [ ] T035 [P] [US2] Create Axum wrapper for commands in `crates/ckrv-transport/src/axum/commands.rs`
-- [ ] T036 [P] [US2] Create Axum wrapper for console in `crates/ckrv-transport/src/axum/console.rs`
-- [ ] T037 [P] [US2] Create Axum wrapper for diff in `crates/ckrv-transport/src/axum/diff.rs`
+- [X] T030 [P] [US2] Migrate history handler to `crates/ckrv-transport/src/handlers/history.rs`
+- [X] T031 [P] [US2] Migrate commands handler to `crates/ckrv-transport/src/handlers/commands.rs`
+- [X] T032 [P] [US2] Migrate console handler to `crates/ckrv-transport/src/handlers/console.rs`
+- [X] T033 [P] [US2] Migrate diff handler to `crates/ckrv-transport/src/handlers/diff.rs`
+- [X] T034 [P] [US2] Create Axum wrapper for history in `crates/ckrv-transport/src/axum/history.rs`
+- [X] T035 [P] [US2] Create Axum wrapper for commands in `crates/ckrv-transport/src/axum/commands.rs`
+- [X] T036 [P] [US2] Create Axum wrapper for console in `crates/ckrv-transport/src/axum/console.rs`
+- [X] T037 [P] [US2] Create Axum wrapper for diff in `crates/ckrv-transport/src/axum/diff.rs`
 
 ### Medium-High Complexity Handlers (Group 4)
 
-- [ ] T038 [P] [US2] Migrate qa handler to `crates/ckrv-transport/src/handlers/qa.rs`
-- [ ] T039 [P] [US2] Migrate session handler to `crates/ckrv-transport/src/handlers/session.rs`
-- [ ] T040 [P] [US2] Create Axum wrapper for qa in `crates/ckrv-transport/src/axum/qa.rs`
-- [ ] T041 [P] [US2] Create Axum wrapper for session in `crates/ckrv-transport/src/axum/session.rs`
+- [X] T038 [P] [US2] Migrate qa handler to `crates/ckrv-transport/src/handlers/qa.rs`
+- [X] T039 [P] [US2] Migrate session handler to `crates/ckrv-transport/src/handlers/session.rs`
+- [X] T040 [P] [US2] Create Axum wrapper for qa in `crates/ckrv-transport/src/axum/qa.rs`
+- [X] T041 [P] [US2] Create Axum wrapper for session in `crates/ckrv-transport/src/axum/session.rs`
 
 ### High Complexity Handlers (Group 5)
 
-- [ ] T042 [P] [US2] Migrate execution handler to `crates/ckrv-transport/src/handlers/execution.rs`
-- [ ] T043 [P] [US2] Migrate test handler to `crates/ckrv-transport/src/handlers/test.rs`
-- [ ] T044 [P] [US2] Create Axum wrapper for execution in `crates/ckrv-transport/src/axum/execution.rs`
-- [ ] T045 [P] [US2] Create Axum wrapper for test in `crates/ckrv-transport/src/axum/test.rs`
+- [X] T042 [P] [US2] Migrate execution handler to `crates/ckrv-transport/src/handlers/execution.rs`
+- [X] T043 [P] [US2] Migrate test handler to `crates/ckrv-transport/src/handlers/test.rs`
+- [X] T044 [P] [US2] Create Axum wrapper for execution in `crates/ckrv-transport/src/axum/execution.rs`
+- [X] T045 [P] [US2] Create Axum wrapper for test in `crates/ckrv-transport/src/axum/test.rs`
 
 ### Transport-Specific Handlers (Group 6)
 
-- [ ] T046 [US2] Migrate terminal WebSocket handler to `crates/ckrv-transport/src/handlers/terminal.rs`
-- [ ] T047 [US2] Migrate events SSE handler to `crates/ckrv-transport/src/handlers/events.rs`
-- [ ] T048 [US2] Create Axum wrapper for terminal in `crates/ckrv-transport/src/axum/terminal.rs`
-- [ ] T049 [US2] Create Axum wrapper for events in `crates/ckrv-transport/src/axum/events.rs`
+- [X] T046 [US2] Migrate terminal WebSocket handler to `crates/ckrv-transport/src/handlers/terminal.rs`
+- [X] T047 [US2] Migrate events SSE handler to `crates/ckrv-transport/src/handlers/events.rs`
+- [X] T048 [US2] Create Axum wrapper for terminal in `crates/ckrv-transport/src/axum/terminal.rs`
+- [X] T049 [US2] Create Axum wrapper for events in `crates/ckrv-transport/src/axum/events.rs`
 
 ### Router Integration
 
-- [ ] T050 [US2] Update `crates/ckrv-transport/src/axum/mod.rs` with complete router (all routes)
-- [ ] T051 [US2] Add ckrv-transport dependency to `crates/ckrv-ui/Cargo.toml` with axum feature
-- [ ] T052 [US2] Update `crates/ckrv-ui/src/lib.rs` to use transport's create_router()
-- [ ] T053 [US2] Update `crates/ckrv-ui/src/api/mod.rs` to re-export from ckrv-transport
+- [X] T050 [US2] Update `crates/ckrv-transport/src/axum/mod.rs` with complete router (all routes)
+- [X] T051 [US2] Add ckrv-transport dependency to `crates/ckrv-ui/Cargo.toml` with axum feature
+- [X] T052 [US2] Update `crates/ckrv-ui/src/lib.rs` to use transport's create_router()
+- [X] T053 [US2] Update `crates/ckrv-ui/src/api/mod.rs` to re-export from ckrv-transport
 
 ### Verification
 
-- [ ] T054 [US2] Verify `cargo build -p ckrv-transport --features axum` succeeds
-- [ ] T055 [US2] Verify `cargo build -p ckrv-ui` succeeds
-- [ ] T056 [US2] Verify `ckrv ui` starts and all endpoints respond correctly
-- [ ] T057 [US2] Run existing tests with `cargo test -p ckrv-transport --features axum`
+- [X] T054 [US2] Verify `cargo build -p ckrv-transport --features axum` succeeds
+- [X] T055 [US2] Verify `cargo build -p ckrv-ui` succeeds
+- [X] T056 [US2] Verify `ckrv ui` starts and all endpoints respond correctly
+- [X] T057 [US2] Run existing tests with `cargo test -p ckrv-transport --features axum`
 
 **Checkpoint**: Web UI is fully functional - US2 complete and independently testable
 
@@ -145,11 +145,11 @@
 
 **NOTE**: This story validates the architecture created in US2
 
-- [ ] T058 [US1] Create `crates/ckrv-transport/docs/README.md` with crate documentation
-- [ ] T059 [US1] Document handler pattern in `crates/ckrv-transport/docs/adding-endpoints.md`
-- [ ] T060 [US1] Add example handler in `crates/ckrv-transport/src/handlers/example.rs` (for reference)
-- [ ] T061 [US1] Add example Axum wrapper in `crates/ckrv-transport/src/axum/example.rs`
-- [ ] T062 [US1] Verify adding endpoint only requires ckrv-transport changes
+- [X] T058 [US1] Create `crates/ckrv-transport/docs/README.md` with crate documentation
+- [X] T059 [US1] Document handler pattern in `crates/ckrv-transport/docs/adding-endpoints.md`
+- [X] T060 [US1] Add example handler in `crates/ckrv-transport/src/handlers/example.rs` (for reference)
+- [X] T061 [US1] Add example Axum wrapper in `crates/ckrv-transport/src/axum/example.rs`
+- [X] T062 [US1] Verify adding endpoint only requires ckrv-transport changes
 
 **Checkpoint**: Developer workflow validated - US1 complete
 
@@ -161,18 +161,18 @@
 
 **Independent Test**: Modify a Rust type, regenerate TypeScript, verify frontend compiles
 
-- [ ] T063 [P] [US3] Add ts-rs dependency to `crates/ckrv-transport/Cargo.toml` (optional feature)
-- [ ] T064 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/common.rs`
-- [ ] T065 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/agents.rs`
-- [ ] T066 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/specs.rs`
-- [ ] T067 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/execution.rs`
-- [ ] T068 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/history.rs`
-- [ ] T069 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/test_qa.rs`
-- [ ] T070 [US3] Create type export script in `crates/ckrv-transport/build.rs` or test
-- [ ] T071 [US3] Configure ts-rs output path to `crates/ckrv-ui/frontend/src/types/api.generated.ts`
-- [ ] T072 [US3] Generate TypeScript types and verify output
-- [ ] T073 [US3] Add npm script for type generation in `crates/ckrv-ui/frontend/package.json`
-- [ ] T074 [US3] Update frontend to import from generated types where applicable
+- [X] T063 [P] [US3] Add ts-rs dependency to `crates/ckrv-transport/Cargo.toml` (optional feature)
+- [X] T064 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/common.rs`
+- [X] T065 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/agents.rs`
+- [X] T066 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/specs.rs`
+- [X] T067 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/execution.rs`
+- [X] T068 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/history.rs`
+- [X] T069 [P] [US3] Add `#[derive(TS)]` to types in `crates/ckrv-transport/src/types/test_qa.rs`
+- [X] T070 [US3] Create type export script in `crates/ckrv-transport/build.rs` or test
+- [X] T071 [US3] Configure ts-rs output path to `crates/ckrv-ui/frontend/src/types/api.generated.ts`
+- [X] T072 [US3] Generate TypeScript types and verify output
+- [X] T073 [US3] Add npm script for type generation in `crates/ckrv-ui/frontend/package.json`
+- [X] T074 [US3] Update frontend to import from generated types where applicable
 
 **Checkpoint**: TypeScript types auto-generated - US3 complete
 
@@ -184,13 +184,13 @@
 
 **Independent Test**: `cargo build -p ckrv-transport --features tauri` compiles
 
-- [ ] T075 [P] [US4] Add tauri dependency to `crates/ckrv-transport/Cargo.toml` (optional)
-- [ ] T076 [P] [US4] Create Tauri command for status in `crates/ckrv-transport/src/tauri/status.rs`
-- [ ] T077 [P] [US4] Create Tauri command for agents in `crates/ckrv-transport/src/tauri/agents.rs`
-- [ ] T078 [P] [US4] Create Tauri command stubs for remaining handlers in `crates/ckrv-transport/src/tauri/`
-- [ ] T079 [US4] Update `crates/ckrv-transport/src/tauri/mod.rs` with get_invoke_handlers()
-- [ ] T080 [US4] Verify `cargo build -p ckrv-transport --features tauri` succeeds
-- [ ] T081 [US4] Document Tauri integration in `crates/ckrv-transport/docs/tauri-integration.md`
+- [X] T075 [P] [US4] Add tauri dependency to `crates/ckrv-transport/Cargo.toml` (optional)
+- [X] T076 [P] [US4] Create Tauri command for status in `crates/ckrv-transport/src/tauri/status.rs`
+- [X] T077 [P] [US4] Create Tauri command for agents in `crates/ckrv-transport/src/tauri/agents.rs`
+- [X] T078 [P] [US4] Create Tauri command stubs for remaining handlers in `crates/ckrv-transport/src/tauri/`
+- [X] T079 [US4] Update `crates/ckrv-transport/src/tauri/mod.rs` with get_invoke_handlers()
+- [X] T080 [US4] Verify `cargo build -p ckrv-transport --features tauri` succeeds
+- [X] T081 [US4] Document Tauri integration in `crates/ckrv-transport/docs/tauri-integration.md`
 
 **Checkpoint**: Tauri feature compiles - US4 complete
 
@@ -200,14 +200,14 @@
 
 **Purpose**: Cleanup, documentation, and final verification
 
-- [ ] T082 [P] Update `crates/docs/architecture.md` to include ckrv-transport crate
-- [ ] T083 [P] Add ckrv-transport to README.md crate listing
-- [ ] T084 Remove deprecated code from `crates/ckrv-ui/src/api/*.rs` (keep re-exports only)
-- [ ] T085 Remove deprecated `crates/ckrv-ui/src/state.rs` (now in ckrv-transport)
-- [ ] T086 Run `cargo clippy -p ckrv-transport --features axum` and fix warnings
-- [ ] T087 Run `cargo clippy -p ckrv-transport --features tauri` and fix warnings
-- [ ] T088 Verify all integration tests pass
-- [ ] T089 Validate against quickstart.md scenarios
+- [X] T082 [P] Update `crates/docs/architecture.md` to include ckrv-transport crate
+- [X] T083 [P] Add ckrv-transport to README.md crate listing
+- [X] T084 Remove deprecated code from `crates/ckrv-ui/src/api/*.rs` (keep re-exports only)
+- [X] T085 Remove deprecated `crates/ckrv-ui/src/state.rs` (now in ckrv-transport)
+- [X] T086 Run `cargo clippy -p ckrv-transport --features axum` and fix warnings
+- [X] T087 Run `cargo clippy -p ckrv-transport --features tauri` and fix warnings
+- [X] T088 Verify all integration tests pass
+- [X] T089 Validate against quickstart.md scenarios
 
 ---
 
