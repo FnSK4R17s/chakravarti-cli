@@ -176,10 +176,7 @@ export const ChatDashboard: React.FC = () => {
                                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                     <Button
                                         onClick={() => setCurrentPage('test')}
-                                        className="gap-2"
-                                        style={{
-                                            background: 'linear-gradient(135deg, #22c55e, #10b981)',
-                                        }}
+                                        className="gap-2 bg-success text-success-foreground hover:bg-success/90"
                                     >
                                         <TestTube2 size={18} />
                                         Go to Tests Page

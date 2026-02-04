@@ -884,18 +884,13 @@ export default function TestRunner() {
                 <button
                     onClick={() => lastError ? setShowFixModal(true) : setShowAgentPrompt(!showAgentPrompt)}
                     className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 ${showAgentPrompt ? 'rotate-45' : ''
-                        }`}
-                    style={{
-                        background: lastError
-                            ? 'linear-gradient(135deg, #ef4444, #dc2626)'
-                            : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                    }}
+                        } ${lastError ? 'bg-error text-error-foreground' : 'bg-primary text-primary-foreground'}`}
                     title={lastError ? "Fix error with AI" : "Ask test agent"}
                 >
                     {lastError ? (
-                        <AlertTriangle className="w-6 h-6 text-white" />
+                        <AlertTriangle className="w-6 h-6" />
                     ) : (
-                        <MessageCircle className="w-6 h-6 text-white" />
+                        <MessageCircle className="w-6 h-6" />
                     )}
                 </button>
             </div>

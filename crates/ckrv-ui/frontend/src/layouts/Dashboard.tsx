@@ -368,7 +368,7 @@ const DockerIndicator: React.FC<DockerIndicatorProps> = ({ status }) => {
     const isAvailable = status?.available ?? false;
     const message = status?.message ?? 'Checking Docker status...';
 
-    const variant = isAvailable ? 'default' : 'destructive';
+    const variant = isAvailable ? 'success' : 'destructive';
 
     return (
         <Tooltip>
@@ -400,7 +400,7 @@ const CloudIndicator: React.FC<CloudIndicatorProps> = ({ status }) => {
         ? `${baseMessage} (${email})`
         : baseMessage;
 
-    const variant = isAuthenticated ? 'info' : 'warning';
+    const variant = isAuthenticated ? 'success' : 'destructive';
 
     return (
         <Tooltip>
