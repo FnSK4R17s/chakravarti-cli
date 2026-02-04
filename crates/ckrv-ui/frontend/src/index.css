@@ -351,39 +351,6 @@ body {
   transition: all var(--duration-fast) var(--ease-default);
 }
 
-/* ============================================================
-   FOCUS STATES (Accessibility)
-   ============================================================ */
-
-:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-:focus:not(:focus-visible) {
-  outline: none;
-}
-
-button:focus-visible,
-[role="button"]:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px oklch(from var(--ring) l c h / 0.2);
-}
-
-a:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 0;
-  border-color: var(--ring);
-}
-
 /* Skip link for accessibility */
 .skip-link {
   position: absolute;

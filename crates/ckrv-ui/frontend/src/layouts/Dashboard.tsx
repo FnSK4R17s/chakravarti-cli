@@ -205,7 +205,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Header */}
                 <header
-                    className="h-14 flex items-center justify-between px-6 bg-muted border-b border-border"
+                    className="h-14 relative flex items-center justify-between px-6 bg-muted border-b border-border"
                 >
                     <div className="flex items-center gap-3">
                         <span
@@ -219,8 +219,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                         </h1>
                     </div>
 
-                    {/* Center - Branch indicator */}
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border">
+                    {/* Center - Branch indicator (absolutely centered) */}
+                    <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border">
                         <GitBranch size={14} className="text-primary" />
                         <span className="font-mono text-sm text-foreground">{currentBranch}</span>
                     </div>

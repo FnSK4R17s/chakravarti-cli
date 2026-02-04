@@ -244,7 +244,7 @@ export const ChatDashboard: React.FC = () => {
                                     rows={3}
                                     className={cn(
                                         "w-full px-4 py-4 pr-14 bg-transparent text-foreground placeholder:text-muted-foreground",
-                                        "resize-none outline-none text-sm leading-relaxed",
+                                        "resize-none border-0 outline-none text-sm leading-relaxed",
                                         "disabled:cursor-not-allowed"
                                     )}
                                     onKeyDown={(e) => {
