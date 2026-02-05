@@ -6,7 +6,7 @@
 //!
 //! This module configures and starts the web server that serves:
 //! - Static frontend assets (embedded via `rust-embed`)
-//! - REST API endpoints for CRUD operations
+//! - REST API endpoints via `ckrv-transport` crate
 //! - WebSocket endpoints for real-time streaming
 //! - Server-Sent Events for orchestration updates
 //!
@@ -20,7 +20,7 @@
 //!
 //! ## Route Organization
 //!
-//! Routes are organized by domain:
+//! All API routes are provided by the `ckrv-transport` crate:
 //! - `/api/specs/*` - Specification management
 //! - `/api/tasks/*` - Task management
 //! - `/api/execution/*` - Execution control
@@ -35,19 +35,19 @@
 
 use axum::{
     body::Body,
-    extract::State,
     http::{header, StatusCode, Uri},
     response::{IntoResponse, Response},
     routing::get,
     Router,
 };
+use ckrv_transport::Hub;
 use rust_embed::RustEmbed;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::hub::Hub;
-use crate::state::{AppState, SystemStatus};
+// Re-export AppState from transport for backward compatibility
+pub use ckrv_transport::{AppState, SystemMode, SystemStatus};
 
 #[derive(RustEmbed)]
 #[folder = "frontend/dist"]
@@ -95,292 +95,19 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
         );
     }
 
+    // Create AppState using the transport crate's type
     let state = AppState {
         status: Arc::new(RwLock::new(SystemStatus::default())),
         hub: Arc::new(Hub::new()),
         project_root,
     };
 
+    // Create the app with transport router and static file handler
     let app = Router::new()
         .route("/health", get(|| async { "OK" }))
-        .route("/api/status", get(crate::api::status::get_status))
-        .route("/api/docker", get(crate::api::docker::get_docker_status))
-        .route("/api/cloud", get(crate::api::cloud::get_cloud_status))
-        .route("/api/events", get(crate::api::events::sse_handler))
-        .route("/api/specs", get(crate::api::specs::list_specs))
-        .route("/api/specs/detail", get(crate::api::specs::get_spec))
-        .route(
-            "/api/specs/save",
-            axum::routing::post(crate::api::specs::save_spec),
-        )
-        .route(
-            "/api/specs/create",
-            axum::routing::post(crate::api::specs::create_spec),
-        )
-        .route(
-            "/api/specs/{name}/validate",
-            get(crate::api::specs::validate_spec),
-        )
-        .route(
-            "/api/specs/{name}/design",
-            axum::routing::post(crate::api::specs::generate_design),
-        )
-        .route(
-            "/api/specs/{name}/tasks",
-            axum::routing::post(crate::api::specs::generate_tasks),
-        )
-        .route(
-            "/api/specs/{name}/clarifications",
-            get(crate::api::specs::get_clarifications),
-        )
-        .route(
-            "/api/specs/{name}/clarify",
-            axum::routing::post(crate::api::specs::submit_clarifications),
-        )
-        .route("/api/tasks", get(crate::api::tasks::list_tasks))
-        .route("/api/tasks/detail", get(crate::api::tasks::get_tasks))
-        .route(
-            "/api/tasks/save",
-            axum::routing::post(crate::api::tasks::save_tasks),
-        )
-        .route(
-            "/api/tasks/status",
-            axum::routing::post(crate::api::tasks::update_task_status),
-        )
-        // Plan management routes
-        .route("/api/plans/detail", get(crate::api::plans::get_plan))
-        .route(
-            "/api/plans/save",
-            axum::routing::post(crate::api::plans::save_plan),
-        )
-        .route(
-            "/api/plans/models",
-            get(crate::api::plans::get_openrouter_models),
-        )
-        .route(
-            "/api/command/init",
-            axum::routing::post(crate::api::commands::run_init),
-        )
-        .route(
-            "/api/command/git-init",
-            axum::routing::post(crate::api::commands::run_git_init),
-        )
-        .route(
-            "/api/command/spec-new",
-            axum::routing::post(crate::api::commands::run_spec_new),
-        )
-        .route(
-            "/api/command/spec-tasks",
-            axum::routing::post(crate::api::commands::run_spec_tasks),
-        )
-        .route(
-            "/api/command/plan",
-            axum::routing::post(crate::api::commands::run_plan),
-        )
-        .route(
-            "/api/command/run",
-            axum::routing::post(crate::api::commands::run_run),
-        )
-        .route(
-            "/api/command/execute",
-            axum::routing::post(crate::api::commands::run_execute),
-        )
-        .route(
-            "/api/command/diff",
-            axum::routing::post(crate::api::commands::run_diff),
-        )
-        .route(
-            "/api/command/verify",
-            axum::routing::post(crate::api::commands::run_verify),
-        )
-        .route(
-            "/api/command/promote",
-            axum::routing::post(crate::api::commands::run_promote),
-        )
-        .route(
-            "/api/command/fix",
-            axum::routing::post(crate::api::commands::run_fix),
-        )
-        // Agent management routes
-        .route("/api/agents", get(crate::api::agents::list_agents))
-        .route(
-            "/api/agents/models",
-            get(crate::api::agents::get_openrouter_models),
-        )
-        .route(
-            "/api/agents/upsert",
-            axum::routing::post(crate::api::agents::upsert_agent),
-        )
-        .route(
-            "/api/agents/delete",
-            axum::routing::post(crate::api::agents::delete_agent),
-        )
-        .route(
-            "/api/agents/set-default",
-            axum::routing::post(crate::api::agents::set_default_agent),
-        )
-        .route(
-            "/api/agents/set-qa",
-            axum::routing::post(crate::api::agents::set_qa_agent),
-        )
-        .route(
-            "/api/agents/set-test-writer",
-            axum::routing::post(crate::api::agents::set_test_writer_agent),
-        )
-        .route(
-            "/api/agents/test",
-            axum::routing::post(crate::api::agents::test_agent),
-        )
-        .route(
-            "/api/agents/cli",
-            axum::routing::post(crate::api::console::execute_command),
-        )
-        // Session management routes
-        .route(
-            "/api/session/start",
-            axum::routing::post(crate::api::session::start_session),
-        )
-        .route(
-            "/api/session/exec",
-            axum::routing::post(crate::api::session::exec_in_session),
-        )
-        .route(
-            "/api/session/stop",
-            axum::routing::post(crate::api::session::stop_session),
-        )
-        // Interactive terminal routes (WebSocket)
-        .route(
-            "/api/terminal/start",
-            axum::routing::post(crate::api::terminal::start_terminal_session),
-        )
-        .route(
-            "/api/terminal/ws",
-            axum::routing::get(crate::api::terminal::terminal_ws),
-        )
-        .route(
-            "/api/terminal/stop",
-            axum::routing::post(crate::api::terminal::stop_terminal_session),
-        )
-        // Execution streaming routes (WebSocket)
-        .route(
-            "/api/execution/start",
-            axum::routing::post(crate::api::execution::start_execution),
-        )
-        .route(
-            "/api/execution/ws",
-            axum::routing::get(crate::api::execution::execution_ws),
-        )
-        .route(
-            "/api/execution/stop",
-            axum::routing::post(crate::api::execution::stop_execution),
-        )
-        .route(
-            "/api/execution/branches",
-            axum::routing::post(crate::api::execution::list_unmerged_branches),
-        )
-        .route(
-            "/api/execution/merge",
-            axum::routing::post(crate::api::execution::merge_branch),
-        )
-        .route(
-            "/api/execution/merge-all",
-            axum::routing::post(crate::api::execution::merge_all_branches),
-        )
-        // T016: Log history routes for persistent runner logs
-        .route(
-            "/api/execution/{id}/logs",
-            axum::routing::get(crate::api::execution::get_execution_logs),
-        )
-        .route(
-            "/api/execution/{id}/logs/tail",
-            axum::routing::get(crate::api::execution::get_execution_logs_tail),
-        )
-        .route(
-            "/api/execution/{id}/logs",
-            axum::routing::delete(crate::api::execution::delete_execution_logs),
-        )
-        // Run history routes
-        .route(
-            "/api/history/{spec}",
-            axum::routing::get(crate::api::history::list_runs),
-        )
-        .route(
-            "/api/history/{spec}",
-            axum::routing::post(crate::api::history::create_run),
-        )
-        .route(
-            "/api/history/{spec}/{run_id}",
-            axum::routing::get(crate::api::history::get_run),
-        )
-        .route(
-            "/api/history/{spec}/{run_id}",
-            axum::routing::patch(crate::api::history::update_run),
-        )
-        .route(
-            "/api/history/{spec}/{run_id}",
-            axum::routing::delete(crate::api::history::delete_run),
-        )
-        // Git diff routes
-        .route(
-            "/api/diff/branches",
-            axum::routing::get(crate::api::diff::get_branches),
-        )
-        .route("/api/diff", axum::routing::get(crate::api::diff::get_diff))
-        .route(
-            "/api/git/default-branch",
-            axum::routing::get(crate::api::diff::get_default_branch),
-        )
-        // Test command routes
-        .route(
-            "/api/test/agent",
-            axum::routing::get(crate::api::test::get_test_agent),
-        )
-        .route(
-            "/api/test/run",
-            axum::routing::post(crate::api::test::run_tests),
-        )
-        .route(
-            "/api/test/plan",
-            axum::routing::post(crate::api::test::plan_tests),
-        )
-        .route(
-            "/api/test/plan-status",
-            axum::routing::get(crate::api::test::test_plan_status),
-        )
-        .route(
-            "/api/test/write",
-            axum::routing::post(crate::api::test::write_tests),
-        )
-        .route(
-            "/api/test/write-status",
-            axum::routing::get(crate::api::test::test_write_status),
-        )
-        .route(
-            "/api/test/coverage",
-            axum::routing::post(crate::api::test::check_coverage),
-        )
-        .route(
-            "/api/test/fix",
-            axum::routing::post(crate::api::test::fix_tests),
-        )
-        // QA command routes
-        .route(
-            "/api/qa/agent",
-            axum::routing::get(crate::api::qa::get_qa_agent),
-        )
-        .route(
-            "/api/qa/review",
-            axum::routing::post(crate::api::qa::run_review),
-        )
-        .route(
-            "/api/qa/bugs",
-            axum::routing::post(crate::api::qa::run_bugs),
-        )
-        .route(
-            "/api/qa/report",
-            axum::routing::post(crate::api::qa::run_report),
-        )
-        // Fallback for SPA
+        // Nest all API routes from ckrv-transport
+        .nest("/api", ckrv_transport::axum::create_router(state.clone()))
+        // Fallback for SPA (serves static files)
         .fallback(static_handler)
         .with_state(state);
 

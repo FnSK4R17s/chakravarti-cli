@@ -176,10 +176,7 @@ export const ChatDashboard: React.FC = () => {
                                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                     <Button
                                         onClick={() => setCurrentPage('test')}
-                                        className="gap-2"
-                                        style={{
-                                            background: 'linear-gradient(135deg, #22c55e, #10b981)',
-                                        }}
+                                        className="gap-2 bg-success text-success-foreground hover:bg-success/90"
                                     >
                                         <TestTube2 size={18} />
                                         Go to Tests Page
@@ -247,7 +244,7 @@ export const ChatDashboard: React.FC = () => {
                                     rows={3}
                                     className={cn(
                                         "w-full px-4 py-4 pr-14 bg-transparent text-foreground placeholder:text-muted-foreground",
-                                        "resize-none outline-none text-sm leading-relaxed",
+                                        "resize-none border-0 outline-none text-sm leading-relaxed",
                                         "disabled:cursor-not-allowed"
                                     )}
                                     onKeyDown={(e) => {

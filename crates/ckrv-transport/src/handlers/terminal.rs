@@ -1,0 +1,541 @@
+//! # Terminal Handler
+//!
+//! Handlers for interactive terminal sessions with Docker containers.
+//! Supports WebSocket-based bidirectional streaming between browser and Docker exec.
+
+use crate::error::TransportError;
+use crate::state::AppState;
+use crate::types::{AgentConfig, AgentType};
+use axum::extract::ws::{Message, WebSocket};
+use bollard::container::LogOutput;
+use bollard::exec::{CreateExecOptions, StartExecOptions, StartExecResults};
+use bollard::Docker;
+use futures_util::{SinkExt, StreamExt};
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Mutex;
+use tokio::io::AsyncWriteExt;
+use tokio::sync::mpsc;
+
+// ============================================================================
+// Session Store
+// ============================================================================
+
+/// Session store for container IDs.
+static TERMINAL_SESSIONS: Lazy<Mutex<HashMap<String, String>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+// ============================================================================
+// Request/Response Types
+// ============================================================================
+
+/// Request to start a terminal session.
+#[derive(Debug, Deserialize)]
+pub struct StartTerminalRequest {
+    /// Session ID for the terminal
+    pub session_id: Option<String>,
+    /// Agent configuration to use
+    pub agent: Option<AgentConfig>,
+}
+
+/// Response from starting a terminal session.
+#[derive(Debug, Serialize)]
+pub struct StartTerminalResponse {
+    /// Whether the operation succeeded
+    pub success: bool,
+    /// Session ID
+    pub session_id: String,
+    /// Container ID if created
+    pub container_id: Option<String>,
+    /// Message describing the result
+    pub message: Option<String>,
+}
+
+/// Request to stop a terminal session.
+#[derive(Debug, Deserialize)]
+pub struct StopTerminalRequest {
+    /// Session ID to stop
+    pub session_id: String,
+}
+
+/// Response from stopping a terminal session.
+#[derive(Debug, Serialize)]
+pub struct StopTerminalResponse {
+    /// Whether the operation succeeded
+    pub success: bool,
+    /// Message describing the result
+    pub message: Option<String>,
+}
+
+// ============================================================================
+// Handlers
+// ============================================================================
+
+/// Start a terminal session (creates Docker container).
+pub async fn start_terminal_handler(
+    state: &AppState,
+    request: StartTerminalRequest,
+) -> Result<StartTerminalResponse, TransportError> {
+    let session_id = request
+        .session_id
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    // Check if session already exists
+    {
+        let sessions = TERMINAL_SESSIONS.lock().unwrap();
+        if let Some(container_id) = sessions.get(&session_id) {
+            return Ok(StartTerminalResponse {
+                success: true,
+                session_id,
+                container_id: Some(container_id.clone()),
+                message: Some("Session already exists".to_string()),
+            });
+        }
+    }
+
+    // Create Docker client
+    let docker = match Docker::connect_with_local_defaults() {
+        Ok(d) => d,
+        Err(e) => {
+            return Ok(StartTerminalResponse {
+                success: false,
+                session_id,
+                container_id: None,
+                message: Some(format!("Docker not available: {e}")),
+            });
+        }
+    };
+
+    // Get paths
+    let cwd = state.project_root.to_string_lossy().to_string();
+    let host_home = std::env::var("HOME").unwrap_or_default();
+
+    // Start with workspace bind
+    let mut binds = vec![format!("{cwd}:/workspace")];
+
+    // Determine agent type
+    let is_openrouter = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::ClaudeOpenRouter))
+        .unwrap_or(false);
+
+    let is_glm = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::ClaudeGlm))
+        .unwrap_or(false);
+
+    let is_codex = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Codex))
+        .unwrap_or(false);
+
+    // Set container home based on agent type
+    let container_home = if is_codex {
+        "/home/codex"
+    } else {
+        "/home/claude"
+    };
+
+    // Build environment variables based on agent type
+    let mut env_vars = vec![format!("HOME={container_home}")];
+
+    // Select Docker image based on agent type
+    let docker_image = if is_codex {
+        "ckrv-codex:latest".to_string()
+    } else {
+        "ckrv-claude:latest".to_string()
+    };
+
+    if is_codex {
+        // Codex configuration - mount logged-in credentials
+        let codex_dir = format!("{host_home}/.codex");
+        if std::path::Path::new(&codex_dir).exists() {
+            binds.push(format!("{codex_dir}:/home/codex/.codex"));
+        }
+        let openai_config = format!("{host_home}/.config/openai");
+        if std::path::Path::new(&openai_config).exists() {
+            binds.push(format!("{openai_config}:/home/codex/.config/openai"));
+        }
+
+        // Also pass OPENAI_API_KEY if available
+        if let Ok(key) = std::env::var("OPENAI_API_KEY") {
+            env_vars.push(format!("OPENAI_API_KEY={key}"));
+        }
+
+        tracing::info!("Terminal session using OpenAI Codex with mounted credentials");
+    } else if is_glm {
+        // GLM Coding Plan configuration for Claude Code
+        // See: https://docs.z.ai/devpack/tool/claude#manual-configuration
+        if let Some(ref agent) = request.agent {
+            if let Some(ref glm_config) = agent.glm {
+                // Required: Set base URL to Z.AI
+                env_vars.push("ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic".to_string());
+
+                // Required: Set auth token to Z.AI API key
+                if let Some(ref api_key) = glm_config.api_key {
+                    env_vars.push(format!("ANTHROPIC_AUTH_TOKEN={api_key}"));
+                    env_vars.push(format!("ZAI_API_KEY={api_key}"));
+                }
+
+                // Required: Explicitly blank out Anthropic API key to prevent conflicts
+                env_vars.push("ANTHROPIC_API_KEY=".to_string());
+
+                // Set extended timeout for GLM
+                env_vars.push(format!(
+                    "API_TIMEOUT_MS={}",
+                    glm_config.timeout_ms.unwrap_or(3000000)
+                ));
+
+                // Set default model if specified
+                if !glm_config.model.is_empty() {
+                    env_vars.push(format!(
+                        "ANTHROPIC_DEFAULT_SONNET_MODEL={}",
+                        glm_config.model
+                    ));
+                    env_vars.push(format!("ANTHROPIC_DEFAULT_OPUS_MODEL={}", glm_config.model));
+                    env_vars.push(format!(
+                        "ANTHROPIC_DEFAULT_HAIKU_MODEL={}",
+                        glm_config.model
+                    ));
+                }
+
+                tracing::info!("GLM Coding Plan agent configured: model={}", glm_config.model);
+            }
+        }
+
+        tracing::info!("Terminal session using GLM Coding Plan - skipping Claude credential mounts");
+    } else if is_openrouter {
+        // OpenRouter configuration for Claude Code
+        // See: https://openrouter.ai/docs/guides/guides/claude-code-integration
+        if let Some(ref agent) = request.agent {
+            if let Some(ref openrouter_config) = agent.openrouter {
+                // Required: Set base URL to OpenRouter
+                env_vars.push("ANTHROPIC_BASE_URL=https://openrouter.ai/api".to_string());
+
+                // Required: Set auth token to OpenRouter API key
+                if let Some(ref api_key) = openrouter_config.api_key {
+                    env_vars.push(format!("ANTHROPIC_AUTH_TOKEN={api_key}"));
+                    env_vars.push(format!("OPENROUTER_API_KEY={api_key}"));
+                }
+
+                // Required: Explicitly blank out Anthropic API key to prevent conflicts
+                env_vars.push("ANTHROPIC_API_KEY=".to_string());
+
+                // Optional: Set default model if specified (e.g., z-ai/glm-4.7)
+                if !openrouter_config.model.is_empty() {
+                    env_vars.push(format!(
+                        "ANTHROPIC_DEFAULT_SONNET_MODEL={}",
+                        openrouter_config.model
+                    ));
+                    env_vars.push(format!(
+                        "ANTHROPIC_DEFAULT_OPUS_MODEL={}",
+                        openrouter_config.model
+                    ));
+                    env_vars.push(format!(
+                        "ANTHROPIC_DEFAULT_HAIKU_MODEL={}",
+                        openrouter_config.model
+                    ));
+                }
+
+                tracing::info!(
+                    "OpenRouter agent configured: model={}",
+                    openrouter_config.model
+                );
+            }
+        }
+
+        tracing::info!("Terminal session using OpenRouter - skipping Claude credential mounts");
+    } else {
+        // For native Claude, mount credentials if they exist
+        let claude_config = format!("{host_home}/.claude.json");
+        if std::path::Path::new(&claude_config).exists() {
+            binds.push(format!("{claude_config}:{container_home}/.claude.json"));
+        }
+        let claude_dir = format!("{host_home}/.claude");
+        if std::path::Path::new(&claude_dir).exists() {
+            binds.push(format!("{claude_dir}:{container_home}/.claude"));
+        }
+
+        // Pass ANTHROPIC_API_KEY if available
+        if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") {
+            env_vars.push(format!("ANTHROPIC_API_KEY={key}"));
+        }
+
+        tracing::info!("Terminal session using native Claude with mounted credentials");
+    }
+
+    // Create container name
+    let container_name = format!("ckrv-term-{}", uuid::Uuid::new_v4());
+
+    // Build container config
+    let config = bollard::container::Config {
+        image: Some(docker_image),
+        cmd: Some(vec![
+            "tail".to_string(),
+            "-f".to_string(),
+            "/dev/null".to_string(),
+        ]),
+        working_dir: Some("/workspace".to_string()),
+        env: Some(env_vars),
+        host_config: Some(bollard::models::HostConfig {
+            binds: Some(binds),
+            network_mode: Some("host".to_string()),
+            ..Default::default()
+        }),
+        tty: Some(true),
+        open_stdin: Some(true),
+        ..Default::default()
+    };
+
+    let options = Some(bollard::container::CreateContainerOptions {
+        name: container_name.clone(),
+        platform: None,
+    });
+
+    match docker.create_container(options, config).await {
+        Ok(container) => {
+            // Start container
+            if let Err(e) = docker
+                .start_container::<String>(&container.id, None)
+                .await
+            {
+                return Ok(StartTerminalResponse {
+                    success: false,
+                    session_id,
+                    container_id: None,
+                    message: Some(format!("Failed to start container: {e}")),
+                });
+            }
+
+            // Store session
+            {
+                let mut sessions = TERMINAL_SESSIONS.lock().unwrap();
+                sessions.insert(session_id.clone(), container.id.clone());
+            }
+
+            tracing::info!(
+                "Terminal session started: {} -> {}",
+                session_id,
+                container.id
+            );
+
+            Ok(StartTerminalResponse {
+                success: true,
+                session_id,
+                container_id: Some(container.id),
+                message: Some("Terminal session created".to_string()),
+            })
+        }
+        Err(e) => Ok(StartTerminalResponse {
+            success: false,
+            session_id,
+            container_id: None,
+            message: Some(format!("Failed to create container: {e}")),
+        }),
+    }
+}
+
+/// Handle WebSocket connection for interactive terminal.
+pub async fn handle_terminal_ws(socket: WebSocket, session_id: String) {
+    // Look up container
+    let container_id = {
+        let sessions = TERMINAL_SESSIONS.lock().unwrap();
+        sessions.get(&session_id).cloned()
+    };
+
+    let container_id = match container_id {
+        Some(id) => id,
+        None => {
+            let (mut sender, _) = socket.split();
+            let _ = sender
+                .send(Message::Text(
+                    "Error: No session found. Start a session first.".into(),
+                ))
+                .await;
+            return;
+        }
+    };
+
+    // Connect to Docker
+    let docker = match Docker::connect_with_local_defaults() {
+        Ok(d) => d,
+        Err(e) => {
+            let (mut sender, _) = socket.split();
+            let _ = sender
+                .send(Message::Text(
+                    format!("Error: Docker connection failed: {e}").into(),
+                ))
+                .await;
+            return;
+        }
+    };
+
+    // Create exec instance for interactive shell
+    let exec_config = CreateExecOptions {
+        attach_stdin: Some(true),
+        attach_stdout: Some(true),
+        attach_stderr: Some(true),
+        tty: Some(true),
+        cmd: Some(vec!["/bin/bash".to_string(), "-l".to_string()]),
+        ..Default::default()
+    };
+
+    let exec = match docker.create_exec(&container_id, exec_config).await {
+        Ok(e) => e,
+        Err(e) => {
+            let (mut sender, _) = socket.split();
+            let _ = sender
+                .send(Message::Text(
+                    format!("Error: Failed to create exec: {e}").into(),
+                ))
+                .await;
+            return;
+        }
+    };
+
+    // Start exec with TTY
+    let start_config = Some(StartExecOptions {
+        detach: false,
+        tty: true,
+        ..Default::default()
+    });
+
+    let exec_result = match docker.start_exec(&exec.id, start_config).await {
+        Ok(r) => r,
+        Err(e) => {
+            let (mut sender, _) = socket.split();
+            let _ = sender
+                .send(Message::Text(
+                    format!("Error: Failed to start exec: {e}").into(),
+                ))
+                .await;
+            return;
+        }
+    };
+
+    // Get the attached streams
+    if let StartExecResults::Attached {
+        mut output,
+        mut input,
+    } = exec_result
+    {
+        let (mut ws_sender, mut ws_receiver) = socket.split();
+
+        // Channel for coordinating shutdown
+        let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
+        let shutdown_tx2 = shutdown_tx.clone();
+
+        // Task: Docker output -> WebSocket
+        let output_task = tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    msg = output.next() => {
+                        match msg {
+                            Some(Ok(log)) => {
+                                let text = match log {
+                                    LogOutput::StdOut { message } => String::from_utf8_lossy(&message).to_string(),
+                                    LogOutput::StdErr { message } => String::from_utf8_lossy(&message).to_string(),
+                                    LogOutput::Console { message } => String::from_utf8_lossy(&message).to_string(),
+                                    _ => continue,
+                                };
+                                if ws_sender.send(Message::Text(text.into())).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Some(Err(_)) | None => break,
+                        }
+                    }
+                    _ = shutdown_rx.recv() => break,
+                }
+            }
+        });
+
+        // Task: WebSocket input -> Docker stdin
+        let input_task = tokio::spawn(async move {
+            while let Some(Ok(msg)) = ws_receiver.next().await {
+                match msg {
+                    Message::Text(text) => {
+                        if input.write_all(text.as_bytes()).await.is_err() {
+                            break;
+                        }
+                    }
+                    Message::Binary(data) => {
+                        if input.write_all(&data).await.is_err() {
+                            break;
+                        }
+                    }
+                    Message::Close(_) => {
+                        let _ = shutdown_tx2.send(()).await;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        });
+
+        // Wait for either task to complete
+        let _ = tokio::select! {
+            _ = output_task => {},
+            _ = input_task => {},
+        };
+    }
+}
+
+/// Stop a terminal session.
+pub async fn stop_terminal_handler(
+    request: StopTerminalRequest,
+) -> Result<StopTerminalResponse, TransportError> {
+    // Remove from store
+    let container_id = {
+        let mut sessions = TERMINAL_SESSIONS.lock().unwrap();
+        sessions.remove(&request.session_id)
+    };
+
+    let container_id = match container_id {
+        Some(id) => id,
+        None => {
+            return Ok(StopTerminalResponse {
+                success: true,
+                message: Some("Session not found (already stopped?)".to_string()),
+            });
+        }
+    };
+
+    // Stop and remove container
+    let docker = match Docker::connect_with_local_defaults() {
+        Ok(d) => d,
+        Err(e) => {
+            return Ok(StopTerminalResponse {
+                success: false,
+                message: Some(format!("Docker error: {e}")),
+            });
+        }
+    };
+
+    let remove_options = Some(bollard::container::RemoveContainerOptions {
+        force: true,
+        ..Default::default()
+    });
+
+    match docker.remove_container(&container_id, remove_options).await {
+        Ok(()) => {
+            tracing::info!(
+                "Terminal session stopped: {} -> {}",
+                request.session_id,
+                container_id
+            );
+            Ok(StopTerminalResponse {
+                success: true,
+                message: Some("Session stopped".to_string()),
+            })
+        }
+        Err(e) => Ok(StopTerminalResponse {
+            success: false,
+            message: Some(format!("Failed to stop session: {e}")),
+        }),
+    }
+}

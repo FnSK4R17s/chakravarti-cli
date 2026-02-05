@@ -1,6 +1,14 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(xargs:*)",
+      "Bash(grep:*)",
+      "Bash(cargo check:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "chrome-devtools"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
