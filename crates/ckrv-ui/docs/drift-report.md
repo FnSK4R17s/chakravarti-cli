@@ -1,122 +1,76 @@
-# Documentation Drift Report
+# Frontend Documentation Drift Report
 
-Generated: 2026-02-03
-Last workflow run: docs.frontend
+Generated: 2026-02-05T07:45:00Z
 
 ## Summary
 
 | Check | Passing | Failing | Coverage |
 |-------|---------|---------|----------|
-| Module Headers | 39/39 | 0 | 100% |
-| Props Documentation | 27/27 | 0 | 100% |
-| useState Documentation | 120/120 | 0 | 100% |
-| useEffect Documentation | 41/41 | 0 | 100% |
-| Section Comments (>200 lines) | 22/22 | 0 | 100% |
-| Import Order | ✓ | - | ~95% |
-| Naming Conventions | ✓ | - | ~98% |
+| Module Headers | 40 | 0 | ✅ 100% |
+| Props Documentation | 28 | 0 | ✅ 100% |
+| useState Documentation | 120+ | 0 | ✅ 100% |
+| useEffect Documentation | 40+ | 0 | ✅ 100% |
+| Section Comments (>200 lines) | 23 | 0 | ✅ 100% |
+| Import Order | N/A | N/A | ⚠️ Not enforced |
 
-## ✅ All Components Passing
+## Documentation Applied This Session
 
-All 27 component files and 12 hook files now have:
-- `@module` JSDoc headers
-- Props interface documentation
-- State variable documentation
-- Section organization for files >200 lines
+### Module Header Added
 
-## Component Sizes
+| File | Description |
+|------|-------------|
+| `theme-switcher-01.tsx` | Light/dark mode toggle component |
 
-| Rating | Component | Lines | Sections |
-|--------|-----------|-------|----------|
-| 🔴 Critical | ExecutionRunner | 1,568 | 12 |
-| 🔴 Critical | AgentManager | 1,067 | 9 |
-| 🔴 Critical | PlanEditor | 963 | 9 |
-| 🔴 Critical | TestRunner | 916 | 8 |
-| 🔴 Critical | TaskEditor | 873 | 9 |
-| 🔴 Critical | SpecEditor | 744 | 7 |
-| 🟠 Warning | TaskDetailModal | 651 | 8 |
-| 🟠 Warning | QAReviewer | 642 | 9 |
-| 🟠 Warning | BarebonesExecutor | 547 | 10 |
-| 🟠 Warning | WorkflowPanel | 431 | 6 |
-| 🟠 Warning | LogViewer | 418 | 6 |
-| ⚠️ Monitor | DiffViewer | 391 | 6 |
-| ⚠️ Monitor | CompletionSummary | 365 | 5 |
-| ⚠️ Monitor | CommandPalette | 363 | 9 |
-| ⚠️ Monitor | TestFixModal | 354 | 3 |
-| ⚠️ Monitor | AgentCliModal | 350 | 8 |
-| ⚠️ Monitor | ChatDashboard | 348 | 9 |
-| ⚠️ Monitor | SpecWorkflow | 338 | 6 |
-| ⚠️ Monitor | RunHistoryPanel | 305 | 7 |
-| ⚠️ Monitor | StatusWidget | 267 | 9 |
-| ⚠️ Monitor | ClarifyModal | 259 | 7 |
-| ⚠️ Monitor | BatchLogTerminal | 214 | 7 |
-| ⚠️ Monitor | BatchLogCarousel | 213 | 8 |
+## Code Health (Report Only - Not Modified)
 
-## Hook Files
+### Large Files (>500 lines)
 
-All 12 hooks documented with `@module` headers:
-- ✅ use-toast.ts
-- ✅ useAutoSelectedSpec.ts
-- ✅ useCodeTab.ts
-- ✅ useCommand.ts
-- ✅ useConnection.ts
-- ✅ useFocusTrap.ts
-- ✅ useLogStore.ts
-- ✅ useRunHistory.ts
-- ✅ useSpec.ts
-- ✅ useTimeout.ts
-- ✅ useWebSocketReconnect.ts
-- ✅ useWorkflowProgress.ts
+These files exceed the recommended 500-line limit and would benefit from splitting:
 
-## Files Modified This Run
+| File | Lines | Priority | Recommended Action |
+|------|-------|----------|-------------------|
+| ExecutionRunner.tsx | 🔴 1,568 | P0 | Extract batch controls, log panels, status display |
+| AgentManager.tsx | 🔴 1,067 | P0 | Extract agent cards, config forms |
+| PlanEditor.tsx | 🔴 963 | P0 | Extract DAG renderer, task list |
+| TestRunner.tsx | 🔴 911 | P1 | Extract test list, result display |
+| TaskEditor.tsx | 🔴 873 | P1 | Extract task forms, dependencies |
+| SpecEditor.tsx | 🔴 744 | P1 | Extract preview, edit modes |
+| QAReviewer.tsx | 🔴 642 | P2 | Extract review form, criteria |
+| TaskDetailModal.tsx | 🔴 638 | P2 | Extract tabs, log viewer |
+| BarebonesExecutor.tsx | 🔴 547 | P2 | Extract controls, progress |
 
-### Section Comments Added (11 files):
-- AgentCliModal.tsx (+12 lines)
-- BatchLogCarousel.tsx (+12 lines)
-- BatchLogTerminal.tsx (+12 lines)
-- ChatDashboard.tsx (+16 lines)
-- ClarifyModal.tsx (+12 lines)
-- CommandPalette.tsx (+12 lines)
-- CompletionSummary.tsx (+8 lines)
-- DiffViewer.tsx (+8 lines)
-- RunHistoryPanel.tsx (+12 lines)
-- SpecWorkflow.tsx (+8 lines)
-- StatusWidget.tsx (+16 lines)
+## Existing Documentation Quality
 
-## Convention Compliance
+### ✅ All Components Have
 
-### Verified:
-- ✅ All files start with `@module` JSDoc header
-- ✅ All Props interfaces have JSDoc documentation
-- ✅ All useState calls have comments
-- ✅ All useEffect hooks have comments
-- ✅ Files >200 lines have 3+ section markers
+- `@module` JSDoc headers with description, context, dependencies
+- Section comments (`// ===`) for files >200 lines
+- Documented `useState` hooks with JSDoc comments
+- Documented `useEffect` hooks with explanatory comments
+- Props interfaces with JSDoc annotations
 
-### Areas for Future Improvement:
-- Some components (ExecutionRunner, AgentManager, PlanEditor) exceed 600 lines
-- Consider extracting hooks from these large components
-- Monitor for new undocumented state/effects in future PRs
+### ✅ All Hooks Have
 
-## Recommended Actions
+- `@module` headers
+- `@param` annotations
+- `@returns` documentation
+- `@example` usage patterns
 
-### Priority 1: Refactoring Large Components
-These components exceed the 600-line threshold:
+## Frontend Documentation Files
 
-1. **ExecutionRunner (1,568 lines)**
-   - Extract: `useExecutionState.ts`, `useExecutionWebSocket.ts`
-   - Split: `ExecutionControls.tsx`, `ExecutionBatchPanel.tsx`
+| File | Status | Notes |
+|------|--------|-------|
+| `frontend/README.md` | ✅ Current | Comprehensive project overview |
+| `docs/api-reference.md` | ✅ Current | All REST endpoints documented |
+| `FRONTEND_CONVENTIONS.md` | ✅ Current | Code style guidelines |
 
-2. **AgentManager (1,067 lines)**
-   - Extract: `useAgentConfig.ts`
-   - Split: `AgentCard.tsx`, `AgentRoleSelector.tsx`
+## Recommended Next Steps
 
-3. **PlanEditor (963 lines)**
-   - Extract: `usePlanState.ts`
-   - Split: `PlanDAG.tsx`, `PlanModelAssignment.tsx`
-
-### Priority 2: Continuous Monitoring
-- Run `/docs.frontend` weekly or after major UI changes
-- Add pre-commit hook to enforce `@module` headers
+1. ✅ **Module Headers** - All 40 files now have @module headers
+2. ⚠️ **Large Files** - 9 files exceed 500 LOC (see table above)
+3. ℹ️ **Verify Build** - Run `npm run build` to confirm TypeScript passes
+4. ℹ️ **Continue chain** - Run `/docs.skills` next per docs-order workflow
 
 ---
 
-*Report generated by `/docs.frontend` workflow*
+*This report was generated by the `/docs.frontend` workflow.*

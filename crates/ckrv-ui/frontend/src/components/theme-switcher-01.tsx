@@ -1,3 +1,21 @@
+/**
+ * @module ThemeSwitcher
+ * @description
+ * Toggle switch for light/dark mode with sun/moon icons.
+ * Persists preference to localStorage and applies theme to document root.
+ *
+ * @context
+ * Rendered in the app header/toolbar for global theme control.
+ * Initializes from localStorage, then falls back to system preference.
+ *
+ * @dependencies
+ * - lucide-react: Sun/Moon icons
+ * - @/components/ui/switch: Base toggle component
+ *
+ * @example
+ * // In header component
+ * <ThemeSwitcher />
+ */
 "use client";
 
 import { useEffect, useState } from "react";

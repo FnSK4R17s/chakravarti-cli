@@ -59,6 +59,7 @@ crates/
 ├── ckrv-git/          # Git operations (git2 + shell)
 ├── ckrv-sandbox/      # Docker execution, agent providers
 ├── ckrv-mcp/          # MCP server for AI agent integration
+├── ckrv-transport/    # Shared HTTP API types for web/desktop
 ├── ckrv-model/        # LLM provider abstraction (⚠️ unused)
 ├── ckrv-metrics/      # Cost/time tracking, file storage
 ├── ckrv-verify/       # Test execution and parsing (⚠️ unused)

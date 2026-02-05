@@ -1,3 +1,12 @@
+---
+last_commit: 6905171
+last_updated: 2026-02-05
+related_files:
+  - src/lib.rs
+  - src/handlers/mod.rs
+  - src/axum/mod.rs
+---
+
 # ckrv-transport
 
 Transport abstraction layer for Chakravarti CLI.
