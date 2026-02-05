@@ -1,3 +1,27 @@
+//! # Spinner
+//!
+//! Animated loading indicators for long-running CLI operations.
+//!
+//! ## Overview
+//!
+//! Provides [`SpinnerGuard`], a RAII-style spinner that displays progress
+//! during async operations like API calls and task execution. The spinner
+//! automatically draws to stderr (per FR-005) and respects TTY detection.
+//!
+//! ## Usage
+//!
+//! ```rust
+//! let spinner = SpinnerGuard::new("Loading tasks...", is_interactive, &theme);
+//! // ... do work ...
+//! spinner.success("Tasks loaded!");
+//! ```
+//!
+//! ## Behavior
+//!
+//! - Non-interactive mode: No spinner shown
+//! - Interactive mode: Animated braille spinner with message
+//! - Supports `.success()`, `.error()`, and `.finish()` termination styles
+
 use crate::ui::theme::Theme;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;

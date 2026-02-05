@@ -1,3 +1,29 @@
+//! # Theme
+//!
+//! Visual theming configuration for CLI output.
+//!
+//! ## Overview
+//!
+//! Defines the [`Theme`] struct which holds all color and styling settings
+//! used by UI components. The default theme uses a "Royal Gold" palette
+//! inspired by modern premium CLIs.
+//!
+//! ## Theme Elements
+//!
+//! - **Primary color**: Gold (256-color code 220)
+//! - **Secondary color**: Cyan
+//! - **Box characters**: Unicode box-drawing characters for borders
+//! - **Markdown skin**: Styled rendering for markdown content
+//!
+//! ## Example
+//!
+//! ```rust
+//! use ckrv_cli::ui::theme::Theme;
+//!
+//! let theme = Theme::default();
+//! // Use theme.primary_color, theme.success_style, etc.
+//! ```
+
 use console::{Color, Style};
 use termimad::{MadSkin, StyledChar};
 

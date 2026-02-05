@@ -1,3 +1,20 @@
+//! # UI Command
+//!
+//! Launches the Chakravarti web-based user interface.
+//!
+//! ## Overview
+//!
+//! This command starts a local web server that serves the interactive
+//! dashboard for managing specs, tasks, and agent execution. The UI
+//! provides real-time updates via WebSocket connections.
+//!
+//! ## Usage
+//!
+//! ```bash
+//! ckrv ui           # Start on default port 3000
+//! ckrv ui --port 8080  # Start on custom port
+//! ```
+
 use crate::ui::UiContext;
 use ckrv_ui::start_server;
 use clap::Args;

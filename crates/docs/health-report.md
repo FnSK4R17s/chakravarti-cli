@@ -1,254 +1,95 @@
 # Rust Documentation Health Report
 
-Generated: 2026-02-03T09:25:53Z
-Updated: 2026-02-03T09:30:00Z (documentation applied)
-Conventions Reference: `crates/RUST_CONVENTIONS.md`
+Generated: 2026-02-05T07:36:17Z
 
----
+## Summary
 
-## Executive Summary
+| Metric | Value | Status |
+|--------|-------|--------|
+| **Total Files** | 180 | - |
+| **Total Lines** | 37,684 | - |
+| **Module Docs Coverage** | 180/180 (100%) | ✅ |
+| **Files > 500 LOC** | 14 | 🔴 |
+| **Files Needing Sections** | 0 | ✅ |
 
-| Metric | Before | After | Status |
-|--------|--------|-------|--------|
-| **Total Crates** | 11 | 11 | - |
-| **Total Files** | ~95 | ~95 | - |
-| **Files > 800 LOC** | 8 | 8 | 🔴 Critical (report only) |
-| **Files > 500 LOC** | 14 | 14 | 🟠 Warning (report only) |
-| **Module Docs Coverage** | ~80% | ~95% | ✅ Improved |
-| **CLI Command Docs** | 100% | 100% | ✅ Complete |
+## Crate Analysis
 
-### Changes Applied This Run
+| Crate | Files | Lines | Module Docs | >500 LOC | Status |
+|-------|-------|-------|-------------|----------|--------|
+| ckrv-cli | 45 | 11,923 | 45/45 ✅ | 5 | ⚠️ |
+| ckrv-core | 16 | 3,243 | 16/16 ✅ | 1 | ⚠️ |
+| ckrv-git | 5 | 1,030 | 5/5 ✅ | 0 | ✅ |
+| ckrv-integrations | 2 | 29 | 2/2 ✅ | 0 | ✅ |
+| ckrv-mcp | 6 | 842 | 6/6 ✅ | 0 | ✅ |
+| ckrv-metrics | 6 | 825 | 6/6 ✅ | 0 | ✅ |
+| ckrv-model | 8 | 1,415 | 8/8 ✅ | 0 | ✅ |
+| ckrv-sandbox | 10 | 2,019 | 10/10 ✅ | 1 | ⚠️ |
+| ckrv-spec | 5 | 361 | 5/5 ✅ | 0 | ✅ |
+| ckrv-transport | 52 | 9,300 | 52/52 ✅ | 5 | ⚠️ |
+| ckrv-ui | 10 | 4,321 | 10/10 ✅ | 2 | ⚠️ |
+| ckrv-verify | 6 | 976 | 6/6 ✅ | 0 | ✅ |
 
-- ✅ Added module docs to `ckrv-cli/src/ui/mod.rs`
-- ✅ Added module docs to `ckrv-ui/src/lib.rs`
-- ✅ Added module docs to `ckrv-ui/src/services/engine.rs`
-- ✅ Added module docs to `ckrv-ui/src/services/command.rs`
-- ✅ Added module docs to `ckrv-ui/src/services/mod.rs`
-- ✅ Added module docs to `ckrv-ui/src/hub.rs`
-- ✅ Added module docs to `ckrv-ui/src/state.rs`
-- ✅ Added module docs to `ckrv-ui/src/server.rs`
-- ✅ Added module docs to `ckrv-ui/src/api/mod.rs`
-- ✅ Added module docs to `ckrv-ui/src/api/plans.rs`
-- ✅ Added module docs to `ckrv-ui/src/api/console.rs`
+## Files > 500 Lines (Need Splitting)
 
----
+| File | Lines | Crate | Priority |
+|------|-------|-------|----------|
+| `commands/run.rs` | 🔴 1,868 | ckrv-cli | P0 |
+| `services/engine.rs` | 🔴 1,532 | ckrv-ui | P0 |
+| `commands/spec.rs` | 🔴 1,504 | ckrv-cli | P0 |
+| `services/command.rs` | 🔴 1,425 | ckrv-ui | P0 |
+| `docker.rs` | 🔴 750 | ckrv-sandbox | P1 |
+| `handlers/agents.rs` | 🔴 647 | ckrv-transport | P1 |
+| `runner.rs` | 🔴 612 | ckrv-core | P1 |
+| `handlers/test.rs` | 🔴 597 | ckrv-transport | P1 |
+| `handlers/execution.rs` | 🔴 560 | ckrv-transport | P1 |
+| `lib.rs` | 🔴 549 | ckrv-cli | P1 |
+| `commands/task.rs` | 🔴 543 | ckrv-cli | P2 |
+| `handlers/terminal.rs` | 🔴 541 | ckrv-transport | P2 |
+| `handlers/specs.rs` | 🔴 533 | ckrv-transport | P2 |
+| `commands/test.rs` | 🔴 502 | ckrv-cli | P2 |
 
-## Critical Priority: Files Needing Splitting (>800 LOC)
+### Recommendations
 
-These files exceed the 800-line threshold and **must** be split per conventions:
+**P0 (Critical - >1000 lines):**
+- Extract submodules for logical groupings
+- Consider using the `mod.rs` pattern with subdirectories
 
-| File | Lines | Crate | Recommended Action |
-|------|-------|-------|-------------------|
-| `run.rs` | 1868 | ckrv-cli | Split into run/mod.rs, run/executor.rs, run/state.rs |
-| `spec.rs` | 1504 | ckrv-cli | Split into spec/mod.rs, spec/new.rs, spec/tasks.rs, etc. |
-| `engine.rs` | 1473 | ckrv-ui | Split into engine/mod.rs, engine/batch.rs, engine/sandbox.rs |
-| `command.rs` | 1383 | ckrv-ui | Split into command/mod.rs, command/init.rs, command/spec.rs, etc. |
-| `test.rs` | 929 | ckrv-ui | Split into test/mod.rs, test/run.rs, test/write.rs |
-| `specs.rs` | 853 | ckrv-ui | Split into specs/mod.rs, specs/list.rs, specs/crud.rs |
-| `execution.rs` | 776 | ckrv-ui | Split into execution/mod.rs, execution/runner.rs |
-| `docker.rs` | 750 | ckrv-sandbox | Split into docker/mod.rs, docker/container.rs, docker/exec.rs |
+**P1 (Important - 500-800 lines):**
+- Plan for splitting in next refactoring cycle
+- Document current structure for maintainability
 
----
+**P2 (Monitor - 500-600 lines):**
+- Keep an eye on growth
+- Split if adding new functionality
 
-## High Priority: Files Approaching Critical (500-800 LOC)
+## Documentation Applied This Session
 
-| File | Lines | Crate | Status |
-|------|-------|-------|--------|
-| `agents.rs` | 708 | ckrv-ui | 🟠 Plan to split |
-| `runner.rs` | 612 | ckrv-core | 🟠 Plan to split |
-| `lib.rs` | 549 | ckrv-cli | 🟠 Monitor |
-| `task.rs` | 543 | ckrv-cli | 🟠 Plan to split |
-| `terminal.rs` | 516 | ckrv-ui | 🟠 Plan to split |
-| `test.rs` | 502 | ckrv-cli | 🟠 Monitor |
+The following files had module documentation (`//!`) added:
 
----
+1. ✅ `ckrv-cli/src/commands/ui.rs` - UI command module
+2. ✅ `ckrv-cli/src/ui/components.rs` - Terminal UI components
+3. ✅ `ckrv-cli/src/ui/spinner.rs` - Loading indicators
+4. ✅ `ckrv-cli/src/ui/terminal.rs` - TTY detection utilities
+5. ✅ `ckrv-cli/src/ui/theme.rs` - Visual theming configuration
 
-## Missing Module Documentation (//!)
+## Code Issues (Report Only)
 
-The following files are **missing module-level `//!` documentation**:
+These issues were identified but NOT modified by the documentation workflow:
 
-### ckrv-cli (6 files)
-| File | Priority |
-|------|----------|
-| `ui/mod.rs` | HIGH - Public module |
-| `ui/terminal.rs` | MEDIUM |
-| `ui/spinner.rs` | MEDIUM |
-| `ui/components.rs` | MEDIUM |
-| `ui/theme.rs` | MEDIUM |
-| `commands/ui.rs` | LOW |
-
-### ckrv-ui (15 files)
-| File | Priority |
-|------|----------|
-| `lib.rs` | HIGH - Crate root |
-| `services/mod.rs` | HIGH - Core module |
-| `services/engine.rs` | HIGH - Core execution |
-| `services/command.rs` | HIGH - Command runner |
-| `state.rs` | MEDIUM |
-| `hub.rs` | MEDIUM |
-| `server.rs` | MEDIUM |
-| `api/mod.rs` | MEDIUM |
-| `api/plans.rs` | LOW |
-| `api/events.rs` | LOW |
-| `api/console.rs` | LOW |
-| `api/commands.rs` | LOW |
-| `api/status.rs` | LOW |
-| `models/mod.rs` | LOW |
-
----
-
-## CLI Command Documentation Status
-
-All visible CLI commands have `long_about` and `after_help` attributes:
-
-| Command | `long_about` | `after_help` | Status |
-|---------|-------------|--------------|--------|
-| `init` | ✅ | ✅ | ✅ |
-| `spec` | ✅ | ✅ | ✅ |
-| `plan` | ✅ | ✅ | ✅ |
-| `run` | ✅ | ✅ | ✅ |
-| `diff` | ✅ | ✅ | ✅ |
-| `verify` | ✅ | ✅ | ✅ |
-| `promote` | ✅ | ✅ | ✅ |
-| `fix` | ✅ | ✅ | ✅ |
-| `ui` | ✅ | ✅ | ✅ |
-| `cloud` | ✅ | ✅ | ✅ |
-| `logs` | ✅ | ✅ | ✅ |
-| `pull` | ✅ | ✅ | ✅ |
-| `test` | ✅ | ✅ | ✅ |
-| `qa` | ✅ | ✅ | ✅ |
-| `task` | hidden | hidden | ✅ (internal) |
-| `status` | hidden | hidden | ✅ (internal) |
-| `report` | hidden | hidden | ✅ (internal) |
-
----
-
-## Crate-by-Crate Status
-
-### ckrv-cli
-| Metric | Value |
-|--------|-------|
-| Files | ~40 |
-| Module Docs | 85% ✅ |
-| Critical Files | 2 (run.rs, spec.rs) |
-
-### ckrv-core
-| Metric | Value |
-|--------|-------|
-| Files | 16 |
-| Module Docs | 100% ✅ |
-| Critical Files | 1 (runner.rs) |
-
-### ckrv-git
-| Metric | Value |
-|--------|-------|
-| Files | 5 |
-| Module Docs | 100% ✅ |
-| Critical Files | 0 |
-
-### ckrv-integrations
-| Metric | Value |
-|--------|-------|
-| Files | 2 |
-| Module Docs | 100% ✅ |
-| Critical Files | 0 |
-
-### ckrv-mcp
-| Metric | Value |
-|--------|-------|
-| Files | 6 |
-| Module Docs | 100% ✅ |
-| Critical Files | 0 |
-
-### ckrv-metrics
-| Metric | Value |
-|--------|-------|
-| Files | 6 |
-| Module Docs | 100% ✅ |
-| Critical Files | 0 |
-
-### ckrv-model
-| Metric | Value |
-|--------|-------|
-| Files | 8 |
-| Module Docs | 100% ✅ |
-| Critical Files | 0 |
-
-### ckrv-sandbox
-| Metric | Value |
-|--------|-------|
-| Files | 10 |
-| Module Docs | 100% ✅ |
-| Critical Files | 1 (docker.rs) |
-
-### ckrv-spec
-| Metric | Value |
-|--------|-------|
-| Files | 5 |
-| Module Docs | 100% ✅ |
-| Critical Files | 0 |
-
-### ckrv-ui
-| Metric | Value |
-|--------|-------|
-| Files | ~30 |
-| Module Docs | 50% ❌ |
-| Critical Files | 6 |
-
-### ckrv-verify
-| Metric | Value |
-|--------|-------|
-| Files | 6 |
-| Module Docs | 100% ✅ |
-| Critical Files | 0 |
-
----
-
-## Recommended Priority Order
-
-### P0: Critical (Address First)
-1. ❌ Add module docs to `ckrv-ui/src/lib.rs`
-2. ❌ Add module docs to `ckrv-ui/src/services/engine.rs`
-3. ❌ Add module docs to `ckrv-ui/src/services/command.rs`
-4. 🔴 Split `ckrv-cli/src/commands/run.rs` (1868 lines)
-5. 🔴 Split `ckrv-cli/src/commands/spec.rs` (1504 lines)
-
-### P1: High Priority
-1. ❌ Add module docs to `ckrv-cli/src/ui/mod.rs`
-2. ❌ Add module docs to remaining `ckrv-ui/src/api/*.rs` files
-3. 🟠 Plan splitting for `ckrv-ui/src/services/engine.rs` (1473 lines)
-4. 🟠 Plan splitting for `ckrv-ui/src/services/command.rs` (1383 lines)
-
-### P2: Nice to Have
-1. Add section separators to files > 200 lines
-2. Enhance documentation for public API types
-3. Add examples to key functions
-
----
-
-## Code Issues (Report Only - NOT Fixed by This Workflow)
-
-| Issue | File | Severity | Notes |
-|-------|------|----------|-------|
-| File too large | ckrv-cli/run.rs | 🔴 Critical | 1868 lines, split into modules |
-| File too large | ckrv-cli/spec.rs | 🔴 Critical | 1504 lines, split into modules |
-| File too large | ckrv-ui/engine.rs | 🔴 Critical | 1473 lines, split into modules |
-| File too large | ckrv-ui/command.rs | 🔴 Critical | 1383 lines, split into modules |
-| File too large | ckrv-ui/test.rs | 🔴 Critical | 929 lines, split into modules |
-| File too large | ckrv-ui/specs.rs | 🔴 Critical | 853 lines, split into modules |
-| File too large | ckrv-ui/execution.rs | 🟠 Warning | 776 lines, plan to split |
-| File too large | ckrv-sandbox/docker.rs | 🟠 Warning | 750 lines, plan to split |
-
----
+| Issue | File | Severity | Action Required |
+|-------|------|----------|-----------------|
+| Large file | `run.rs` (1868 lines) | 🔴 Critical | Split into submodules |
+| Large file | `engine.rs` (1532 lines) | 🔴 Critical | Split into submodules |
+| Large file | `spec.rs` (1504 lines) | 🔴 Critical | Split into submodules |
+| Large file | `command.rs` (1425 lines) | 🔴 Critical | Split into submodules |
 
 ## Next Steps
 
-1. **Run this workflow with `--apply`** to add missing module documentation
-2. Review the generated health report for accuracy
-3. Create GitHub issues for file splitting work
-4. Run `cargo doc --open` to verify documentation renders correctly
-5. Run `cargo clippy` to check for additional warnings
+1. ✅ **Module Docs** - All 180 files now have module documentation
+2. ⚠️ **Large Files** - 14 files exceed 500 LOC threshold (see table above)
+3. ℹ️ **Verification** - Run `cargo doc --open` to view generated docs
+4. ℹ️ **Clippy** - Run `cargo clippy` to check for any warnings
 
 ---
 
-*Generated by `/docs.rust` workflow*
+*This report was generated by the `/docs.rust` workflow.*

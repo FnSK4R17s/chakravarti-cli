@@ -1,3 +1,29 @@
+//! # UI Components
+//!
+//! Reusable terminal UI components for rich CLI output.
+//!
+//! ## Overview
+//!
+//! This module provides styled components that render beautifully in the
+//! terminal, including banners, tables, and panels. All components implement
+//! the [`Renderable`](crate::ui::Renderable) trait for consistent theming.
+//!
+//! ## Components
+//!
+//! - [`Banner`] - ASCII art header with gradient colors
+//! - [`RichTable`] - Styled tables with colored borders
+//! - [`Panel`] - Info/success/error message boxes
+//!
+//! ## Example
+//!
+//! ```rust
+//! use ckrv_cli::ui::{Banner, Theme, Renderable};
+//!
+//! let theme = Theme::default();
+//! let banner = Banner::new("CKRV").subtitle("v1.0.0");
+//! println!("{}", banner.render(&theme));
+//! ```
+
 use crate::ui::theme::Theme;
 use crate::ui::Renderable;
 use console::Style;
