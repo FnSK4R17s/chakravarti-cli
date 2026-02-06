@@ -2,7 +2,7 @@
 
 **Issue**: [#42](https://github.com/FnSK4R17s/chakravarti-cli/issues/42)
 **Created**: 2026-02-04
-**Status**: In Progress
+**Status**: Tasks Generated
 
 ---
 

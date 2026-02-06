@@ -130,8 +130,7 @@ impl CommandService {
         }
 
         // Get current directory
-        let cwd = std::env::current_dir()
-            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let cwd = state.project_root.clone();
 
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
@@ -226,8 +225,7 @@ impl CommandService {
         Self::emit_log(state, "Initializing git repository...");
 
         // Get current directory
-        let cwd = std::env::current_dir()
-            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let cwd = state.project_root.clone();
 
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
@@ -323,8 +321,7 @@ impl CommandService {
         }
 
         // Get current directory
-        let cwd = std::env::current_dir()
-            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let cwd = state.project_root.clone();
 
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
@@ -445,8 +442,7 @@ impl CommandService {
         }
 
         // Get current directory
-        let cwd = std::env::current_dir()
-            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let cwd = state.project_root.clone();
 
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
@@ -546,8 +542,7 @@ impl CommandService {
         }
 
         // Get current directory
-        let cwd = std::env::current_dir()
-            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let cwd = state.project_root.clone();
 
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
@@ -661,8 +656,7 @@ impl CommandService {
         }
 
         // Get current directory
-        let cwd = std::env::current_dir()
-            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let cwd = state.project_root.clone();
 
         Self::emit_log(state, &format!("Working directory: {}", cwd.display()));
 
@@ -780,8 +774,7 @@ impl CommandService {
         Self::emit_step_start(state, "View Diff");
         Self::emit_log(state, "Getting diff between branches...");
 
-        let cwd = std::env::current_dir()
-            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let cwd = state.project_root.clone();
 
         let exe =
             std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
@@ -939,8 +932,7 @@ impl CommandService {
             status.mode = SystemMode::Running;
         }
 
-        let cwd = std::env::current_dir()
-            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let cwd = state.project_root.clone();
 
         let exe =
             std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
@@ -1136,8 +1128,7 @@ impl CommandService {
         Self::emit_step_start(state, "Create Pull Request");
         Self::emit_log(state, "Creating pull request...");
 
-        let cwd = std::env::current_dir()
-            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let cwd = state.project_root.clone();
 
         let exe =
             std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
@@ -1236,8 +1227,7 @@ impl CommandService {
             status.mode = SystemMode::Running;
         }
 
-        let cwd = std::env::current_dir()
-            .map_err(|e| format!("Failed to get current directory: {}", e))?;
+        let cwd = state.project_root.clone();
 
         let exe =
             std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;

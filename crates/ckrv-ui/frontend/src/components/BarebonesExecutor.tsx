@@ -3,15 +3,16 @@
  * @description
  * Simplified execution runner providing a minimal interface for running specs.
  * Shows batch progress as pills, displays logs in a scrollable area, and provides
- * Run/Stop controls. A lighter alternative to the full ExecutionRunner.
+ * Run/Stop controls. Uses the unified useExecutionStream hook for transport.
  *
  * @context
  * Used as a simpler alternative to ExecutionRunner for basic execution needs.
  * Auto-selects spec based on current git branch and displays real-time execution
- * progress via WebSocket connection.
+ * progress via WebSocket (web) or Tauri events (desktop).
  *
  * @dependencies
  * - useAutoSelectedSpec: Auto-selects spec based on current git branch
+ * - useExecutionStream: Unified hook for execution streaming
  * - useQuery: React Query for fetching plan data
  * - shadcn/ui components: Card, Badge, Button for consistent UI
  *
@@ -27,6 +28,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
+import { useExecutionStream, type LogEntry } from '../hooks/useExecutionStream';
 import {
     Play, Square, Loader2, Check, AlertTriangle,
     Circle, Layers, RefreshCw
@@ -61,31 +63,10 @@ interface LogLine {
     type: 'info' | 'error' | 'success' | 'batch';
 }
 
-/** Current execution status for the barebones executor. */
-type ExecutionStatus = 'idle' | 'running' | 'done' | 'error';
-
 // === API FUNCTIONS ===
 
 const fetchPlan = async (spec: string): Promise<{ success: boolean; batches: { id: string; name: string; status?: string }[] }> => {
     const res = await fetch(`/api/plans/detail?spec=${spec}`);
-    return res.json();
-};
-
-const startExecution = async (spec: string, runId: string): Promise<{ success: boolean; message?: string }> => {
-    const res = await fetch('/api/execution/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spec, run_id: runId }),
-    });
-    return res.json();
-};
-
-const stopExecution = async (runId: string): Promise<{ success: boolean }> => {
-    const res = await fetch('/api/execution/stop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ run_id: runId }),
-    });
     return res.json();
 };
 
@@ -104,35 +85,53 @@ const formatTime = (date: Date): string => {
     return date.toLocaleTimeString('en-US', { hour12: false });
 };
 
-// Generate unique run ID
-const generateRunId = (): string => {
-    return `run-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+/** Convert hook log entry to display log line */
+const toLogLine = (entry: LogEntry): LogLine => {
+    const time = entry.timestamp
+        ? formatTime(new Date(entry.timestamp))
+        : formatTime(new Date());
+
+    const type: LogLine['type'] =
+        entry.type === 'error' ? 'error' :
+            entry.type === 'success' ? 'success' :
+                entry.type === 'stepstart' || entry.type === 'stepend' ? 'batch' :
+                    'info';
+
+    const message =
+        entry.message ||
+        (entry.step_name ? `Step: ${entry.step_name}` : 'Unknown event');
+
+    return { time, message, type };
 };
 
 // === MAIN COMPONENT ===
 
 export default function BarebonesExecutor() {
-    // === STATE ===
+    // === HOOKS ===
 
-    // --- Spec Selection ---
     // Auto-select spec based on current branch
     const { selectedSpec, isLoading: isLoadingSpec } = useAutoSelectedSpec();
 
-    // --- Execution State ---
-    /** Current execution status: idle, running, done, or error */
-    const [status, setStatus] = useState<ExecutionStatus>('idle');
+    // Unified execution streaming hook
+    const {
+        logs: streamLogs,
+        status,
+        startRun,
+        stopRun,
+        error,
+        clearLogs,
+    } = useExecutionStream();
+
+    // === STATE ===
+
     /** Batch execution progress with status for each batch */
     const [batches, setBatches] = useState<SimpleBatch[]>([]);
-    /** Log entries from the execution */
-    const [logs, setLogs] = useState<LogLine[]>([]);
-    /** Error message if execution failed */
-    const [error, setError] = useState<string | null>(null);
     /** Track if plan generation is in progress */
     const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+    /** Local log lines for display */
+    const [localLogs, setLocalLogs] = useState<LogLine[]>([]);
 
     // Refs
-    const wsRef = useRef<WebSocket | null>(null);
-    const runIdRef = useRef<string>('');
     const logsEndRef = useRef<HTMLDivElement>(null);
 
     // === QUERIES ===
@@ -148,202 +147,82 @@ export default function BarebonesExecutor() {
 
     // === EFFECTS ===
 
+    // Convert stream logs to display logs
+    useEffect(() => {
+        if (streamLogs.length > 0) {
+            const displayLogs = streamLogs.map(toLogLine);
+            setLocalLogs(displayLogs);
+        }
+    }, [streamLogs]);
+
     // Auto-scroll logs
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [logs]);
+    }, [localLogs]);
 
-    // === HANDLERS ===
-
-    // Add log entry
-    const addLog = useCallback((message: string, type: LogLine['type'] = 'info') => {
-        setLogs(prev => [...prev, { time: formatTime(new Date()), message, type }]);
-    }, []);
-
-    // === EFFECTS (continued) ===
-
-    // Initialize batches from plan - read actual status from YAML
+    // Initialize batches from plan
     useEffect(() => {
         if (planData?.success && planData.batches) {
             setBatches(planData.batches.map(b => {
-                // Map YAML status to UI status
                 let uiStatus: SimpleBatch['status'] = 'pending';
                 if (b.status === 'completed') uiStatus = 'done';
                 else if (b.status === 'running') uiStatus = 'running';
                 else if (b.status === 'failed') uiStatus = 'error';
 
-                return {
-                    id: b.id,
-                    name: b.name,
-                    status: uiStatus
-                };
+                return { id: b.id, name: b.name, status: uiStatus };
             }));
         }
     }, [planData]);
 
-    // WebSocket message handler
-    const handleWsMessage = useCallback((event: MessageEvent) => {
-        try {
-            const msg = JSON.parse(event.data);
-            const msgType = msg.type || '';
-            const message = msg.message || '';
-
-            switch (msgType) {
-                case 'info':
-                case 'log':
-                case 'start':
-                    // Regular log messages
-                    if (message) addLog(message, 'info');
-                    break;
-
-                case 'success':
-                    if (message) addLog(message, 'success');
-                    break;
-
-                case 'error':
-                    if (message) addLog(message, 'error');
-                    if (msg.status === 'failed' || msg.status === 'aborted') {
-                        setStatus('error');
-                        setError(message || 'Execution failed');
-                    }
-                    break;
-
-                case 'batch_start':
-                    addLog(`▶ Starting batch: ${msg.batch_name || msg.batch_id}`, 'batch');
-                    setBatches(prev => prev.map(b =>
-                        b.id === msg.batch_id ? { ...b, status: 'running' } : b
-                    ));
-                    break;
-
-                case 'batch_complete':
-                    addLog(`✓ Batch complete: ${msg.batch_name || msg.batch_id}`, 'success');
-                    setBatches(prev => prev.map(b =>
-                        b.id === msg.batch_id ? { ...b, status: 'done' } : b
-                    ));
-                    break;
-
-                case 'batch_error':
-                    addLog(`✗ Batch failed: ${msg.batch_name || msg.batch_id} - ${msg.error || message}`, 'error');
-                    setBatches(prev => prev.map(b =>
-                        b.id === msg.batch_id ? { ...b, status: 'error' } : b
-                    ));
-                    break;
-
-                case 'batch_status':
-                    // Update batch status based on msg.status
-                    if (msg.batch_id && msg.status) {
-                        const batchStatus = msg.status === 'completed' ? 'done' :
-                            msg.status === 'failed' ? 'error' :
-                                msg.status === 'running' ? 'running' : 'pending';
-                        setBatches(prev => prev.map(b =>
-                            b.id === msg.batch_id ? { ...b, status: batchStatus } : b
-                        ));
-                    }
-                    break;
-
-                case 'status':
-                    // Handle execution status messages (running/completed/failed)
-                    if (msg.status === 'completed') {
-                        addLog('✓ Execution complete!', 'success');
-                        setStatus('done');
-                    } else if (msg.status === 'failed') {
-                        addLog('Execution failed', 'error');
-                        setStatus('error');
-                    }
-                    break;
-
-                case 'complete':
-                case 'execution_complete':
-                    addLog('✓ Execution complete!', 'success');
-                    setStatus('done');
-                    break;
-
-                case 'history_complete':
-                    // History backfill complete, ignore
-                    break;
-
-                default:
-                    // Unknown type but has message, show it
-                    if (message) addLog(message, 'info');
-            }
-        } catch (e) {
-            // Raw text message
-            if (typeof event.data === 'string' && event.data.trim()) {
-                addLog(event.data, 'info');
+    // Update batch status from stream logs
+    useEffect(() => {
+        for (const log of streamLogs) {
+            if (log.type === 'stepstart' && log.step_name) {
+                setBatches(prev => prev.map(b =>
+                    b.name === log.step_name || b.id === log.step_name
+                        ? { ...b, status: 'running' }
+                        : b
+                ));
+            } else if (log.type === 'stepend' && log.step_name) {
+                const isSuccess = log.status !== 'error' && log.status !== 'failed';
+                setBatches(prev => prev.map(b =>
+                    b.name === log.step_name || b.id === log.step_name
+                        ? { ...b, status: isSuccess ? 'done' : 'error' }
+                        : b
+                ));
             }
         }
-    }, [addLog]);
+    }, [streamLogs]);
 
-    // Connect WebSocket
-    const connectWebSocket = useCallback((runId: string) => {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/api/execution/ws?run_id=${encodeURIComponent(runId)}`;
+    // === HANDLERS ===
 
-        const ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-            addLog('Connected to execution stream', 'info');
-        };
-
-        ws.onmessage = handleWsMessage;
-
-        ws.onerror = () => {
-            addLog('WebSocket error', 'error');
-        };
-
-        ws.onclose = () => {
-            if (status === 'running') {
-                addLog('Connection closed', 'info');
-            }
-        };
-
-        wsRef.current = ws;
-    }, [addLog, handleWsMessage, status]);
+    // Add local log entry
+    const addLog = useCallback((message: string, type: LogLine['type'] = 'info') => {
+        setLocalLogs(prev => [...prev, { time: formatTime(new Date()), message, type }]);
+    }, []);
 
     // Handle Run
     const handleRun = async () => {
         if (!selectedSpec) return;
 
         // Reset state
-        setLogs([]);
-        setError(null);
+        setLocalLogs([]);
+        clearLogs();
         setBatches(prev => prev.map(b => ({ ...b, status: 'pending' })));
-        setStatus('running');
-
-        const runId = generateRunId();
-        runIdRef.current = runId;
 
         addLog(`Starting execution for ${selectedSpec}...`, 'info');
 
         try {
-            const res = await startExecution(selectedSpec, runId);
-            if (res.success) {
-                connectWebSocket(runId);
-            } else {
-                addLog(`Failed to start: ${res.message || 'Unknown error'}`, 'error');
-                setStatus('error');
-                setError(res.message || 'Failed to start execution');
-            }
+            await startRun(selectedSpec);
         } catch (e) {
             addLog(`Error: ${e}`, 'error');
-            setStatus('error');
-            setError(String(e));
         }
     };
 
     // Handle Stop
     const handleStop = async () => {
-        if (wsRef.current) {
-            wsRef.current.close();
-            wsRef.current = null;
-        }
-
-        if (runIdRef.current) {
-            await stopExecution(runIdRef.current);
-        }
-
+        await stopRun();
         addLog('Execution stopped', 'info');
-        setStatus('idle');
     };
 
     // Handle Generate Plan
@@ -367,15 +246,6 @@ export default function BarebonesExecutor() {
             setIsGeneratingPlan(false);
         }
     };
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (wsRef.current) {
-                wsRef.current.close();
-            }
-        };
-    }, []);
 
     // Calculate progress
     const completedCount = batches.filter(b => b.status === 'done').length;
@@ -509,12 +379,12 @@ export default function BarebonesExecutor() {
                 </CardHeader>
                 <CardContent className="flex-1 p-0 overflow-hidden">
                     <div className="h-full overflow-y-auto bg-black/50 p-4 font-mono text-sm">
-                        {logs.length === 0 ? (
+                        {localLogs.length === 0 ? (
                             <div className="text-muted-foreground">
                                 {hasPlan ? 'Click "Run" to start execution...' : 'Generate a plan first...'}
                             </div>
                         ) : (
-                            logs.map((log, i) => (
+                            localLogs.map((log, i) => (
                                 <div
                                     key={i}
                                     className={`leading-relaxed ${log.type === 'error' ? 'text-error' :

@@ -146,46 +146,93 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
                 if (data.success) {
                     setContainerId(data.container_id || null);
                     term.writeln(`\x1b[32m# Container: ${data.container_id?.slice(0, 12) || 'unknown'}\x1b[0m`);
-                    term.writeln('\x1b[33m# Connecting to shell...\x1b[0m');
 
-                    // Connect WebSocket
-                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    const wsUrl = `${wsProtocol}//${window.location.host}/api/terminal/ws?session_id=${sessionIdRef.current}`;
+                    // Check if running in Tauri mode
+                    const isTauriMode = data.mode === 'tauri' || (window as any).__TAURI__;
 
-                    const ws = new WebSocket(wsUrl);
-                    wsRef.current = ws;
+                    if (isTauriMode && data.container_id) {
+                        // Tauri mode: use PTY for interactive terminal
+                        term.writeln('\x1b[33m# Running in Tauri desktop mode (PTY)\x1b[0m');
 
-                    ws.onopen = () => {
-                        if (!mounted) return;
-                        setStatus('connected');
-                        term.writeln('\x1b[32m# Connected! Shell ready.\x1b[0m');
-                        term.writeln('\x1b[33m# Click "Fill Fix Command" to paste the AI fix command, then press Enter to run.\x1b[0m\r\n');
-                        // Don't auto-send - let user trigger it
-                    };
+                        try {
+                            const { spawn } = await import('tauri-pty');
 
-                    ws.onmessage = (event) => {
-                        if (!mounted) return;
-                        term.write(event.data);
-                    };
+                            const pty = await spawn('docker', [
+                                'exec',
+                                '-it',
+                                data.container_id,
+                                '/bin/bash',
+                                '-l'
+                            ], {
+                                cols: term.cols,
+                                rows: term.rows,
+                            });
 
-                    ws.onerror = () => {
-                        if (!mounted) return;
-                        setStatus('error');
-                        term.writeln('\r\n\x1b[31m# WebSocket error\x1b[0m');
-                    };
+                            term.writeln('\x1b[32m# Connected! Shell ready.\x1b[0m');
+                            term.writeln('\x1b[33m# Click "Fill Fix Command" to paste the AI fix command, then press Enter to run.\x1b[0m\r\n');
+                            setStatus('connected');
 
-                    ws.onclose = () => {
-                        if (!mounted) return;
-                        setStatus('disconnected');
-                        term.writeln('\r\n\x1b[33m# Session ended\x1b[0m');
-                    };
+                            // PTY data handler - data comes as array buffer, wrap in Uint8Array
+                            pty.onData((data: ArrayLike<number>) => {
+                                if (!mounted) return;
+                                term.write(new Uint8Array(data));
+                            });
 
-                    // Send terminal input to WebSocket
-                    term.onData((data) => {
-                        if (ws.readyState === WebSocket.OPEN) {
-                            ws.send(data);
+                            term.onData((input: string) => {
+                                pty.write(input);
+                            });
+
+                            term.onResize(({ cols, rows }) => {
+                                pty.resize(cols, rows);
+                            });
+
+                            (term as any).__pty = pty;
+
+                        } catch (ptyError) {
+                            console.error('[TestFixModal] PTY spawn failed:', ptyError);
+                            term.writeln(`\x1b[31m# PTY error: ${ptyError}\x1b[0m`);
+                            setStatus('error');
                         }
-                    });
+                    } else {
+                        // Web mode: use WebSocket
+                        term.writeln('\x1b[33m# Connecting to shell...\x1b[0m');
+
+                        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                        const wsUrl = `${wsProtocol}//${window.location.host}/api/terminal/ws?session_id=${sessionIdRef.current}`;
+
+                        const ws = new WebSocket(wsUrl);
+                        wsRef.current = ws;
+
+                        ws.onopen = () => {
+                            if (!mounted) return;
+                            setStatus('connected');
+                            term.writeln('\x1b[32m# Connected! Shell ready.\x1b[0m');
+                            term.writeln('\x1b[33m# Click "Fill Fix Command" to paste the AI fix command, then press Enter to run.\x1b[0m\r\n');
+                        };
+
+                        ws.onmessage = (event) => {
+                            if (!mounted) return;
+                            term.write(event.data);
+                        };
+
+                        ws.onerror = () => {
+                            if (!mounted) return;
+                            setStatus('error');
+                            term.writeln('\r\n\x1b[31m# WebSocket error\x1b[0m');
+                        };
+
+                        ws.onclose = () => {
+                            if (!mounted) return;
+                            setStatus('disconnected');
+                            term.writeln('\r\n\x1b[33m# Session ended\x1b[0m');
+                        };
+
+                        term.onData((input) => {
+                            if (ws.readyState === WebSocket.OPEN) {
+                                ws.send(input);
+                            }
+                        });
+                    }
                 } else {
                     setStatus('error');
                     term.writeln(`\x1b[31m# Error: ${data.message || data.error}\x1b[0m`);

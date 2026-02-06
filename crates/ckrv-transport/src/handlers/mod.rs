@@ -41,9 +41,12 @@ pub mod session;
 pub mod specs;
 pub mod status;
 pub mod tasks;
-pub mod terminal;
 pub mod test;
 pub mod example;
+
+// Terminal handler uses WebSocket types from axum, so it's feature-gated
+#[cfg(feature = "axum")]
+pub mod terminal;
 
 // Re-export handlers for convenience
 pub use agents::*;
@@ -61,5 +64,7 @@ pub use session::*;
 pub use specs::*;
 pub use status::*;
 pub use tasks::*;
-pub use terminal::*;
 pub use test::*;
+
+#[cfg(feature = "axum")]
+pub use terminal::*;

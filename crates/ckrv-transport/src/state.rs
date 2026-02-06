@@ -49,6 +49,9 @@ pub struct SystemStatus {
 
     /// Current system mode
     pub mode: SystemMode,
+
+    /// Project root directory path (for display in Settings)
+    pub project_root: String,
 }
 
 /// Operating mode of the orchestration system.

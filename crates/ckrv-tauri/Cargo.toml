@@ -1,0 +1,56 @@
+[package]
+name = "ckrv-tauri"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Chakravarti CLI desktop application powered by Tauri"
+default-run = "ckrv-tauri"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri v2
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-pty = "0.2"
+tauri-plugin-process = "2"
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Internal crates - using transport layer with tauri feature
+ckrv-transport = { path = "../ckrv-transport", features = ["tauri"] }
+ckrv-core = { workspace = true }
+ckrv-sandbox = { workspace = true }
+
+# Directory utilities
+dirs = "6.0"
+
+# Thread-safe session storage
+parking_lot = "0.12"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[[bin]]
+name = "ckrv-tauri"
+path = "src/main.rs"

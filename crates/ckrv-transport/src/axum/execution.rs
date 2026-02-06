@@ -25,6 +25,7 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
+use tokio::sync::broadcast;
 
 /// Start execution.
 async fn start_execution(
@@ -44,15 +45,86 @@ struct WsQuery {
 }
 
 /// Execution WebSocket for streaming logs.
+///
+/// Subscribes to the Hub and forwards all orchestration events to the client.
+/// The connection stays open until the client disconnects or a Success/Error event is received.
 async fn execution_ws(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Query(query): Query<WsQuery>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |_socket| async move {
-        // TODO: Implement proper execution log streaming
-        let _ = query.run_id;
+    use axum::extract::ws::{Message, WebSocket};
+    use futures_util::{SinkExt, StreamExt};
+
+    let run_id = query.run_id;
+    let hub = state.hub.clone();
+
+    ws.on_upgrade(move |socket| async move {
+        handle_execution_ws(socket, hub, run_id).await;
     })
+}
+
+/// Handle the WebSocket connection for execution log streaming.
+async fn handle_execution_ws(
+    socket: axum::extract::ws::WebSocket,
+    hub: crate::hub::SharedHub,
+    _run_id: String,
+) {
+    use axum::extract::ws::Message;
+    use futures_util::{SinkExt, StreamExt};
+
+    let (mut sender, mut receiver) = socket.split();
+    let mut rx = hub.subscribe();
+
+    // Spawn task to forward hub events to WebSocket
+    let send_task = tokio::spawn(async move {
+        loop {
+            match rx.recv().await {
+                Ok(event) => {
+                    // Serialize event to JSON
+                    let json = match serde_json::to_string(&event) {
+                        Ok(j) => j,
+                        Err(e) => {
+                            tracing::warn!("Failed to serialize event: {}", e);
+                            continue;
+                        }
+                    };
+
+                    // Send to WebSocket
+                    if sender.send(Message::Text(json.into())).await.is_err() {
+                        break; // Client disconnected
+                    }
+
+                    // Check if this is a terminal event
+                    if matches!(
+                        event,
+                        crate::hub::OrchestrationEvent::Success { .. }
+                            | crate::hub::OrchestrationEvent::Error { .. }
+                    ) {
+                        // Give client time to receive, then close
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                        let _ = sender.close().await;
+                        break;
+                    }
+                }
+                Err(broadcast::error::RecvError::Lagged(n)) => {
+                    tracing::warn!("WebSocket client lagged, dropped {} events", n);
+                }
+                Err(broadcast::error::RecvError::Closed) => {
+                    break; // Hub closed
+                }
+            }
+        }
+    });
+
+    // Wait for client to close or send close message
+    while let Some(msg) = receiver.next().await {
+        if let Ok(Message::Close(_)) = msg {
+            break;
+        }
+    }
+
+    send_task.abort();
 }
 
 /// Stop execution.

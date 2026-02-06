@@ -4,16 +4,15 @@
 
 use crate::error::TransportError;
 use crate::state::{AppState, SystemStatus};
+use std::path::Path;
 use std::process::Command;
 
-/// Detect the current git branch.
-fn detect_git_branch() -> Option<String> {
-    let cwd = std::env::current_dir().ok()?;
-
+/// Detect the current git branch for a given project root.
+fn detect_git_branch(project_root: &Path) -> Option<String> {
     // First check if we're in a git repo at all
     let git_check = Command::new("git")
         .args(["rev-parse", "--git-dir"])
-        .current_dir(&cwd)
+        .current_dir(project_root)
         .output()
         .ok()?;
 
@@ -24,7 +23,7 @@ fn detect_git_branch() -> Option<String> {
     // Try to get the current branch
     let output = Command::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .current_dir(&cwd)
+        .current_dir(project_root)
         .output()
         .ok()?;
 
@@ -38,7 +37,7 @@ fn detect_git_branch() -> Option<String> {
     // For fresh repos with no commits, try to get branch from symbolic-ref
     let symbolic = Command::new("git")
         .args(["symbolic-ref", "--short", "HEAD"])
-        .current_dir(&cwd)
+        .current_dir(project_root)
         .output()
         .ok()?;
 
@@ -54,14 +53,10 @@ fn detect_git_branch() -> Option<String> {
 }
 
 /// Detect if the project is initialized (has .specs and .chakravarti directories).
-fn detect_is_initialized() -> bool {
-    let cwd = std::env::current_dir().ok();
-    if let Some(dir) = cwd {
-        let specs_dir = dir.join(".specs");
-        let chakravarti_dir = dir.join(".chakravarti");
-        return specs_dir.exists() && chakravarti_dir.exists();
-    }
-    false
+fn detect_is_initialized(project_root: &Path) -> bool {
+    let specs_dir = project_root.join(".specs");
+    let chakravarti_dir = project_root.join(".chakravarti");
+    specs_dir.exists() && chakravarti_dir.exists()
 }
 
 /// Get current system status.
@@ -77,15 +72,18 @@ fn detect_is_initialized() -> bool {
 pub async fn get_status_handler(state: &AppState) -> Result<SystemStatus, TransportError> {
     let mut status = state.status.read().await.clone();
 
-    // Dynamically detect git branch
-    if let Some(branch) = detect_git_branch() {
+    // Dynamically detect git branch using project root
+    if let Some(branch) = detect_git_branch(&state.project_root) {
         status.active_branch = branch;
     } else {
         status.active_branch = "none".to_string();
     }
 
-    // Dynamically detect initialization status
-    status.is_ready = detect_is_initialized();
+    // Dynamically detect initialization status using project root
+    status.is_ready = detect_is_initialized(&state.project_root);
+
+    // Set project root from state
+    status.project_root = state.project_root.display().to_string();
 
     Ok(status)
 }
@@ -110,12 +108,13 @@ mod tests {
     #[test]
     fn test_detect_git_branch() {
         // This test verifies the function doesn't panic
-        let _branch = detect_git_branch();
+        let _branch = detect_git_branch(Path::new("/tmp"));
     }
 
     #[test]
     fn test_detect_is_initialized() {
         // This test verifies the function doesn't panic
-        let _initialized = detect_is_initialized();
+        let _initialized = detect_is_initialized(Path::new("/tmp"));
     }
 }
+

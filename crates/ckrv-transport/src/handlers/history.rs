@@ -9,7 +9,7 @@ use crate::types::{
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // ============================================================================
 // Internal Types
@@ -100,21 +100,19 @@ pub struct HistoryFile {
 // Path Utilities
 // ============================================================================
 
-/// Get the specs directory path.
-fn get_specs_dir() -> PathBuf {
-    std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join(".specs")
+/// Get the specs directory path for a project.
+fn get_specs_dir(project_root: &Path) -> PathBuf {
+    project_root.join(".specs")
 }
 
 /// Get path to history file.
-fn get_history_path(spec_name: &str) -> PathBuf {
-    get_specs_dir().join(spec_name).join("history.yaml")
+fn get_history_path(project_root: &Path, spec_name: &str) -> PathBuf {
+    get_specs_dir(project_root).join(spec_name).join("history.yaml")
 }
 
 /// Load history for a spec.
-fn load_history(spec_name: &str) -> Result<HistoryFile, TransportError> {
-    let path = get_history_path(spec_name);
+fn load_history(project_root: &Path, spec_name: &str) -> Result<HistoryFile, TransportError> {
+    let path = get_history_path(project_root, spec_name);
 
     if !path.exists() {
         return Ok(HistoryFile::default());
@@ -128,8 +126,8 @@ fn load_history(spec_name: &str) -> Result<HistoryFile, TransportError> {
 }
 
 /// Save history for a spec.
-fn save_history(spec_name: &str, history: &HistoryFile) -> Result<(), TransportError> {
-    let path = get_history_path(spec_name);
+fn save_history(project_root: &Path, spec_name: &str, history: &HistoryFile) -> Result<(), TransportError> {
+    let path = get_history_path(project_root, spec_name);
 
     let yaml = serde_yaml::to_string(history)
         .map_err(|e| TransportError::Internal(format!("Failed to serialize history: {e}")))?;
@@ -146,10 +144,10 @@ fn save_history(spec_name: &str, history: &HistoryFile) -> Result<(), TransportE
 
 /// List run history for a spec.
 pub async fn list_history_handler(
-    _state: &AppState,
+    state: &AppState,
     spec_name: String,
 ) -> Result<ListHistoryResponse, TransportError> {
-    let history = load_history(&spec_name)?;
+    let history = load_history(&state.project_root, &spec_name)?;
 
     Ok(history
         .runs
@@ -177,11 +175,11 @@ pub async fn list_history_handler(
 
 /// Get a specific run.
 pub async fn get_run_handler(
-    _state: &AppState,
+    state: &AppState,
     spec_name: String,
     run_id: String,
 ) -> Result<RunDetail, TransportError> {
-    let history = load_history(&spec_name)?;
+    let history = load_history(&state.project_root, &spec_name)?;
 
     let run = history
         .runs
@@ -226,11 +224,11 @@ pub async fn get_run_handler(
 
 /// Create a new run.
 pub async fn create_run_handler(
-    _state: &AppState,
+    state: &AppState,
     spec_name: String,
     request: CreateRunRequest,
 ) -> Result<RunDetail, TransportError> {
-    let mut history = load_history(&spec_name)?;
+    let mut history = load_history(&state.project_root, &spec_name)?;
 
     // Check for concurrent run
     if history.runs.iter().any(|r| r.status == HistoryRunStatus::Running) {
@@ -270,7 +268,7 @@ pub async fn create_run_handler(
     };
 
     history.runs.insert(0, run.clone());
-    save_history(&spec_name, &history)?;
+    save_history(&state.project_root, &spec_name, &history)?;
 
     Ok(RunDetail {
         id: run.id,
@@ -287,12 +285,12 @@ pub async fn create_run_handler(
 
 /// Update a run.
 pub async fn update_run_handler(
-    _state: &AppState,
+    state: &AppState,
     spec_name: String,
     run_id: String,
     request: UpdateRunRequest,
 ) -> Result<RunDetail, TransportError> {
-    let mut history = load_history(&spec_name)?;
+    let mut history = load_history(&state.project_root, &spec_name)?;
 
     let run = history
         .runs
@@ -327,18 +325,18 @@ pub async fn update_run_handler(
         run.error = Some(error);
     }
 
-    save_history(&spec_name, &history)?;
+    save_history(&state.project_root, &spec_name, &history)?;
 
-    get_run_handler(_state, spec_name, run_id).await
+    get_run_handler(state, spec_name, run_id).await
 }
 
 /// Delete a run.
 pub async fn delete_run_handler(
-    _state: &AppState,
+    state: &AppState,
     spec_name: String,
     run_id: String,
 ) -> Result<(), TransportError> {
-    let mut history = load_history(&spec_name)?;
+    let mut history = load_history(&state.project_root, &spec_name)?;
 
     // Check if run exists and is not running
     if let Some(run) = history.runs.iter().find(|r| r.id == run_id) {
@@ -352,7 +350,7 @@ pub async fn delete_run_handler(
     }
 
     history.runs.retain(|r| r.id != run_id);
-    save_history(&spec_name, &history)?;
+    save_history(&state.project_root, &spec_name, &history)?;
 
     Ok(())
 }

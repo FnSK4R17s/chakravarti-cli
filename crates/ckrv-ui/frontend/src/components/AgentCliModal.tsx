@@ -183,47 +183,137 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                         term.writeln(`\x1b[36m# Mode: Native Claude\x1b[0m`);
                     }
 
-                    term.writeln('\x1b[33m# Connecting to shell...\x1b[0m');
+                    // Check if running in Tauri mode (no WebSocket available)
+                    const isTauriMode = res.mode === 'tauri' || (window as any).__TAURI__;
 
-                    // Connect WebSocket
-                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    const wsUrl = `${wsProtocol}//${window.location.host}/api/terminal/ws?session_id=${sessionIdRef.current}`;
+                    if (isTauriMode && res.container_id) {
+                        // Tauri mode: use PTY for interactive terminal
+                        // See: crates/ckrv-ui/frontend/src/hooks/useTauriPty.ts for architecture
+                        term.writeln('\x1b[33m# Running in Tauri desktop mode (PTY)\x1b[0m');
 
-                    const ws = new WebSocket(wsUrl);
-                    wsRef.current = ws;
+                        try {
+                            // Dynamic import tauri-pty to avoid loading in web mode
+                            const { spawn } = await import('tauri-pty');
 
-                    ws.onopen = () => {
-                        if (!mounted) return;
-                        setStatus('connected');
-                        term.writeln('\x1b[32m# Connected! Type commands below.\x1b[0m\r\n');
-                    };
+                            // Spawn docker exec with PTY - this gives full interactive terminal
+                            const pty = await spawn('docker', [
+                                'exec',
+                                '-it',
+                                res.container_id,
+                                '/bin/bash',
+                                '-l'  // Login shell for proper environment
+                            ], {
+                                cols: term.cols,
+                                rows: term.rows,
+                            });
 
-                    ws.onmessage = (event) => {
-                        if (!mounted) return;
-                        term.write(event.data);
-                    };
+                            term.writeln('\x1b[32m# Connected! Type commands below.\x1b[0m\r\n');
+                            setStatus('connected');
 
-                    ws.onerror = () => {
-                        if (!mounted) return;
-                        setStatus('error');
-                        term.writeln('\r\n\x1b[31m# WebSocket error\x1b[0m');
-                    };
+                            // PTY data handler - data comes as array buffer, wrap in Uint8Array
+                            // See: https://github.com/Tnze/tauri-plugin-pty/blob/main/examples/vanilla/src/index.js
+                            pty.onData((data: ArrayLike<number>) => {
+                                if (!mounted) return;
+                                term.write(new Uint8Array(data));
+                            });
 
-                    ws.onclose = () => {
-                        if (!mounted) return;
-                        setStatus('disconnected');
-                        term.writeln('\r\n\x1b[33m# Connection closed\x1b[0m');
-                    };
+                            term.onData((data: string) => {
+                                pty.write(data);
+                            });
 
-                    // Send terminal input to WebSocket
-                    term.onData((data) => {
-                        if (ws.readyState === WebSocket.OPEN) {
-                            ws.send(data);
+                            // Handle terminal resize
+                            term.onResize(({ cols, rows }) => {
+                                pty.resize(cols, rows);
+                            });
+
+                            // Store PTY reference for cleanup
+                            (term as any).__pty = pty;
+
+                        } catch (ptyError) {
+                            console.error('[AgentCliModal] PTY spawn failed:', ptyError);
+                            term.writeln(`\x1b[31m# PTY error: ${ptyError}\x1b[0m`);
+                            term.writeln('\x1b[33m# Falling back to IPC polling mode...\x1b[0m');
+
+                            // Fallback to polling if PTY fails
+                            setStatus('connected');
+
+                            const pollOutput = async () => {
+                                if (!mounted) return;
+                                try {
+                                    const readRes = await fetch('/api/terminal/read', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ session_id: sessionIdRef.current }),
+                                    });
+                                    const data = await readRes.json();
+                                    if (data && data.data) {
+                                        term.write(data.data);
+                                    }
+                                } catch (e) {
+                                    // Ignore read errors
+                                }
+                                if (mounted) {
+                                    setTimeout(pollOutput, 100);
+                                }
+                            };
+                            pollOutput();
+
+                            term.onData(async (data) => {
+                                try {
+                                    await fetch('/api/terminal/write', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ session_id: sessionIdRef.current, data }),
+                                    });
+                                } catch (e) {
+                                    // Ignore write errors
+                                }
+                            });
                         }
-                    });
+                    } else {
+                        // Web mode: use WebSocket
+                        term.writeln('\x1b[33m# Connecting to shell...\x1b[0m');
+
+                        // Connect WebSocket
+                        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                        const wsUrl = `${wsProtocol}//${window.location.host}/api/terminal/ws?session_id=${sessionIdRef.current}`;
+
+                        const ws = new WebSocket(wsUrl);
+                        wsRef.current = ws;
+
+                        ws.onopen = () => {
+                            if (!mounted) return;
+                            setStatus('connected');
+                            term.writeln('\x1b[32m# Connected! Type commands below.\x1b[0m\r\n');
+                        };
+
+                        ws.onmessage = (event) => {
+                            if (!mounted) return;
+                            term.write(event.data);
+                        };
+
+                        ws.onerror = () => {
+                            if (!mounted) return;
+                            setStatus('error');
+                            term.writeln('\r\n\x1b[31m# WebSocket error\x1b[0m');
+                        };
+
+                        ws.onclose = () => {
+                            if (!mounted) return;
+                            setStatus('disconnected');
+                            term.writeln('\r\n\x1b[33m# Connection closed\x1b[0m');
+                        };
+
+                        // Send terminal input to WebSocket
+                        term.onData((data) => {
+                            if (ws.readyState === WebSocket.OPEN) {
+                                ws.send(data);
+                            }
+                        });
+                    }
                 } else {
                     setStatus('error');
-                    term.writeln(`\x1b[31m# Error: ${res.message}\x1b[0m`);
+                    term.writeln(`\x1b[31m# Error: ${res.message || res.error}\x1b[0m`);
                 }
             } catch (e) {
                 if (!mounted) return;
@@ -245,6 +335,14 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
             mounted = false;
             window.removeEventListener('resize', handleResize);
             wsRef.current?.close();
+            // Kill PTY if it exists (Tauri mode)
+            if (xtermRef.current && (xtermRef.current as any).__pty) {
+                try {
+                    (xtermRef.current as any).__pty.kill();
+                } catch (e) {
+                    // Ignore kill errors
+                }
+            }
             xtermRef.current?.dispose();
             stopTerminalSession(sessionIdRef.current).catch(() => { });
         };

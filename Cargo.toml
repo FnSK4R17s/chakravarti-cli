@@ -13,6 +13,7 @@ members = [
     "crates/ckrv-transport",
     "crates/ckrv-ui",
     "crates/ckrv-mcp",
+    "crates/ckrv-tauri",
 ]
 
 [workspace.package]

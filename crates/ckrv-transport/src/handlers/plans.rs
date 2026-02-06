@@ -8,7 +8,7 @@ use crate::types::{BatchSummary, ListPlansResponse, PlanDetail, PlanSummary};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // ============================================================================
 // Internal Types (matching plan.yaml structure)
@@ -57,16 +57,14 @@ struct PlanFile {
 // Path Utilities
 // ============================================================================
 
-/// Get the specs directory path.
-fn get_specs_dir() -> PathBuf {
-    std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join(".specs")
+/// Get the specs directory path for a project.
+fn get_specs_dir(project_root: &Path) -> PathBuf {
+    project_root.join(".specs")
 }
 
-/// Get path to a specific spec.
-fn get_spec_path(name: &str) -> PathBuf {
-    get_specs_dir().join(name)
+/// Get path to a specific spec within a project.
+fn get_spec_path(project_root: &Path, name: &str) -> PathBuf {
+    get_specs_dir(project_root).join(name)
 }
 
 // ============================================================================
@@ -74,8 +72,8 @@ fn get_spec_path(name: &str) -> PathBuf {
 // ============================================================================
 
 /// List all plans.
-pub async fn list_plans_handler(_state: &AppState) -> Result<ListPlansResponse, TransportError> {
-    let specs_dir = get_specs_dir();
+pub async fn list_plans_handler(state: &AppState) -> Result<ListPlansResponse, TransportError> {
+    let specs_dir = get_specs_dir(&state.project_root);
     let mut plans = Vec::new();
 
     if specs_dir.exists() && specs_dir.is_dir() {
@@ -123,10 +121,10 @@ pub async fn list_plans_handler(_state: &AppState) -> Result<ListPlansResponse, 
 
 /// Get a plan for a spec.
 pub async fn get_plan_handler(
-    _state: &AppState,
+    state: &AppState,
     spec_name: String,
 ) -> Result<PlanDetail, TransportError> {
-    let plan_path = get_spec_path(&spec_name).join("plan.yaml");
+    let plan_path = get_spec_path(&state.project_root, &spec_name).join("plan.yaml");
 
     if !plan_path.exists() {
         return Err(TransportError::NotFound(format!(
@@ -181,11 +179,11 @@ pub async fn get_plan_handler(
 
 /// Update a plan.
 pub async fn update_plan_handler(
-    _state: &AppState,
+    state: &AppState,
     spec_name: String,
     raw_yaml: String,
 ) -> Result<PlanDetail, TransportError> {
-    let plan_path = get_spec_path(&spec_name).join("plan.yaml");
+    let plan_path = get_spec_path(&state.project_root, &spec_name).join("plan.yaml");
 
     // Validate YAML before saving
     let _: PlanFile = serde_yaml::from_str(&raw_yaml)
@@ -194,12 +192,12 @@ pub async fn update_plan_handler(
     fs::write(&plan_path, &raw_yaml)
         .map_err(|e| TransportError::Internal(format!("Failed to write plan: {e}")))?;
 
-    get_plan_handler(_state, spec_name).await
+    get_plan_handler(state, spec_name).await
 }
 
 /// Delete a plan.
-pub async fn delete_plan_handler(_state: &AppState, spec_name: String) -> Result<(), TransportError> {
-    let plan_path = get_spec_path(&spec_name).join("plan.yaml");
+pub async fn delete_plan_handler(state: &AppState, spec_name: String) -> Result<(), TransportError> {
+    let plan_path = get_spec_path(&state.project_root, &spec_name).join("plan.yaml");
 
     if !plan_path.exists() {
         return Err(TransportError::NotFound(format!(
