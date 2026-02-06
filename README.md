@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="Chakravarti Logo" width="180" height="180">
+</p>
+
 <h1 align="center">Chakravarti-cli</h1>
 
 <p align="center">
