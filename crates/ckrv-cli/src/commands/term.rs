@@ -16,11 +16,18 @@
 //! ckrv term --list    # List available agents
 //! ```
 
-use crate::services::agent_lookup::{load_agents_config, AgentConfig, AgentType};
-use crate::ui::UiContext;
+// Standard library
+use std::process::Command;
+
+// External crates
 use clap::Args;
 use dialoguer::{theme::ColorfulTheme, Input, MultiSelect, Select};
-use std::process::Command;
+
+// Internal modules
+use crate::services::agent_lookup::{load_agents_config, AgentConfig, AgentType};
+use crate::ui::UiContext;
+
+// ============================================================
 
 /// Common Claude Code options that can be selected interactively
 #[derive(Debug, Clone, Copy)]
@@ -67,6 +74,8 @@ const COMMON_OPTIONS: &[CommonOption] = &[
     },
 ];
 
+// ============================================================
+
 #[derive(Args, Debug)]
 #[command(
     long_about = "Spawn an interactive AI agent terminal session.\n\n\
@@ -97,6 +106,8 @@ pub struct TermArgs {
     #[arg(last = true)]
     passthrough_args: Vec<String>,
 }
+
+// ============================================================
 
 pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     // Load agents configuration

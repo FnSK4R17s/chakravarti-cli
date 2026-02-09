@@ -1,10 +1,59 @@
-//! Chakravarti CLI library - exports CLI types for SKILL.md generation and MCP server.
+//! # Chakravarti CLI Library
+//!
+//! Exports CLI types for SKILL.md generation and MCP server.
+//!
+//! ## Overview
 //!
 //! This module provides public access to the CLI command structure for external tools
 //! that need to introspect the command definitions (e.g., `skill_gen` and `ckrv-mcp`).
+//! It defines the complete CLI interface including all commands, arguments, and metadata
+//! extraction for documentation generation.
+//!
+//! ## Architecture
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────────────────┐
+//! │                        lib.rs                               │
+//! ├─────────────────────────────────────────────────────────────┤
+//! │  Cli struct ──────▶ Commands enum ──────▶ Command handlers  │
+//! │        │                   │                    │           │
+//! │        └───────────────────┴────────────────────┘           │
+//! │                          │                                  │
+//! │                          ▼                                  │
+//! │              extract_command_metadata()                     │
+//! │                          │                                  │
+//! │              ┌───────────┴───────────┐                      │
+//! │              ▼                       ▼                      │
+//! │         SKILL.md              MCP Server                    │
+//! └─────────────────────────────────────────────────────────────┘
+//! ```
+//!
+//! ## Example
+//!
+//! ```rust
+//! use ckrv_cli::{Cli, Commands, extract_command_metadata};
+//!
+//! // Extract metadata for documentation
+//! let metadata = extract_command_metadata();
+//! println!("CLI has {} commands", metadata.subcommands.len());
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`commands`] - Individual command implementations
+//! - [`crate::extract_command_metadata`] - Extract CLI structure for docs/MCP
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
+// External crates (alphabetical)
 use clap::{CommandFactory, Parser, Subcommand};
 use serde::Serialize;
+
+// ============================================================
+// MODULES
+// ============================================================
 
 // Internal modules - cloud is for API client, not re-exported
 mod cloud;
@@ -14,6 +63,10 @@ mod services;
 
 // Public modules
 pub mod ui;
+
+// ============================================================
+// RE-EXPORTS
+// ============================================================
 
 // Re-export command modules for main.rs access
 pub use commands::diff;
@@ -36,6 +89,10 @@ pub use commands::verify;
 // Re-export commands with name conflicts (cloud command vs cloud module, ui command vs ui module)
 pub use commands::cloud as cloud_cmd;
 pub use commands::ui as ui_cmd;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Chakravarti CLI - Spec-driven agent orchestration engine
 #[derive(Parser)]
