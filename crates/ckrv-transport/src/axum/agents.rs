@@ -123,7 +123,7 @@ async fn test_agent(
 /// Get available OpenRouter models.
 async fn get_models() -> impl IntoResponse {
     match get_openrouter_models_handler().await {
-        Ok(models) => Json(models).into_response(),
+        Ok(models) => Json(serde_json::json!({ "models": models })).into_response(),
         Err(e) => e.into_response(),
     }
 }

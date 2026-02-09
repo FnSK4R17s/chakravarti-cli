@@ -29,6 +29,7 @@ pub use commands::run;
 pub use commands::spec;
 pub use commands::status;
 pub use commands::task;
+pub use commands::term;
 pub use commands::test;
 pub use commands::verify;
 
@@ -306,6 +307,23 @@ pub enum Commands {
                       ckrv qa report"
     )]
     Qa(commands::qa::QaArgs),
+
+    /// Spawn an interactive AI agent terminal
+    #[command(
+        display_order = 14,
+        long_about = "Spawn an interactive AI agent terminal session.\n\n\
+                      Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex) \
+                      with the correct environment variables automatically configured.\n\n\
+                      Without arguments, presents an interactive selection menu.",
+        after_help = "Examples:\n\
+                      # Interactive selection\n\
+                      ckrv term\n\n\
+                      # Launch specific agent by ID\n\
+                      ckrv term --agent my-openrouter-agent\n\n\
+                      # List available agents\n\
+                      ckrv term --list"
+    )]
+    Term(commands::term::TermArgs),
 }
 
 // ============================================================================

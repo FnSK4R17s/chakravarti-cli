@@ -15,6 +15,7 @@ pub mod spec;
 pub mod spec_structs;
 pub mod status;
 pub mod task;
+pub mod term;
 pub mod test;
 pub mod ui;
 pub mod verify;

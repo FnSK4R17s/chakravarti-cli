@@ -172,7 +172,7 @@ const deleteAgent = async (id: string) => {
     const res = await fetch('/api/agents/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ name: id }),
     });
     return res.json();
 };
@@ -181,7 +181,7 @@ const setDefaultAgent = async (id: string) => {
     const res = await fetch('/api/agents/set-default', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ name: id }),
     });
     return res.json();
 };
@@ -190,7 +190,7 @@ const setQaAgent = async (id: string) => {
     const res = await fetch('/api/agents/set-qa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ name: id }),
     });
     return res.json();
 };
@@ -199,7 +199,7 @@ const setTestWriterAgent = async (id: string) => {
     const res = await fetch('/api/agents/set-test-writer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ name: id }),
     });
     return res.json();
 };
@@ -738,7 +738,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
     return (
         <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-w-lg max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-                <form onSubmit={handleSubmit} className="flex flex-col min-h-0 h-full">
+                <form onSubmit={handleSubmit} className="flex flex-col min-h-0 h-full" autoComplete="off">
                     {/* Header */}
                     <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
                         <DialogTitle>{agent ? 'Edit Agent' : 'Add New Agent'}</DialogTitle>
@@ -748,12 +748,14 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                     <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
                         {/* Name */}
                         <div className="space-y-2">
-                            <Label htmlFor="name">Name</Label>
+                            <Label htmlFor="agent-name">Name</Label>
                             <Input
-                                id="name"
+                                id="agent-name"
+                                name="agent-display-name"
                                 value={form.name}
                                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                                 placeholder="My Custom Agent"
+                                autoComplete="off"
                                 required
                             />
                         </div>
@@ -841,7 +843,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                                 <SelectTrigger>
                                                     <SelectValue />
                                                 </SelectTrigger>
-                                                <SelectContent>
+                                                <SelectContent className="max-h-60 overflow-y-auto">
                                                     {providers.map((provider) => (
                                                         <SelectItem key={provider} value={provider}>
                                                             {formatProvider(provider)}
@@ -864,7 +866,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                                 <SelectTrigger>
                                                     <SelectValue />
                                                 </SelectTrigger>
-                                                <SelectContent>
+                                                <SelectContent className="max-h-60 overflow-y-auto">
                                                     {filteredModels.map((model) => (
                                                         <SelectItem key={model.id} value={model.id}>
                                                             {model.name.replace(/^[^:]+:\s*/, '')}
@@ -905,9 +907,10 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
 
                                 {/* API Key */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="api-key">OpenRouter API Key</Label>
+                                    <Label htmlFor="openrouter-api-key">OpenRouter API Key</Label>
                                     <Input
-                                        id="api-key"
+                                        id="openrouter-api-key"
+                                        name="openrouter-api-key"
                                         type="password"
                                         value={form.openrouter?.api_key || ''}
                                         onChange={(e) => setForm({
@@ -916,6 +919,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                         })}
                                         placeholder="sk-or-..."
                                         className="font-mono"
+                                        autoComplete="new-password"
                                     />
                                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                                         Get your key from{' '}
@@ -983,6 +987,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                     <Label htmlFor="glm-api-key">Z.AI API Key</Label>
                                     <Input
                                         id="glm-api-key"
+                                        name="glm-api-key"
                                         type="password"
                                         value={form.glm?.api_key || ''}
                                         onChange={(e) => setForm({
@@ -991,6 +996,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                         })}
                                         placeholder="Your Z.AI API key"
                                         className="font-mono"
+                                        autoComplete="new-password"
                                     />
                                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                                         Get your key from{' '}
