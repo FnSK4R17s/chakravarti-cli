@@ -314,12 +314,15 @@ pub enum Commands {
         long_about = "Spawn an interactive AI agent terminal session.\n\n\
                       Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex) \
                       with the correct environment variables automatically configured.\n\n\
-                      Without arguments, presents an interactive selection menu.",
+                      Without arguments, presents an interactive selection menu with options \
+                      for common flags. Use -- to pass arguments directly for scripting.",
         after_help = "Examples:\n\
-                      # Interactive selection\n\
+                      # Interactive selection with options prompt\n\
                       ckrv term\n\n\
-                      # Launch specific agent by ID\n\
+                      # Launch specific agent (skips agent selection)\n\
                       ckrv term --agent my-openrouter-agent\n\n\
+                      # Pass flags directly (scripting)\n\
+                      ckrv term -- --dangerously-skip-permissions --continue\n\n\
                       # List available agents\n\
                       ckrv term --list"
     )]

@@ -11,7 +11,7 @@
 //! ## Usage
 //!
 //! ```bash
-//! ckrv term           # Interactive agent selection
+//! ckrv term           # Interactive agent selection with options
 //! ckrv term --agent claude-default  # Directly spawn specific agent
 //! ckrv term --list    # List available agents
 //! ```
@@ -19,31 +19,83 @@
 use crate::services::agent_lookup::{load_agents_config, AgentConfig, AgentType};
 use crate::ui::UiContext;
 use clap::Args;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::{theme::ColorfulTheme, Input, MultiSelect, Select};
 use std::process::Command;
+
+/// Common Claude Code options that can be selected interactively
+#[derive(Debug, Clone, Copy)]
+struct CommonOption {
+    label: &'static str,
+    action: OptionAction,
+    description: &'static str,
+}
+
+/// Action to take when an option is selected
+#[derive(Debug, Clone, Copy)]
+enum OptionAction {
+    /// Pass flag(s) to the command line
+    Flag(&'static str),
+    /// Set an environment variable
+    EnvVar(&'static str, &'static str),
+}
+
+const COMMON_OPTIONS: &[CommonOption] = &[
+    CommonOption {
+        label: "Skip permissions",
+        action: OptionAction::Flag("--dangerously-skip-permissions"),
+        description: "Skip all permission prompts (dangerous!)",
+    },
+    CommonOption {
+        label: "Continue session",
+        action: OptionAction::Flag("--continue"),
+        description: "Resume the most recent conversation",
+    },
+    CommonOption {
+        label: "Agent teams",
+        action: OptionAction::EnvVar("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "1"),
+        description: "Enable experimental agent teams mode",
+    },
+    CommonOption {
+        label: "Verbose output",
+        action: OptionAction::Flag("--verbose"),
+        description: "Enable verbose logging",
+    },
+    CommonOption {
+        label: "JSON output",
+        action: OptionAction::Flag("--output-format json"),
+        description: "Output in JSON format",
+    },
+];
 
 #[derive(Args, Debug)]
 #[command(
     long_about = "Spawn an interactive AI agent terminal session.\n\n\
                   Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex) \
                   with the correct environment variables automatically configured.\n\n\
-                  Without arguments, presents an interactive selection menu.",
+                  Without arguments, presents an interactive selection menu with options \
+                  for common flags. Use -- to pass arguments directly for scripting.",
     after_help = "Examples:\n\
-                  # Interactive selection\n\
+                  # Interactive selection with options prompt\n\
                   ckrv term\n\n\
-                  # Launch specific agent by ID\n\
+                  # Launch specific agent (skips agent selection)\n\
                   ckrv term --agent my-openrouter-agent\n\n\
+                  # Pass flags directly (scripting)\n\
+                  ckrv term -- --dangerously-skip-permissions --continue\n\n\
                   # List available agents\n\
                   ckrv term --list"
 )]
 pub struct TermArgs {
-    /// Agent ID to spawn directly (skips interactive selection)
+    /// Agent ID to spawn directly (skips interactive agent selection)
     #[arg(short, long)]
     agent: Option<String>,
 
     /// List available agents and exit
     #[arg(short, long)]
     list: bool,
+
+    /// Additional arguments to pass to the agent binary
+    #[arg(last = true)]
+    passthrough_args: Vec<String>,
 }
 
 pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
@@ -132,8 +184,23 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
         enabled_agents[selection]
     };
 
+    // Collect extra arguments and env vars - either from passthrough or interactive prompt
+    let (extra_args, prompt_env_vars) = if !args.passthrough_args.is_empty() {
+        // Use passthrough args directly (scripting mode)
+        (args.passthrough_args.clone(), Vec::new())
+    } else if !json {
+        // Interactive options prompt
+        let result = prompt_for_options()?;
+        (result.args, result.env_vars)
+    } else {
+        (Vec::new(), Vec::new())
+    };
+
     // Build command based on agent type
-    let (binary, env_vars) = build_agent_command(agent)?;
+    let (binary, mut env_vars) = build_agent_command(agent)?;
+
+    // Add env vars from interactive prompt
+    env_vars.extend(prompt_env_vars);
 
     if !json {
         ui.success("Spawning", &format!("{} ({})", agent.name, agent.id));
@@ -148,6 +215,9 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
                     .join(", ")
             );
         }
+        if !extra_args.is_empty() {
+            println!("  Extra args: {}", extra_args.join(" "));
+        }
         println!(); // Blank line before spawning
     }
 
@@ -159,9 +229,9 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
         cmd.env(key, value);
     }
 
-    // Add any extra args from config
-    if let Some(extra_args) = &agent.extra_args {
-        cmd.args(extra_args);
+    // Add any extra args from agent config
+    if let Some(config_args) = &agent.extra_args {
+        cmd.args(config_args);
     }
 
     // Add any custom env vars from config
@@ -169,6 +239,11 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
         for (key, value) in custom_env {
             cmd.env(key, value);
         }
+    }
+
+    // Add extra arguments (from interactive prompt or passthrough)
+    if !extra_args.is_empty() {
+        cmd.args(&extra_args);
     }
 
     // Execute and wait
@@ -181,6 +256,73 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
     }
 
     Ok(())
+}
+
+/// Result of interactive options prompt
+struct PromptResult {
+    args: Vec<String>,
+    env_vars: Vec<(String, String)>,
+}
+
+/// Prompt user interactively for common options and custom args
+fn prompt_for_options() -> anyhow::Result<PromptResult> {
+    let theme = ColorfulTheme::default();
+    let mut args: Vec<String> = Vec::new();
+    let mut env_vars: Vec<(String, String)> = Vec::new();
+
+    // First ask if user wants to configure options or launch directly
+    let launch_choice = Select::with_theme(&theme)
+        .with_prompt("Launch options")
+        .items(&["Launch directly", "Configure options..."])
+        .default(0)
+        .interact()?;
+
+    // If "Launch directly" selected, return empty result
+    if launch_choice == 0 {
+        return Ok(PromptResult { args, env_vars });
+    }
+
+    // Build selection items with descriptions
+    let items: Vec<String> = COMMON_OPTIONS
+        .iter()
+        .map(|opt| format!("{} - {}", opt.label, opt.description))
+        .collect();
+
+    // Multi-select for common options
+    let selections = MultiSelect::with_theme(&theme)
+        .with_prompt("Select options (Space to toggle, Enter to confirm)")
+        .items(&items)
+        .interact()?;
+
+    // Process selected options
+    for idx in selections {
+        match &COMMON_OPTIONS[idx].action {
+            OptionAction::Flag(flag) => {
+                // Split flag in case it has a value (e.g., "--output-format json")
+                for part in flag.split_whitespace() {
+                    args.push(part.to_string());
+                }
+            }
+            OptionAction::EnvVar(key, value) => {
+                env_vars.push(((*key).to_string(), (*value).to_string()));
+            }
+        }
+    }
+
+    // Prompt for custom args
+    let custom: String = Input::with_theme(&theme)
+        .with_prompt("Additional arguments (or press Enter to skip)")
+        .allow_empty(true)
+        .interact_text()?;
+
+    if !custom.trim().is_empty() {
+        // Parse custom args (handle quoted strings properly)
+        for arg in shell_words::split(&custom)? {
+            args.push(arg);
+        }
+    }
+
+    Ok(PromptResult { args, env_vars })
 }
 
 /// Build command binary and environment variables for an agent
