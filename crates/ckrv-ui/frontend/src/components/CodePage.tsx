@@ -43,10 +43,13 @@ const ICON_MAP = {
     Rocket,
 } as const;
 
+/**
+ * Props for the CodePage component.
+ */
 interface CodePageProps {
-    /** Optional initial tab to display */
+    /** Initial tab to display; defaults to 'spec' */
     initialTab?: CodeTabType;
-    /** Optional spec name to track progress for */
+    /** Spec name to track workflow progress for; enables completion indicators */
     selectedSpec?: string;
 }
 

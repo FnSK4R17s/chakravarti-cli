@@ -36,7 +36,7 @@ Keep these documentation files aligned with source code and guiding documents:
 
 ### 1. Read Guiding Documents
 
-// turbo
+<!-- turbo -->
 ```bash
 cat guiding_docs/vision.md
 ```
@@ -49,7 +49,7 @@ Extract key messaging elements:
 
 ### 2. Read Current README
 
-// turbo
+<!-- turbo -->
 ```bash
 cat README.md
 ```
@@ -64,7 +64,7 @@ Identify sections that need alignment:
 
 ### 3. Read Generated Docs
 
-// turbo
+<!-- turbo -->
 ```bash
 # CLI commands reference
 cat crates/docs/cli-commands.md 2>/dev/null
@@ -75,7 +75,7 @@ cat crates/docs/architecture.md 2>/dev/null
 
 ### 4. Check Commands Enum for Accuracy
 
-// turbo
+<!-- turbo -->
 ```bash
 # Get actual commands from source
 grep -E "^\s+[A-Z][a-zA-Z]+\(" crates/ckrv-cli/src/lib.rs | head -30
@@ -87,14 +87,14 @@ Compare against README command table for missing/outdated entries.
 
 Use the github-issues skill to find any planned CLI/tool integrations:
 
-// turbo
+<!-- turbo -->
 ```bash
 # Fetch all open issues (uses inline repo extraction)
 curl -s "https://api.github.com/repos/$(git remote get-url origin | sed 's|.*github.com[:/]||; s|\.git$||')/issues?state=open&per_page=100" | \
   jq -r '.[] | "#\(.number) \(.title)"'
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 # Extract current Future Integrations from README
 grep -A 15 "### Future Integrations" README.md | grep "^\- \*\*" | sed 's/.*\*\*\([^*]*\)\*\*.*/\1/'
@@ -222,7 +222,7 @@ Update architecture section:
 
 ### 8. Validate Updates
 
-// turbo
+<!-- turbo -->
 ```bash
 # Check markdown renders correctly
 cat README.md
@@ -253,12 +253,12 @@ Sync CONTRIBUTING.md with getting-started.md for build commands and dev workflow
 
 ### 9.1 Read Sources
 
-// turbo
+<!-- turbo -->
 ```bash
 cat CONTRIBUTING.md
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 cat crates/docs/getting-started.md
 ```
@@ -288,7 +288,7 @@ Create a simplified README for the npm package.
 
 ### 10.1 Read Current
 
-// turbo
+<!-- turbo -->
 ```bash
 cat npm/README.md 2>/dev/null || echo "File doesn't exist"
 ```

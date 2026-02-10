@@ -36,14 +36,26 @@ import { toast } from 'sonner';
 // TYPES
 // ============================================================
 
+/**
+ * Props for SpecWorkflow component.
+ * Workflow control panel for managing spec-to-implementation progression.
+ */
 interface SpecWorkflowProps {
+    /** Name of the spec being managed */
     specName: string;
+    /** Count of unresolved clarification questions */
     unresolvedClarifications?: number;
+    /** Whether design.md has been generated */
     hasDesign?: boolean;
+    /** Whether tasks.yaml has been generated */
     hasTasks?: boolean;
+    /** Callback to open clarification resolution dialog */
     onClarifyClick?: () => void;
+    /** Callback fired when design generation completes */
     onDesignComplete?: () => void;
+    /** Callback fired when tasks generation completes */
     onTasksComplete?: () => void;
+    /** Callback fired when validation completes with result */
     onValidationComplete?: (valid: boolean) => void;
 }
 

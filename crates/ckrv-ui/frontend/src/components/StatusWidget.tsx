@@ -24,7 +24,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type SystemStatus } from '../types';
-import { GitBranch, FolderGit, Settings, Loader2, AlertCircle, CheckCircle2, Play, GitBranchPlus } from 'lucide-react';
+import { GitBranch, FolderGit, Settings, Loader2, AlertCircle, CheckCircle2, Play, GitBranchPlus, Folder } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -171,6 +171,16 @@ export const StatusWidget: React.FC = () => {
                             value={status.active_branch}
                             mono
                         />
+
+                        {/* Project Path */}
+                        {status.project_root && (
+                            <StatusRow
+                                icon={<Folder size={16} />}
+                                label="Project"
+                                value={status.project_root}
+                                mono
+                            />
+                        )}
                     </>
                 )}
 
@@ -192,7 +202,7 @@ export const StatusWidget: React.FC = () => {
             >
                 <span className="text-primary">$</span> ckrv <span className="hidden sm:inline">--version</span>
             </div>
-        </Card>
+        </Card >
     );
 };
 
@@ -200,12 +210,21 @@ export const StatusWidget: React.FC = () => {
 // SUB-COMPONENTS
 // ============================================================
 
+/**
+ * Props for the StatusRow sub-component.
+ */
 interface StatusRowProps {
+    /** Icon to display alongside the label */
     icon: React.ReactNode;
+    /** Label text describing the status item */
     label: string;
+    /** Value text to display */
     value: string;
+    /** Visual status indicator color */
     status?: 'success' | 'warning' | 'error';
+    /** Whether to use monospace font for value */
     mono?: boolean;
+    /** Optional hint text shown below the row */
     hint?: string;
 }
 

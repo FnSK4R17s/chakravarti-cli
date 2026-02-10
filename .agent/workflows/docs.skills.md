@@ -24,7 +24,7 @@ Run `/docs.update ckrv-cli` first to ensure `long_about` and `after_help` are up
 
 ### 1. Get Current Commit Hash
 
-// turbo
+<!-- turbo -->
 ```bash
 git rev-parse --short HEAD
 ```
@@ -33,7 +33,7 @@ Store this as `NEW_COMMIT`.
 
 ### 2. Find Commands with Documentation
 
-// turbo
+<!-- turbo -->
 ```bash
 # List commands that have long_about in lib.rs
 grep -B2 "long_about" crates/ckrv-cli/src/lib.rs | grep "///"
@@ -41,7 +41,7 @@ grep -B2 "long_about" crates/ckrv-cli/src/lib.rs | grep "///"
 
 ### 3. Create Output Directory
 
-// turbo
+<!-- turbo -->
 ```bash
 mkdir -p crates/ckrv-cli/docs/commands
 ```
@@ -114,7 +114,7 @@ last_commit: <NEW_COMMIT>
 
 ### 6. Regenerate SKILL.md
 
-// turbo
+<!-- turbo -->
 ```bash
 make skill
 ```

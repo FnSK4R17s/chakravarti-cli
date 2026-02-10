@@ -57,19 +57,36 @@ import {
 
 // === TYPES ===
 
+/**
+ * Task data structure representing a development task from a spec.
+ * Contains metadata, execution parameters, and status information.
+ */
 interface Task {
+    /** Unique identifier for the task (e.g., "001-setup-auth") */
     id: string;
+    /** Development phase this task belongs to */
     phase: string;
+    /** Short title describing the task */
     title: string;
+    /** Detailed description of what the task involves */
     description: string;
+    /** Target file path for code changes */
     file: string;
+    /** Associated user story identifier, if any */
     user_story: string | null;
+    /** Whether this task can run in parallel with other tasks */
     parallel: boolean;
+    /** Complexity score (1-10) for estimation */
     complexity: number;
+    /** Required model tier: light, standard, or heavy */
     model_tier: string;
+    /** Estimated token usage for the task */
     estimated_tokens: number;
+    /** Risk level: low, medium, high, or critical */
     risk: string;
+    /** List of context files required for this task */
     context_required: string[];
+    /** Current status: pending, running, completed, or failed */
     status: string;
 }
 
@@ -122,7 +139,14 @@ const stopTerminalSession = async (sessionId: string) => {
 
 // === SUB-COMPONENTS ===
 
-const RiskBadge: React.FC<{ risk: string }> = ({ risk }) => {
+/**
+ * Badge displaying task risk level with appropriate color coding.
+ * Maps risk levels to semantic badge variants.
+ */
+const RiskBadge: React.FC<{
+    /** Risk level: low, medium, high, or critical */
+    risk: string;
+}> = ({ risk }) => {
     const variants: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
         low: 'success',
         medium: 'warning',
@@ -136,7 +160,14 @@ const RiskBadge: React.FC<{ risk: string }> = ({ risk }) => {
     );
 };
 
-const ModelTierBadge: React.FC<{ tier: string }> = ({ tier }) => {
+/**
+ * Badge displaying model tier requirement with appropriate icon.
+ * Uses Zap for light, Cpu for standard, Brain for heavy tiers.
+ */
+const ModelTierBadge: React.FC<{
+    /** Model tier: light, standard, or heavy */
+    tier: string;
+}> = ({ tier }) => {
     const icons: Record<string, React.ElementType> = {
         light: Zap,
         standard: Cpu,
@@ -151,7 +182,14 @@ const ModelTierBadge: React.FC<{ tier: string }> = ({ tier }) => {
     );
 };
 
-const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+/**
+ * Badge displaying task status with icon and color coding.
+ * Visual indicator for pending, running, completed, and failed states.
+ */
+const StatusBadge: React.FC<{
+    /** Task status: pending, running, completed, or failed */
+    status: string;
+}> = ({ status }) => {
     const variants: Record<string, "secondary" | "info" | "success" | "destructive"> = {
         pending: 'secondary',
         running: 'info',
@@ -173,10 +211,17 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     );
 };
 
-// Agent Selector using shadcn Select
+/**
+ * Dropdown selector for choosing an AI agent to execute a task.
+ * Fetches available agents, auto-selects default, and shows recommendations
+ * based on task's model tier requirements.
+ */
 const AgentSelector: React.FC<{
+    /** Currently selected agent, or null if none selected */
     selectedAgent: AgentConfig | null;
+    /** Callback when an agent is selected */
     onSelect: (agent: AgentConfig) => void;
+    /** Task's recommended model tier for agent matching */
     recommendedTier: string;
 }> = ({ selectedAgent, onSelect, recommendedTier }) => {
     const { data: agentsData, isLoading } = useQuery({
@@ -276,11 +321,19 @@ const AgentSelector: React.FC<{
     );
 };
 
-// Embedded Terminal Component wrapped in Card
+/**
+ * Embedded xterm terminal for executing tasks with AI agents.
+ * Creates WebSocket connection to backend, streams output in real-time,
+ * and provides controls for marking task completion status.
+ */
 const EmbeddedTerminal: React.FC<{
+    /** Agent configuration to use for execution */
     agent: AgentConfig;
+    /** Task to execute */
     task: Task;
+    /** Name of the spec containing this task */
     specName: string;
+    /** Callback when execution completes, with success flag */
     onComplete: (success: boolean) => void;
 }> = ({ agent, task, specName, onComplete }) => {
     const terminalRef = useRef<HTMLDivElement>(null);

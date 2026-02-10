@@ -29,8 +29,13 @@ import '@xterm/xterm/css/xterm.css';
 import { Card } from '@/components/ui/card';
 import { getTerminalTheme } from '@/lib/theme';
 
+/**
+ * Props for the LogTerminal component.
+ */
 interface LogTerminalProps {
+    /** Callback fired when the xterm.js Terminal instance is ready */
     onMount?: (term: Terminal) => void;
+    /** Additional CSS classes to apply to the container */
     className?: string;
 }
 

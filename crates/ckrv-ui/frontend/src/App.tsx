@@ -10,6 +10,7 @@ import AgentManager from './components/AgentManager';
 import CodePage from './components/CodePage';
 import TestRunner from './components/TestRunner';
 import QAReviewer from './components/QAReviewer';
+import ProjectSelector from './components/ProjectSelector';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
@@ -38,6 +39,11 @@ export const NavigationContext = createContext<NavigationContextType>({
     setCurrentPage: () => { },
 });
 export const useNavigation = () => useContext(NavigationContext);
+
+// Check if running in Tauri environment
+const isTauri = (): boolean => {
+    return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+};
 
 // Dashboard Page - Chat-inspired UI
 const DashboardPage = () => (
@@ -81,6 +87,9 @@ function App() {
     const [lastResult, setLastResult] = useState<CommandResult | null>(null);
     const [currentPage, setCurrentPage] = useState<PageType>('dashboard');
 
+    // Project selection state for Tauri
+    const [needsProjectSelection, setNeedsProjectSelection] = useState<boolean | null>(null);
+
     // Initialize theme from localStorage on mount
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme');
@@ -96,6 +105,52 @@ function App() {
             root.classList.add('light');
         }
     }, []);
+
+    // Check if we need project selection (Tauri only)
+    useEffect(() => {
+        const checkProjectRoot = async () => {
+            if (!isTauri()) {
+                // Web mode - no project selection needed
+                setNeedsProjectSelection(false);
+                return;
+            }
+
+            try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                const projectRoot = await invoke<string | null>('get_project_root');
+
+                // Need selection if no project is configured
+                setNeedsProjectSelection(projectRoot === null);
+            } catch (e) {
+                console.error('Failed to check project root:', e);
+                // On error, proceed with app (fallback to cwd)
+                setNeedsProjectSelection(false);
+            }
+        };
+
+        checkProjectRoot();
+    }, []);
+
+    // Show loading state while checking project root
+    if (needsProjectSelection === null) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="animate-pulse text-muted-foreground">Loading...</div>
+            </div>
+        );
+    }
+
+    // Show project selector if needed (Tauri only)
+    if (needsProjectSelection) {
+        return (
+            <ErrorBoundary>
+                <QueryClientProvider client={queryClient}>
+                    <ProjectSelector onProjectSelected={() => window.location.reload()} />
+                    <Toaster />
+                </QueryClientProvider>
+            </ErrorBoundary>
+        );
+    }
 
     return (
         <ErrorBoundary>
@@ -123,3 +178,4 @@ function App() {
 }
 
 export default App;
+

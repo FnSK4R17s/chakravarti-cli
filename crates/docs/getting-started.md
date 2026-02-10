@@ -1,6 +1,6 @@
 ---
-last_commit: 6905171
-last_updated: 2026-02-05
+last_commit: 1b27ca2
+last_updated: 2026-02-10
 related_files:
   - README.md
   - CONTRIBUTING.md
@@ -103,6 +103,7 @@ chakravarti-cli/
 │   ├── ckrv-verify/    # Verification
 │   ├── ckrv-integrations/ # External services
 │   ├── ckrv-transport/ # Shared HTTP API types
+│   ├── ckrv-tauri/    # Tauri desktop app
 │   ├── ckrv-mcp/       # MCP server for AI agents
 │   └── ckrv-ui/        # Web dashboard
 ├── docker/             # Dockerfile definitions

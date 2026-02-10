@@ -30,14 +30,25 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
+/**
+ * Props for the ErrorBoundary component.
+ */
 interface Props {
+    /** Child components to render when no error has occurred */
     children: ReactNode;
+    /** Optional custom fallback UI to show instead of default error display */
     fallback?: ReactNode;
 }
 
+/**
+ * Internal state for the ErrorBoundary component.
+ */
 interface State {
+    /** Whether an error has been caught */
     hasError: boolean;
+    /** The caught error object, if any */
     error: Error | null;
+    /** React error info containing component stack trace */
     errorInfo: ErrorInfo | null;
 }
 

@@ -26,7 +26,7 @@ Ensure all documentation stays synchronized with the actual code:
 
 ### 1. Get Current Commit Hash
 
-// turbo
+<!-- turbo -->
 ```bash
 git rev-parse --short HEAD
 ```
@@ -35,7 +35,7 @@ Store this as `NEW_COMMIT` for later use.
 
 ### 2. List All Crate Documentation
 
-// turbo
+<!-- turbo -->
 ```bash
 find crates -path "*/docs/README.md" -type f | grep -v node_modules
 ```
@@ -46,7 +46,7 @@ If user specified a specific crate, filter to just that crate.
 
 For each doc file found:
 
-// turbo
+<!-- turbo -->
 ```bash
 # Extract the doc's last commit
 DOC_COMMIT=$(grep -oP '^last_commit: \K[a-f0-9]+' <doc_path>)
@@ -62,7 +62,7 @@ git diff --name-only $DOC_COMMIT HEAD -- $CRATE_DIR/src/
 
 For crates with changes, identify:
 
-// turbo
+<!-- turbo -->
 ```bash
 # Check for public API changes
 git diff $DOC_COMMIT HEAD -- $CRATE_DIR/src/ | grep -E '^[\+\-].*(pub fn|pub struct|pub enum|pub trait)'
@@ -110,7 +110,7 @@ For each crate needing updates:
 
 ### 7. Verify Updates
 
-// turbo
+<!-- turbo -->
 ```bash
 # Confirm docs compile (no broken markdown)
 cat <updated_doc_path>
@@ -137,19 +137,19 @@ The `crates/docs/` folder contains 4 cross-cutting documentation files that must
 1. The actual crates in `crates/` directory
 2. Each crate's `docs/README.md` for descriptions
 
-// turbo
+<!-- turbo -->
 ```bash
 # List all crates
 ls -d crates/ckrv-* | xargs -I{} basename {}
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 # Extract crates mentioned in architecture.md
 grep -oP '`ckrv-[a-z]+`' crates/docs/architecture.md | sort -u
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 # List available crate docs
 find crates -path "*/docs/README.md" -type f | grep -v node_modules
@@ -189,19 +189,19 @@ find crates -path "*/docs/README.md" -type f | grep -v node_modules
 1. `crates/ckrv-cli/src/lib.rs` Commands enum
 2. `crates/ckrv-cli/docs/README.md` for command documentation
 
-// turbo
+<!-- turbo -->
 ```bash
 # Get all commands from source
 grep -E "^\s+[A-Z][a-zA-Z]+\(" crates/ckrv-cli/src/lib.rs | sed 's/.*\s\+\([A-Z][a-zA-Z]*\)(.*/\1/' | sort
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 # Get commands documented in cli-commands.md
 grep -E "^### \`" crates/docs/cli-commands.md | sed 's/### `\([^`]*\)`.*/\1/' | sort
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 # Check the ckrv-cli crate README for command details
 cat crates/ckrv-cli/docs/README.md 2>/dev/null
@@ -241,19 +241,19 @@ cat crates/ckrv-cli/docs/README.md 2>/dev/null
 1. `crates/ckrv-sandbox/src/` agent provider implementations
 2. `crates/ckrv-sandbox/docs/README.md` for agent documentation
 
-// turbo
+<!-- turbo -->
 ```bash
 # List agent provider files
 ls crates/ckrv-sandbox/src/*.rs | xargs -I{} basename {} .rs
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 # Get agents documented in agent-guide.md
 grep -E "^## |^### " crates/docs/agent-guide.md
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 # Check the ckrv-sandbox crate README for agent details
 cat crates/ckrv-sandbox/docs/README.md 2>/dev/null
@@ -282,19 +282,19 @@ cat crates/ckrv-sandbox/docs/README.md 2>/dev/null
 1. `Makefile`, `package.json`, build scripts
 2. All crate `docs/README.md` files for development setup
 
-// turbo
+<!-- turbo -->
 ```bash
 # Check if Makefile targets match getting-started.md
 grep -E "^[a-z-]+:" Makefile | cut -d: -f1
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 # Check documented commands
 grep -E "^make |^cargo |^pnpm " crates/docs/getting-started.md
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 # List all crate docs for development reference
 find crates -path "*/docs/README.md" -exec grep -l "Development\|Setup\|Building" {} \;
@@ -317,7 +317,7 @@ When updating `ckrv-cli`, also update CLI command attributes (`long_about`, `aft
 
 ### 12.1 Identify Commands Needing Documentation
 
-// turbo
+<!-- turbo -->
 ```bash
 # List all Commands enum variants in lib.rs
 grep -E "^\s+/// " crates/ckrv-cli/src/lib.rs

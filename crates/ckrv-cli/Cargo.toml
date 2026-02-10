@@ -15,6 +15,10 @@ path = "src/main.rs"
 name = "skill_gen"
 path = "src/bin/skill_gen.rs"
 
+[[bin]]
+name = "command_docs_gen"
+path = "src/bin/command_docs_gen.rs"
+
 [dependencies]
 ckrv-core = { workspace = true }
 ckrv-spec = { workspace = true }
@@ -39,6 +43,7 @@ tabled = { version = "0.20.0", features = ["ansi"] }
 console = "0.16.2"
 dialoguer = "0.12.0"
 shell-escape = "0.1"
+shell-words = "1.1"
 serde_yaml = { workspace = true }
 chrono = { workspace = true }
 ckrv-ui = { version = "0.1.0", path = "../ckrv-ui" }

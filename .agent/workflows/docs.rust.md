@@ -10,7 +10,7 @@ description: Analyze Rust crate documentation and apply conventions without chan
 $ARGUMENTS
 ```
 
-**Optional:** `--crate <name>` to focus on a specific crate (e.g., `ckrv-core`).
+**Optional:** Use the `--crate` flag with a name (e.g., `ckrv-core`) to focus on a specific crate.
 By default, runs on **all crates**.
 
 ## Goal
@@ -44,9 +44,9 @@ Read this file fully before applying any documentation. Key sections:
 
 ### Step 1.1: Get Target Crates
 
-By default, analyze **all** crates. Use `--crate <name>` to focus on one.
+By default, analyze **all** crates. Use the `--crate` flag with a crate name to focus on one.
 
-// turbo
+<!-- turbo -->
 ```bash
 # List all crates (or filter if --crate specified)
 ls -d /apps/chakravarti-cli/crates/ckrv-* | xargs -I{} basename {}
@@ -94,14 +94,14 @@ CRATE="<current_crate_from_loop>"  # e.g., ckrv-core
 
 ### Step 2.1: File Inventory
 
-// turbo
+<!-- turbo -->
 ```bash
 find /apps/chakravarti-cli/crates/$CRATE/src -name "*.rs" 2>/dev/null | head -50
 ```
 
 ### Step 2.2: File Size Analysis
 
-// turbo
+<!-- turbo -->
 ```bash
 for f in $(find /apps/chakravarti-cli/crates/$CRATE/src -name "*.rs" 2>/dev/null); do
   lines=$(wc -l < "$f")
@@ -119,7 +119,7 @@ done | sort -rn | head -20
 
 ### Step 2.3: Module Documentation Check
 
-// turbo
+<!-- turbo -->
 ```bash
 for f in $(find /apps/chakravarti-cli/crates/$CRATE/src -name "*.rs" 2>/dev/null); do
   name=$(basename "$f")
@@ -134,7 +134,7 @@ done
 
 ### Step 2.4: Public API Documentation Check
 
-// turbo
+<!-- turbo -->
 ```bash
 for f in $(find /apps/chakravarti-cli/crates/$CRATE/src -name "*.rs" 2>/dev/null); do
   name=$(basename "$f")
@@ -160,7 +160,7 @@ done
 
 ### Step 2.5: Section Separator Check
 
-// turbo
+<!-- turbo -->
 ```bash
 for f in $(find /apps/chakravarti-cli/crates/$CRATE/src -name "*.rs" 2>/dev/null); do
   name=$(basename "$f")
@@ -180,7 +180,7 @@ done
 
 ### Step 2.6: Import Organization Check
 
-// turbo
+<!-- turbo -->
 ```bash
 for f in $(find /apps/chakravarti-cli/crates/$CRATE/src -name "*.rs" 2>/dev/null); do
   name=$(basename "$f")
@@ -201,14 +201,14 @@ done
 
 ### Step 3.1: Find Commands Enum
 
-// turbo
+<!-- turbo -->
 ```bash
 grep -n "pub enum Commands" /apps/chakravarti-cli/crates/ckrv-cli/src/lib.rs
 ```
 
 ### Step 3.2: Check long_about Coverage
 
-// turbo
+<!-- turbo -->
 ```bash
 # Count commands in enum
 commands=$(grep -A 100 "pub enum Commands" /apps/chakravarti-cli/crates/ckrv-cli/src/lib.rs | \
@@ -229,7 +229,7 @@ fi
 
 ### Step 3.3: Check after_help Coverage
 
-// turbo
+<!-- turbo -->
 ```bash
 after_help=$(grep -c "after_help" /apps/chakravarti-cli/crates/ckrv-cli/src/lib.rs)
 commands=$(grep -A 100 "pub enum Commands" /apps/chakravarti-cli/crates/ckrv-cli/src/lib.rs | \
@@ -246,7 +246,7 @@ fi
 
 ### Step 3.4: List Commands Without Documentation
 
-// turbo
+<!-- turbo -->
 ```bash
 # Extract command names and check for long_about
 grep -B 10 "^\s*[A-Z][a-zA-Z]*(" /apps/chakravarti-cli/crates/ckrv-cli/src/lib.rs | \

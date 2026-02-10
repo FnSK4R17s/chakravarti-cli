@@ -167,7 +167,9 @@ fn generate_command_section(
     // Examples/Notes from after_help
     if let Some(ref after_help) = cmd.after_help {
         output.push_str("**Examples**:\n\n");
-        output.push_str(after_help);
+        // Strip "Examples:" prefix if present
+        let cleaned = after_help.strip_prefix("Examples:\n").unwrap_or(after_help);
+        output.push_str(cleaned);
         output.push_str("\n\n");
     }
 

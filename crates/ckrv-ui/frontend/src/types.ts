@@ -34,6 +34,7 @@ export interface SystemStatus {
     feature_number: string | null;
     is_ready: boolean;
     mode: 'idle' | 'planning' | 'running' | 'promoting';
+    project_root: string;
 }
 
 export interface OrchestrationEvent {

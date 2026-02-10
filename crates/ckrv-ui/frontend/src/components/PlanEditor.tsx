@@ -197,7 +197,20 @@ const getModelConfig = (modelId: string, modelInfoList: ModelInfo[]) => {
 // === SUB-COMPONENTS ===
 
 // Components using shadcn Badge
-const ModelBadge: React.FC<{ model: string; size?: 'sm' | 'md' | 'lg'; models: ModelInfo[] }> = ({ model, size = 'md', models }) => {
+/**
+ * Props for ModelBadge component.
+ * Displays a model name with tier-based styling and icon.
+ */
+interface ModelBadgeProps {
+    /** Model ID to display */
+    model: string;
+    /** Size variant: sm, md, or lg */
+    size?: 'sm' | 'md' | 'lg';
+    /** List of model info for looking up display names and costs */
+    models: ModelInfo[];
+}
+
+const ModelBadge: React.FC<ModelBadgeProps> = ({ model, size = 'md', models }) => {
     const config = getModelConfig(model, models);
     const Icon = config.icon;
     const variants: Record<string, "info" | "warning" | "secondary"> = {
@@ -223,7 +236,16 @@ const ModelBadge: React.FC<{ model: string; size?: 'sm' | 'md' | 'lg'; models: M
     );
 };
 
-const StrategyBadge: React.FC<{ strategy: string }> = ({ strategy }) => {
+/**
+ * Props for StrategyBadge component.
+ * Displays execution strategy (parallel/sequential) with icon.
+ */
+interface StrategyBadgeProps {
+    /** Execution strategy: 'parallel' or 'sequential' */
+    strategy: string;
+}
+
+const StrategyBadge: React.FC<StrategyBadgeProps> = ({ strategy }) => {
     const isParallel = strategy === 'parallel';
     return (
         <Badge variant={isParallel ? 'success' : 'secondary'} className="flex items-center gap-1">
@@ -234,13 +256,24 @@ const StrategyBadge: React.FC<{ strategy: string }> = ({ strategy }) => {
 };
 
 // Batch Edit Modal
-const BatchEditModal: React.FC<{
+/**
+ * Props for BatchEditModal component.
+ * Modal dialog for editing a batch's model assignment.
+ */
+interface BatchEditModalProps {
+    /** Batch to edit, or null to hide the modal */
     batch: Batch | null;
+    /** Whether the modal is visible */
     isOpen: boolean;
+    /** Callback to close the modal */
     onClose: () => void;
+    /** Callback to save the updated model assignment */
     onSave: (batchId: string, modelAssignment: ModelAssignment) => void;
+    /** List of available agents for selection */
     agents: AgentConfig[];
-}> = ({ batch, isOpen, onClose, onSave, agents }) => {
+}
+
+const BatchEditModal: React.FC<BatchEditModalProps> = ({ batch, isOpen, onClose, onSave, agents }) => {
     /** Currently selected agent ID for model assignment */
     const [selectedAgent, setSelectedAgent] = useState<string>('');
 
@@ -368,13 +401,24 @@ const BatchEditModal: React.FC<{
 };
 
 // BatchCard using shadcn Card
-const BatchCard: React.FC<{
+/**
+ * Props for BatchCard component.
+ * Card displaying batch details with tasks, dependencies, and costs.
+ */
+interface BatchCardProps {
+    /** Batch data to display */
     batch: Batch;
+    /** Whether this batch is currently selected */
     isSelected: boolean;
+    /** Callback when the card is clicked */
     onClick: () => void;
+    /** Optional callback to open the edit modal */
     onEdit?: () => void;
-    models: ModelInfo[]
-}> = ({ batch, isSelected, onClick, onEdit, models }) => {
+    /** List of model info for displaying model badges */
+    models: ModelInfo[];
+}
+
+const BatchCard: React.FC<BatchCardProps> = ({ batch, isSelected, onClick, onEdit, models }) => {
     /** Whether the batch details are expanded */
     const [expanded, setExpanded] = useState(false);
 
@@ -478,13 +522,24 @@ const BatchCard: React.FC<{
 };
 
 // DAG View using Card
-const DagView: React.FC<{
+/**
+ * Props for DagView component.
+ * Visualizes batches as a directed acyclic graph by dependency levels.
+ */
+interface DagViewProps {
+    /** All batches to display in the DAG */
     batches: Batch[];
+    /** ID of the currently selected batch */
     selectedBatch: string | null;
+    /** Callback when a batch is selected */
     onSelectBatch: (id: string) => void;
+    /** Optional callback to open batch edit modal */
     onEditBatch?: (batch: Batch) => void;
-    models: ModelInfo[]
-}> = ({ batches, selectedBatch, onSelectBatch, onEditBatch, models }) => {
+    /** List of model info for tier-based styling */
+    models: ModelInfo[];
+}
+
+const DagView: React.FC<DagViewProps> = ({ batches, selectedBatch, onSelectBatch, onEditBatch, models }) => {
     const levels = useMemo(() => {
         const batchMap = new Map(batches.map(b => [b.id, b]));
         const levelMap = new Map<string, number>();
@@ -602,11 +657,20 @@ const DagView: React.FC<{
 };
 
 // Spec List View using Card
-const SpecListView: React.FC<{
+/**
+ * Props for SpecListView component.
+ * Displays a list of specs with plans for selection.
+ */
+interface SpecListViewProps {
+    /** List of specs to display */
     specs: Spec[];
+    /** Callback when a spec is selected */
     onSelect: (name: string) => void;
+    /** Whether the spec list is currently loading */
     isLoading: boolean;
-}> = ({ specs, onSelect, isLoading }) => {
+}
+
+const SpecListView: React.FC<SpecListViewProps> = ({ specs, onSelect, isLoading }) => {
     const specsWithPlan = specs.filter(s => s.has_plan);
 
     if (isLoading) {

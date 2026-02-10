@@ -60,6 +60,7 @@ crates/
 ├── ckrv-sandbox/      # Docker execution, agent providers
 ├── ckrv-mcp/          # MCP server for AI agent integration
 ├── ckrv-transport/    # Shared HTTP API types for web/desktop
+├── ckrv-tauri/        # Tauri desktop application
 ├── ckrv-model/        # LLM provider abstraction (⚠️ unused)
 ├── ckrv-metrics/      # Cost/time tracking, file storage
 ├── ckrv-verify/       # Test execution and parsing (⚠️ unused)

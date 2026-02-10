@@ -38,14 +38,26 @@ import { formatElapsedTime } from '../types/history';
 // TYPES
 // ============================================================
 
+/**
+ * Props for CompletionSummary component.
+ * Summary display shown when execution runs complete with statistics.
+ */
 interface CompletionSummaryProps {
+    /** Final status of the run (completed, failed, aborted) */
     status: RunStatus;
+    /** Summary statistics including batch counts and branch merges */
     summary: RunSummary;
+    /** Total elapsed time in seconds, or null if not available */
     elapsedSeconds: number | null;
+    /** Whether this was a dry run without actual changes */
     dryRun?: boolean;
+    /** List of branch names that were merged during execution */
     mergedBranches?: string[];
+    /** Error message if execution failed */
     error?: string | null;
+    /** Callback to close the summary panel */
     onClose?: () => void;
+    /** Callback to navigate to run history view */
     onViewHistory?: () => void;
 }
 

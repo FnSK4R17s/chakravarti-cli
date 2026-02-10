@@ -172,7 +172,7 @@ const deleteAgent = async (id: string) => {
     const res = await fetch('/api/agents/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ name: id }),
     });
     return res.json();
 };
@@ -181,7 +181,7 @@ const setDefaultAgent = async (id: string) => {
     const res = await fetch('/api/agents/set-default', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ name: id }),
     });
     return res.json();
 };
@@ -190,7 +190,7 @@ const setQaAgent = async (id: string) => {
     const res = await fetch('/api/agents/set-qa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ name: id }),
     });
     return res.json();
 };
@@ -199,7 +199,7 @@ const setTestWriterAgent = async (id: string) => {
     const res = await fetch('/api/agents/set-test-writer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ name: id }),
     });
     return res.json();
 };
@@ -225,34 +225,42 @@ const AGENT_TYPE_INFO: Record<AgentType, { label: string; icon: React.ReactNode;
 const AgentManager: React.FC = () => {
     const queryClient = useQueryClient();
 
-    // === STATE ===
+    // ============================================================
+    // STATE
+    // ============================================================
 
-    // --- Modal State ---
     /** Agent currently being edited in the form modal */
     const [editingAgent, setEditingAgent] = useState<AgentConfig | null>(null);
-    /** Show the add new agent modal */
+    /** Controls visibility of the add new agent modal */
     const [showAddModal, setShowAddModal] = useState(false);
-    /** Agent config for CLI launch modal */
+    /** Agent config for CLI launch modal - when set, shows the interactive CLI */
     const [cliAgent, setCliAgent] = useState<AgentConfig | null>(null);
-
-    // --- UI State ---
-    /** Set of agent IDs with expanded detail views */
+    /** Set of agent IDs with expanded detail views in the card list */
     const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
-    /** Results from agent connectivity tests, keyed by agent ID */
-    const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({})
+    /** Results from agent connectivity tests, keyed by agent ID - auto-clears after 5 seconds */
+    const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
 
-    // === QUERIES ===
+    // ============================================================
+    // QUERIES
+    // ============================================================
+
+    /** Fetches all configured agents from the backend */
     const { data: agentsData, isLoading: isLoadingAgents } = useQuery({
         queryKey: ['agents'],
         queryFn: fetchAgents,
     });
 
+    /** Fetches available OpenRouter models for the model selector dropdown */
     const { data: modelsData } = useQuery({
         queryKey: ['openrouter-models'],
         queryFn: fetchModels,
     });
 
-    // === MUTATIONS ===
+    // ============================================================
+    // MUTATIONS
+    // ============================================================
+
+    /** Creates or updates an agent configuration */
     const upsertMutation = useMutation({
         mutationFn: upsertAgent,
         onSuccess: () => {
@@ -262,6 +270,7 @@ const AgentManager: React.FC = () => {
         },
     });
 
+    /** Deletes an agent configuration by ID */
     const deleteMutation = useMutation({
         mutationFn: deleteAgent,
         onSuccess: () => {
@@ -269,6 +278,7 @@ const AgentManager: React.FC = () => {
         },
     });
 
+    /** Sets an agent as the default for task execution */
     const setDefaultMutation = useMutation({
         mutationFn: setDefaultAgent,
         onSuccess: () => {
@@ -276,6 +286,7 @@ const AgentManager: React.FC = () => {
         },
     });
 
+    /** Designates an agent as the QA reviewer */
     const setQaMutation = useMutation({
         mutationFn: setQaAgent,
         onSuccess: () => {
@@ -283,6 +294,7 @@ const AgentManager: React.FC = () => {
         },
     });
 
+    /** Designates an agent as the test writer */
     const setTestWriterMutation = useMutation({
         mutationFn: setTestWriterAgent,
         onSuccess: () => {
@@ -290,6 +302,7 @@ const AgentManager: React.FC = () => {
         },
     });
 
+    /** Tests agent connectivity and stores results with auto-clear after 5 seconds */
     const testMutation = useMutation({
         mutationFn: testAgent,
         onSuccess: (data, agent) => {
@@ -307,11 +320,16 @@ const AgentManager: React.FC = () => {
         },
     });
 
+    /** Derived list of agents from query response */
     const agents = agentsData?.agents || [];
+    /** Derived list of OpenRouter models from query response */
     const models = modelsData?.models || [];
 
-    // === HANDLERS ===
+    // ============================================================
+    // HANDLERS
+    // ============================================================
 
+    /** Toggles the expanded state of an agent card in the list */
     const toggleExpanded = (id: string) => {
         setExpandedAgents((prev) => {
             const next = new Set(prev);
@@ -321,7 +339,9 @@ const AgentManager: React.FC = () => {
         });
     };
 
-    // === RENDER ===
+    // ============================================================
+    // MAIN RENDER
+    // ============================================================
 
     if (isLoadingAgents) {
         return (
@@ -404,22 +424,40 @@ const AgentManager: React.FC = () => {
     );
 };
 
-// === SUB-COMPONENTS ===
+// ============================================================
+// RENDER HELPERS
+// ============================================================
 
-// Agent Card Component using shadcn Card and Badge
+/**
+ * Props for AgentCard component.
+ * Displays a single agent with expandable details and action buttons.
+ */
 interface AgentCardProps {
+    /** Agent configuration to display */
     agent: AgentConfig;
+    /** Whether the card's details section is expanded */
     expanded: boolean;
+    /** Callback to toggle the expanded state */
     onToggleExpand: () => void;
+    /** Callback to open the edit modal for this agent */
     onEdit: () => void;
+    /** Callback to delete this agent */
     onDelete: () => void;
+    /** Callback to set this agent as the default */
     onSetDefault: () => void;
+    /** Callback to designate this agent as QA reviewer */
     onSetQa: () => void;
+    /** Callback to designate this agent as test writer */
     onSetTestWriter: () => void;
+    /** Callback to run a connectivity test on this agent */
     onTest: () => void;
+    /** Callback to open the interactive CLI modal for this agent */
     onCli: () => void;
+    /** Whether a delete operation is in progress */
     isDeleting: boolean;
+    /** Whether a test operation is in progress for this agent */
     isTesting: boolean;
+    /** Result of the last connectivity test, or null if not tested */
     testResult: { success: boolean; message: string } | null;
 }
 
@@ -632,16 +670,29 @@ const AgentCard: React.FC<AgentCardProps> = ({
 };
 
 // Agent Modal Component using shadcn Dialog
+/**
+ * Props for AgentModal component.
+ * Dialog for creating or editing an agent configuration.
+ */
 interface AgentModalProps {
+    /** Existing agent to edit, or null to create a new one */
     agent: AgentConfig | null;
+    /** List of available OpenRouter models for selection */
     models: OpenRouterModel[];
+    /** Callback to close the modal without saving */
     onClose: () => void;
+    /** Callback to save the agent configuration */
     onSave: (agent: AgentConfig) => void;
+    /** Whether a save operation is in progress */
     isLoading: boolean;
 }
 
 const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave, isLoading }) => {
-    /** Form state for editing/creating an agent */
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    /** Form state for editing/creating an agent, initialized from props or defaults */
     const [form, setForm] = useState<AgentConfig>(() =>
         agent || {
             id: `agent-${Date.now()}`,
@@ -658,17 +709,20 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
         }
     );
 
-    // Extract provider from model ID (e.g., "anthropic/claude-sonnet-4" -> "anthropic")
+    /** Currently selected AI provider for model filtering (e.g., "anthropic", "openai") */
+    const [selectedProvider, setSelectedProvider] = useState(() =>
+        form.openrouter?.model ? form.openrouter.model.split('/')[0] || 'anthropic' : 'anthropic'
+    );
+
+    // ============================================================
+    // COMPUTED VALUES
+    // ============================================================
+
+    /** Extracts provider name from model ID (e.g., "anthropic/claude-sonnet-4" -> "anthropic") */
     const getProvider = (modelId: string) => modelId.split('/')[0] || 'unknown';
 
-    // Get current provider from the selected model
-    const currentModelProvider = form.openrouter?.model ? getProvider(form.openrouter.model) : 'anthropic';
-    /** Currently selected AI provider for model filtering */
-    const [selectedProvider, setSelectedProvider] = useState(currentModelProvider);
-
-    // Get unique providers from models
+    /** Unique list of providers sorted by priority (Anthropic first, then OpenAI, etc.) */
     const providers = [...new Set(models.map(m => getProvider(m.id)))].sort((a, b) => {
-        // Prioritize popular providers
         const priority = (p: string) => {
             if (p === 'anthropic') return 0;
             if (p === 'openai') return 1;
@@ -682,10 +736,37 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
         return priority(a) - priority(b);
     });
 
-    // Get models for selected provider
+    /** Models filtered to only show those from the currently selected provider */
     const filteredModels = models.filter(m => getProvider(m.id) === selectedProvider);
 
-    // Format provider name for display
+    /** Whether the current form is for an OpenRouter agent type */
+    const isOpenRouter = form.agent_type === 'claude_open_router';
+
+    // ============================================================
+    // EFFECTS
+    // ============================================================
+
+    /**
+     * Syncs the selected model when provider changes.
+     * When user switches providers, auto-select the first available model from that provider.
+     */
+    React.useEffect(() => {
+        if (isOpenRouter && filteredModels.length > 0) {
+            const currentModelInProvider = filteredModels.some(m => m.id === form.openrouter?.model);
+            if (!currentModelInProvider) {
+                setForm(f => ({
+                    ...f,
+                    openrouter: { ...f.openrouter!, model: filteredModels[0].id },
+                }));
+            }
+        }
+    }, [selectedProvider, filteredModels.length, isOpenRouter]);
+
+    // ============================================================
+    // HANDLERS
+    // ============================================================
+
+    /** Formats a provider ID into a human-readable display name */
     const formatProvider = (provider: string) => {
         const names: Record<string, string> = {
             'anthropic': 'Anthropic',
@@ -704,6 +785,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
         return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
     };
 
+    /** Handles form submission, ensuring a valid model is selected before saving */
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         // Ensure we have a valid model selected before saving
@@ -720,25 +802,14 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
         onSave(finalForm);
     };
 
-    const isOpenRouter = form.agent_type === 'claude_open_router';
-
-    // Sync selected model with provider when filteredModels changes
-    React.useEffect(() => {
-        if (isOpenRouter && filteredModels.length > 0) {
-            const currentModelInProvider = filteredModels.some(m => m.id === form.openrouter?.model);
-            if (!currentModelInProvider) {
-                setForm(f => ({
-                    ...f,
-                    openrouter: { ...f.openrouter!, model: filteredModels[0].id },
-                }));
-            }
-        }
-    }, [selectedProvider, filteredModels.length, isOpenRouter]);
+    // ============================================================
+    // MAIN RENDER
+    // ============================================================
 
     return (
         <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-w-lg max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-                <form onSubmit={handleSubmit} className="flex flex-col min-h-0 h-full">
+                <form onSubmit={handleSubmit} className="flex flex-col min-h-0 h-full" autoComplete="off">
                     {/* Header */}
                     <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
                         <DialogTitle>{agent ? 'Edit Agent' : 'Add New Agent'}</DialogTitle>
@@ -748,12 +819,14 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                     <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
                         {/* Name */}
                         <div className="space-y-2">
-                            <Label htmlFor="name">Name</Label>
+                            <Label htmlFor="agent-name">Name</Label>
                             <Input
-                                id="name"
+                                id="agent-name"
+                                name="agent-display-name"
                                 value={form.name}
                                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                                 placeholder="My Custom Agent"
+                                autoComplete="off"
                                 required
                             />
                         </div>
@@ -841,7 +914,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                                 <SelectTrigger>
                                                     <SelectValue />
                                                 </SelectTrigger>
-                                                <SelectContent>
+                                                <SelectContent className="max-h-60 overflow-y-auto">
                                                     {providers.map((provider) => (
                                                         <SelectItem key={provider} value={provider}>
                                                             {formatProvider(provider)}
@@ -864,7 +937,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                                 <SelectTrigger>
                                                     <SelectValue />
                                                 </SelectTrigger>
-                                                <SelectContent>
+                                                <SelectContent className="max-h-60 overflow-y-auto">
                                                     {filteredModels.map((model) => (
                                                         <SelectItem key={model.id} value={model.id}>
                                                             {model.name.replace(/^[^:]+:\s*/, '')}
@@ -905,9 +978,10 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
 
                                 {/* API Key */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="api-key">OpenRouter API Key</Label>
+                                    <Label htmlFor="openrouter-api-key">OpenRouter API Key</Label>
                                     <Input
-                                        id="api-key"
+                                        id="openrouter-api-key"
+                                        name="openrouter-api-key"
                                         type="password"
                                         value={form.openrouter?.api_key || ''}
                                         onChange={(e) => setForm({
@@ -916,6 +990,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                         })}
                                         placeholder="sk-or-..."
                                         className="font-mono"
+                                        autoComplete="new-password"
                                     />
                                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                                         Get your key from{' '}
@@ -983,6 +1058,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                     <Label htmlFor="glm-api-key">Z.AI API Key</Label>
                                     <Input
                                         id="glm-api-key"
+                                        name="glm-api-key"
                                         type="password"
                                         value={form.glm?.api_key || ''}
                                         onChange={(e) => setForm({
@@ -991,6 +1067,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                         })}
                                         placeholder="Your Z.AI API key"
                                         className="font-mono"
+                                        autoComplete="new-password"
                                     />
                                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                                         Get your key from{' '}

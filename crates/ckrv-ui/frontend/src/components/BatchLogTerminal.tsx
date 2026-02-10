@@ -49,28 +49,37 @@ const BATCH_THEME = {
 
 export type BatchStatus = 'pending' | 'waiting' | 'running' | 'completed' | 'failed';
 
+/**
+ * A single log entry within a batch execution.
+ */
 export interface BatchLogEntry {
+    /** Timestamp string for the log entry */
     time: string;
+    /** Log message content */
     message: string;
+    /** Type of log entry for color coding */
     type: 'info' | 'success' | 'error' | 'log' | 'start' | 'batch_start' | 'batch_complete' | 'batch_error';
 }
 
+/**
+ * Props for the BatchLogTerminal component.
+ */
 export interface BatchLogTerminalProps {
-    /** Batch ID */
+    /** Unique identifier for the batch */
     batchId: string;
-    /** Batch name/title */
+    /** Display name for the batch header */
     batchName: string;
-    /** Batch index (for color cycling) */
+    /** Index of this batch in the carousel (reserved for future use) */
     batchIndex: number;
-    /** Current status of the batch */
+    /** Current execution status of the batch */
     status: BatchStatus;
-    /** Log entries for this batch */
+    /** Array of log entries to display */
     logs: BatchLogEntry[];
-    /** Optional branch name (shown when completed) */
+    /** Git branch name, shown when batch completes */
     branch?: string;
-    /** Whether to auto-scroll to bottom */
+    /** Whether to auto-scroll to newest logs; defaults to true */
     autoScroll?: boolean;
-    /** Model used for this batch (e.g., "claude-sonnet-4-20250514") */
+    /** Model identifier for display (e.g., "claude-sonnet-4-20250514") */
     model?: string;
 }
 

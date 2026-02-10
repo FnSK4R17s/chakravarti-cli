@@ -111,10 +111,18 @@ interface QAReviewOutput {
     agent_id?: string;
 }
 
+/**
+ * Agent configuration returned from the API.
+ * Represents an AI agent capable of performing QA tasks.
+ */
 interface Agent {
+    /** Unique agent identifier */
     id: string;
+    /** Display name of the agent */
     name: string;
+    /** Model identifier (e.g., 'claude-3-opus') */
     model: string;
+    /** Whether this agent is designated as a QA agent */
     is_qa_agent?: boolean;
 }
 
@@ -154,6 +162,7 @@ const runReport = async (base: string, full: boolean): Promise<{ success: boolea
 
 // === CONSTANTS ===
 
+/** Maps severity levels to their visual styling (icon, colors, borders) */
 const severityConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
     critical: { icon: AlertCircle, color: 'text-destructive', bgColor: 'bg-destructive/10', borderColor: 'border-destructive/50' },
     major: { icon: AlertTriangle, color: 'text-warning', bgColor: 'bg-warning/10', borderColor: 'border-warning/50' },
@@ -161,6 +170,7 @@ const severityConfig: Record<string, { icon: React.ElementType; color: string; b
     info: { icon: Info, color: 'text-muted-foreground', bgColor: 'bg-muted', borderColor: 'border-border' },
 };
 
+/** Maps issue categories to their representative icons */
 const categoryIcons: Record<string, React.ElementType> = {
     code_quality: FileText,
     potential_bug: Bug,
@@ -174,7 +184,20 @@ const categoryIcons: Record<string, React.ElementType> = {
 // === SUB-COMPONENTS ===
 
 // Issue Card Component
-const IssueCard: React.FC<{ issue: QAIssue; isExpanded: boolean; onToggle: () => void }> = ({
+/**
+ * Props for IssueCard component.
+ * Expandable card displaying a QA issue with severity, category, and suggested fix.
+ */
+interface IssueCardProps {
+    /** QA issue to display */
+    issue: QAIssue;
+    /** Whether the issue details are expanded */
+    isExpanded: boolean;
+    /** Callback to toggle the expanded state */
+    onToggle: () => void;
+}
+
+const IssueCard: React.FC<IssueCardProps> = ({
     issue, isExpanded, onToggle
 }) => {
     const config = severityConfig[issue.severity] || severityConfig.info;
@@ -228,7 +251,16 @@ const IssueCard: React.FC<{ issue: QAIssue; isExpanded: boolean; onToggle: () =>
 };
 
 // Summary Card Component
-const SummaryCard: React.FC<{ summary: QASummary }> = ({ summary }) => {
+/**
+ * Props for SummaryCard component.
+ * Displays review verdict and issue counts by severity.
+ */
+interface SummaryCardProps {
+    /** Summary statistics from a QA review */
+    summary: QASummary;
+}
+
+const SummaryCard: React.FC<SummaryCardProps> = ({ summary }) => {
     const verdictConfig = {
         pass: { color: 'text-success', bg: 'bg-success/10', icon: CheckCircle2, label: 'Passed' },
         fail: { color: 'text-destructive', bg: 'bg-destructive/10', icon: AlertCircle, label: 'Failed' },
@@ -282,10 +314,20 @@ const SummaryCard: React.FC<{ summary: QASummary }> = ({ summary }) => {
 };
 
 // Issues List Component
-const IssuesList: React.FC<{ issues: QAIssue[] }> = ({ issues }) => {
+/**
+ * Props for IssuesList component.
+ * Groups and displays issues by severity level.
+ */
+interface IssuesListProps {
+    /** List of QA issues to display */
+    issues: QAIssue[];
+}
+
+const IssuesList: React.FC<IssuesListProps> = ({ issues }) => {
     /** Set of issue IDs that are currently expanded to show details */
     const [expandedIssues, setExpandedIssues] = useState<Set<string>>(new Set());
 
+    /** Toggles the expanded state of an issue card */
     const toggleIssue = (id: string) => {
         setExpandedIssues(prev => {
             const next = new Set(prev);
@@ -462,6 +504,9 @@ export default function QAReviewer() {
 
     const isLoading = reviewMutation.isPending || bugsMutation.isPending || reportMutation.isPending;
 
+    // === HANDLERS ===
+
+    /** Downloads the full report as a markdown file */
     const downloadReport = () => {
         if (!fullReport) return;
         const blob = new Blob([fullReport], { type: 'text/markdown' });
@@ -472,6 +517,8 @@ export default function QAReviewer() {
         a.click();
         URL.revokeObjectURL(url);
     };
+
+    // === MAIN RENDER ===
 
     return (
         <div className="h-full flex flex-col bg-background text-foreground">

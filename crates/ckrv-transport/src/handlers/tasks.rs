@@ -9,7 +9,7 @@ use crate::types::{
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 // ============================================================================
@@ -74,24 +74,21 @@ struct TasksOutput {
 // Path Utilities
 // ============================================================================
 
-/// Get the specs directory path.
-fn get_specs_dir() -> PathBuf {
-    std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join(".specs")
+/// Get the specs directory path for a project.
+fn get_specs_dir(project_root: &Path) -> PathBuf {
+    project_root.join(".specs")
 }
 
-/// Get path to a specific spec.
-fn get_spec_path(name: &str) -> PathBuf {
-    get_specs_dir().join(name)
+/// Get path to a specific spec within a project.
+fn get_spec_path(project_root: &Path, name: &str) -> PathBuf {
+    get_specs_dir(project_root).join(name)
 }
 
-/// Get current git branch.
-fn get_current_branch() -> String {
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+/// Get current git branch for a project.
+fn get_current_branch(project_root: &Path) -> String {
     Command::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .current_dir(&cwd)
+        .current_dir(project_root)
         .output()
         .ok()
         .and_then(|o| {
@@ -112,12 +109,14 @@ fn get_current_branch() -> String {
 
 /// List tasks for a spec.
 pub async fn list_tasks_handler(
-    _state: &AppState,
+    state: &AppState,
     spec_name: Option<String>,
 ) -> Result<ListTasksResponse, TransportError> {
+    let project_root = &state.project_root;
+
     // If no spec provided, try to detect from current branch
     let spec = spec_name.unwrap_or_else(|| {
-        let branch = get_current_branch();
+        let branch = get_current_branch(project_root);
         if branch.is_empty() || branch == "main" || branch == "master" {
             String::new()
         } else {
@@ -129,7 +128,7 @@ pub async fn list_tasks_handler(
         return Ok(vec![]);
     }
 
-    let tasks_path = get_spec_path(&spec).join("tasks.yaml");
+    let tasks_path = get_spec_path(project_root, &spec).join("tasks.yaml");
 
     if !tasks_path.exists() {
         return Ok(vec![]);
@@ -158,11 +157,11 @@ pub async fn list_tasks_handler(
 
 /// Get a single task.
 pub async fn get_task_handler(
-    _state: &AppState,
+    state: &AppState,
     spec_name: String,
     task_id: String,
 ) -> Result<TaskDetail, TransportError> {
-    let tasks_path = get_spec_path(&spec_name).join("tasks.yaml");
+    let tasks_path = get_spec_path(&state.project_root, &spec_name).join("tasks.yaml");
 
     if !tasks_path.exists() {
         return Err(TransportError::NotFound(format!(
@@ -222,12 +221,12 @@ pub async fn get_task_handler(
 
 /// Update a task.
 pub async fn update_task_handler(
-    _state: &AppState,
+    state: &AppState,
     spec_name: String,
     task_id: String,
     request: UpdateTaskRequest,
 ) -> Result<TaskDetail, TransportError> {
-    let tasks_path = get_spec_path(&spec_name).join("tasks.yaml");
+    let tasks_path = get_spec_path(&state.project_root, &spec_name).join("tasks.yaml");
 
     if !tasks_path.exists() {
         return Err(TransportError::NotFound(format!(

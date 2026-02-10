@@ -1,10 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ls:*)",
-      "Bash(xargs:*)",
-      "Bash(grep:*)",
-      "Bash(cargo check:*)"
+      "Bash(cargo run:*)",
+      "Bash(target/release/ckrv term:*)",
+      "WebFetch(domain:openrouter.ai)",
+      "Bash(claude:*)",
+      "Bash(npm show:*)",
+      "Bash(npm install:*)",
+      "Bash(cargo check:*)",
+      "Bash(make install:*)",
+      "Bash(ls -d /apps/chakravarti-cli/crates/ckrv-*)",
+      "Bash(xargs -I{} basename {})",
+      "Bash(for CRATE in ckrv-cli ckrv-core ckrv-git ckrv-integrations ckrv-mcp ckrv-metrics ckrv-model ckrv-sandbox ckrv-spec ckrv-tauri ckrv-transport ckrv-ui ckrv-verify)",
+      "Bash(do echo '=== $CRATE ===' find /apps/chakravarti-cli/crates/$CRATE/src -name *.rs)",
+      "Bash(./target/debug/ckrv term:*)",
+      "Bash(cargo clean:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

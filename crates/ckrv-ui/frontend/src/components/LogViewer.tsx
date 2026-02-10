@@ -329,7 +329,16 @@ export const LogViewer: React.FC = () => {
     );
 };
 
-const LogLine: React.FC<{ log: OrchestrationEvent }> = ({ log }) => {
+/**
+ * Props for LogLine component.
+ * Displays a single log event with timestamp, type icon, and message.
+ */
+interface LogLineProps {
+    /** Orchestration event to display */
+    log: OrchestrationEvent;
+}
+
+const LogLine: React.FC<LogLineProps> = ({ log }) => {
     const timestamp = new Date(log.timestamp).toLocaleTimeString([], {
         hour12: false,
         hour: '2-digit',

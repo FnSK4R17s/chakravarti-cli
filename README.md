@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="Chakravarti Logo" width="180" height="180">
+</p>
+
 <h1 align="center">Chakravarti-cli</h1>
 
 <p align="center">
@@ -71,8 +75,8 @@ ckrv promote --push --open
 | Command | Description |
 |---------|-------------|
 | `ckrv init` | Initialize Chakravarti in the current repository |
-| `ckrv spec` | Manage specifications (new, list, show, tasks) |
-| `ckrv plan` | Generate or view execution plans |
+| `ckrv spec` | Manage specifications (new, clarify, design, tasks, validate, list) |
+| `ckrv plan` | Generate execution plan from tasks (in Docker) |
 | `ckrv run` | Execute orchestration (Plan → Execute → Merge) |
 | `ckrv diff` | View changes between branches |
 | `ckrv verify` | Run tests, linting, and type checking |
@@ -80,13 +84,11 @@ ckrv promote --push --open
 | `ckrv qa` | QA code review and bug analysis |
 | `ckrv fix` | Use AI to fix verification errors |
 | `ckrv promote` | Push changes and create a Pull Request |
-| `ckrv status` | Show current workflow status |
-| `ckrv logs` | View execution logs |
-| `ckrv report` | Generate execution report |
-| `ckrv task` | Manage individual tasks (list, show, retry) |
-| `ckrv pull` | Pull changes from remote |
+| `ckrv term` | Spawn interactive AI agent terminal |
+| `ckrv logs` | Stream or view cloud job logs |
+| `ckrv pull` | Pull results from completed cloud jobs |
 | `ckrv ui` | Launch the Web UI dashboard |
-| `ckrv cloud` | Cloud execution commands (auth, sync, status) |
+| `ckrv cloud` | Cloud execution (login, logout, whoami, credentials) |
 
 See [CLI Commands Reference](crates/docs/cli-commands.md) for full documentation.
 
@@ -113,6 +115,7 @@ crates/
 ├── ckrv-spec         # Spec file loading and validation
 ├── ckrv-mcp          # MCP server for AI agent integration
 ├── ckrv-transport    # Shared HTTP API types for web/desktop
+├── ckrv-tauri        # Tauri desktop application
 ├── ckrv-model        # LLM provider abstraction (⚠️ unused)
 ├── ckrv-metrics      # Cost/time tracking, file storage
 ├── ckrv-verify       # Test execution and parsing (⚠️ unused)

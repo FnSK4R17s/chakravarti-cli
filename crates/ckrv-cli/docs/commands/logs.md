@@ -1,14 +1,16 @@
 ---
 command: logs
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 34d5c95
+last_commit: 1b27ca2
 ---
 
 # ckrv logs
 
-Stream or view logs from a cloud job.
+Stream or view logs from a cloud job
 
 ## Description
+
+Stream or view logs from a cloud job.
 
 Shows real-time output from running jobs or historical logs from completed jobs. Supports filtering by task or agent.
 
@@ -18,16 +20,15 @@ Use --follow for continuous streaming.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<job-id>` | Yes | Job ID to view logs for |
+| `job_id` | Yes | Job ID to get logs for |
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
-| `--follow`, `-f` | Stream logs in real-time |
-| `--task <TASK>` | Filter by task number |
-| `--tail <N>` | Show last N lines |
-| `--verbose`, `-v` | Enable verbose logging |
+| `--follow`, `-f` | Follow log output (stream in real-time) |
+| `--json` | Output as JSON |
+| `--tail`, `-n` | Number of recent log lines to show (default: 100) |
 
 ## Examples
 
@@ -38,6 +39,6 @@ ckrv logs <job-id> --follow
 # View completed job logs
 ckrv logs <job-id>
 
-# Filter by task
-ckrv logs <job-id> --task 3
+# Show last 50 lines
+ckrv logs <job-id> --tail 50
 ```

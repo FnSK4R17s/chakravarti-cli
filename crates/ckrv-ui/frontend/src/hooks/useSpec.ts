@@ -178,6 +178,9 @@ const submitClarifications = async (name: string, answers: { topic: string; answ
 };
 
 // Hooks
+/**
+ * @returns {UseQueryResult<SpecsResponse>} React Query result containing specs list and count
+ */
 export function useSpecs() {
     return useQuery({
         queryKey: ['specs'],
@@ -186,6 +189,10 @@ export function useSpecs() {
     });
 }
 
+/**
+ * @param name - The spec name to fetch, or null to disable the query
+ * @returns {UseQueryResult<SpecDetail|null>} React Query result containing detailed spec data
+ */
 export function useSpecDetail(name: string | null) {
     return useQuery({
         queryKey: ['spec', name],
@@ -195,6 +202,9 @@ export function useSpecDetail(name: string | null) {
     });
 }
 
+/**
+ * @returns {UseMutationResult<CreateSpecResponse, Error, CreateSpecPayload>} Mutation for creating a new spec
+ */
 export function useCreateSpec() {
     const queryClient = useQueryClient();
 
@@ -206,12 +216,18 @@ export function useCreateSpec() {
     });
 }
 
+/**
+ * @returns {UseMutationResult<ValidateResponse, Error, string>} Mutation for validating a spec by name
+ */
 export function useValidateSpec() {
     return useMutation({
         mutationFn: validateSpec,
     });
 }
 
+/**
+ * @returns {UseMutationResult} Mutation for generating design document for a spec
+ */
 export function useGenerateDesign() {
     const queryClient = useQueryClient();
 
@@ -223,6 +239,9 @@ export function useGenerateDesign() {
     });
 }
 
+/**
+ * @returns {UseMutationResult} Mutation for generating tasks document for a spec
+ */
 export function useGenerateTasks() {
     const queryClient = useQueryClient();
 
@@ -234,6 +253,10 @@ export function useGenerateTasks() {
     });
 }
 
+/**
+ * @param name - The spec name to fetch clarifications for, or null to disable
+ * @returns {UseQueryResult} React Query result containing clarification questions and answers
+ */
 export function useClarifications(name: string | null) {
     return useQuery({
         queryKey: ['clarifications', name],
@@ -243,6 +266,9 @@ export function useClarifications(name: string | null) {
     });
 }
 
+/**
+ * @returns {UseMutationResult} Mutation for submitting clarification answers
+ */
 export function useSubmitClarifications() {
     const queryClient = useQueryClient();
 
@@ -257,6 +283,21 @@ export function useSubmitClarifications() {
 }
 
 // Composite hook for full spec workflow
+/**
+ * @param specName - The spec name to manage, or null to disable operations
+ * @returns {Object} Object containing spec workflow state and operations
+ * @returns {SpecDetail|null} spec - The current spec detail data
+ * @returns {Clarification[]} clarifications - Array of clarification questions
+ * @returns {number} unresolvedCount - Count of unresolved clarifications
+ * @returns {boolean} isLoading - Whether initial data is loading
+ * @returns {boolean} isProcessing - Whether an operation is in progress
+ * @returns {string|null} error - Current error message if any
+ * @returns {Function} validate - Function to validate the spec
+ * @returns {Function} generateDesignDoc - Function to generate design document
+ * @returns {Function} generateTasksDoc - Function to generate tasks document
+ * @returns {Function} submitAnswers - Function to submit clarification answers
+ * @returns {Function} refetchSpec - Function to refetch spec data
+ */
 export function useSpecWorkflow(specName: string | null) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);

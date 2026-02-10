@@ -6,7 +6,7 @@ compatibility: Claude Code, Cursor, any CLI-capable agent
 metadata:
   version: "0.1.0"
   auto-generated: true
-  generated-at: "2026-02-05T11:52:20Z"
+  generated-at: "2026-02-10T09:33:43Z"
 ---
 
 # Chakravarti CLI
@@ -29,7 +29,6 @@ ckrv cloud
 
 **Examples**:
 
-Examples:
 # Login to cloud
 ckrv cloud login
 
@@ -146,7 +145,6 @@ ckrv diff [OPTIONS]
 
 **Examples**:
 
-Examples:
 # Show diff summary
 ckrv diff
 
@@ -181,7 +179,6 @@ ckrv fix [OPTIONS]
 
 **Examples**:
 
-Examples:
 # Fix all errors
 ckrv fix
 
@@ -212,7 +209,6 @@ ckrv init [OPTIONS]
 
 **Examples**:
 
-Examples:
 # Initialize in current directory
 ckrv init
 
@@ -247,7 +243,6 @@ ckrv logs <JOB_ID> [OPTIONS]
 
 **Examples**:
 
-Examples:
 # Stream logs from running job
 ckrv logs <job-id> --follow
 
@@ -284,7 +279,6 @@ ckrv plan [SPEC] [OPTIONS]
 
 **Examples**:
 
-Examples:
 # Generate plan for a specification
 ckrv plan my-feature
 
@@ -320,7 +314,6 @@ ckrv promote [OPTIONS]
 
 **Examples**:
 
-Examples:
 # Create PR with auto-generated description
 ckrv promote
 
@@ -358,7 +351,6 @@ ckrv pull <JOB_ID> [OPTIONS]
 
 **Examples**:
 
-Examples:
 # Pull results to current directory
 ckrv pull <job-id>
 
@@ -380,7 +372,6 @@ ckrv qa
 
 **Examples**:
 
-Examples:
 # Review current changes
 ckrv qa review
 
@@ -466,7 +457,6 @@ ckrv run [SPEC] [OPTIONS]
 
 **Examples**:
 
-Examples:
 # Run all tasks for a specification
 ckrv run my-feature
 
@@ -491,7 +481,6 @@ ckrv spec
 
 **Examples**:
 
-Examples:
 # Create a new specification
 ckrv spec new "Add user authentication"
 
@@ -612,6 +601,46 @@ ckrv spec validate [PATH]
 | `path` | No | Path to the spec file (optional - auto-detects from current branch if not provided) |
 
 
+### ckrv term
+
+Spawn an interactive AI agent terminal session.
+
+Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex) with the correct environment variables automatically configured.
+
+Without arguments, presents an interactive selection menu with options for common flags. Use -- to pass arguments directly for scripting.
+
+```bash
+ckrv term [PASSTHROUGH_ARGS] [OPTIONS]
+```
+
+**Arguments**:
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `passthrough_args` | No | Additional arguments to pass to the agent binary |
+
+**Options**:
+
+| Flag | Description |
+|------|-------------|
+| `--agent`, `-a` | Agent ID to spawn directly (skips interactive agent selection) |
+| `--list`, `-l` | List available agents and exit |
+
+**Examples**:
+
+# Interactive selection with options prompt
+ckrv term
+
+# Launch specific agent (skips agent selection)
+ckrv term --agent my-openrouter-agent
+
+# Pass flags directly (scripting)
+ckrv term -- --dangerously-skip-permissions --continue
+
+# List available agents
+ckrv term --list
+
+
 ### ckrv test
 
 Run tests in sandbox, plan and write new tests.
@@ -626,7 +655,6 @@ ckrv test
 
 **Examples**:
 
-Examples:
 # Run all tests
 ckrv test run
 
@@ -714,7 +742,6 @@ ckrv ui [OPTIONS]
 
 **Examples**:
 
-Examples:
 # Start UI on default port
 ckrv ui
 
@@ -750,7 +777,6 @@ ckrv verify [OPTIONS]
 
 **Examples**:
 
-Examples:
 # Run all verifications
 ckrv verify
 

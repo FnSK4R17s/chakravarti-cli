@@ -34,6 +34,21 @@ const runCommand = async (endpoint: string): Promise<CommandResult> => {
     return res.json();
 };
 
+/**
+ * @returns {Object} Object containing command execution functions and state
+ * @returns {Function} runInit - Mutation function to initialize the repository
+ * @returns {boolean} isInitPending - Whether init command is currently executing
+ * @returns {Error|null} initError - Error from init command if any
+ * @returns {Function} runSpecNew - Mutation function to create a new spec
+ * @returns {boolean} isSpecNewPending - Whether spec new command is executing
+ * @returns {Error|null} specNewError - Error from spec new command if any
+ * @returns {Function} runSpecTasks - Mutation function to generate spec tasks
+ * @returns {boolean} isSpecTasksPending - Whether spec tasks command is executing
+ * @returns {Error|null} specTasksError - Error from spec tasks command if any
+ * @returns {Function} runExec - Mutation function to execute orchestration
+ * @returns {boolean} isExecPending - Whether run command is executing
+ * @returns {Error|null} execError - Error from run command if any
+ */
 export const useCommand = () => {
     const queryClient = useQueryClient();
 

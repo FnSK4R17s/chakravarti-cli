@@ -118,8 +118,21 @@ function parseDiffLines(diff: string): { type: 'header' | 'add' | 'remove' | 'co
     });
 }
 
+/**
+ * Props for FileDiffView component.
+ * Renders a single file's diff with expandable content.
+ */
+interface FileDiffViewProps {
+    /** File diff data including path, status, and diff content */
+    file: FileDiff;
+    /** Whether the diff content is expanded */
+    isExpanded: boolean;
+    /** Callback to toggle expansion state */
+    onToggle: () => void;
+}
+
 // File diff component using Collapsible
-const FileDiffView: React.FC<{ file: FileDiff; isExpanded: boolean; onToggle: () => void }> = ({
+const FileDiffView: React.FC<FileDiffViewProps> = ({
     file, isExpanded, onToggle
 }) => {
     const StatusIcon = statusIcons[file.status] || FileCode2;
@@ -194,13 +207,23 @@ const FileDiffView: React.FC<{ file: FileDiff; isExpanded: boolean; onToggle: ()
     );
 };
 
-// Branch selector using shadcn Select
-const BranchSelector: React.FC<{
+/**
+ * Props for BranchSelector component.
+ * Dropdown selector for choosing a git branch.
+ */
+interface BranchSelectorProps {
+    /** Currently selected branch value */
     value: string;
+    /** Callback fired when selection changes */
     onChange: (val: string) => void;
+    /** List of available branch names */
     branches: string[];
+    /** Label text displayed above the selector */
     label: string;
-}> = ({ value, onChange, branches, label }) => {
+}
+
+// Branch selector using shadcn Select
+const BranchSelector: React.FC<BranchSelectorProps> = ({ value, onChange, branches, label }) => {
     return (
         <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">{label}</label>

@@ -1,10 +1,22 @@
 /**
- * LoadingOverlay Component (T009)
- * 
- * A full-container overlay with loading spinner for async operations.
- * Provides consistent loading indicator pattern across the app.
- * 
- * Addresses BUG-004: Inconsistent Loading States Across Components
+ * @module LoadingOverlay
+ * @description
+ * Full-container overlay with loading spinner for async operations.
+ * Renders a centered spinner with optional message, supporting both
+ * full-screen and container-relative positioning with transparency options.
+ *
+ * @context
+ * Used to block UI during async operations like data fetching or
+ * form submission. Provides consistent loading indicator pattern.
+ *
+ * @dependencies
+ * - Loader2 from lucide-react
+ *
+ * @example
+ * <LoadingOverlay visible={isLoading} message="Fetching data..." />
+ *
+ * @example
+ * <LoadingOverlay fullScreen transparent message="Processing..." />
  */
 
 import React from 'react';

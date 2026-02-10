@@ -8,7 +8,7 @@ use crate::types::{
     CreateSpecRequest, ListSpecsResponse, SpecDetail, SpecStatus, SpecSummary, UpdateSpecRequest,
 };
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 // ============================================================================
@@ -26,16 +26,14 @@ struct ImplementationSummary {
 // Path Utilities
 // ============================================================================
 
-/// Get the specs directory path.
-fn get_specs_dir() -> PathBuf {
-    std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join(".specs")
+/// Get the specs directory path for a given project root.
+fn get_specs_dir(project_root: &Path) -> PathBuf {
+    project_root.join(".specs")
 }
 
-/// Get path to a specific spec.
-fn get_spec_path(name: &str) -> PathBuf {
-    get_specs_dir().join(name)
+/// Get path to a specific spec within a project.
+fn get_spec_path(project_root: &Path, name: &str) -> PathBuf {
+    get_specs_dir(project_root).join(name)
 }
 
 // ============================================================================
@@ -43,8 +41,8 @@ fn get_spec_path(name: &str) -> PathBuf {
 // ============================================================================
 
 /// List all specifications.
-pub async fn list_specs_handler(_state: &AppState) -> Result<ListSpecsResponse, TransportError> {
-    let specs_dir = get_specs_dir();
+pub async fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, TransportError> {
+    let specs_dir = get_specs_dir(&state.project_root);
     let mut specs = Vec::new();
 
     if specs_dir.exists() && specs_dir.is_dir() {
@@ -146,10 +144,10 @@ fn extract_title_from_yaml(content: &str) -> Option<String> {
 
 /// Get a single specification.
 pub async fn get_spec_handler(
-    _state: &AppState,
+    state: &AppState,
     name: String,
 ) -> Result<SpecDetail, TransportError> {
-    let spec_path = get_spec_path(&name).join("spec.yaml");
+    let spec_path = get_spec_path(&state.project_root, &name).join("spec.yaml");
 
     if !spec_path.exists() {
         return Err(TransportError::NotFound(format!("Spec not found: {name}")));
@@ -258,17 +256,17 @@ pub async fn get_spec_handler(
 
 /// Create a new specification.
 pub async fn create_spec_handler(
-    _state: &AppState,
+    state: &AppState,
     request: CreateSpecRequest,
 ) -> Result<SpecSummary, TransportError> {
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let project_root = &state.project_root;
 
     let mut cmd = Command::new("ckrv");
     cmd.arg("spec").arg("new").arg(&request.description);
     if let Some(ref name) = request.name {
         cmd.arg("--name").arg(name);
     }
-    cmd.arg("--json").current_dir(&cwd);
+    cmd.arg("--json").current_dir(project_root);
 
     let output = cmd
         .output()
@@ -305,11 +303,11 @@ pub async fn create_spec_handler(
 
 /// Update a specification.
 pub async fn update_spec_handler(
-    _state: &AppState,
+    state: &AppState,
     name: String,
     request: UpdateSpecRequest,
 ) -> Result<SpecDetail, TransportError> {
-    let spec_path = get_spec_path(&name).join("spec.yaml");
+    let spec_path = get_spec_path(&state.project_root, &name).join("spec.yaml");
 
     if !spec_path.exists() {
         return Err(TransportError::NotFound(format!("Spec not found: {name}")));
@@ -322,12 +320,12 @@ pub async fn update_spec_handler(
     }
 
     // Return updated spec
-    get_spec_handler(_state, name).await
+    get_spec_handler(state, name).await
 }
 
 /// Delete a specification.
-pub async fn delete_spec_handler(_state: &AppState, name: String) -> Result<(), TransportError> {
-    let spec_path = get_spec_path(&name);
+pub async fn delete_spec_handler(state: &AppState, name: String) -> Result<(), TransportError> {
+    let spec_path = get_spec_path(&state.project_root, &name);
 
     if !spec_path.exists() {
         return Err(TransportError::NotFound(format!("Spec not found: {name}")));
@@ -359,14 +357,14 @@ pub struct ValidationError {
 }
 
 /// Validate a specification.
-pub async fn validate_spec_handler(name: String) -> Result<ValidateSpecResponse, TransportError> {
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let spec_path = cwd.join(".specs").join(&name).join("spec.yaml");
+pub async fn validate_spec_handler(state: &AppState, name: String) -> Result<ValidateSpecResponse, TransportError> {
+    let project_root = &state.project_root;
+    let spec_path = project_root.join(".specs").join(&name).join("spec.yaml");
 
     let output = Command::new("ckrv")
         .args(["spec", "validate", "--json"])
         .arg(&spec_path)
-        .current_dir(&cwd)
+        .current_dir(project_root)
         .output()
         .map_err(|e| TransportError::Internal(format!("Failed to run validation: {e}")))?;
 
@@ -425,14 +423,14 @@ pub struct DesignResponse {
 }
 
 /// Generate design for a spec.
-pub async fn generate_design_handler(name: String) -> Result<DesignResponse, TransportError> {
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let spec_path = cwd.join(".specs").join(&name).join("spec.yaml");
+pub async fn generate_design_handler(state: &AppState, name: String) -> Result<DesignResponse, TransportError> {
+    let project_root = &state.project_root;
+    let spec_path = project_root.join(".specs").join(&name).join("spec.yaml");
 
     let output = Command::new("ckrv")
         .args(["spec", "design", "--json"])
         .arg(&spec_path)
-        .current_dir(&cwd)
+        .current_dir(project_root)
         .output()
         .map_err(|e| TransportError::Internal(format!("Failed to run design: {e}")))?;
 
@@ -467,14 +465,14 @@ pub struct GenerateTasksResponse {
 }
 
 /// Generate tasks for a spec.
-pub async fn generate_tasks_handler(name: String) -> Result<GenerateTasksResponse, TransportError> {
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let spec_path = cwd.join(".specs").join(&name).join("spec.yaml");
+pub async fn generate_tasks_handler(state: &AppState, name: String) -> Result<GenerateTasksResponse, TransportError> {
+    let project_root = &state.project_root;
+    let spec_path = project_root.join(".specs").join(&name).join("spec.yaml");
 
     let output = Command::new("ckrv")
         .args(["spec", "tasks", "--json"])
         .arg(&spec_path)
-        .current_dir(&cwd)
+        .current_dir(project_root)
         .output()
         .map_err(|e| TransportError::Internal(format!("Failed to run tasks: {e}")))?;
 
