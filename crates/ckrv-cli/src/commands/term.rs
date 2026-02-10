@@ -79,7 +79,7 @@ const COMMON_OPTIONS: &[CommonOption] = &[
 #[derive(Args, Debug)]
 #[command(
     long_about = "Spawn an interactive AI agent terminal session.\n\n\
-                  Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex) \
+                  Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code) \
                   with the correct environment variables automatically configured.\n\n\
                   Without arguments, presents an interactive selection menu with options \
                   for common flags. Use -- to pass arguments directly for scripting.",
@@ -151,6 +151,7 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
                     AgentType::ClaudeOpenRouter => "openrouter",
                     AgentType::ClaudeGlm => "glm",
                     AgentType::Codex => "codex",
+                    AgentType::KiloCode => "kilo",
                 };
                 let default_marker = if agent.is_default { " ★" } else { "" };
                 println!(
@@ -180,6 +181,7 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
                     AgentType::ClaudeOpenRouter => "openrouter",
                     AgentType::ClaudeGlm => "glm",
                     AgentType::Codex => "codex",
+                    AgentType::KiloCode => "kilo",
                 };
                 let default_marker = if a.is_default { " ★" } else { "" };
                 format!("{} ({}) [{}]{}", a.name, a.id, type_badge, default_marker)
@@ -346,6 +348,7 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
                 "claude".to_string()
             }
             AgentType::Codex => "codex".to_string(),
+            AgentType::KiloCode => "kilo".to_string(),
         });
 
     let mut env_vars: Vec<(String, String)> = Vec::new();
@@ -434,6 +437,9 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
         }
         AgentType::Codex => {
             // Native Codex - no extra env vars needed
+        }
+        AgentType::KiloCode => {
+            // Kilo Code uses file-based auth (~/.config/kilo/) - no extra env vars needed
         }
     }
 

@@ -448,6 +448,21 @@ pub async fn test_agent_handler(
                 Err(e) => Err(format!("Codex CLI not found: {}", e)),
             }
         }
+        AgentType::KiloCode => {
+            // Test Kilo Code CLI
+            let binary = "kilo";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Kilo Code CLI available: {}", version.trim()))
+                    } else {
+                        Err("Kilo Code CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Kilo Code CLI not found: {}", e)),
+            }
+        }
     };
 
     match result {

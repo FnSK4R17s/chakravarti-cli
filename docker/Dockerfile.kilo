@@ -1,0 +1,34 @@
+# Chakravarti Kilo Code Agent Container
+# Contains Kilo Code CLI for sandboxed agent execution
+# Supports 30+ AI providers through a single interface
+
+FROM node:22-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Kilo Code CLI globally
+RUN npm install -g @kilocode/cli
+
+# Create /home/kilo directory with open permissions
+# This allows the container to run as any host user while using this home directory
+RUN mkdir -p /home/kilo/.config/kilo && \
+    chmod -R 777 /home/kilo
+
+# Create workspace directory with open permissions
+RUN mkdir -p /workspace && chmod 777 /workspace
+
+WORKDIR /workspace
+
+# Set HOME environment variable
+ENV HOME=/home/kilo
+
+# Verify Kilo is installed
+RUN kilo --version || true
+
+# Default command
+CMD ["/bin/bash"]

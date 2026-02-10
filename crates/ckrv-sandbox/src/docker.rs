@@ -87,6 +87,7 @@ impl DockerClient {
         env: HashMap<String, String>,
         timeout: Duration,
         keep_container: bool,
+        extra_mounts: Vec<crate::executor::BindMount>,
     ) -> Result<ExecutionOutput, SandboxError> {
         let image = &self.default_image;
         self.ensure_image(image).await?;
@@ -109,7 +110,7 @@ impl DockerClient {
         let container_home = "/home/claude".to_string();
         env_vec.push(format!("HOME={}", container_home));
 
-        // Create mounts: workspace + Claude credentials
+        // Create mounts: workspace + agent-specific credential mounts
         let mut mounts = vec![
             // Workspace mount
             Mount {
@@ -121,28 +122,13 @@ impl DockerClient {
             },
         ];
 
-        // Mount ~/.claude.json to container home
-        let claude_config = format!("{}/.claude.json", host_home);
-        if std::path::Path::new(&claude_config).exists() {
-            tracing::debug!(path = %claude_config, "Mounting Claude config to {}", container_home);
+        // Add agent-specific credential mounts (provided by caller)
+        for bind in &extra_mounts {
             mounts.push(Mount {
-                target: Some(format!("{}/.claude.json", container_home)),
-                source: Some(claude_config),
+                target: Some(bind.target.clone()),
+                source: Some(bind.source.clone()),
                 typ: Some(MountTypeEnum::BIND),
-                read_only: Some(false), // Claude needs write access for token refresh
-                ..Default::default()
-            });
-        }
-
-        // Mount ~/.claude directory to container home
-        let claude_dir = format!("{}/.claude", host_home);
-        if std::path::Path::new(&claude_dir).exists() {
-            tracing::debug!(path = %claude_dir, "Mounting Claude directory to {}", container_home);
-            mounts.push(Mount {
-                target: Some(format!("{}/.claude", container_home)),
-                source: Some(claude_dir),
-                typ: Some(MountTypeEnum::BIND),
-                read_only: Some(false), // Claude needs write access for sessions
+                read_only: Some(bind.read_only),
                 ..Default::default()
             });
         }
@@ -326,6 +312,7 @@ impl DockerClient {
         env: HashMap<String, String>,
         timeout: Duration,
         keep_container: bool,
+        extra_mounts: Vec<crate::executor::BindMount>,
         mut on_log: F,
     ) -> Result<ExecutionOutput, SandboxError>
     where
@@ -359,7 +346,7 @@ impl DockerClient {
             env_vec.push(format!("HOME={}", container_home));
         }
 
-        // Create mounts: workspace + credentials
+        // Create mounts: workspace + agent-specific credential mounts
         let mut mounts = vec![Mount {
             target: Some(mount_target.to_string()),
             source: Some(mount_source.to_string()),
@@ -368,37 +355,13 @@ impl DockerClient {
             ..Default::default()
         }];
 
-        // Mount Claude credentials (~/.claude.json and ~/.claude)
-        let claude_config = format!("{}/.claude.json", host_home);
-        if std::path::Path::new(&claude_config).exists() {
+        // Add agent-specific credential mounts (provided by caller)
+        for bind in &extra_mounts {
             mounts.push(Mount {
-                target: Some(format!("{}/.claude.json", container_home)),
-                source: Some(claude_config),
+                target: Some(bind.target.clone()),
+                source: Some(bind.source.clone()),
                 typ: Some(MountTypeEnum::BIND),
-                read_only: Some(false),
-                ..Default::default()
-            });
-        }
-
-        let claude_dir = format!("{}/.claude", host_home);
-        if std::path::Path::new(&claude_dir).exists() {
-            mounts.push(Mount {
-                target: Some(format!("{}/.claude", container_home)),
-                source: Some(claude_dir),
-                typ: Some(MountTypeEnum::BIND),
-                read_only: Some(false),
-                ..Default::default()
-            });
-        }
-
-        // Mount Codex credentials (~/.codex) if running Codex
-        let codex_dir = format!("{}/.codex", host_home);
-        if std::path::Path::new(&codex_dir).exists() {
-            mounts.push(Mount {
-                target: Some(format!("{}/.codex", container_home)),
-                source: Some(codex_dir),
-                typ: Some(MountTypeEnum::BIND),
-                read_only: Some(false),
+                read_only: Some(bind.read_only),
                 ..Default::default()
             });
         }
@@ -550,6 +513,7 @@ impl DockerClient {
         mount_source: &str,
         mount_target: &str,
         env: HashMap<String, String>,
+        extra_mounts: Vec<crate::executor::BindMount>,
     ) -> Result<String, SandboxError> {
         let image = &self.default_image;
         self.ensure_image(image).await?;
@@ -557,7 +521,6 @@ impl DockerClient {
 
         // Prepare Env and Mounts
         let mut env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
-        let host_home = std::env::var("HOME").unwrap_or_default();
         let container_home = "/home/claude".to_string();
         env_vec.push(format!("HOME={}", container_home));
 
@@ -569,23 +532,13 @@ impl DockerClient {
             ..Default::default()
         }];
 
-        let claude_config = format!("{}/.claude.json", host_home);
-        if std::path::Path::new(&claude_config).exists() {
+        // Add agent-specific credential mounts (provided by caller)
+        for bind in &extra_mounts {
             mounts.push(Mount {
-                target: Some(format!("{}/.claude.json", container_home)),
-                source: Some(claude_config),
+                target: Some(bind.target.clone()),
+                source: Some(bind.source.clone()),
                 typ: Some(MountTypeEnum::BIND),
-                read_only: Some(false),
-                ..Default::default()
-            });
-        }
-        let claude_dir = format!("{}/.claude", host_home);
-        if std::path::Path::new(&claude_dir).exists() {
-            mounts.push(Mount {
-                target: Some(format!("{}/.claude", container_home)),
-                source: Some(claude_dir),
-                typ: Some(MountTypeEnum::BIND),
-                read_only: Some(false),
+                read_only: Some(bind.read_only),
                 ..Default::default()
             });
         }

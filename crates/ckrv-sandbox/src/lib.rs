@@ -14,4 +14,4 @@ pub use allowlist::{AllowList, DefaultAllowList};
 pub use docker::DockerClient;
 pub use env::{detect_env, EnvConfig};
 pub use error::SandboxError;
-pub use executor::{DockerSandbox, ExecuteConfig, ExecuteResult, LocalSandbox, Sandbox};
+pub use executor::{BindMount, DockerSandbox, ExecuteConfig, ExecuteResult, LocalSandbox, Sandbox};

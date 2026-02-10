@@ -185,6 +185,8 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                         term.writeln(`\x1b[35m# Model: ${agent.openrouter.model}\x1b[0m`);
                     } else if (agent.agent_type === 'codex') {
                         term.writeln(`\x1b[32m# Mode: OpenAI Codex\x1b[0m`);
+                    } else if (agent.agent_type === 'kilo_code') {
+                        term.writeln(`\x1b[34m# Mode: Kilo Code (Multi-Provider)\x1b[0m`);
                     } else {
                         term.writeln(`\x1b[36m# Mode: Native Claude\x1b[0m`);
                     }

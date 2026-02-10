@@ -26,7 +26,7 @@
  *                              ▼
  * ┌─────────────────────────────────────────────────────────────────┐
  * │                    Docker Container                             │
- * │  Running ckrv-claude:latest or ckrv-codex:latest               │
+ * │  Running ckrv-claude:latest, ckrv-codex:latest, or ckrv-kilo:latest  │
  * │  With project mounted at /workspace                            │
  * └─────────────────────────────────────────────────────────────────┘
  * ```

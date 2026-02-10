@@ -133,9 +133,17 @@ pub async fn start_terminal_handler(
         .map(|a| matches!(a.agent_type, AgentType::Codex))
         .unwrap_or(false);
 
+    let is_kilo = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::KiloCode))
+        .unwrap_or(false);
+
     // Set container home based on agent type
     let container_home = if is_codex {
         "/home/codex"
+    } else if is_kilo {
+        "/home/kilo"
     } else {
         "/home/claude"
     };
@@ -146,6 +154,8 @@ pub async fn start_terminal_handler(
     // Select Docker image based on agent type
     let docker_image = if is_codex {
         "ckrv-codex:latest".to_string()
+    } else if is_kilo {
+        "ckrv-kilo:latest".to_string()
     } else {
         "ckrv-claude:latest".to_string()
     };
@@ -249,6 +259,14 @@ pub async fn start_terminal_handler(
         }
 
         tracing::info!("Terminal session using OpenRouter - skipping Claude credential mounts");
+    } else if is_kilo {
+        // Kilo Code configuration - mount config directory for file-based auth
+        let kilo_config = format!("{}/.config/kilo", host_home);
+        if std::path::Path::new(&kilo_config).exists() {
+            binds.push(format!("{kilo_config}:/home/kilo/.config/kilo"));
+        }
+
+        tracing::info!("Terminal session using Kilo Code with mounted config");
     } else {
         // For native Claude, mount credentials if they exist
         let claude_config = format!("{host_home}/.claude.json");

@@ -1,5 +1,5 @@
 # Chakravarti Agent Container
-# Contains Claude Code CLI and OpenAI Codex CLI for sandboxed agent execution
+# Contains Claude Code CLI, OpenAI Codex CLI, and Kilo Code CLI for sandboxed agent execution
 
 FROM node:22-slim
 
@@ -16,6 +16,9 @@ RUN npm install -g @anthropic-ai/claude-code
 # Install OpenAI Codex CLI globally
 RUN npm install -g @openai/codex
 
+# Install Kilo Code CLI globally
+RUN npm install -g @kilocode/cli
+
 # Create /home/claude directory with open permissions
 # This allows the container to run as any host user while using this home directory
 RUN mkdir -p /home/claude/.claude && \
@@ -26,14 +29,20 @@ RUN mkdir -p /home/claude/.codex && \
     mkdir -p /home/claude/.config/openai && \
     chmod -R 777 /home/claude/.codex /home/claude/.config
 
+# Create Kilo config directory
+RUN mkdir -p /home/claude/.config/kilo && \
+    chmod -R 777 /home/claude/.config/kilo
+
 # Create workspace directory with open permissions
 RUN mkdir -p /workspace && chmod 777 /workspace
 
 WORKDIR /workspace
 
-# Verify both CLIs are installed (as root, before switching)
+# Verify all CLIs are installed (as root, before switching)
 RUN claude --version || true
 RUN codex --version || true
+RUN kilo --version || true
 
 # Default command
 CMD ["/bin/bash"]
+

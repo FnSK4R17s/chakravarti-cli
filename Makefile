@@ -55,6 +55,7 @@ install: build
 	@echo "Building Docker agent images..."
 	docker build -t ckrv-claude:latest -f docker/Dockerfile.claude docker/
 	docker build -t ckrv-codex:latest -f docker/Dockerfile.codex docker/
+	docker build -t ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
 	@echo "Copying binary to npm/bin..."
 	mkdir -p $(BIN_DIR)
 	cp $(RUST_BIN) $(BIN_DIR)/$(BINARY_NAME)

@@ -21,6 +21,8 @@ pub enum AgentType {
     ClaudeGlm,
     /// OpenAI Codex CLI
     Codex,
+    /// Kilo Code multi-provider CLI
+    KiloCode,
 }
 
 impl Default for AgentType {

@@ -99,11 +99,16 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
                 env.insert("ANTHROPIC_API_KEY".to_string(), key);
             }
         }
+        AgentType::KiloCode => {
+            // Kilo Code uses file-based auth (~/.config/kilo/) - no env vars needed
+        }
     }
 
     // Set container home
     let home = if matches!(agent.agent_type, AgentType::Codex) {
         "/home/codex"
+    } else if matches!(agent.agent_type, AgentType::KiloCode) {
+        "/home/kilo"
     } else {
         "/home/claude"
     };
@@ -163,8 +168,15 @@ pub async fn terminal_start(
         .map(|a| matches!(a.agent_type, AgentType::Codex))
         .unwrap_or(false);
 
+    let is_kilo = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::KiloCode))
+        .unwrap_or(false);
+
     let image = if is_codex {
         "ckrv-codex:latest"
+    } else if is_kilo {
+        "ckrv-kilo:latest"
     } else {
         "ckrv-claude:latest"
     };
@@ -177,7 +189,7 @@ pub async fn terminal_start(
         .unwrap_or_default();
 
     // Create session container
-    match docker.create_session("/workspace", &project_root, "/workspace", env).await {
+    match docker.create_session("/workspace", &project_root, "/workspace", env, Vec::new()).await {
         Ok(container_id) => {
             tracing::info!("Terminal session created: {} -> {}", session_id, container_id);
 

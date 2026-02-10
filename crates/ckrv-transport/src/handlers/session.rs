@@ -86,7 +86,7 @@ pub async fn start_session_handler(
     let env: HashMap<String, String> = HashMap::new();
 
     let container_id = client
-        .create_session("/workspace", &cwd, "/workspace", env)
+        .create_session("/workspace", &cwd, "/workspace", env, Vec::new())
         .await
         .map_err(|e| TransportError::Internal(format!("Failed to create session: {e}")))?;
 
