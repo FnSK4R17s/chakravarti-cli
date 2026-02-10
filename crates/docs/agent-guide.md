@@ -5,6 +5,7 @@ related_files:
   - crates/ckrv-sandbox/src/agent/mod.rs
   - crates/ckrv-sandbox/src/agent/claude.rs
   - crates/ckrv-sandbox/src/agent/codex.rs
+  - crates/ckrv-sandbox/src/agent/kilo.rs
   - crates/ckrv-core/src/runner.rs
 ---
 
@@ -22,6 +23,7 @@ These are the underlying CLI tools that execute code generation:
 |------|----------|-------------|
 | **Claude Code** | Anthropic | Native agentic coding CLI |
 | **Codex** | OpenAI | OpenAI's coding assistant CLI |
+| **Kilo Code** | Multi-provider | Open-source CLI supporting 30+ AI providers |
 
 ## Authentication Methods
 
@@ -33,6 +35,7 @@ Each tool can be authenticated in different ways:
 | Claude Code | OpenRouter API Key | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` |
 | Claude Code | GLM Coding Plan (Z.AI) | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` |
 | Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
+| Kilo Code | File-based auth | `~/.config/kilo/config.json` (configured via `kilo auth`) |
 
 > **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
 
@@ -40,7 +43,7 @@ Each tool can be authenticated in different ways:
 
 | Crate | Responsibility |
 |-------|----------------|
-| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex providers, Docker execution |
+| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo providers, Docker execution |
 | `ckrv-core` | `RunnerConfig` with OpenRouter and GLM fields |
 | `ckrv-cli` | Agent config loading, CLI flags |
 | `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
@@ -55,15 +58,18 @@ graph TD
     Sandbox[ckrv-sandbox] --> Provider[AgentProvider trait]
     Provider --> Claude[ClaudeProvider]
     Provider --> Codex[CodexProvider]
+    Provider --> Kilo[KiloCodeProvider]
     
     Claude --> Docker[Docker Container]
     Codex --> Docker
+    Kilo --> Docker
     
     subgraph "Authentication Layer"
         Claude --> ClaudeSub[Claude Subscription]
         Claude --> OpenRouter[OpenRouter API]
         Claude --> GLM[GLM Coding Plan]
         Codex --> OpenAISub[OpenAI Subscription]
+        Kilo --> KiloAuth[File-based auth via kilo auth]
     end
 ```
 
@@ -315,6 +321,63 @@ The GLM configuration sets the following environment variables for Claude Code:
 | `ANTHROPIC_BASE_URL` | `https://api.z.ai/api/anthropic` |
 | `ANTHROPIC_AUTH_TOKEN` | Your Z.AI API key |
 | `API_TIMEOUT_MS` | Custom timeout (default: 3000000) |
+
+## Kilo Code Integration
+
+Kilo Code is an open-source, multi-provider agentic CLI that supports 30+ AI providers (Gemini, DeepSeek, Mistral, Qwen, etc.) through a single interface.
+
+**Prerequisites:**
+
+```bash
+# Install Kilo Code CLI
+npm install -g @kilocode/cli
+
+# Configure credentials (interactive)
+kilo auth
+```
+
+**Configuration:**
+
+```yaml
+agents:
+  - id: kilo-agent
+    name: Kilo Code
+    agent_type: kilo_code
+    enabled: true
+    description: Multi-provider agentic coding
+```
+
+**Usage via CLI:**
+
+```bash
+# Run a task with Kilo agent
+ckrv task run --agent kilo-agent -p "Create hello.txt"
+
+# Spawn interactive Kilo terminal
+ckrv term --agent kilo-agent
+```
+
+**Streaming Output:**
+
+Kilo supports two output formats via `--format`:
+
+| Format | Flag | Description |
+|--------|------|-------------|
+| `default` | `--format default` | Human-readable formatted text |
+| `json` | `--format json` | Structured NDJSON events with cost/token metadata |
+
+JSON events include types: `step_start`, `tool_use`, `text`, `step_finish`.
+
+**Supported Providers:** See [Kilo Code Provider Configuration](https://github.com/Kilo-Org/kilocode/blob/main/cli/docs/PROVIDER_CONFIGURATION.md) for the full list of 30+ supported providers.
+
+**Key Differences from Claude/Codex:**
+
+| Feature | Claude/Codex | Kilo Code |
+|---------|-------------|------------|
+| Auth | Env vars | File-based (`~/.config/kilo/`) |
+| Execution | `--print` | `--auto` |
+| Model selection | Env vars / `--model` | `--model provider/model` |
+| Streaming | `--output-format stream-json` | `--format json` (NDJSON) |
 
 ## Best Practices
 

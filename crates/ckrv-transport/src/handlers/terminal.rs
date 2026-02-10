@@ -8,7 +8,7 @@ use crate::state::AppState;
 use crate::types::{AgentConfig, AgentType};
 use axum::extract::ws::{Message, WebSocket};
 use bollard::container::LogOutput;
-use bollard::exec::{CreateExecOptions, StartExecOptions, StartExecResults};
+use bollard::exec::{CreateExecOptions, ResizeExecOptions, StartExecOptions, StartExecResults};
 use bollard::Docker;
 use futures_util::{SinkExt, StreamExt};
 use once_cell::sync::Lazy;
@@ -37,6 +37,10 @@ pub struct StartTerminalRequest {
     pub session_id: Option<String>,
     /// Agent configuration to use
     pub agent: Option<AgentConfig>,
+    /// Terminal width in columns (from xterm.js)
+    pub cols: Option<u16>,
+    /// Terminal height in rows (from xterm.js)
+    pub rows: Option<u16>,
 }
 
 /// Response from starting a terminal session.
@@ -133,19 +137,40 @@ pub async fn start_terminal_handler(
         .map(|a| matches!(a.agent_type, AgentType::Codex))
         .unwrap_or(false);
 
+    let is_kilo = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::KiloCode))
+        .unwrap_or(false);
+
     // Set container home based on agent type
     let container_home = if is_codex {
         "/home/codex"
+    } else if is_kilo {
+        "/home/kilo"
     } else {
         "/home/claude"
     };
 
     // Build environment variables based on agent type
-    let mut env_vars = vec![format!("HOME={container_home}")];
+    let term_cols = request.cols.unwrap_or(120);
+    let term_rows = request.rows.unwrap_or(30);
+    let mut env_vars = vec![
+        format!("HOME={container_home}"),
+        // TERM is critical for TUI-based CLIs (Codex uses Ink, Kilo uses similar).
+        // Without it, these tools can't detect terminal capabilities and render blank.
+        "TERM=xterm-256color".to_string(),
+        "COLORTERM=truecolor".to_string(),
+        // Terminal size from xterm.js frontend (or sensible defaults)
+        format!("COLUMNS={term_cols}"),
+        format!("LINES={term_rows}"),
+    ];
 
     // Select Docker image based on agent type
     let docker_image = if is_codex {
         "ckrv-codex:latest".to_string()
+    } else if is_kilo {
+        "ckrv-kilo:latest".to_string()
     } else {
         "ckrv-claude:latest".to_string()
     };
@@ -249,6 +274,14 @@ pub async fn start_terminal_handler(
         }
 
         tracing::info!("Terminal session using OpenRouter - skipping Claude credential mounts");
+    } else if is_kilo {
+        // Kilo Code configuration - mount config directory for file-based auth
+        let kilo_config = format!("{}/.config/kilo", host_home);
+        if std::path::Path::new(&kilo_config).exists() {
+            binds.push(format!("{kilo_config}:/home/kilo/.config/kilo"));
+        }
+
+        tracing::info!("Terminal session using Kilo Code with mounted config");
     } else {
         // For native Claude, mount credentials if they exist
         let claude_config = format!("{host_home}/.claude.json");
@@ -381,6 +414,12 @@ pub async fn handle_terminal_ws(socket: WebSocket, session_id: String) {
         attach_stderr: Some(true),
         tty: Some(true),
         cmd: Some(vec!["/bin/bash".to_string(), "-l".to_string()]),
+        // Set TERM so TUI-based CLIs (Codex/Ink, Kilo) can detect terminal capabilities.
+        // Without this, they render blank or produce garbled output in xterm.js.
+        env: Some(vec![
+            "TERM=xterm-256color".to_string(),
+            "COLORTERM=truecolor".to_string(),
+        ]),
         ..Default::default()
     };
 
@@ -429,6 +468,9 @@ pub async fn handle_terminal_ws(socket: WebSocket, session_id: String) {
         let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
         let shutdown_tx2 = shutdown_tx.clone();
 
+        // Hold the exec ID for resize operations
+        let exec_id = exec.id.clone();
+
         // Task: Docker output -> WebSocket
         let output_task = tokio::spawn(async move {
             loop {
@@ -454,11 +496,31 @@ pub async fn handle_terminal_ws(socket: WebSocket, session_id: String) {
             }
         });
 
-        // Task: WebSocket input -> Docker stdin
+        // Clone docker + exec_id for the input task
+        let docker_for_input = docker.clone();
+        let exec_id_for_input = exec_id.clone();
+
+        // Task: WebSocket input -> Docker stdin (handles both text input and resize messages)
         let input_task = tokio::spawn(async move {
             while let Some(Ok(msg)) = ws_receiver.next().await {
                 match msg {
-                    Message::Text(text) => {
+                    Message::Text(ref text) => {
+                        // Check if this is a resize JSON message from the frontend
+                        if let Ok(resize) = serde_json::from_str::<serde_json::Value>(text.as_ref()) {
+                            if resize.get("type").and_then(|t| t.as_str()) == Some("resize") {
+                                let cols = resize.get("cols").and_then(|c| c.as_u64()).unwrap_or(120) as u16;
+                                let rows = resize.get("rows").and_then(|r| r.as_u64()).unwrap_or(30) as u16;
+                                let _ = docker_for_input.resize_exec(
+                                    &exec_id_for_input,
+                                    ResizeExecOptions {
+                                        width: cols,
+                                        height: rows,
+                                    },
+                                ).await;
+                                continue;
+                            }
+                        }
+                        // Regular text input
                         if input.write_all(text.as_bytes()).await.is_err() {
                             break;
                         }

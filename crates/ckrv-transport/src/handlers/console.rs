@@ -117,6 +117,7 @@ async fn execute_in_sandbox(
         env,
         timeout: std::time::Duration::from_secs(30),
         keep_container,
+        extra_mounts: Vec::new(),
     };
 
     let allowlist = DefaultAllowList::default();

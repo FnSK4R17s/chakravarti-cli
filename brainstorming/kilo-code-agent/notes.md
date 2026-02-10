@@ -2,7 +2,7 @@
 
 **Issue**: None yet (create issue when ready to implement)
 **Created**: 2026-02-09
-**Status**: Ready for Spec
+**Status**: Tasks Generated
 
 ## Problem Statement
 
@@ -164,7 +164,7 @@ Key differences:
 - [x] Is there a GitHub issue for this? → No, needs to be created
 - [x] What CLI flags does Kilo use? → `kilo run [prompt] --auto --cwd [dir]`
 - [x] Where are Kilo credentials stored? → `~/.config/kilo/config.json`
-- [ ] Does Kilo support streaming output? → Need to verify `--output-format` options
+- [x] Does Kilo support streaming output? → **Yes.** `--format` flag supports `default` (human-readable) and `json` (structured NDJSON events). JSON events include `step_start`, `tool_use`, `text`, and `step_finish` types with cost/token metadata. Verified with Kilo CLI v1.0.16 on 2026-02-10.
 
 ## Success Criteria
 

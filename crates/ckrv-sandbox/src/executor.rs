@@ -7,6 +7,32 @@ use serde::{Deserialize, Serialize};
 
 use crate::{docker::DockerClient, AllowList, SandboxError};
 
+/// A bind mount for additional container mounts (e.g., agent credentials).
+///
+/// This provides a clean abstraction over Docker bind mounts without
+/// leaking the `bollard` dependency into the public API.
+#[derive(Debug, Clone)]
+pub struct BindMount {
+    /// Host source path (e.g., `~/.claude.json`)
+    pub source: String,
+    /// Container target path (e.g., `/home/claude/.claude.json`)
+    pub target: String,
+    /// Whether the mount is read-only
+    pub read_only: bool,
+}
+
+impl BindMount {
+    /// Create a new read-write bind mount.
+    #[must_use]
+    pub fn new(source: impl Into<String>, target: impl Into<String>) -> Self {
+        Self {
+            source: source.into(),
+            target: target.into(),
+            read_only: false,
+        }
+    }
+}
+
 /// Configuration for command execution.
 #[derive(Debug, Clone)]
 pub struct ExecuteConfig {
@@ -22,6 +48,11 @@ pub struct ExecuteConfig {
     pub timeout: Duration,
     /// Keep container after execution (for debugging).
     pub keep_container: bool,
+    /// Additional bind mounts (e.g., agent-specific credential directories).
+    ///
+    /// Each agent should provide its own mounts via `AgentProvider::config_mounts()`
+    /// rather than hardcoding all credential paths in the Docker client.
+    pub extra_mounts: Vec<BindMount>,
 }
 
 impl ExecuteConfig {
@@ -35,6 +66,7 @@ impl ExecuteConfig {
             env: HashMap::new(),
             timeout: Duration::from_secs(300),
             keep_container: false,
+            extra_mounts: Vec::new(),
         }
     }
 
@@ -63,6 +95,13 @@ impl ExecuteConfig {
     #[must_use]
     pub fn with_keep_container(mut self, keep: bool) -> Self {
         self.keep_container = keep;
+        self
+    }
+
+    /// Add extra bind mounts (e.g., agent credential directories).
+    #[must_use]
+    pub fn with_extra_mounts(mut self, mounts: Vec<BindMount>) -> Self {
+        self.extra_mounts = mounts;
         self
     }
 }
@@ -181,6 +220,7 @@ impl DockerSandbox {
                 config.env,
                 config.timeout,
                 config.keep_container,
+                config.extra_mounts,
                 on_log,
             )
             .await?;
@@ -215,6 +255,7 @@ impl Sandbox for DockerSandbox {
                 config.env,
                 config.timeout,
                 config.keep_container,
+                config.extra_mounts,
             )
             .await?;
 

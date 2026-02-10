@@ -13,6 +13,7 @@ pub enum AgentType {
     ClaudeOpenRouter,
     ClaudeGlm,
     Codex,
+    KiloCode,
 }
 
 impl Default for AgentType {

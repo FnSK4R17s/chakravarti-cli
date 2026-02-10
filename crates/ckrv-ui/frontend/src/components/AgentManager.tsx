@@ -78,7 +78,7 @@ import { Label } from '@/components/ui/label';
 // === TYPES ===
 
 /** Supported agent types for task execution. */
-type AgentType = 'claude' | 'claude_open_router' | 'claude_glm' | 'codex';
+type AgentType = 'claude' | 'claude_open_router' | 'claude_glm' | 'codex' | 'kilo_code';
 
 interface OpenRouterConfig {
     api_key?: string;
@@ -220,6 +220,7 @@ const AGENT_TYPE_INFO: Record<AgentType, { label: string; icon: React.ReactNode;
     claude_open_router: { label: 'Claude + OpenRouter', icon: <Sparkles size={16} />, color: 'hsl(var(--primary))' },
     claude_glm: { label: 'GLM Coding Plan', icon: <Zap size={16} />, color: 'hsl(var(--info))' },
     codex: { label: 'OpenAI Codex', icon: <Zap size={16} />, color: 'hsl(var(--success))' },
+    kilo_code: { label: 'Kilo Code', icon: <Sparkles size={16} />, color: 'hsl(var(--chart-4))' },
 };
 
 const AgentManager: React.FC = () => {
@@ -851,6 +852,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                     <SelectItem value="claude_open_router">Claude + OpenRouter</SelectItem>
                                     <SelectItem value="claude_glm">GLM Coding Plan (Z.AI)</SelectItem>
                                     <SelectItem value="codex">OpenAI Codex</SelectItem>
+                                    <SelectItem value="kilo_code">Kilo Code (Multi-Provider)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

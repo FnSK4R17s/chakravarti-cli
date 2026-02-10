@@ -29,16 +29,18 @@ use crate::ui::UiContext;
 
 // ============================================================
 
-/// Common Claude Code options that can be selected interactively
-#[derive(Debug, Clone, Copy)]
+/// Common agent options that can be selected interactively
+#[derive(Debug, Clone)]
 struct CommonOption {
     label: &'static str,
     action: OptionAction,
     description: &'static str,
+    /// Which agent types this option applies to
+    agents: &'static [AgentType],
 }
 
 /// Action to take when an option is selected
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum OptionAction {
     /// Pass flag(s) to the command line
     Flag(&'static str),
@@ -46,31 +48,64 @@ enum OptionAction {
     EnvVar(&'static str, &'static str),
 }
 
+/// All Claude-based agent types (native, OpenRouter, GLM)
+const CLAUDE_AGENTS: &[AgentType] = &[
+    AgentType::Claude,
+    AgentType::ClaudeOpenRouter,
+    AgentType::ClaudeGlm,
+];
+
 const COMMON_OPTIONS: &[CommonOption] = &[
+    // === Claude-specific options ===
     CommonOption {
         label: "Skip permissions",
         action: OptionAction::Flag("--dangerously-skip-permissions"),
         description: "Skip all permission prompts (dangerous!)",
+        agents: CLAUDE_AGENTS,
     },
     CommonOption {
         label: "Continue session",
         action: OptionAction::Flag("--continue"),
         description: "Resume the most recent conversation",
+        agents: CLAUDE_AGENTS,
     },
     CommonOption {
         label: "Agent teams",
         action: OptionAction::EnvVar("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "1"),
         description: "Enable experimental agent teams mode",
+        agents: CLAUDE_AGENTS,
     },
     CommonOption {
         label: "Verbose output",
         action: OptionAction::Flag("--verbose"),
         description: "Enable verbose logging",
+        agents: CLAUDE_AGENTS,
     },
     CommonOption {
         label: "JSON output",
         action: OptionAction::Flag("--output-format json"),
         description: "Output in JSON format",
+        agents: CLAUDE_AGENTS,
+    },
+    // === Codex-specific options ===
+    CommonOption {
+        label: "Full auto mode",
+        action: OptionAction::Flag("--full-auto"),
+        description: "Run autonomously without approval prompts",
+        agents: &[AgentType::Codex],
+    },
+    CommonOption {
+        label: "JSON output",
+        action: OptionAction::Flag("--json"),
+        description: "Output as newline-delimited JSON events",
+        agents: &[AgentType::Codex],
+    },
+    // === Kilo Code-specific options ===
+    CommonOption {
+        label: "Auto mode",
+        action: OptionAction::Flag("--auto"),
+        description: "Run autonomously without approval prompts",
+        agents: &[AgentType::KiloCode],
     },
 ];
 
@@ -79,7 +114,7 @@ const COMMON_OPTIONS: &[CommonOption] = &[
 #[derive(Args, Debug)]
 #[command(
     long_about = "Spawn an interactive AI agent terminal session.\n\n\
-                  Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex) \
+                  Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code) \
                   with the correct environment variables automatically configured.\n\n\
                   Without arguments, presents an interactive selection menu with options \
                   for common flags. Use -- to pass arguments directly for scripting.",
@@ -151,6 +186,7 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
                     AgentType::ClaudeOpenRouter => "openrouter",
                     AgentType::ClaudeGlm => "glm",
                     AgentType::Codex => "codex",
+                    AgentType::KiloCode => "kilo",
                 };
                 let default_marker = if agent.is_default { " ★" } else { "" };
                 println!(
@@ -180,6 +216,7 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
                     AgentType::ClaudeOpenRouter => "openrouter",
                     AgentType::ClaudeGlm => "glm",
                     AgentType::Codex => "codex",
+                    AgentType::KiloCode => "kilo",
                 };
                 let default_marker = if a.is_default { " ★" } else { "" };
                 format!("{} ({}) [{}]{}", a.name, a.id, type_badge, default_marker)
@@ -200,8 +237,8 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
         // Use passthrough args directly (scripting mode)
         (args.passthrough_args.clone(), Vec::new())
     } else if !json {
-        // Interactive options prompt
-        let result = prompt_for_options()?;
+        // Interactive options prompt (filtered by agent type)
+        let result = prompt_for_options(&agent.agent_type)?;
         (result.args, result.env_vars)
     } else {
         (Vec::new(), Vec::new())
@@ -275,11 +312,25 @@ struct PromptResult {
     env_vars: Vec<(String, String)>,
 }
 
-/// Prompt user interactively for common options and custom args
-fn prompt_for_options() -> anyhow::Result<PromptResult> {
+/// Prompt user interactively for common options and custom args.
+///
+/// Options are filtered based on the selected agent type. If no options
+/// are available for the agent, the options screen is skipped entirely.
+fn prompt_for_options(agent_type: &AgentType) -> anyhow::Result<PromptResult> {
     let theme = ColorfulTheme::default();
     let mut args: Vec<String> = Vec::new();
     let mut env_vars: Vec<(String, String)> = Vec::new();
+
+    // Filter options to only those applicable to this agent type
+    let applicable: Vec<&CommonOption> = COMMON_OPTIONS
+        .iter()
+        .filter(|opt| opt.agents.contains(agent_type))
+        .collect();
+
+    // If no options available for this agent, skip the options screen
+    if applicable.is_empty() {
+        return Ok(PromptResult { args, env_vars });
+    }
 
     // First ask if user wants to configure options or launch directly
     let launch_choice = Select::with_theme(&theme)
@@ -294,12 +345,12 @@ fn prompt_for_options() -> anyhow::Result<PromptResult> {
     }
 
     // Build selection items with descriptions
-    let items: Vec<String> = COMMON_OPTIONS
+    let items: Vec<String> = applicable
         .iter()
         .map(|opt| format!("{} - {}", opt.label, opt.description))
         .collect();
 
-    // Multi-select for common options
+    // Multi-select for applicable options
     let selections = MultiSelect::with_theme(&theme)
         .with_prompt("Select options (Space to toggle, Enter to confirm)")
         .items(&items)
@@ -307,7 +358,7 @@ fn prompt_for_options() -> anyhow::Result<PromptResult> {
 
     // Process selected options
     for idx in selections {
-        match &COMMON_OPTIONS[idx].action {
+        match &applicable[idx].action {
             OptionAction::Flag(flag) => {
                 // Split flag in case it has a value (e.g., "--output-format json")
                 for part in flag.split_whitespace() {
@@ -346,6 +397,7 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
                 "claude".to_string()
             }
             AgentType::Codex => "codex".to_string(),
+            AgentType::KiloCode => "kilo".to_string(),
         });
 
     let mut env_vars: Vec<(String, String)> = Vec::new();
@@ -434,6 +486,9 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
         }
         AgentType::Codex => {
             // Native Codex - no extra env vars needed
+        }
+        AgentType::KiloCode => {
+            // Kilo Code uses file-based auth (~/.config/kilo/) - no extra env vars needed
         }
     }
 

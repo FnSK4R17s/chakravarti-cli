@@ -2,7 +2,7 @@
 
 use super::{
     create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
-    ClaudeProvider, CodexProvider,
+    ClaudeProvider, CodexProvider, KiloCodeProvider,
 };
 use std::path::Path;
 
@@ -15,6 +15,10 @@ fn test_agent_type_from_str() {
     assert_eq!(AgentType::from_str("Codex"), Some(AgentType::Codex));
     assert_eq!(AgentType::from_str("openai"), Some(AgentType::Codex));
     assert_eq!(AgentType::from_str("openai-codex"), Some(AgentType::Codex));
+    assert_eq!(AgentType::from_str("kilo"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::from_str("Kilo"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::from_str("kilo-code"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::from_str("kilocode"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("unknown"), None);
 }
 
@@ -28,6 +32,7 @@ fn test_agent_type_default() {
 fn test_agent_type_display_name() {
     assert_eq!(AgentType::Claude.display_name(), "Claude Code");
     assert_eq!(AgentType::Codex.display_name(), "OpenAI Codex");
+    assert_eq!(AgentType::KiloCode.display_name(), "Kilo Code");
 }
 
 #[test]
@@ -134,6 +139,79 @@ fn test_claude_parse_output_success() {
 #[test]
 fn test_claude_parse_output_failure() {
     let provider = ClaudeProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+#[test]
+fn test_create_agent_kilo() {
+    let agent = create_agent(AgentType::KiloCode);
+    assert_eq!(agent.name(), "Kilo Code");
+    assert_eq!(agent.agent_type(), AgentType::KiloCode);
+    assert!(agent.required_env_vars().is_empty());
+}
+
+#[test]
+fn test_kilo_provider_build_command() {
+    let provider = KiloCodeProvider::new();
+    let config = AgentConfig::new(AgentType::KiloCode);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"kilo".to_string()));
+    assert!(cmd.contains(&"run".to_string()));
+    assert!(cmd.contains(&"--auto".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+    // Streaming is enabled by default
+    assert!(cmd.contains(&"--format".to_string()));
+    assert!(cmd.contains(&"json".to_string()));
+}
+
+#[test]
+fn test_kilo_provider_with_model() {
+    let provider = KiloCodeProvider::new();
+    let config = AgentConfig::new(AgentType::KiloCode).with_model("google/gemini-2.5-pro");
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"kilo".to_string()));
+    assert!(cmd.contains(&"--model".to_string()));
+    assert!(cmd.contains(&"google/gemini-2.5-pro".to_string()));
+}
+
+#[test]
+fn test_kilo_provider_no_streaming() {
+    let provider = KiloCodeProvider::new();
+    let config = AgentConfig::new(AgentType::KiloCode).with_streaming(false);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"kilo".to_string()));
+    assert!(cmd.contains(&"--auto".to_string()));
+    // Should NOT contain --format json when streaming is disabled
+    assert!(!cmd.contains(&"--format".to_string()));
+    assert!(!cmd.contains(&"json".to_string()));
+}
+
+#[test]
+fn test_kilo_parse_output_success() {
+    let provider = KiloCodeProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_kilo_parse_output_failure() {
+    let provider = KiloCodeProvider::new();
     let result = provider.parse_output("", "error message", 1).unwrap();
 
     assert!(!result.success);
