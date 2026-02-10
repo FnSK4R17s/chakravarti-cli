@@ -49,13 +49,24 @@ import { TestFixModal } from './TestFixModal';
 
 // === TYPES ===
 
+/**
+ * Results from a test run execution.
+ * Contains counts for all test outcomes plus failure details.
+ */
 interface TestResult {
+    /** Whether the test run completed successfully */
     success: boolean;
+    /** Total number of tests executed */
     total: number;
+    /** Number of passing tests */
     passed: number;
+    /** Number of failing tests */
     failed: number;
+    /** Number of skipped tests */
     skipped: number;
+    /** Test execution time in milliseconds */
     duration_ms: number;
+    /** Details of failed test cases */
     failures: TestFailure[];
     /** Test framework used (e.g., vitest, jest, pytest) */
     framework: string;
@@ -102,32 +113,63 @@ interface TestPlanOutput {
     proposed_tests: ProposedTest[];
 }
 
+/**
+ * Information about a file changed since the base branch.
+ * Used to identify which files need test coverage.
+ */
 interface ChangedFileInfo {
+    /** Relative path to the changed file */
     path: string;
+    /** Type of change: added, modified, deleted, renamed */
     change_type: string;
+    /** Number of lines added in this change */
     lines_added: number;
+    /** Number of lines removed in this change */
     lines_removed: number;
+    /** Whether the file has corresponding tests */
     has_tests: boolean;
 }
 
+/**
+ * A test recommended by the AI agent for a changed file.
+ */
 interface ProposedTest {
+    /** Path to the source file being tested */
     target_file: string;
+    /** Path where the test file should be created */
     test_file: string;
+    /** Human-readable description of what the test covers */
     description: string;
+    /** Priority level: high, medium, or low */
     priority: string;
 }
 
+/**
+ * Test coverage analysis results.
+ * Summarizes how many files have tests versus total testable files.
+ */
 interface CoverageResult {
+    /** Total number of testable files */
     total: number;
+    /** Number of files with test coverage */
     covered: number;
+    /** Number of files without tests */
     uncovered: number;
+    /** Coverage percentage (0-100) */
     coverage_percent: number;
 }
 
+/**
+ * AI agent configuration for test writing operations.
+ */
 interface Agent {
+    /** Unique identifier for the agent */
     id: string;
+    /** Display name of the agent */
     name: string;
+    /** Model identifier (e.g., claude-3-opus, gpt-4) */
     model: string;
+    /** Whether this agent is configured for test writing */
     is_test_writer?: boolean;
 }
 
@@ -176,10 +218,20 @@ const checkCoverage = async (base: string): Promise<{ success: boolean; coverage
 
 // === SUB-COMPONENTS ===
 
-const TestResultCard: React.FC<{ result: TestResult }> = ({ result }) => {
+/**
+ * Props for TestResultCard component.
+ * Displays test run results with pass/fail counts and failure details.
+ */
+interface TestResultCardProps {
+    /** Test results from the test runner */
+    result: TestResult;
+}
+
+const TestResultCard: React.FC<TestResultCardProps> = ({ result }) => {
     /** Set of failure indices that are expanded to show details */
     const [expandedFailures, setExpandedFailures] = useState<Set<number>>(new Set());
 
+    /** Toggles expand/collapse state for a specific failure's details */
     const toggleFailure = (idx: number) => {
         setExpandedFailures(prev => {
             const next = new Set(prev);
@@ -269,7 +321,16 @@ const TestResultCard: React.FC<{ result: TestResult }> = ({ result }) => {
     );
 };
 
-const TestPlanCard: React.FC<{ plan: TestPlanOutput }> = ({ plan }) => {
+/**
+ * Props for TestPlanCard component.
+ * Displays the test plan with changed files and proposed tests.
+ */
+interface TestPlanCardProps {
+    /** Test plan output from AI analysis */
+    plan: TestPlanOutput;
+}
+
+const TestPlanCard: React.FC<TestPlanCardProps> = ({ plan }) => {
     return (
         <div className="space-y-4">
             {/* Changed Files */}
@@ -349,7 +410,17 @@ const TestPlanCard: React.FC<{ plan: TestPlanOutput }> = ({ plan }) => {
     );
 };
 
-const CoverageCard: React.FC<{ coverage: CoverageResult }> = ({ coverage }) => {
+/**
+ * Props for CoverageCard component.
+ * Displays test coverage metrics with a visual ring chart.
+ */
+interface CoverageCardProps {
+    /** Coverage analysis results */
+    coverage: CoverageResult;
+}
+
+const CoverageCard: React.FC<CoverageCardProps> = ({ coverage }) => {
+    /** Color class based on coverage percentage: green >= 80%, yellow >= 50%, red < 50% */
     const coverageColor = coverage.coverage_percent >= 80 ? 'text-success' :
         coverage.coverage_percent >= 50 ? 'text-warning' : 'text-destructive';
 
@@ -596,6 +667,7 @@ export default function TestRunner() {
         onError: () => toast.error('Failed to check coverage'),
     });
 
+    /** True if any mutation is in progress, used to disable action buttons */
     const isLoading = runMutation.isPending || planMutation.isPending || writeMutation.isPending || coverageMutation.isPending;
 
     // === RENDER ===

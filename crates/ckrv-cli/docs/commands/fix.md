@@ -1,14 +1,16 @@
 ---
 command: fix
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 34d5c95
+last_commit: 1b27ca2
 ---
 
 # ckrv fix
 
-Fix verification errors with AI.
+Fix verification errors with AI
 
 ## Description
+
+Fix verification errors with AI.
 
 Analyzes failed tests, lint errors, or build issues and uses AI to automatically generate fixes. Runs in an isolated Docker sandbox.
 
@@ -18,11 +20,11 @@ Best used after `ckrv verify` identifies issues.
 
 | Flag | Description |
 |------|-------------|
-| `--agent <AGENT>` | AI agent to use for fixes |
-| `--tests-only` | Fix only test failures |
-| `--lint-only` | Fix only lint errors |
-| `--verbose`, `-v` | Enable verbose logging |
-| `--json` | Output format: JSON instead of human-readable |
+| `--check` | Re-run verification after fixing |
+| `--error` | Specific error message to fix (from UI) |
+| `--lint` | Fix only lint errors |
+| `--test` | Fix only test failures |
+| `--type` | Fix only type errors |
 
 ## Examples
 
@@ -30,9 +32,9 @@ Best used after `ckrv verify` identifies issues.
 # Fix all errors
 ckrv fix
 
-# Fix with specific agent
-ckrv fix --agent claude-3.5
+# Fix and re-verify
+ckrv fix --check
 
 # Fix only test failures
-ckrv fix --tests-only
+ckrv fix --test
 ```

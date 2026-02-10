@@ -34,23 +34,34 @@ import {
 } from '@/components/ui/carousel';
 import { BatchLogTerminal, type BatchLogEntry, type BatchStatus } from './BatchLogTerminal';
 
+/**
+ * Data for a single batch in the carousel.
+ */
 export interface BatchData {
+    /** Unique identifier for the batch */
     id: string;
+    /** Display name for the batch */
     name: string;
+    /** Current execution status */
     status: BatchStatus;
+    /** Log entries for this batch */
     logs: BatchLogEntry[];
+    /** Git branch name, shown when batch completes */
     branch?: string;
-    /** Model used for this batch (e.g., "claude-sonnet-4-20250514") */
+    /** Model identifier for display (e.g., "claude-sonnet-4-20250514") */
     model?: string;
 }
 
 
+/**
+ * Props for the BatchLogCarousel component.
+ */
 export interface BatchLogCarouselProps {
-    /** Array of batch data to display */
+    /** Array of batch data to display in the carousel */
     batches: BatchData[];
-    /** Currently active batch ID (for auto-navigation) */
+    /** ID of the currently active batch; carousel auto-navigates to it */
     activeBatchId?: string | null;
-    /** Called when user navigates to a different batch */
+    /** Callback fired when user navigates to a different batch */
     onBatchChange?: (batchId: string) => void;
 }
 

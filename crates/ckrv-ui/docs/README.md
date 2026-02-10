@@ -1,10 +1,9 @@
 ---
-last_commit: 34d5c95
-last_updated: 2026-02-03
+last_commit: 1b27ca2
+last_updated: 2026-02-10
 related_files:
   - src/lib.rs
   - src/server.rs
-  - src/api/mod.rs
   - src/services/engine.rs
   - frontend/src/App.tsx
 ---
@@ -16,35 +15,17 @@ Web UI dashboard server for Chakravarti.
 ## Overview
 
 This crate provides the full-stack web dashboard including:
-- **Backend**: REST API, WebSocket hub, execution engine
+- **Backend**: Axum server with API routes from `ckrv-transport`, execution engine, static file serving
 - **Frontend**: React/TypeScript dashboard with 27+ components
+
+**Since 0.1.0**: The backend API layer has been migrated to `ckrv-transport`. This crate now acts as a thin server layer that composes transport routes with static file serving and application services.
 
 ## Backend Architecture
 
 ```
 src/
-├── lib.rs              # Public exports
-├── server.rs           # Axum server, static file handler
-├── state.rs            # AppState, SystemStatus
-├── hub.rs              # WebSocket broadcast hub
-├── api/                # REST API endpoints (18 modules)
-│   ├── agents.rs       # Agent management (21KB)
-│   ├── execution.rs    # Execution control (24KB)
-│   ├── specs.rs        # Spec CRUD (27KB)
-│   ├── plans.rs        # Plan management
-│   ├── tasks.rs        # Task operations
-│   ├── diff.rs         # Code diff endpoints
-│   ├── test.rs         # Test command API (31KB)
-│   ├── qa.rs           # QA review API (11KB)
-│   ├── terminal.rs     # PTY terminal streaming (17KB)
-│   ├── console.rs      # Console output
-│   ├── session.rs      # Session management
-│   ├── history.rs      # Run history (14KB)
-│   ├── status.rs       # System status
-│   ├── commands.rs     # Command execution
-│   ├── cloud.rs        # Cloud API proxy
-│   ├── docker.rs       # Docker status
-│   └── events.rs       # Event streaming
+├── lib.rs              # Public exports, ckrv-transport re-exports
+├── server.rs           # Axum server, static file handler, route composition
 ├── services/           # Core services
 │   ├── engine.rs       # Execution engine (53KB)
 │   ├── command.rs      # Command runner (50KB)
@@ -55,7 +36,22 @@ src/
     └── log.rs          # Log types
 ```
 
+### Re-exports from ckrv-transport
+
+The following types are re-exported for backward compatibility:
+
+| Type | Source | Purpose |
+|------|--------|---------|
+| `AppState` | `ckrv-transport` | Shared application state |
+| `Hub` | `ckrv-transport` | WebSocket event broadcast hub |
+| `OrchestrationEvent` | `ckrv-transport` | Event types for real-time streaming |
+| `SharedHub` | `ckrv-transport` | Thread-safe hub reference |
+| `SystemMode` | `ckrv-transport` | Active mode (idle, planning, running) |
+| `SystemStatus` | `ckrv-transport` | Current orchestration status |
+
 ## API Endpoints
+
+All API routes are provided by the `ckrv-transport` crate and mounted by `server.rs`:
 
 ### Core CRUD
 
@@ -189,7 +185,8 @@ npm run build  # Production build
 
 | Crate | Purpose |
 |-------|---------|
-| `axum` | Web framework |
+| `ckrv-transport` | API handlers, types, and Axum router |
+| `axum` | Web framework (route composition) |
 | `tokio` | Async runtime |
 | `tower` | Middleware |
 | `rust-embed` | Static file embedding |

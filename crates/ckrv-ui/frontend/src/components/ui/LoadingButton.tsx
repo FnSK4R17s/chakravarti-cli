@@ -1,10 +1,27 @@
 /**
- * LoadingButton Component
- * 
- * A button that displays a loading spinner when in loading state.
- * This is a thin wrapper around shadcn/ui Button with loading support.
- * 
- * Migration: Now uses shadcn/ui Button component internally.
+ * @module LoadingButton
+ * @description
+ * Button component with integrated loading spinner.
+ * Wraps shadcn/ui Button to show a spinner during async operations,
+ * automatically disabling interaction when loading.
+ *
+ * @context
+ * Used throughout the app for form submissions and async actions
+ * where visual feedback is needed during processing.
+ *
+ * @dependencies
+ * - Button from @/components/ui/button
+ * - Loader2 from lucide-react
+ *
+ * @example
+ * <LoadingButton loading={isSubmitting} onClick={handleSubmit}>
+ *   Submit
+ * </LoadingButton>
+ *
+ * @example
+ * <LoadingButton loading={true} loadingText="Saving...">
+ *   Save Changes
+ * </LoadingButton>
  */
 
 import React, { type ReactNode } from 'react';

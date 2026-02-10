@@ -38,9 +38,15 @@ import { Textarea } from './ui/textarea';
 import { Loader2, Sparkles, FileText } from 'lucide-react';
 import { useCreateSpec } from '../hooks/useSpec';
 
+/**
+ * Props for the NewSpecDialog component.
+ */
 interface NewSpecDialogProps {
+    /** Whether the dialog is currently open */
     open: boolean;
+    /** Callback fired when dialog open state changes */
     onOpenChange: (open: boolean) => void;
+    /** Callback fired after successful spec creation with the new spec ID */
     onSuccess?: (specId: string) => void;
 }
 

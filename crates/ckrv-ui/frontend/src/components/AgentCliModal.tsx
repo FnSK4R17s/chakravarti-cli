@@ -57,8 +57,14 @@ const stopTerminalSession = async (sessionId: string) => {
     return res.json();
 };
 
+/**
+ * Props for AgentCliModal component.
+ * Modal providing an interactive terminal for executing AI agent commands.
+ */
 interface AgentCliModalProps {
+    /** Agent configuration containing type and settings */
     agent: AgentConfig;
+    /** Callback fired when modal is closed */
     onClose: () => void;
 }
 

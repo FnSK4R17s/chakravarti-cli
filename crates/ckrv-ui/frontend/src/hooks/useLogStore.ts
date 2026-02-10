@@ -227,6 +227,17 @@ export function useLastSeenTimestamp(executionId: string | null) {
  *
  * Provides history fetching, timestamp tracking, cache management,
  * and localStorage persistence.
+ *
+ * @param executionId - The execution run ID, or null to disable
+ * @returns {Object} Object containing log store state and operations
+ * @returns {string|null} lastSeenTimestamp - ISO timestamp of last seen log entry
+ * @returns {Function} updateTimestamp - Function to update the last seen timestamp
+ * @returns {Function} updateFromLogs - Function to update timestamp from log array
+ * @returns {Function} getTimestamp - Function to get current timestamp ref value
+ * @returns {Function} fetchMissedLogs - Async function to fetch logs since last seen
+ * @returns {Function} invalidateHistory - Function to invalidate log cache
+ * @returns {Function} clearHistory - Function to clear log cache
+ * @returns {Function} deleteExecutionLogs - Async function to delete all logs for execution
  */
 export function useLogStore(executionId: string | null) {
     const queryClient = useQueryClient();

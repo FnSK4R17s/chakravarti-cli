@@ -34,9 +34,16 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
+/**
+ * Props for TestFixModal component.
+ * Modal for running AI-powered test fix agent in a sandboxed terminal.
+ */
 interface TestFixModalProps {
+    /** Test error output to be analyzed and fixed */
     error: string;
+    /** Base git branch for the fix context */
     baseBranch: string;
+    /** Callback fired when modal is closed */
     onClose: () => void;
 }
 

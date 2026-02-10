@@ -41,12 +41,22 @@ import { formatElapsedTime, formatRelativeTime } from '../types/history';
 // TYPES
 // ============================================================
 
+/**
+ * Props for RunHistoryPanel component.
+ * Panel displaying past execution runs with status indicators and actions.
+ */
 interface RunHistoryPanelProps {
+    /** Array of historical runs to display */
     runs: Run[];
+    /** ID of the currently selected run, if any */
     selectedRunId: string | null;
+    /** Callback fired when a run is selected */
     onSelectRun: (run: Run) => void;
+    /** Callback to delete a run from history */
     onDeleteRun?: (runId: string) => void;
+    /** Whether runs are currently being loaded */
     isLoading?: boolean;
+    /** Error message if loading failed */
     error?: string | null;
 }
 

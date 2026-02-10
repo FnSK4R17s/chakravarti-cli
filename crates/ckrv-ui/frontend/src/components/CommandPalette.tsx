@@ -204,10 +204,18 @@ export const CommandPalette: React.FC = () => {
 // SUB-COMPONENTS
 // ============================================================
 
+/**
+ * Props for SpecNewDialog component.
+ * Modal dialog for creating new specifications via AI generation.
+ */
 export interface SpecNewDialogProps {
+    /** Whether the dialog is currently open */
     open: boolean;
+    /** Callback fired when dialog open state changes */
     onOpenChange: (open: boolean) => void;
+    /** Callback fired when user submits the description form */
     onSubmit: (description: string) => void;
+    /** Whether the spec creation is in progress */
     isLoading: boolean;
 }
 
@@ -294,14 +302,26 @@ export const SpecNewDialog: React.FC<SpecNewDialogProps> = ({ open, onOpenChange
     );
 };
 
+/**
+ * Props for CommandButton component.
+ * Renders a clickable command action button with icon and description.
+ */
 interface CommandButtonProps {
+    /** Icon element displayed in the button */
     icon: React.ReactNode;
+    /** Button label text */
     label: string;
+    /** Description shown below the label */
     description: string;
+    /** CLI command string shown in tooltip */
     command: string;
+    /** Click handler for executing the command */
     action?: () => void;
+    /** Whether the button is disabled */
     disabled?: boolean;
+    /** Whether the command is currently executing */
     loading?: boolean;
+    /** Color theme for the button icon */
     color: 'cyan' | 'green' | 'amber' | 'purple';
 }
 

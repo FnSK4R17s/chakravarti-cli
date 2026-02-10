@@ -102,11 +102,20 @@ interface Task {
     status: string;
 }
 
+/**
+ * Metadata for a spec returned by the specs list API.
+ * Used to populate the spec selection view when no spec is auto-selected.
+ */
 interface SpecListItem {
+    /** Spec name (folder name in specs/ directory) */
     name: string;
+    /** Full path to the spec folder */
     path: string;
+    /** Whether tasks.yaml exists for this spec */
     has_tasks: boolean;
+    /** Whether plan.yaml exists for this spec */
     has_plan: boolean;
+    /** Whether implementation has been started */
     has_implementation: boolean;
 }
 
@@ -218,12 +227,22 @@ const ComplexityDots: React.FC<{ complexity: number }> = ({ complexity }) => (
 );
 
 // Task Card Component using shadcn Card
-const TaskCard: React.FC<{
+/**
+ * Props for TaskCard component.
+ * Displays a single task with status, complexity, and expandable details.
+ */
+interface TaskCardProps {
+    /** Task data to display */
     task: Task;
+    /** Callback to update the task status */
     onStatusChange: (status: string) => void;
+    /** Whether the task details are expanded */
     expanded: boolean;
+    /** Callback to toggle the expanded state */
     onToggleExpand: () => void;
-}> = ({ task, onStatusChange, expanded, onToggleExpand }) => {
+}
+
+const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange, expanded, onToggleExpand }) => {
     const cycleStatus = () => {
         const order = ['pending', 'running', 'completed', 'failed'];
         const next = order[(order.indexOf(task.status) + 1) % order.length];
@@ -296,13 +315,24 @@ const TaskCard: React.FC<{
 };
 
 // Phase Group Component using Collapsible
-const PhaseGroup: React.FC<{
+/**
+ * Props for PhaseGroup component.
+ * Collapsible section containing all tasks for a single phase.
+ */
+interface PhaseGroupProps {
+    /** Phase name to display as the section header */
     phase: string;
+    /** All tasks in this phase */
     tasks: Task[];
+    /** Callback to update a task's status */
     onStatusChange: (taskId: string, status: string) => void;
+    /** Set of task IDs with expanded details */
     expandedTasks: Set<string>;
+    /** Callback to toggle a task's expanded state */
     toggleExpand: (id: string) => void;
-}> = ({ phase, tasks, onStatusChange, expandedTasks, toggleExpand }) => {
+}
+
+const PhaseGroup: React.FC<PhaseGroupProps> = ({ phase, tasks, onStatusChange, expandedTasks, toggleExpand }) => {
     /** Whether this phase group is collapsed */
     const [collapsed, setCollapsed] = useState(false);
     const completedCount = tasks.filter(t => t.status === 'completed').length;
@@ -362,7 +392,16 @@ const PhaseGroup: React.FC<{
 };
 
 // Summary Stats using Card
-const SummaryStats: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
+/**
+ * Props for SummaryStats component.
+ * Displays aggregate statistics for all tasks.
+ */
+interface SummaryStatsProps {
+    /** All tasks to compute statistics from */
+    tasks: Task[];
+}
+
+const SummaryStats: React.FC<SummaryStatsProps> = ({ tasks }) => {
     const stats = [
         { label: 'Total Tasks', value: tasks.length, color: 'bg-muted-foreground' },
         { label: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'bg-success' },
@@ -388,20 +427,38 @@ const SummaryStats: React.FC<{ tasks: Task[] }> = ({ tasks }) => {
 };
 
 // Filter Bar using Select components
+/**
+ * Filter state for task filtering.
+ */
 interface FilterState {
+    /** Selected phase filter, or '__all__' for no filter */
     phase: string;
+    /** Selected status filter, or '__all__' for no filter */
     status: string;
+    /** Selected risk filter, or '__all__' for no filter */
     risk: string;
+    /** Selected model tier filter, or '__all__' for no filter */
     tier: string;
+    /** Whether to show only parallelizable tasks */
     parallelOnly: boolean;
 }
 
-const FilterBar: React.FC<{
+/**
+ * Props for FilterBar component.
+ * Bar with dropdowns for filtering tasks by various criteria.
+ */
+interface FilterBarProps {
+    /** Current filter state */
     filters: FilterState;
+    /** Callback to update the filter state */
     setFilters: (f: FilterState) => void;
+    /** List of unique phase names for the phase filter */
     phases: string[];
+    /** Statistics showing filtered count, total count, and token sum */
     stats: { filtered: number; total: number; tokens: number };
-}> = ({ filters, setFilters, phases, stats }) => (
+}
+
+const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, phases, stats }) => (
     <Card className="mb-4">
         <CardContent className="p-4">
             <div className="flex items-center gap-4 flex-wrap">
@@ -475,7 +532,18 @@ const FilterBar: React.FC<{
 );
 
 // View Toggle using Tabs
-const ViewToggle: React.FC<{ view: string; setView: (v: string) => void }> = ({ view, setView }) => (
+/**
+ * Props for ViewToggle component.
+ * Tab buttons to switch between view modes.
+ */
+interface ViewToggleProps {
+    /** Currently selected view mode */
+    view: string;
+    /** Callback to change the view mode */
+    setView: (v: string) => void;
+}
+
+const ViewToggle: React.FC<ViewToggleProps> = ({ view, setView }) => (
     <Tabs value={view} onValueChange={setView}>
         <TabsList>
             <TabsTrigger value="phase" className="gap-1.5">
@@ -491,18 +559,36 @@ const ViewToggle: React.FC<{ view: string; setView: (v: string) => void }> = ({ 
 );
 
 // YAML View
-const YamlView: React.FC<{ rawYaml?: string }> = ({ rawYaml }) => (
+/**
+ * Props for YamlView component.
+ * Displays raw YAML content in a code block.
+ */
+interface YamlViewProps {
+    /** Raw YAML string to display */
+    rawYaml?: string;
+}
+
+const YamlView: React.FC<YamlViewProps> = ({ rawYaml }) => (
     <pre className="font-mono text-sm bg-muted text-foreground p-4 rounded-lg overflow-auto max-h-[60vh]">
         <code>{rawYaml || '# No YAML content'}</code>
     </pre>
 );
 
 // Spec List View using Card
-const SpecListView: React.FC<{
+/**
+ * Props for SpecListView component.
+ * Displays a list of specs with tasks for selection.
+ */
+interface SpecListViewProps {
+    /** List of specs to display */
     specs: SpecListItem[];
+    /** Callback when a spec is selected */
     onSelect: (name: string) => void;
+    /** Whether the spec list is currently loading */
     isLoading: boolean;
-}> = ({ specs, onSelect, isLoading }) => {
+}
+
+const SpecListView: React.FC<SpecListViewProps> = ({ specs, onSelect, isLoading }) => {
     const specsWithTasks = specs.filter(s => s.has_tasks);
 
     if (isLoading) {
@@ -602,7 +688,13 @@ export const TaskEditor: React.FC = () => {
         enabled: !!selectedSpecName,
     });
 
-    // Update local state when tasks are fetched
+    // === EFFECTS ===
+
+    /**
+     * Syncs local task state with fetched data from the server.
+     * Runs whenever the tasks detail query completes successfully.
+     * Resets the hasChanges flag since we're loading fresh data.
+     */
     useEffect(() => {
         if (tasksDetailData?.success && tasksDetailData.tasks) {
             setTasks(tasksDetailData.tasks);
@@ -699,7 +791,7 @@ export const TaskEditor: React.FC = () => {
         return grouped;
     }, [filteredTasks]);
 
-
+    // === RENDER HELPERS ===
 
     // Show spec list if nothing selected (neither auto nor manual)
     if (!selectedSpecName) {

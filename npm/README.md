@@ -1,6 +1,6 @@
 ---
-last_commit: 6905171
-last_updated: 2026-02-05
+last_commit: 1b27ca2
+last_updated: 2026-02-10
 ---
 
 # Chakravarti CLI
@@ -57,8 +57,8 @@ ckrv promote --push --open
 | Command | Description |
 |---------|-------------|
 | `ckrv init` | Initialize Chakravarti in the current repository |
-| `ckrv spec` | Manage specifications (new, list, show, tasks) |
-| `ckrv plan` | Generate execution plan from tasks |
+| `ckrv spec` | Manage specifications (new, clarify, design, tasks, validate, list) |
+| `ckrv plan` | Generate execution plan from tasks (in Docker) |
 | `ckrv run` | Execute orchestration (Plan → Execute → Merge) |
 | `ckrv diff` | View changes between branches |
 | `ckrv verify` | Run tests, linting, and type checking |
@@ -66,9 +66,11 @@ ckrv promote --push --open
 | `ckrv qa` | QA code review and bug analysis |
 | `ckrv fix` | Use AI to fix verification errors |
 | `ckrv promote` | Push changes and create a Pull Request |
+| `ckrv term` | Spawn interactive AI agent terminal |
 | `ckrv ui` | Launch the Web UI dashboard |
-| `ckrv cloud` | Cloud execution commands |
-| `ckrv logs` | View execution logs |
+| `ckrv cloud` | Cloud execution (login, logout, whoami, credentials) |
+| `ckrv logs` | Stream or view cloud job logs |
+| `ckrv pull` | Pull results from completed cloud jobs |
 
 ## Agents
 

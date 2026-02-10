@@ -23,14 +23,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 // ===== Types =====
 
+/**
+ * Information about a recent project for display in the selector.
+ */
 interface ProjectInfo {
+    /** Full filesystem path to the project */
     path: string;
+    /** Display name of the project (folder name) */
     name: string;
+    /** Whether the project folder still exists on disk */
     exists: boolean;
 }
 
+/**
+ * Props for the ProjectSelector component.
+ */
 interface ProjectSelectorProps {
-    /** Called when a project is selected and saved */
+    /** Callback fired after a project is selected and saved */
     onProjectSelected?: () => void;
 }
 

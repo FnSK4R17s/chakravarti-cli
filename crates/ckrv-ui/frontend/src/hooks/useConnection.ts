@@ -31,6 +31,12 @@ interface UseConnectionResult {
 /**
  * Hook to monitor backend connectivity.
  * Pings the /api/status endpoint periodically to check if backend is alive.
+ *
+ * @param intervalMs - Interval in milliseconds between connectivity checks (default: 5000)
+ * @returns Object containing:
+ *   - status: Current connection status ('connected' | 'disconnected' | 'connecting')
+ *   - lastChecked: Timestamp of last connectivity check or null
+ *   - checkNow: Function to trigger an immediate connectivity check
  */
 export const useConnection = (intervalMs: number = 5000): UseConnectionResult => {
     const [status, setStatus] = useState<ConnectionStatus>('disconnected');

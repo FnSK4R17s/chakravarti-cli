@@ -1,6 +1,6 @@
 ---
-last_commit: 34d5c95
-last_updated: 2026-02-03
+last_commit: 1b27ca2
+last_updated: 2026-02-10
 related_files:
   - src/main.rs
   - src/lib.rs
@@ -67,6 +67,7 @@ src/
 │   ├── report.rs        # ckrv report
 │   ├── pull.rs          # ckrv pull
 │   ├── ui.rs            # ckrv ui
+│   ├── term.rs          # ckrv term
 │   └── cloud/           # ckrv cloud subcommands
 ├── services/            # Shared services
 │   ├── agent_lookup.rs  # Agent configuration loading
@@ -164,6 +165,7 @@ make skill
 | `ckrv task` | `task.rs` | Manage individual tasks |
 | `ckrv pull` | `pull.rs` | Pull remote changes |
 | `ckrv ui` | `ui.rs` | Launch web dashboard |
+| `ckrv term` | `term.rs` | Spawn interactive AI agent terminal |
 | `ckrv cloud` | `cloud/` | Cloud execution commands |
 
 ## Services Module

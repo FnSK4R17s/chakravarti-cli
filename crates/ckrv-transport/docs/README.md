@@ -1,6 +1,6 @@
 ---
-last_commit: 6905171
-last_updated: 2026-02-05
+last_commit: 1b27ca2
+last_updated: 2026-02-10
 related_files:
   - src/lib.rs
   - src/handlers/mod.rs
@@ -94,6 +94,9 @@ src/
 │   ├── agents.rs
 │   ├── specs.rs
 │   ├── tasks.rs
+│   ├── plans.rs
+│   ├── history.rs
+│   ├── status.rs
 │   ├── execution.rs
 │   └── ...
 ├── types/              # Request/Response types

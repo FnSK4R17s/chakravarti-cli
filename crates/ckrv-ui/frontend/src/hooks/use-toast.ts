@@ -183,6 +183,12 @@ function toast({ ...props }: Toast) {
     }
 }
 
+/**
+ * @returns {Object} Object containing toast state and dispatch functions
+ * @returns {ToasterToast[]} toasts - Array of current toast notifications
+ * @returns {Function} toast - Function to add a new toast notification
+ * @returns {Function} dismiss - Function to dismiss toasts by ID or all toasts
+ */
 function useToast() {
     const [state, setState] = React.useState<State>(memoryState)
 

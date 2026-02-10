@@ -148,14 +148,26 @@ const fetchSpecDetail = async (name: string): Promise<{ success: boolean; spec?:
 // === SUB-COMPONENTS ===
 
 // Collapsible Section Component
-const Section: React.FC<{
+/**
+ * Props for Section component.
+ * Collapsible card section with a title and optional count badge.
+ */
+interface SectionProps {
+    /** Section title displayed in the header */
     title: string;
+    /** Optional count to display as a badge */
     count?: number;
+    /** Content to show when expanded */
     children: React.ReactNode;
+    /** Whether the section starts expanded */
     defaultOpen?: boolean;
+    /** Color theme for the section border and background */
     color?: 'slate' | 'blue' | 'green' | 'amber' | 'purple' | 'cyan';
+    /** Optional icon to display before the title */
     icon?: React.ReactNode;
-}> = ({ title, count, children, defaultOpen = true, color = 'slate', icon }) => {
+}
+
+const Section: React.FC<SectionProps> = ({ title, count, children, defaultOpen = true, color = 'slate', icon }) => {
     /** Whether this collapsible section is expanded */
     const [isOpen, setIsOpen] = useState(defaultOpen);
     const colorClasses = {
@@ -193,7 +205,16 @@ const Section: React.FC<{
 };
 
 // Priority Badge
-const PriorityBadge: React.FC<{ priority: string }> = ({ priority }) => {
+/**
+ * Props for PriorityBadge component.
+ * Displays priority level with color-coded styling.
+ */
+interface PriorityBadgeProps {
+    /** Priority level: P1 (critical), P2 (major), or P3 (minor) */
+    priority: string;
+}
+
+const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
     const variants: Record<string, "destructive" | "warning" | "success"> = {
         P1: 'destructive',
         P2: 'warning',
@@ -207,7 +228,16 @@ const PriorityBadge: React.FC<{ priority: string }> = ({ priority }) => {
 };
 
 // User Story Card
-const UserStoryCard: React.FC<{ story: UserStory }> = ({ story }) => {
+/**
+ * Props for UserStoryCard component.
+ * Expandable card displaying a user story with details and acceptance criteria.
+ */
+interface UserStoryCardProps {
+    /** User story data to display */
+    story: UserStory;
+}
+
+const UserStoryCard: React.FC<UserStoryCardProps> = ({ story }) => {
     /** Whether this user story card is expanded to show details */
     const [expanded, setExpanded] = useState(false);
 
@@ -267,10 +297,18 @@ const UserStoryCard: React.FC<{ story: UserStory }> = ({ story }) => {
 };
 
 // View Mode Toggle
-const ViewToggle: React.FC<{
+/**
+ * Props for ViewToggle component.
+ * Tab buttons to switch between visual, outline, and code views.
+ */
+interface ViewToggleProps {
+    /** Currently selected view mode */
     view: string;
+    /** Callback to change the view mode */
     setView: (v: string) => void;
-}> = ({ view, setView }) => (
+}
+
+const ViewToggle: React.FC<ViewToggleProps> = ({ view, setView }) => (
     <Tabs value={view} onValueChange={setView}>
         <TabsList>
             <TabsTrigger value="visual" className="gap-1.5">
@@ -290,7 +328,16 @@ const ViewToggle: React.FC<{
 );
 
 // Outline View
-const OutlineView: React.FC<{ spec: SpecDetail }> = ({ spec }) => (
+/**
+ * Props for OutlineView component.
+ * Displays spec structure as a tree outline.
+ */
+interface OutlineViewProps {
+    /** Spec data to display */
+    spec: SpecDetail;
+}
+
+const OutlineView: React.FC<OutlineViewProps> = ({ spec }) => (
     <div className="font-mono text-sm space-y-1">
         <div className="text-muted-foreground">spec:</div>
         <div className="pl-4">
@@ -320,18 +367,36 @@ const OutlineView: React.FC<{ spec: SpecDetail }> = ({ spec }) => (
 );
 
 // YAML View
-const YamlView: React.FC<{ rawYaml?: string }> = ({ rawYaml }) => (
+/**
+ * Props for YamlView component.
+ * Displays raw YAML content in a code block.
+ */
+interface YamlViewProps {
+    /** Raw YAML string to display */
+    rawYaml?: string;
+}
+
+const YamlView: React.FC<YamlViewProps> = ({ rawYaml }) => (
     <pre className="font-mono text-sm bg-muted text-foreground p-4 rounded-lg overflow-auto max-h-[60vh]">
         <code>{rawYaml || '# No YAML content'}</code>
     </pre>
 );
 
 // Spec List View
-const SpecListView: React.FC<{
+/**
+ * Props for SpecListView component.
+ * Displays a list of specs for selection when no spec is auto-selected.
+ */
+interface SpecListViewProps {
+    /** List of specs to display */
     specs: SpecListItem[];
+    /** Callback when a spec is selected */
     onSelect: (name: string) => void;
+    /** Whether the spec list is currently loading */
     isLoading: boolean;
-}> = ({ specs, onSelect, isLoading }) => {
+}
+
+const SpecListView: React.FC<SpecListViewProps> = ({ specs, onSelect, isLoading }) => {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -432,7 +497,12 @@ export const SpecEditor: React.FC = () => {
         enabled: !!selectedSpecName,
     });
 
-    // Update local state when spec detail is fetched
+    // === EFFECTS ===
+
+    /**
+     * Updates local spec state when spec detail data is fetched.
+     * Syncs the spec and rawYaml from the query result to local state.
+     */
     useEffect(() => {
         if (specDetailData?.success && specDetailData.spec) {
             setSpec(specDetailData.spec);

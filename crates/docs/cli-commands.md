@@ -1,6 +1,6 @@
 ---
-last_commit: 6905171
-last_updated: 2026-02-05
+last_commit: 1b27ca2
+last_updated: 2026-02-10
 related_files:
   - crates/ckrv-cli/src/lib.rs
   - crates/ckrv-cli/src/commands/mod.rs
@@ -55,29 +55,32 @@ ckrv spec <SUBCOMMAND>
 
 **Subcommands:**
 - `new <description>`: Create new spec from description
-- `list`: List all specs
-- `show`: Display current spec
+- `clarify`: Resolve clarifications in an existing spec
+- `design`: Generate technical design document
+- `init <name>`: Initialize an empty spec directory with templates
 - `tasks`: Generate implementation tasks
+- `validate`: Validate a specification file
+- `list`: List all specs
 
 **Examples:**
 ```bash
 ckrv spec new "Add user authentication with OAuth2"
 ckrv spec tasks
+ckrv spec design
 ```
 
 ---
 
 ### `plan`
 
-Generate or view execution plans.
+Generate execution plan from tasks using AI (runs in Docker).
 
 ```bash
-ckrv plan [OPTIONS]
+ckrv plan [OPTIONS] [SPEC]
 ```
 
 **Options:**
-- `--regenerate`: Force regeneration of plan
-- `--show`: Display current plan
+- `--force, -f`: Force regeneration even if plan.yaml exists
 
 ---
 
@@ -86,14 +89,15 @@ ckrv plan [OPTIONS]
 Execute the orchestration engine.
 
 ```bash
-ckrv run [OPTIONS]
+ckrv run [OPTIONS] [SPEC]
 ```
 
 **Options:**
-- `--batch <N>`: Run specific batch only
-- `--parallel <N>`: Max parallel agents (default: 3)
-- `--dry-run`: Preview without execution
-- `--no-merge`: Skip auto-merge step
+- `--agent`: Agent to use for execution (claude or codex)
+- `--cloud`: Execute job in Chakravarti Cloud
+- `--credential`: Git credential name for cloud execution
+- `--executor-model, -e`: Override the AI model/agent
+- `--optimize, -o`: Optimization strategy (default: balanced)
 
 **Exit codes:**
 - `0`: All tasks succeeded
@@ -111,9 +115,11 @@ ckrv diff [OPTIONS]
 ```
 
 **Options:**
-- `--stat`: Show file statistics only
+- `--base, -b <branch>`: Compare against specific branch (default: main)
+- `--color`: Color mode for diff output (default: auto)
 - `--files`: List changed files only
-- `--base <branch>`: Compare against specific branch (default: main)
+- `--stat`: Show file statistics only
+- `--summary`: Generate AI summary of changes
 
 ---
 
@@ -130,9 +136,10 @@ ckrv verify [OPTIONS]
 **Options:**
 - `--lint`: Run linting only
 - `--test`: Run tests only
-- `--typecheck`: Run type checking only
+- `--type`: Run type checking only
 - `--fix`: Auto-fix linting issues
 - `--save`: Save results to verification.yaml
+- `--continue-on-failure`: Run all checks even if some fail
 
 **Exit codes:**
 - `0`: All checks passed
@@ -221,7 +228,10 @@ ckrv fix [OPTIONS]
 
 **Options:**
 - `--lint`: Fix lint errors only
+- `--test`: Fix test failures only
+- `--type`: Fix type errors only
 - `--check`: Re-run verification after fix
+- `--error`: Specific error message to fix (from UI)
 
 ---
 
@@ -234,16 +244,40 @@ ckrv promote [OPTIONS]
 ```
 
 **Options:**
-- `--push`: Push to remote first
+- `--base, -b <branch>`: Target branch (default: main)
 - `--draft`: Create as draft PR
 - `--open`: Open PR URL in browser
-- `--base <branch>`: Target branch (default: main)
+- `--push`: Push to remote first
+- `--remote`: Remote name (default: origin)
+- `--skip-verify`: Skip verification checks
+
+---
+
+### `term`
+
+Spawn an interactive AI agent terminal session.
+
+```bash
+ckrv term [OPTIONS] [-- ARGS...]
+```
+
+**Options:**
+- `--agent, -a`: Agent ID to spawn directly (skips selection)
+- `--list, -l`: List available agents and exit
+
+**Examples:**
+```bash
+ckrv term                              # Interactive selection
+ckrv term --agent my-openrouter-agent  # Direct agent spawn
+ckrv term -- --dangerously-skip-permissions  # Pass args through
+ckrv term --list                       # List agents
+```
 
 ---
 
 ### `status`
 
-Show current workflow status.
+Show current workflow status (hidden command).
 
 ```bash
 ckrv status [OPTIONS]
@@ -256,53 +290,30 @@ ckrv status [OPTIONS]
 
 ### `logs`
 
-View execution logs.
+Stream or view logs from a cloud job.
 
 ```bash
-ckrv logs [OPTIONS]
+ckrv logs <JOB_ID> [OPTIONS]
 ```
 
 **Options:**
-- `--follow`: Stream logs in real-time
-- `--batch <N>`: Show logs for specific batch
-
----
-
-### `report`
-
-Generate execution report.
-
-```bash
-ckrv report [OPTIONS]
-```
-
-**Options:**
-- `--format <fmt>`: Output format (markdown, json, html)
-
----
-
-### `task`
-
-Manage individual tasks.
-
-```bash
-ckrv task <SUBCOMMAND>
-```
-
-**Subcommands:**
-- `list`: List all tasks
-- `show <id>`: Show task details
-- `retry <id>`: Retry failed task
+- `--follow, -f`: Stream logs in real-time
+- `--json`: Output as JSON
+- `--tail, -n <N>`: Number of recent lines (default: 100)
 
 ---
 
 ### `pull`
 
-Pull changes from remote.
+Pull results from a completed cloud job.
 
 ```bash
-ckrv pull
+ckrv pull <JOB_ID> [OPTIONS]
 ```
+
+**Options:**
+- `--apply`: Apply diff to current worktree (default: true)
+- `--output`: Output diff to file instead of applying
 
 ---
 
@@ -316,7 +327,6 @@ ckrv ui [OPTIONS]
 
 **Options:**
 - `--port <N>`: Server port (default: 3000)
-- `--open`: Open in browser
 
 ---
 
@@ -329,9 +339,19 @@ ckrv cloud <SUBCOMMAND>
 ```
 
 **Subcommands:**
-- `auth`: Authenticate with cloud
-- `sync`: Sync local state to cloud
-- `status`: Show cloud job status
+- `login`: Authenticate with Chakravarti Cloud
+- `logout`: Clear stored credentials
+- `whoami`: Display current authenticated user
+- `credentials`: Manage git credentials for private repos
+
+---
+
+### Hidden Commands
+
+The following commands exist but are hidden from `--help`:
+- `task`: Manage individual tasks
+- `status`: Show workflow status
+- `report`: Generate execution report
 
 ## Exit Codes
 

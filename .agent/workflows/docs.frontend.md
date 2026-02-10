@@ -567,7 +567,7 @@ done
 
 The frontend README should describe the project, not be Vite boilerplate.
 
-// turbo
+<!-- turbo -->
 ```bash
 cat crates/ckrv-ui/frontend/README.md
 ```
@@ -623,12 +623,12 @@ See `crates/ckrv-ui/docs/api-reference.md` for endpoint documentation.
 
 ### Step 5.5.2: Update api-reference.md
 
-// turbo
+<!-- turbo -->
 ```bash
 cat crates/ckrv-ui/docs/api-reference.md 2>/dev/null || echo "File needs to be created"
 ```
 
-// turbo
+<!-- turbo -->
 ```bash
 # Extract API routes from Rust backend
 grep -r "web::" crates/ckrv-ui/src/api/*.rs | grep -E "get|post|put|delete" | head -30

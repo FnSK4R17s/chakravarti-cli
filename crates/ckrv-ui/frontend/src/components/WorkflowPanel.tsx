@@ -210,14 +210,26 @@ export const WorkflowPanel: React.FC = () => {
 
 // === SUB-COMPONENTS ===
 
+/**
+ * Props for PipelineStage component.
+ * Displays a single stage in the workflow pipeline with status indicators.
+ */
 interface PipelineStageProps {
+    /** Icon to display for the stage */
     icon: React.ReactNode;
+    /** Stage title text */
     title: string;
+    /** Count of items in this stage */
     count: number;
+    /** Current status determining visual styling */
     status: 'empty' | 'complete' | 'running' | 'idle';
+    /** Color theme for the stage indicator */
     color: 'cyan' | 'green' | 'purple' | 'amber';
+    /** Whether the stage data is loading */
     loading?: boolean;
+    /** Optional subtitle displayed below title */
     subtitle?: string;
+    /** Child content rendered in the stage body */
     children: React.ReactNode;
 }
 
@@ -289,7 +301,16 @@ const PipelineStage: React.FC<PipelineStageProps> = ({
     );
 };
 
-const SpecItem: React.FC<{ spec: Spec }> = ({ spec }) => {
+/**
+ * Props for SpecItem component.
+ * Displays a single spec with status indicators.
+ */
+interface SpecItemProps {
+    /** Spec data to display */
+    spec: Spec;
+}
+
+const SpecItem: React.FC<SpecItemProps> = ({ spec }) => {
     return (
         <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-accent/30">
             <div
@@ -314,7 +335,16 @@ const SpecItem: React.FC<{ spec: Spec }> = ({ spec }) => {
     );
 };
 
-const TaskItem: React.FC<{ task: Task }> = ({ task }) => {
+/**
+ * Props for TaskItem component.
+ * Displays a single task with status icon and title.
+ */
+interface TaskItemProps {
+    /** Task data to display */
+    task: Task;
+}
+
+const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
     const getStatusIcon = () => {
         switch (task.status) {
             case 'completed':
@@ -344,7 +374,18 @@ const TaskItem: React.FC<{ task: Task }> = ({ task }) => {
     );
 };
 
-const EmptyState: React.FC<{ text: string; hint: string }> = ({ text, hint }) => (
+/**
+ * Props for EmptyState component.
+ * Displays a placeholder message with a command hint.
+ */
+interface EmptyStateProps {
+    /** Main message to display */
+    text: string;
+    /** CLI command hint for the user */
+    hint: string;
+}
+
+const EmptyState: React.FC<EmptyStateProps> = ({ text, hint }) => (
     <div className="text-center py-2">
         <div className="text-xs mb-1 text-muted-foreground">
             {text}
@@ -355,8 +396,14 @@ const EmptyState: React.FC<{ text: string; hint: string }> = ({ text, hint }) =>
     </div>
 );
 
+/**
+ * Props for ImplementationDetails component.
+ * Shows completion details when implementation is done.
+ */
 interface ImplementationDetailsProps {
+    /** Git branch where implementation was merged */
     branch: string;
+    /** Number of tasks that were completed */
     tasksCompleted: number;
 }
 

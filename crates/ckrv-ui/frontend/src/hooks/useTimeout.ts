@@ -75,7 +75,13 @@ export function useTimeout(): UseTimeoutReturn {
 }
 
 /**
- * Convenience hook for a single delayed callback
+ * Convenience hook for a single delayed callback.
+ * Executes the callback after the specified delay when enabled is true.
+ *
+ * @param callback - Function to execute after the delay
+ * @param delay - Delay in milliseconds before executing callback
+ * @param enabled - Whether the delayed callback should be scheduled (default: true)
+ * @returns void
  */
 export function useDelayedCallback(
     callback: () => void,

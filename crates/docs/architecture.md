@@ -1,6 +1,6 @@
 ---
-last_commit: 6905171
-last_updated: 2026-02-05
+last_commit: 1b27ca2
+last_updated: 2026-02-10
 related_files:
   - Cargo.toml
   - crates/ckrv-core/src/lib.rs
@@ -37,6 +37,9 @@ graph TD
     
     TRANSPORT --> CORE
     
+    TAURI[ckrv-tauri] --> TRANSPORT
+    TAURI --> UI
+    
     MCP[ckrv-mcp] --> CLI
     
     VERIFY[ckrv-verify] --> SANDBOX
@@ -55,8 +58,9 @@ graph TD
 | `ckrv-metrics` | Metrics collection, cost/time tracking, file storage | ✅ Used |
 | `ckrv-verify` | Test execution, output parsing, acceptance checking | ⚠️ **Unused** |
 | `ckrv-integrations` | External service integrations (GitHub, etc.) | ⚠️ **Stub** |
-| `ckrv-ui` | Web dashboard server, REST API, WebSocket events | ✅ Used |
+| `ckrv-ui` | Web dashboard server, static file serving, execution engine | ✅ Used |
 | `ckrv-transport` | Shared HTTP API types, handlers, and routes for web/desktop | ✅ Used |
+| `ckrv-tauri` | Tauri desktop application (wraps ckrv-transport) | ✅ Used |
 | `ckrv-mcp` | MCP server exposing CLI commands as tools for AI agents | ✅ Used |
 
 ## Execution Flow

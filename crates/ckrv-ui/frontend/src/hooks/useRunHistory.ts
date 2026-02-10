@@ -121,6 +121,10 @@ export async function deleteRun(
 
 /**
  * Hook for fetching run history
+ * @param spec - The spec name to fetch history for, or null to disable
+ * @param limit - Maximum number of runs to fetch
+ * @param offset - Offset for pagination
+ * @returns {UseQueryResult<HistoryListResponse>} React Query result containing run history list
  */
 export function useRunHistory(spec: string | null, limit = 50, offset = 0) {
     return useQuery({
@@ -134,6 +138,9 @@ export function useRunHistory(spec: string | null, limit = 50, offset = 0) {
 
 /**
  * Hook for fetching a single run
+ * @param spec - The spec name, or null to disable
+ * @param runId - The run ID to fetch, or null to disable
+ * @returns {UseQueryResult<HistoryDetailResponse>} React Query result containing run detail
  */
 export function useRun(spec: string | null, runId: string | null) {
     return useQuery({
@@ -146,6 +153,7 @@ export function useRun(spec: string | null, runId: string | null) {
 
 /**
  * Hook for creating a new run
+ * @returns {UseMutationResult<CreateRunResponse, Error, Object>} Mutation for creating a run
  */
 export function useCreateRun() {
     const queryClient = useQueryClient();
@@ -166,6 +174,7 @@ export function useCreateRun() {
 
 /**
  * Hook for updating run status
+ * @returns {UseMutationResult<Object, Error, Object>} Mutation for updating run status
  */
 export function useUpdateRunStatus() {
     const queryClient = useQueryClient();
@@ -186,6 +195,7 @@ export function useUpdateRunStatus() {
 
 /**
  * Hook for deleting a run
+ * @returns {UseMutationResult<Object, Error, Object>} Mutation for deleting a run
  */
 export function useDeleteRun() {
     const queryClient = useQueryClient();

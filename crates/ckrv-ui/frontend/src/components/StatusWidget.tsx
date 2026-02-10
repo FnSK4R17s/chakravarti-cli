@@ -210,12 +210,21 @@ export const StatusWidget: React.FC = () => {
 // SUB-COMPONENTS
 // ============================================================
 
+/**
+ * Props for the StatusRow sub-component.
+ */
 interface StatusRowProps {
+    /** Icon to display alongside the label */
     icon: React.ReactNode;
+    /** Label text describing the status item */
     label: string;
+    /** Value text to display */
     value: string;
+    /** Visual status indicator color */
     status?: 'success' | 'warning' | 'error';
+    /** Whether to use monospace font for value */
     mono?: boolean;
+    /** Optional hint text shown below the row */
     hint?: string;
 }
 

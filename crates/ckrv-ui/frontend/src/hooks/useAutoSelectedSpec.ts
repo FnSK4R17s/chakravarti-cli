@@ -49,11 +49,15 @@ const fetchSpecs = async (): Promise<SpecsResponse> => {
 
 /**
  * Hook to automatically determine the current spec based on the active git branch.
- * 
- * The spec name is derived from the branch name (e.g., branch "015-unified-code-page" 
+ *
+ * The spec name is derived from the branch name (e.g., branch "015-unified-code-page"
  * maps to spec "015-unified-code-page").
- * 
- * @returns The auto-selected spec name if found, otherwise null
+ *
+ * @returns Object containing:
+ *   - selectedSpec: The auto-selected spec name if found, otherwise null
+ *   - availableSpecs: Array of all available specs
+ *   - isLoading: Whether status or specs are still loading
+ *   - activeBranch: The current git branch name or null
  */
 export function useAutoSelectedSpec(): {
     selectedSpec: string | null;

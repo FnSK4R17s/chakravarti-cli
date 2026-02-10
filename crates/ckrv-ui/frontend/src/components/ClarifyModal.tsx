@@ -44,12 +44,21 @@ import { type Clarification } from '../hooks/useSpec';
 // TYPES
 // ============================================================
 
+/**
+ * Props for the ClarifyModal component.
+ */
 interface ClarifyModalProps {
+    /** Whether the dialog is currently open */
     open: boolean;
+    /** Callback fired when dialog open state changes */
     onOpenChange: (open: boolean) => void;
+    /** Name of the spec being clarified */
     specName: string;
+    /** Array of clarification questions to present */
     clarifications: Clarification[];
+    /** Async callback fired when user submits all answers */
     onSubmit: (answers: { topic: string; answer: string }[]) => Promise<void>;
+    /** Whether the submission is in progress */
     isSubmitting?: boolean;
 }
 

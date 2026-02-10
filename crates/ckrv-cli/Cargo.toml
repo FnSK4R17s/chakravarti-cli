@@ -15,6 +15,10 @@ path = "src/main.rs"
 name = "skill_gen"
 path = "src/bin/skill_gen.rs"
 
+[[bin]]
+name = "command_docs_gen"
+path = "src/bin/command_docs_gen.rs"
+
 [dependencies]
 ckrv-core = { workspace = true }
 ckrv-spec = { workspace = true }
