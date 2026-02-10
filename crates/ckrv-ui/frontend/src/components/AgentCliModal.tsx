@@ -39,11 +39,11 @@ import { Button } from '@/components/ui/button';
 // ============================================================
 
 // API functions
-const startTerminalSession = async (sessionId: string, agent: AgentConfig) => {
+const startTerminalSession = async (sessionId: string, agent: AgentConfig, cols?: number, rows?: number) => {
     const res = await fetch('/api/terminal/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, agent }),
+        body: JSON.stringify({ session_id: sessionId, agent, cols, rows }),
     });
     return res.json();
 };
@@ -171,7 +171,7 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
             // Start terminal session
             try {
                 console.log('[AgentCliModal] Calling /api/terminal/start with session_id:', sessionIdRef.current);
-                const res = await startTerminalSession(sessionIdRef.current, agent);
+                const res = await startTerminalSession(sessionIdRef.current, agent, term.cols, term.rows);
                 console.log('[AgentCliModal] API response:', res);
                 if (!mounted) return;
 
@@ -316,6 +316,13 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                         term.onData((data) => {
                             if (ws.readyState === WebSocket.OPEN) {
                                 ws.send(data);
+                            }
+                        });
+
+                        // Forward resize events to Docker exec via WebSocket
+                        term.onResize(({ cols, rows }) => {
+                            if (ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ type: 'resize', cols, rows }));
                             }
                         });
                     }

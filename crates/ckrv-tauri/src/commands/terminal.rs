@@ -114,6 +114,11 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
     };
     env.insert("HOME".to_string(), home.to_string());
 
+    // TERM is critical for TUI-based CLIs (Codex uses Ink, Kilo uses similar).
+    // Without it, these tools can't detect terminal capabilities and render blank in xterm.js.
+    env.insert("TERM".to_string(), "xterm-256color".to_string());
+    env.insert("COLORTERM".to_string(), "truecolor".to_string());
+
     env
 }
 
