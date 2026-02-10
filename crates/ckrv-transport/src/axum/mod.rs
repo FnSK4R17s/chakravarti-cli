@@ -28,6 +28,7 @@ pub mod console;
 pub mod diff;
 pub mod docker;
 pub mod events;
+pub mod example;
 pub mod execution;
 pub mod history;
 pub mod plans;
@@ -38,7 +39,6 @@ pub mod status;
 pub mod tasks;
 pub mod terminal;
 pub mod test;
-pub mod example;
 
 use crate::state::AppState;
 use axum::Router;

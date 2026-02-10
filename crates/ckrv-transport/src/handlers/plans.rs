@@ -90,18 +90,18 @@ pub async fn list_plans_handler(state: &AppState) -> Result<ListPlansResponse, T
                             .to_string();
 
                         // Try to load and count batches
-                        let (batch_count, total_cost) =
-                            if let Ok(content) = fs::read_to_string(&plan_path) {
-                                if let Ok(plan) = serde_yaml::from_str::<PlanFile>(&content) {
-                                    let cost: f64 =
-                                        plan.batches.iter().map(|b| b.estimated_cost).sum();
-                                    (plan.batches.len(), Some(cost))
-                                } else {
-                                    (0, None)
-                                }
+                        let (batch_count, total_cost) = if let Ok(content) =
+                            fs::read_to_string(&plan_path)
+                        {
+                            if let Ok(plan) = serde_yaml::from_str::<PlanFile>(&content) {
+                                let cost: f64 = plan.batches.iter().map(|b| b.estimated_cost).sum();
+                                (plan.batches.len(), Some(cost))
                             } else {
                                 (0, None)
-                            };
+                            }
+                        } else {
+                            (0, None)
+                        };
 
                         plans.push(PlanSummary {
                             spec_name,
@@ -196,7 +196,10 @@ pub async fn update_plan_handler(
 }
 
 /// Delete a plan.
-pub async fn delete_plan_handler(state: &AppState, spec_name: String) -> Result<(), TransportError> {
+pub async fn delete_plan_handler(
+    state: &AppState,
+    spec_name: String,
+) -> Result<(), TransportError> {
     let plan_path = get_spec_path(&state.project_root, &spec_name).join("plan.yaml");
 
     if !plan_path.exists() {

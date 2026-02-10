@@ -4,9 +4,7 @@
 
 use crate::error::TransportError;
 use crate::state::AppState;
-use crate::types::{
-    ListTasksResponse, TaskDetail, TaskStatus, TaskSummary, UpdateTaskRequest,
-};
+use crate::types::{ListTasksResponse, TaskDetail, TaskStatus, TaskSummary, UpdateTaskRequest};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -250,7 +248,9 @@ pub async fn update_task_handler(
     }
 
     // Write back
-    let output = TasksOutput { tasks: tasks.clone() };
+    let output = TasksOutput {
+        tasks: tasks.clone(),
+    };
     let yaml = serde_yaml::to_string(&output)
         .map_err(|e| TransportError::Internal(format!("Failed to serialize tasks: {e}")))?;
 
@@ -258,10 +258,7 @@ pub async fn update_task_handler(
         .map_err(|e| TransportError::Internal(format!("Failed to write tasks: {e}")))?;
 
     // Return updated task
-    let task = tasks
-        .into_iter()
-        .find(|t| t.id == task_id)
-        .unwrap();
+    let task = tasks.into_iter().find(|t| t.id == task_id).unwrap();
 
     Ok(TaskDetail {
         id: task.id,

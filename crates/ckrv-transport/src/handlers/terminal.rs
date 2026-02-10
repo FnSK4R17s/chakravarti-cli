@@ -228,11 +228,16 @@ pub async fn start_terminal_handler(
                     ));
                 }
 
-                tracing::info!("GLM Coding Plan agent configured: model={}", glm_config.model);
+                tracing::info!(
+                    "GLM Coding Plan agent configured: model={}",
+                    glm_config.model
+                );
             }
         }
 
-        tracing::info!("Terminal session using GLM Coding Plan - skipping Claude credential mounts");
+        tracing::info!(
+            "Terminal session using GLM Coding Plan - skipping Claude credential mounts"
+        );
     } else if is_openrouter {
         // OpenRouter configuration for Claude Code
         // See: https://openrouter.ai/docs/guides/guides/claude-code-integration
@@ -332,10 +337,7 @@ pub async fn start_terminal_handler(
     match docker.create_container(options, config).await {
         Ok(container) => {
             // Start container
-            if let Err(e) = docker
-                .start_container::<String>(&container.id, None)
-                .await
-            {
+            if let Err(e) = docker.start_container::<String>(&container.id, None).await {
                 return Ok(StartTerminalResponse {
                     success: false,
                     session_id,
@@ -506,17 +508,23 @@ pub async fn handle_terminal_ws(socket: WebSocket, session_id: String) {
                 match msg {
                     Message::Text(ref text) => {
                         // Check if this is a resize JSON message from the frontend
-                        if let Ok(resize) = serde_json::from_str::<serde_json::Value>(text.as_ref()) {
+                        if let Ok(resize) = serde_json::from_str::<serde_json::Value>(text.as_ref())
+                        {
                             if resize.get("type").and_then(|t| t.as_str()) == Some("resize") {
-                                let cols = resize.get("cols").and_then(|c| c.as_u64()).unwrap_or(120) as u16;
-                                let rows = resize.get("rows").and_then(|r| r.as_u64()).unwrap_or(30) as u16;
-                                let _ = docker_for_input.resize_exec(
-                                    &exec_id_for_input,
-                                    ResizeExecOptions {
-                                        width: cols,
-                                        height: rows,
-                                    },
-                                ).await;
+                                let cols =
+                                    resize.get("cols").and_then(|c| c.as_u64()).unwrap_or(120)
+                                        as u16;
+                                let rows = resize.get("rows").and_then(|r| r.as_u64()).unwrap_or(30)
+                                    as u16;
+                                let _ = docker_for_input
+                                    .resize_exec(
+                                        &exec_id_for_input,
+                                        ResizeExecOptions {
+                                            width: cols,
+                                            height: rows,
+                                        },
+                                    )
+                                    .await;
                                 continue;
                             }
                         }

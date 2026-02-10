@@ -38,7 +38,7 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_pty::init())     // PTY for interactive terminals
+        .plugin(tauri_plugin_pty::init()) // PTY for interactive terminals
         .plugin(tauri_plugin_process::init()) // Process for app restart
         .setup(|app| {
             // Initialize app state - load project root from saved config or use cwd as fallback
@@ -58,7 +58,8 @@ fn main() {
             app.manage(shared_state);
 
             // Initialize terminal sessions state (using parking_lot::Mutex for sync access)
-            let terminal_sessions: TerminalSessions = Arc::new(parking_lot::Mutex::new(HashMap::new()));
+            let terminal_sessions: TerminalSessions =
+                Arc::new(parking_lot::Mutex::new(HashMap::new()));
             app.manage(terminal_sessions);
 
             // Open DevTools in debug builds
@@ -85,6 +86,7 @@ fn main() {
             commands::agents::set_qa_agent,
             commands::agents::set_test_writer_agent,
             commands::agents::test_agent,
+            commands::agents::get_kilo_models,
             // Spec commands
             commands::specs::list_specs,
             commands::specs::get_spec,
@@ -157,4 +159,3 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-

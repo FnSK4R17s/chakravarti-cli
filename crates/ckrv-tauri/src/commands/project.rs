@@ -93,7 +93,7 @@ impl From<PathBuf> for ProjectInfo {
 pub async fn get_project_root(_state: State<'_, SharedState>) -> Result<Option<String>, String> {
     // Check if we have a saved config with an explicit project root
     let config = TauriConfig::load();
-    
+
     // Return the saved project root if it exists and the path still exists
     match config.project_root {
         Some(path) if path.exists() => Ok(Some(path.display().to_string())),
@@ -129,7 +129,11 @@ pub async fn set_project_root(path: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn get_recent_projects() -> Result<Vec<ProjectInfo>, String> {
     let config = TauriConfig::load();
-    let projects: Vec<ProjectInfo> = config.recent_projects.into_iter().map(ProjectInfo::from).collect();
+    let projects: Vec<ProjectInfo> = config
+        .recent_projects
+        .into_iter()
+        .map(ProjectInfo::from)
+        .collect();
     Ok(projects)
 }
 

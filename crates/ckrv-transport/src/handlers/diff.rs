@@ -205,10 +205,7 @@ pub async fn get_diff_handler(
 }
 
 /// Apply a diff patch.
-pub async fn apply_diff_handler(
-    state: &AppState,
-    patch: String,
-) -> Result<(), TransportError> {
+pub async fn apply_diff_handler(state: &AppState, patch: String) -> Result<(), TransportError> {
     let cwd = &state.project_root;
 
     let mut child = Command::new("git")

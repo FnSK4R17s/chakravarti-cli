@@ -20,7 +20,7 @@
 
 **Chakravarti-cli (`ckrv`)** is a cross-platform orchestration engine for AI coding agents.
 
-You write specifications. `ckrv` coordinates multiple AI agents—Claude Code, Codex, Gemini, and others—to implement them in parallel. You pay for multiple AI coding subscriptions but can't use them together? *Finally, someone built this.*
+You write specifications. `ckrv` coordinates multiple AI agents—Claude Code, Codex, Kilo Code, and others—to implement them in parallel. You pay for multiple AI coding subscriptions but can't use them together? *Finally, someone built this.*
 
 The companies behind these tools will never build cross-provider support themselves. Anthropic won't help you use Codex. OpenAI won't integrate Claude. `ckrv` lives in the gap between their incentives—it's the only tool that lets you use all your AI subscriptions together.
 
@@ -127,16 +127,17 @@ See [Architecture Documentation](crates/docs/architecture.md) for diagrams and d
 
 ## Agents
 
-Chakravarti uses Claude Code CLI as the execution interface, with support for multiple AI backends:
+Chakravarti orchestrates multiple AI coding agents, each running in isolated Docker sandboxes:
 
 ### Currently Supported
 
 | 🤖 Tool | 🔑 Authentication | 📍 Availability | Description |
 |---------|-------------------|-----------------|-------------|
-| Claude Code | Claude Subscription | CLI + UI | Default - uses Anthropic's Claude directly |
+| Claude Code | Claude Subscription | CLI + UI | Default — uses Anthropic's Claude directly |
 | Claude Code | OpenRouter API | CLI + UI | 12+ models (Gemini, DeepSeek, Qwen, Kimi K2, etc.) |
 | Claude Code | GLM Coding Plan | CLI + UI | Z.AI's GLM-4.7 and GLM-4.5-Air |
 | Codex | OpenAI Subscription | CLI + UI | Native Codex CLI integration |
+| Kilo Code | File-based auth | CLI + UI | 30+ AI providers (Gemini, DeepSeek, Mistral, Qwen, etc.) |
 
 ### Future Integrations
 

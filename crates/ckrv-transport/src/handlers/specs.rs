@@ -357,7 +357,10 @@ pub struct ValidationError {
 }
 
 /// Validate a specification.
-pub async fn validate_spec_handler(state: &AppState, name: String) -> Result<ValidateSpecResponse, TransportError> {
+pub async fn validate_spec_handler(
+    state: &AppState,
+    name: String,
+) -> Result<ValidateSpecResponse, TransportError> {
     let project_root = &state.project_root;
     let spec_path = project_root.join(".specs").join(&name).join("spec.yaml");
 
@@ -423,7 +426,10 @@ pub struct DesignResponse {
 }
 
 /// Generate design for a spec.
-pub async fn generate_design_handler(state: &AppState, name: String) -> Result<DesignResponse, TransportError> {
+pub async fn generate_design_handler(
+    state: &AppState,
+    name: String,
+) -> Result<DesignResponse, TransportError> {
     let project_root = &state.project_root;
     let spec_path = project_root.join(".specs").join(&name).join("spec.yaml");
 
@@ -465,7 +471,10 @@ pub struct GenerateTasksResponse {
 }
 
 /// Generate tasks for a spec.
-pub async fn generate_tasks_handler(state: &AppState, name: String) -> Result<GenerateTasksResponse, TransportError> {
+pub async fn generate_tasks_handler(
+    state: &AppState,
+    name: String,
+) -> Result<GenerateTasksResponse, TransportError> {
     let project_root = &state.project_root;
     let spec_path = project_root.join(".specs").join(&name).join("spec.yaml");
 

@@ -74,6 +74,9 @@ pub struct AgentConfig {
 
     /// Agent-specific configuration (GLM config)
     pub glm: Option<GlmConfig>,
+
+    /// Agent-specific configuration (Kilo Code config)
+    pub kilo: Option<KiloCodeConfig>,
 }
 
 fn default_level() -> u8 {
@@ -116,6 +119,15 @@ pub struct GlmConfig {
     pub timeout_ms: Option<u32>,
 }
 
+/// Kilo Code-specific configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "typescript", derive(TS))]
+#[cfg_attr(feature = "typescript", ts(export))]
+pub struct KiloCodeConfig {
+    /// Model ID in provider/model format (e.g., "google/gemma-3-27b-it:free")
+    pub model: String,
+}
+
 /// Available model from OpenRouter.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript", derive(TS))]
@@ -138,6 +150,24 @@ pub struct OpenRouterModel {
 
     /// Pricing per 1M output tokens
     pub pricing_completion: Option<String>,
+}
+
+/// Available model from Kilo Code CLI.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "typescript", derive(TS))]
+#[cfg_attr(feature = "typescript", ts(export))]
+pub struct KiloCodeModel {
+    /// Full model ID (e.g., "kilo/google/gemma-3-27b-it:free")
+    pub id: String,
+
+    /// Provider name (e.g., "google", "meta-llama")
+    pub provider: String,
+
+    /// Model name without provider prefix (e.g., "gemma-3-27b-it:free")
+    pub name: String,
+
+    /// Whether the model is free
+    pub free: bool,
 }
 
 // ============================================================================
@@ -239,6 +269,7 @@ mod tests {
             description: None,
             openrouter: None,
             glm: None,
+            kilo: None,
         };
 
         let json = serde_json::to_string(&config).expect("serialization failed");

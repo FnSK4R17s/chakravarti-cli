@@ -125,16 +125,12 @@ pub async fn stop_execution_handler(
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(TransportError::Internal(format!(
-            "Abort failed: {stderr}"
-        )))
+        Err(TransportError::Internal(format!("Abort failed: {stderr}")))
     }
 }
 
 /// Pause execution (if supported).
-pub async fn pause_execution_handler(
-    _state: &AppState,
-) -> Result<ExecutionStatus, TransportError> {
+pub async fn pause_execution_handler(_state: &AppState) -> Result<ExecutionStatus, TransportError> {
     // Pausing is not currently supported
     Err(TransportError::BadRequest(
         "Pause not supported".to_string(),

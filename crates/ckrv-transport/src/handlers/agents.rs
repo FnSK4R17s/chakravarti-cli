@@ -5,9 +5,10 @@
 use crate::error::TransportError;
 use crate::state::AppState;
 use crate::types::{
-    AgentConfig, AgentType, DeleteAgentRequest, GlmConfig, ListAgentsResponse,
-    OpenRouterConfig, OpenRouterModel, SetDefaultAgentRequest, SetQaAgentRequest,
-    SetTestWriterAgentRequest, TestAgentRequest, TestAgentResponse, UpsertAgentRequest,
+    AgentConfig, AgentType, DeleteAgentRequest, GlmConfig, KiloCodeConfig, KiloCodeModel,
+    ListAgentsResponse, OpenRouterConfig, OpenRouterModel, SetDefaultAgentRequest,
+    SetQaAgentRequest, SetTestWriterAgentRequest, TestAgentRequest, TestAgentResponse,
+    UpsertAgentRequest,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -49,6 +50,8 @@ pub struct AgentFileConfig {
     pub openrouter: Option<OpenRouterFileConfig>,
     /// GLM Coding Plan configuration (for ClaudeGlm type)
     pub glm: Option<GlmFileConfig>,
+    /// Kilo Code configuration (for KiloCode type)
+    pub kilo: Option<KiloCodeFileConfig>,
     /// Custom CLI binary path (if not using default)
     pub binary_path: Option<String>,
     /// Additional CLI arguments
@@ -73,6 +76,12 @@ pub struct GlmFileConfig {
     pub api_key: Option<String>,
     pub model: String,
     pub timeout_ms: Option<u32>,
+}
+
+/// Kilo Code config as stored in file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KiloCodeFileConfig {
+    pub model: String,
 }
 
 fn default_level() -> u8 {
@@ -115,6 +124,7 @@ fn ensure_defaults(agents: &mut AgentsFile) {
             description: Some("Default Claude Code CLI agent".to_string()),
             openrouter: None,
             glm: None,
+            kilo: None,
             binary_path: None,
             extra_args: None,
             env_vars: None,
@@ -175,6 +185,8 @@ impl From<AgentFileConfig> for AgentConfig {
             timeout_ms: g.timeout_ms,
         });
 
+        let kilo = fc.kilo.map(|k| KiloCodeConfig { model: k.model });
+
         AgentConfig {
             id: fc.id,
             name: fc.name,
@@ -188,6 +200,7 @@ impl From<AgentFileConfig> for AgentConfig {
             description: fc.description,
             openrouter,
             glm,
+            kilo,
         }
     }
 }
@@ -227,17 +240,24 @@ pub async fn upsert_agent_handler(
         is_test_writer: request.agent.is_test_writer,
         enabled: request.agent.enabled,
         description: request.agent.description.clone(),
-        openrouter: request.agent.openrouter.as_ref().map(|or| OpenRouterFileConfig {
-            api_key: or.api_key.clone(),
-            model: or.model.clone(),
-            base_url: or.base_url.clone(),
-            max_tokens: or.max_tokens,
-            temperature: or.temperature,
-        }),
+        openrouter: request
+            .agent
+            .openrouter
+            .as_ref()
+            .map(|or| OpenRouterFileConfig {
+                api_key: or.api_key.clone(),
+                model: or.model.clone(),
+                base_url: or.base_url.clone(),
+                max_tokens: or.max_tokens,
+                temperature: or.temperature,
+            }),
         glm: request.agent.glm.as_ref().map(|g| GlmFileConfig {
             api_key: g.api_key.clone(),
             model: g.model.clone(),
             timeout_ms: g.timeout_ms,
+        }),
+        kilo: request.agent.kilo.as_ref().map(|k| KiloCodeFileConfig {
+            model: k.model.clone(),
         }),
         binary_path: None,
         extra_args: None,
@@ -475,6 +495,92 @@ pub async fn test_agent_handler(
             message,
         }),
     }
+}
+
+// ============================================================================
+// Kilo Code Models
+// ============================================================================
+
+/// Get models from Kilo Code CLI by running `kilo models`.
+pub async fn get_kilo_models_handler() -> Result<Vec<KiloCodeModel>, TransportError> {
+    match fetch_kilo_models().await {
+        Ok(models) => Ok(models),
+        Err(_) => Ok(get_fallback_kilo_models()),
+    }
+}
+
+/// Fetch models by running `kilo models` command.
+async fn fetch_kilo_models() -> Result<Vec<KiloCodeModel>, TransportError> {
+    let output = tokio::process::Command::new("kilo")
+        .arg("models")
+        .output()
+        .await
+        .map_err(|e| {
+            TransportError::ServiceUnavailable(format!("Failed to run 'kilo models': {e}"))
+        })?;
+
+    if !output.status.success() {
+        return Err(TransportError::ServiceUnavailable(
+            "'kilo models' command failed".to_string(),
+        ));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let models: Vec<KiloCodeModel> = stdout
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .filter_map(|line| {
+            let line = line.trim();
+            // Format variants:
+            //   kilo/provider/model-name:free  (3 segments, e.g. kilo/google/gemma-3-27b-it:free)
+            //   kilo/model-name:free           (2 segments, e.g. kilo/corethink:free)
+            //   kilo/model-name                (2 segments, no tag, e.g. kilo/giga-potato)
+            let stripped = line.strip_prefix("kilo/")?;
+
+            let (provider, model_name) = if let Some(slash_pos) = stripped.find('/') {
+                // Has a provider segment: provider/model-name
+                (&stripped[..slash_pos], &stripped[slash_pos + 1..])
+            } else {
+                // No provider segment: treat entire remainder as model name, provider = "kilo"
+                ("kilo", stripped)
+            };
+
+            let free = model_name.ends_with(":free") || !model_name.contains(':');
+
+            Some(KiloCodeModel {
+                id: line.to_string(),
+                provider: provider.to_string(),
+                name: model_name.to_string(),
+                free,
+            })
+        })
+        .collect();
+
+    Ok(models)
+}
+
+/// Fallback list if `kilo models` fails.
+fn get_fallback_kilo_models() -> Vec<KiloCodeModel> {
+    vec![
+        KiloCodeModel {
+            id: "kilo/deepseek/deepseek-r1-0528:free".to_string(),
+            provider: "deepseek".to_string(),
+            name: "deepseek-r1-0528:free".to_string(),
+            free: true,
+        },
+        KiloCodeModel {
+            id: "kilo/google/gemma-3-27b-it:free".to_string(),
+            provider: "google".to_string(),
+            name: "gemma-3-27b-it:free".to_string(),
+            free: true,
+        },
+        KiloCodeModel {
+            id: "kilo/qwen/qwen3-coder:free".to_string(),
+            provider: "qwen".to_string(),
+            name: "qwen3-coder:free".to_string(),
+            free: true,
+        },
+    ]
 }
 
 // ============================================================================

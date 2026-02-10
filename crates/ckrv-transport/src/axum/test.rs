@@ -14,10 +14,10 @@
 //! - POST /test/generate - Generate tests
 
 use crate::handlers::test::{
-    create_test_plan_handler, fix_tests_handler, generate_tests_handler,
-    get_coverage_handler, get_plan_status_handler, get_test_writer_agent_handler,
-    get_write_status_handler, run_tests_handler, write_tests_handler, GenerateTestsRequest,
-    RunTestsRequest, TestFixRequest, TestPlanRequest, TestWriteRequest,
+    create_test_plan_handler, fix_tests_handler, generate_tests_handler, get_coverage_handler,
+    get_plan_status_handler, get_test_writer_agent_handler, get_write_status_handler,
+    run_tests_handler, write_tests_handler, GenerateTestsRequest, RunTestsRequest, TestFixRequest,
+    TestPlanRequest, TestWriteRequest,
 };
 use crate::state::AppState;
 use axum::extract::State;
@@ -55,13 +55,15 @@ async fn run_tests(
                 "success": result.summary.failed == 0,
                 "result": test_result,
                 "error": null
-            })).into_response()
+            }))
+            .into_response()
         }
         Err(e) => Json(serde_json::json!({
             "success": false,
             "result": null,
             "error": e.to_string()
-        })).into_response(),
+        }))
+        .into_response(),
     }
 }
 

@@ -286,10 +286,7 @@ pub async fn generate_tests_handler(
         if let Ok(stdout) = String::from_utf8(output.stdout) {
             if let Ok(result) = serde_json::from_str::<serde_json::Value>(&stdout) {
                 return Ok(GenerateTestsResponse {
-                    test_file: result["test_file"]
-                        .as_str()
-                        .unwrap_or("")
-                        .to_string(),
+                    test_file: result["test_file"].as_str().unwrap_or("").to_string(),
                     tests_generated: result["tests_generated"].as_u64().unwrap_or(0) as u32,
                 });
             }
@@ -378,10 +375,7 @@ pub async fn create_test_plan_handler(
                         return Ok(TestPlanResponse {
                             success: true,
                             plan: Some(TestPlanOutput {
-                                plan_id: result["plan_id"]
-                                    .as_str()
-                                    .unwrap_or("plan-0")
-                                    .to_string(),
+                                plan_id: result["plan_id"].as_str().unwrap_or("plan-0").to_string(),
                                 base_branch: request.base,
                                 changed_files,
                                 proposed_tests,
@@ -473,9 +467,7 @@ pub async fn write_tests_handler(
 }
 
 /// Get test coverage.
-pub async fn get_coverage_handler(
-    state: &AppState,
-) -> Result<CoverageInfo, TransportError> {
+pub async fn get_coverage_handler(state: &AppState) -> Result<CoverageInfo, TransportError> {
     // Try to run coverage command
     let output = tokio::process::Command::new("npm")
         .args(["run", "coverage", "--", "--json"])

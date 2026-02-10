@@ -84,9 +84,7 @@ pub struct QAAgentInfo {
 // ============================================================================
 
 /// Get the configured QA agent.
-pub async fn get_qa_agent_handler(
-    state: &AppState,
-) -> Result<Option<QAAgentInfo>, TransportError> {
+pub async fn get_qa_agent_handler(state: &AppState) -> Result<Option<QAAgentInfo>, TransportError> {
     let agents = load_agents(state);
 
     let qa_agent = agents
@@ -143,10 +141,7 @@ pub async fn run_review_handler(
                                     id: i["id"].as_str()?.to_string(),
                                     file: i["file"].as_str()?.to_string(),
                                     line: i["line"].as_u64().map(|n| n as u32),
-                                    severity: i["severity"]
-                                        .as_str()
-                                        .unwrap_or("info")
-                                        .to_string(),
+                                    severity: i["severity"].as_str().unwrap_or("info").to_string(),
                                     category: i["category"]
                                         .as_str()
                                         .unwrap_or("code_quality")
@@ -176,10 +171,7 @@ pub async fn run_review_handler(
                 };
 
                 return Ok(QAReviewOutput {
-                    report_id: result["report_id"]
-                        .as_str()
-                        .unwrap_or("qa-0")
-                        .to_string(),
+                    report_id: result["report_id"].as_str().unwrap_or("qa-0").to_string(),
                     base_branch: result["base_branch"]
                         .as_str()
                         .unwrap_or(&request.base)

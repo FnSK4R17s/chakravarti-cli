@@ -33,6 +33,7 @@ pub mod console;
 pub mod diff;
 pub mod docker;
 pub mod events;
+pub mod example;
 pub mod execution;
 pub mod history;
 pub mod plans;
@@ -42,7 +43,6 @@ pub mod specs;
 pub mod status;
 pub mod tasks;
 pub mod test;
-pub mod example;
 
 // Terminal handler uses WebSocket types from axum, so it's feature-gated
 #[cfg(feature = "axum")]

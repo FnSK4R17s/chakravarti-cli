@@ -165,7 +165,9 @@ pub async fn run_tests(
                 failures: response
                     .results
                     .iter()
-                    .filter(|r| matches!(r.status, ckrv_transport::handlers::test::TestStatus::Failed))
+                    .filter(|r| {
+                        matches!(r.status, ckrv_transport::handlers::test::TestStatus::Failed)
+                    })
                     .map(|r| TestFailureData {
                         name: r.name.clone(),
                         file: r.file.clone().unwrap_or_default(),

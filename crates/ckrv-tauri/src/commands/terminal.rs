@@ -69,7 +69,10 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
                 }
                 env.insert("ANTHROPIC_API_KEY".to_string(), "".to_string());
                 if !or_config.model.is_empty() {
-                    env.insert("ANTHROPIC_DEFAULT_SONNET_MODEL".to_string(), or_config.model.clone());
+                    env.insert(
+                        "ANTHROPIC_DEFAULT_SONNET_MODEL".to_string(),
+                        or_config.model.clone(),
+                    );
                 }
             }
         }
@@ -85,7 +88,10 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
                 }
                 env.insert("ANTHROPIC_API_KEY".to_string(), "".to_string());
                 if !glm_config.model.is_empty() {
-                    env.insert("ANTHROPIC_DEFAULT_SONNET_MODEL".to_string(), glm_config.model.clone());
+                    env.insert(
+                        "ANTHROPIC_DEFAULT_SONNET_MODEL".to_string(),
+                        glm_config.model.clone(),
+                    );
                 }
             }
         }
@@ -194,9 +200,16 @@ pub async fn terminal_start(
         .unwrap_or_default();
 
     // Create session container
-    match docker.create_session("/workspace", &project_root, "/workspace", env, Vec::new()).await {
+    match docker
+        .create_session("/workspace", &project_root, "/workspace", env, Vec::new())
+        .await
+    {
         Ok(container_id) => {
-            tracing::info!("Terminal session created: {} -> {}", session_id, container_id);
+            tracing::info!(
+                "Terminal session created: {} -> {}",
+                session_id,
+                container_id
+            );
 
             // Store session
             {
@@ -263,7 +276,11 @@ pub async fn terminal_stop(
 
     match docker.stop_session(&container_id).await {
         Ok(()) => {
-            tracing::info!("Terminal session stopped: {} -> {}", session_id, container_id);
+            tracing::info!(
+                "Terminal session stopped: {} -> {}",
+                session_id,
+                container_id
+            );
             Ok(TerminalStopResponse {
                 success: true,
                 message: Some("Session stopped".to_string()),
@@ -286,7 +303,9 @@ pub async fn terminal_write(
     // Get container ID
     let container_id = {
         let sessions_guard = sessions.lock();
-        sessions_guard.get(&session_id).map(|s| s.container_id.clone())
+        sessions_guard
+            .get(&session_id)
+            .map(|s| s.container_id.clone())
     };
 
     let container_id = match container_id {
@@ -300,7 +319,10 @@ pub async fn terminal_write(
     // For interactive terminal, we execute the input as a shell command
     let command = vec!["/bin/bash".to_string(), "-c".to_string(), data];
 
-    match docker.exec_in_session(&container_id, command, HashMap::new()).await {
+    match docker
+        .exec_in_session(&container_id, command, HashMap::new())
+        .await
+    {
         Ok(_) => Ok(true),
         Err(e) => Err(format!("Failed to execute: {}", e)),
     }
@@ -316,7 +338,9 @@ pub async fn terminal_read(
     // Get container ID
     let container_id = {
         let sessions_guard = sessions.lock();
-        sessions_guard.get(&session_id).map(|s| s.container_id.clone())
+        sessions_guard
+            .get(&session_id)
+            .map(|s| s.container_id.clone())
     };
 
     let _container_id = match container_id {

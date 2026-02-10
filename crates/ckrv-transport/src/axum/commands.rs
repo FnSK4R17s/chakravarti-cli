@@ -3,10 +3,9 @@
 //! Axum route wrappers for command handlers.
 
 use crate::handlers::commands::{
-    run_diff_handler, run_execute_handler, run_fix_handler, run_git_init_handler,
-    run_init_handler, run_plan_handler, run_promote_handler, run_spec_new_handler,
-    run_spec_tasks_handler, run_verify_handler, DiffRequest, FixRequest, PromoteRequest,
-    SpecNewRequest, VerifyRequest,
+    run_diff_handler, run_execute_handler, run_fix_handler, run_git_init_handler, run_init_handler,
+    run_plan_handler, run_promote_handler, run_spec_new_handler, run_spec_tasks_handler,
+    run_verify_handler, DiffRequest, FixRequest, PromoteRequest, SpecNewRequest, VerifyRequest,
 };
 use crate::state::AppState;
 use axum::extract::State;

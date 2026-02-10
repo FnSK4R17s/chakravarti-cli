@@ -107,7 +107,9 @@ fn get_specs_dir(project_root: &Path) -> PathBuf {
 
 /// Get path to history file.
 fn get_history_path(project_root: &Path, spec_name: &str) -> PathBuf {
-    get_specs_dir(project_root).join(spec_name).join("history.yaml")
+    get_specs_dir(project_root)
+        .join(spec_name)
+        .join("history.yaml")
 }
 
 /// Load history for a spec.
@@ -126,7 +128,11 @@ fn load_history(project_root: &Path, spec_name: &str) -> Result<HistoryFile, Tra
 }
 
 /// Save history for a spec.
-fn save_history(project_root: &Path, spec_name: &str, history: &HistoryFile) -> Result<(), TransportError> {
+fn save_history(
+    project_root: &Path,
+    spec_name: &str,
+    history: &HistoryFile,
+) -> Result<(), TransportError> {
     let path = get_history_path(project_root, spec_name);
 
     let yaml = serde_yaml::to_string(history)
@@ -231,7 +237,11 @@ pub async fn create_run_handler(
     let mut history = load_history(&state.project_root, &spec_name)?;
 
     // Check for concurrent run
-    if history.runs.iter().any(|r| r.status == HistoryRunStatus::Running) {
+    if history
+        .runs
+        .iter()
+        .any(|r| r.status == HistoryRunStatus::Running)
+    {
         return Err(TransportError::Conflict(
             "Another run is already in progress".to_string(),
         ));
@@ -313,9 +323,8 @@ pub async fn update_run_handler(
         ) {
             run.ended_at = Some(chrono::Utc::now());
             if let Some(started) = Some(run.started_at) {
-                run.elapsed_seconds = Some(
-                    (chrono::Utc::now() - started).num_seconds().max(0) as u64,
-                );
+                run.elapsed_seconds =
+                    Some((chrono::Utc::now() - started).num_seconds().max(0) as u64);
             }
         }
     }

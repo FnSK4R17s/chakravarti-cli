@@ -2,12 +2,12 @@
 
 use crate::SharedState;
 use ckrv_transport::handlers::agents::{
-    delete_agent_handler, get_openrouter_models_handler, list_agents_handler,
-    set_default_agent_handler, set_qa_agent_handler, set_test_writer_agent_handler,
-    test_agent_handler, upsert_agent_handler,
+    delete_agent_handler, get_kilo_models_handler, get_openrouter_models_handler,
+    list_agents_handler, set_default_agent_handler, set_qa_agent_handler,
+    set_test_writer_agent_handler, test_agent_handler, upsert_agent_handler,
 };
 use ckrv_transport::types::{
-    AgentConfig, DeleteAgentRequest, OpenRouterModel, SetDefaultAgentRequest,
+    AgentConfig, DeleteAgentRequest, KiloCodeModel, OpenRouterModel, SetDefaultAgentRequest,
     SetQaAgentRequest, SetTestWriterAgentRequest, TestAgentRequest, TestAgentResponse,
     UpsertAgentRequest,
 };
@@ -24,6 +24,12 @@ pub struct ListAgentsWrapped {
 #[derive(Serialize)]
 pub struct ModelsWrapped {
     models: Vec<OpenRouterModel>,
+}
+
+/// Response wrapper for get_kilo_models to match frontend expectations.
+#[derive(Serialize)]
+pub struct KiloModelsWrapped {
+    models: Vec<KiloCodeModel>,
 }
 
 /// List all configured agents.
@@ -110,3 +116,11 @@ pub async fn test_agent(agent: AgentConfig) -> Result<TestAgentResponse, String>
         .map_err(|e| e.to_string())
 }
 
+/// Get available Kilo Code models.
+#[tauri::command]
+pub async fn get_kilo_models() -> Result<KiloModelsWrapped, String> {
+    get_kilo_models_handler()
+        .await
+        .map(|models| KiloModelsWrapped { models })
+        .map_err(|e| e.to_string())
+}

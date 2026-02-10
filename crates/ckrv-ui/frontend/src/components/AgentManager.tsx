@@ -94,6 +94,18 @@ interface GLMConfig {
     timeout_ms?: number;
 }
 
+interface KiloCodeConfig {
+    /** Model ID in kilo format (e.g., "kilo/google/gemma-3-27b-it:free") */
+    model: string;
+}
+
+interface KiloCodeModel {
+    id: string;
+    provider: string;
+    name: string;
+    free: boolean;
+}
+
 /**
  * Configuration for an AI agent that can execute tasks.
  * 
@@ -130,6 +142,8 @@ export interface AgentConfig {
     openrouter?: OpenRouterConfig;
     /** GLM configuration (for claude_glm type) */
     glm?: GLMConfig;
+    /** Kilo Code configuration (for kilo_code type) */
+    kilo?: KiloCodeConfig;
     /** Path to the agent binary (for codex type) */
     binary_path?: string;
     /** Additional command-line arguments for the agent */
@@ -156,6 +170,12 @@ const fetchAgents = async (): Promise<{ agents: AgentConfig[] }> => {
 
 const fetchModels = async (): Promise<{ models: OpenRouterModel[] }> => {
     const res = await fetch('/api/agents/models');
+    return res.json();
+};
+
+/** Fetches available Kilo Code models from the backend. */
+const fetchKiloModels = async (): Promise<{ models: KiloCodeModel[] }> => {
+    const res = await fetch('/api/agents/kilo-models');
     return res.json();
 };
 
@@ -257,6 +277,12 @@ const AgentManager: React.FC = () => {
         queryFn: fetchModels,
     });
 
+    /** Fetches available Kilo Code models for the model selector dropdown */
+    const { data: kiloModelsData } = useQuery({
+        queryKey: ['kilo-models'],
+        queryFn: fetchKiloModels,
+    });
+
     // ============================================================
     // MUTATIONS
     // ============================================================
@@ -325,6 +351,8 @@ const AgentManager: React.FC = () => {
     const agents = agentsData?.agents || [];
     /** Derived list of OpenRouter models from query response */
     const models = modelsData?.models || [];
+    /** Derived list of Kilo Code models from query response */
+    const kiloModels = kiloModelsData?.models || [];
 
     // ============================================================
     // HANDLERS
@@ -405,6 +433,7 @@ const AgentManager: React.FC = () => {
                 <AgentModal
                     agent={editingAgent}
                     models={models}
+                    kiloModels={kiloModels}
                     onClose={() => {
                         setEditingAgent(null);
                         setShowAddModal(false);
@@ -543,6 +572,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
                                 {agent.agent_type === 'claude_glm' && agent.glm && (
                                     <> • {agent.glm.model}</>
                                 )}
+                                {agent.agent_type === 'kilo_code' && agent.kilo && (
+                                    <> • {agent.kilo.model.replace('kilo/', '')}</>
+                                )}
                             </p>
                         </div>
 
@@ -655,6 +687,23 @@ const AgentCard: React.FC<AgentCardProps> = ({
                             </div>
                         )}
 
+                        {agent.agent_type === 'kilo_code' && agent.kilo && (
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">Model:</span>
+                                    <code className="px-1.5 py-0.5 rounded bg-muted text-info">
+                                        {agent.kilo.model}
+                                    </code>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">Provider:</span>
+                                    <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                        {agent.kilo.model.split('/')[1] || 'unknown'}
+                                    </code>
+                                </div>
+                            </div>
+                        )}
+
                         {agent.binary_path && (
                             <div className="flex items-center gap-2">
                                 <span className="text-muted-foreground">Binary:</span>
@@ -680,6 +729,8 @@ interface AgentModalProps {
     agent: AgentConfig | null;
     /** List of available OpenRouter models for selection */
     models: OpenRouterModel[];
+    /** List of available Kilo Code models for selection */
+    kiloModels: KiloCodeModel[];
     /** Callback to close the modal without saving */
     onClose: () => void;
     /** Callback to save the agent configuration */
@@ -688,7 +739,7 @@ interface AgentModalProps {
     isLoading: boolean;
 }
 
-const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave, isLoading }) => {
+const AgentModal: React.FC<AgentModalProps> = ({ agent, models, kiloModels, onClose, onSave, isLoading }) => {
     // ============================================================
     // STATE
     // ============================================================
@@ -710,10 +761,20 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
         }
     );
 
-    /** Currently selected AI provider for model filtering (e.g., "anthropic", "openai") */
+    /** Currently selected AI provider for OpenRouter model filtering */
     const [selectedProvider, setSelectedProvider] = useState(() =>
         form.openrouter?.model ? form.openrouter.model.split('/')[0] || 'anthropic' : 'anthropic'
     );
+
+    /** Currently selected provider for Kilo Code model filtering */
+    const [selectedKiloProvider, setSelectedKiloProvider] = useState(() => {
+        if (form.kilo?.model) {
+            // kilo model format: kilo/provider/model-name
+            const parts = form.kilo.model.split('/');
+            return parts.length >= 2 ? parts[1] : 'deepseek';
+        }
+        return 'deepseek';
+    });
 
     // ============================================================
     // COMPUTED VALUES
@@ -743,6 +804,27 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
     /** Whether the current form is for an OpenRouter agent type */
     const isOpenRouter = form.agent_type === 'claude_open_router';
 
+    /** Whether the current form is for a Kilo Code agent type */
+    const isKiloCode = form.agent_type === 'kilo_code';
+
+    /** Unique list of Kilo Code providers, sorted alphabetically */
+    const kiloProviders = [...new Set(kiloModels.map(m => m.provider))].sort((a, b) => {
+        const priority = (p: string) => {
+            if (p === 'deepseek') return 0;
+            if (p === 'google') return 1;
+            if (p === 'qwen') return 2;
+            if (p === 'meta-llama') return 3;
+            if (p === 'openai') return 4;
+            if (p === 'mistralai') return 5;
+            if (p === 'openrouter') return 6;
+            return 10;
+        };
+        return priority(a) - priority(b);
+    });
+
+    /** Kilo models filtered to only show those from the currently selected provider */
+    const filteredKiloModels = kiloModels.filter(m => m.provider === selectedKiloProvider);
+
     // ============================================================
     // EFFECTS
     // ============================================================
@@ -763,6 +845,22 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
         }
     }, [selectedProvider, filteredModels.length, isOpenRouter]);
 
+    /**
+     * Syncs the selected kilo model when kilo provider changes.
+     * Auto-select the first available model from the new provider.
+     */
+    React.useEffect(() => {
+        if (isKiloCode && filteredKiloModels.length > 0) {
+            const currentModelInProvider = filteredKiloModels.some(m => m.id === form.kilo?.model);
+            if (!currentModelInProvider) {
+                setForm(f => ({
+                    ...f,
+                    kilo: { model: filteredKiloModels[0].id },
+                }));
+            }
+        }
+    }, [selectedKiloProvider, filteredKiloModels.length, isKiloCode]);
+
     // ============================================================
     // HANDLERS
     // ============================================================
@@ -782,6 +880,17 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
             'cohere': 'Cohere',
             'x-ai': 'xAI (Grok)',
             'zhipu': 'Zhipu (GLM)',
+            'z-ai': 'Z.AI',
+            'arcee-ai': 'Arcee AI',
+            'cognitivecomputations': 'Cognitive Computations',
+            'nousresearch': 'Nous Research',
+            'nvidia': 'NVIDIA',
+            'liquid': 'Liquid AI',
+            'stepfun': 'StepFun',
+            'tngtech': 'TNG Technology',
+            'upstage': 'Upstage',
+            'openrouter': 'OpenRouter',
+            'kilo': 'Kilo (Native)',
         };
         return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
     };
@@ -798,6 +907,15 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                 finalForm.openrouter = { ...finalForm.openrouter, model: filteredModels[0].id };
             } else if (!currentModelExists && models.length > 0) {
                 finalForm.openrouter = { ...finalForm.openrouter, model: models[0].id };
+            }
+        }
+        if (finalForm.agent_type === 'kilo_code' && finalForm.kilo) {
+            // If current kilo model is not in the list, pick the first available
+            const currentModelExists = kiloModels.some(m => m.id === finalForm.kilo?.model);
+            if (!currentModelExists && filteredKiloModels.length > 0) {
+                finalForm.kilo = { model: filteredKiloModels[0].id };
+            } else if (!currentModelExists && kiloModels.length > 0) {
+                finalForm.kilo = { model: kiloModels[0].id };
             }
         }
         onSave(finalForm);
@@ -842,6 +960,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                     agent_type: value as AgentType,
                                     openrouter: value === 'claude_open_router' ? form.openrouter || { model: 'anthropic/claude-sonnet-4' } : undefined,
                                     glm: value === 'claude_glm' ? form.glm || { model: 'glm-4.7' } : undefined,
+                                    kilo: value === 'kilo_code' ? form.kilo || { model: kiloModels[0]?.id || 'kilo/deepseek/deepseek-r1-0528:free' } : undefined,
                                 })}
                             >
                                 <SelectTrigger>
@@ -1083,6 +1202,100 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, onClose, onSave,
                                         </a>
                                     </p>
                                 </div>
+                            </Card>
+                        )}
+
+                        {/* Kilo Code Config */}
+                        {isKiloCode && (
+                            <Card className="p-4 space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles size={14} style={{ color: 'hsl(var(--chart-4))' }} />
+                                    <span className="text-xs font-medium" style={{ color: 'hsl(var(--chart-4))' }}>Kilo Code Configuration</span>
+                                </div>
+
+                                {/* Provider + Model Selection */}
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {/* Provider Selector */}
+                                        <div className="space-y-2">
+                                            <Label>Provider</Label>
+                                            <Select
+                                                value={selectedKiloProvider}
+                                                onValueChange={(value) => {
+                                                    setSelectedKiloProvider(value);
+                                                    // Auto-select first model from new provider
+                                                    const firstModel = kiloModels.find(m => m.provider === value);
+                                                    if (firstModel) {
+                                                        setForm({
+                                                            ...form,
+                                                            kilo: { model: firstModel.id },
+                                                        });
+                                                    }
+                                                }}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent className="max-h-60 overflow-y-auto">
+                                                    {kiloProviders.map((provider) => (
+                                                        <SelectItem key={provider} value={provider}>
+                                                            {formatProvider(provider)}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {/* Model Selector */}
+                                        <div className="col-span-2 space-y-2">
+                                            <Label>Model</Label>
+                                            <Select
+                                                value={form.kilo?.model || ''}
+                                                onValueChange={(value) => setForm({
+                                                    ...form,
+                                                    kilo: { model: value },
+                                                })}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent className="max-h-60 overflow-y-auto">
+                                                    {filteredKiloModels.map((model) => (
+                                                        <SelectItem key={model.id} value={model.id}>
+                                                            <div className="flex items-center gap-2">
+                                                                <span>{model.name}</span>
+                                                                {model.free && (
+                                                                    <span className="text-[10px] text-success font-medium">FREE</span>
+                                                                )}
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    {/* Selected model info */}
+                                    {form.kilo?.model && (
+                                        <Card className="p-3 text-xs space-y-1">
+                                            <div className="flex items-center justify-between">
+                                                <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-info">
+                                                    {form.kilo.model}
+                                                </code>
+                                                {kiloModels.find(m => m.id === form.kilo?.model)?.free && (
+                                                    <span className="text-success font-medium">Free</span>
+                                                )}
+                                            </div>
+                                            <p className="text-muted-foreground">
+                                                Passed to <code className="text-[10px]">kilo run --model</code> for execution
+                                            </p>
+                                        </Card>
+                                    )}
+                                </div>
+
+                                <p className="text-xs text-muted-foreground">
+                                    Kilo Code uses file-based auth. Run <code className="px-1 py-0.5 rounded bg-muted">kilo auth</code> to configure credentials.
+                                </p>
                             </Card>
                         )}
 

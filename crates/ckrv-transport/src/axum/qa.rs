@@ -3,8 +3,8 @@
 //! Axum route wrappers for QA handlers.
 
 use crate::handlers::qa::{
-    get_qa_agent_handler, run_bugs_handler, run_report_handler, run_review_handler,
-    QABugsRequest, QAReportRequest, QAReviewRequest,
+    get_qa_agent_handler, run_bugs_handler, run_report_handler, run_review_handler, QABugsRequest,
+    QAReportRequest, QAReviewRequest,
 };
 use crate::state::AppState;
 use axum::extract::State;
@@ -30,12 +30,14 @@ async fn qa_review(
             "success": true,
             "review": review,
             "error": null
-        })).into_response(),
+        }))
+        .into_response(),
         Err(e) => Json(serde_json::json!({
             "success": false,
             "review": null,
             "error": e.to_string()
-        })).into_response(),
+        }))
+        .into_response(),
     }
 }
 
@@ -49,12 +51,14 @@ async fn qa_bugs(
             "success": true,
             "issues": issues,
             "error": null
-        })).into_response(),
+        }))
+        .into_response(),
         Err(e) => Json(serde_json::json!({
             "success": false,
             "issues": null,
             "error": e.to_string()
-        })).into_response(),
+        }))
+        .into_response(),
     }
 }
 
@@ -69,13 +73,15 @@ async fn qa_report(
             "review": report.review,
             "report": report.report,
             "error": null
-        })).into_response(),
+        }))
+        .into_response(),
         Err(e) => Json(serde_json::json!({
             "success": false,
             "review": null,
             "report": null,
             "error": e.to_string()
-        })).into_response(),
+        }))
+        .into_response(),
     }
 }
 

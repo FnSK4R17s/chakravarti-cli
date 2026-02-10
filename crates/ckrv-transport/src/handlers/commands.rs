@@ -242,7 +242,11 @@ fn run_ckrv_command(state: &AppState, args: &[&str]) -> Result<CommandResponse, 
             None
         },
         output: Some(stdout),
-        error: if stderr.is_empty() { None } else { Some(stderr) },
+        error: if stderr.is_empty() {
+            None
+        } else {
+            Some(stderr)
+        },
     })
 }
 

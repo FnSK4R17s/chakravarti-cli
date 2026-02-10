@@ -72,7 +72,10 @@ pub async fn delete_spec(state: State<'_, SharedState>, name: String) -> Result<
 
 /// Validate a specification.
 #[tauri::command]
-pub async fn validate_spec(state: State<'_, SharedState>, name: String) -> Result<ValidateSpecResponse, String> {
+pub async fn validate_spec(
+    state: State<'_, SharedState>,
+    name: String,
+) -> Result<ValidateSpecResponse, String> {
     let app_state = state.read().await;
     validate_spec_handler(&app_state, name)
         .await
@@ -81,7 +84,10 @@ pub async fn validate_spec(state: State<'_, SharedState>, name: String) -> Resul
 
 /// Generate design for a specification.
 #[tauri::command]
-pub async fn generate_design(state: State<'_, SharedState>, name: String) -> Result<DesignResponse, String> {
+pub async fn generate_design(
+    state: State<'_, SharedState>,
+    name: String,
+) -> Result<DesignResponse, String> {
     let app_state = state.read().await;
     generate_design_handler(&app_state, name)
         .await
@@ -90,7 +96,10 @@ pub async fn generate_design(state: State<'_, SharedState>, name: String) -> Res
 
 /// Generate tasks for a specification.
 #[tauri::command]
-pub async fn generate_tasks(state: State<'_, SharedState>, name: String) -> Result<GenerateTasksResponse, String> {
+pub async fn generate_tasks(
+    state: State<'_, SharedState>,
+    name: String,
+) -> Result<GenerateTasksResponse, String> {
     let app_state = state.read().await;
     generate_tasks_handler(&app_state, name)
         .await

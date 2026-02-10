@@ -117,4 +117,3 @@ mod tests {
         let _initialized = detect_is_initialized(Path::new("/tmp"));
     }
 }
-

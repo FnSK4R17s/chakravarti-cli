@@ -107,7 +107,9 @@ pub struct ExecutionStatusResponse {
 
 /// Get current execution status.
 #[tauri::command]
-pub async fn get_execution_status(state: State<'_, SharedState>) -> Result<ExecutionStatusResponse, String> {
+pub async fn get_execution_status(
+    state: State<'_, SharedState>,
+) -> Result<ExecutionStatusResponse, String> {
     let app_state = state.read().await;
     let status = get_execution_status_handler(&app_state)
         .await
