@@ -3,9 +3,10 @@
 //! Axum route wrappers for agent handlers.
 
 use crate::handlers::agents::{
-    delete_agent_handler, get_kilo_models_handler, get_openrouter_models_handler,
-    list_agents_handler, set_default_agent_handler, set_qa_agent_handler,
-    set_test_writer_agent_handler, test_agent_handler, upsert_agent_handler,
+    delete_agent_handler, get_glm_models_handler, get_kilo_models_handler,
+    get_openrouter_models_handler, list_agents_handler, set_default_agent_handler,
+    set_qa_agent_handler, set_test_writer_agent_handler, test_agent_handler,
+    upsert_agent_handler,
 };
 use crate::state::AppState;
 use crate::types::{
@@ -136,12 +137,21 @@ async fn get_kilo_models() -> impl IntoResponse {
     }
 }
 
+/// Get available GLM Coding Plan models.
+async fn get_glm_models() -> impl IntoResponse {
+    match get_glm_models_handler().await {
+        Ok(models) => Json(serde_json::json!({ "models": models })).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
 /// Create agent routes.
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/agents", get(list_agents))
         .route("/agents/models", get(get_models))
         .route("/agents/kilo-models", get(get_kilo_models))
+        .route("/agents/glm-models", get(get_glm_models))
         .route("/agents/upsert", post(upsert_agent))
         .route("/agents/delete", post(delete_agent))
         .route("/agents/set-default", post(set_default_agent))

@@ -106,6 +106,12 @@ interface KiloCodeModel {
     free: boolean;
 }
 
+interface GlmModel {
+    id: string;
+    name: string;
+    context_length?: number;
+}
+
 /**
  * Configuration for an AI agent that can execute tasks.
  * 
@@ -176,6 +182,12 @@ const fetchModels = async (): Promise<{ models: OpenRouterModel[] }> => {
 /** Fetches available Kilo Code models from the backend. */
 const fetchKiloModels = async (): Promise<{ models: KiloCodeModel[] }> => {
     const res = await fetch('/api/agents/kilo-models');
+    return res.json();
+};
+
+/** Fetches available GLM Coding Plan models from the backend. */
+const fetchGlmModels = async (): Promise<{ models: GlmModel[] }> => {
+    const res = await fetch('/api/agents/glm-models');
     return res.json();
 };
 
@@ -283,6 +295,12 @@ const AgentManager: React.FC = () => {
         queryFn: fetchKiloModels,
     });
 
+    /** Fetches available GLM Coding Plan models for the model selector dropdown */
+    const { data: glmModelsData } = useQuery({
+        queryKey: ['glm-models'],
+        queryFn: fetchGlmModels,
+    });
+
     // ============================================================
     // MUTATIONS
     // ============================================================
@@ -353,6 +371,8 @@ const AgentManager: React.FC = () => {
     const models = modelsData?.models || [];
     /** Derived list of Kilo Code models from query response */
     const kiloModels = kiloModelsData?.models || [];
+    /** Derived list of GLM models from query response */
+    const glmModels = glmModelsData?.models || [];
 
     // ============================================================
     // HANDLERS
@@ -434,6 +454,7 @@ const AgentManager: React.FC = () => {
                     agent={editingAgent}
                     models={models}
                     kiloModels={kiloModels}
+                    glmModels={glmModels}
                     onClose={() => {
                         setEditingAgent(null);
                         setShowAddModal(false);
@@ -731,6 +752,8 @@ interface AgentModalProps {
     models: OpenRouterModel[];
     /** List of available Kilo Code models for selection */
     kiloModels: KiloCodeModel[];
+    /** List of available GLM Coding Plan models for selection */
+    glmModels: GlmModel[];
     /** Callback to close the modal without saving */
     onClose: () => void;
     /** Callback to save the agent configuration */
@@ -739,7 +762,7 @@ interface AgentModalProps {
     isLoading: boolean;
 }
 
-const AgentModal: React.FC<AgentModalProps> = ({ agent, models, kiloModels, onClose, onSave, isLoading }) => {
+const AgentModal: React.FC<AgentModalProps> = ({ agent, models, kiloModels, glmModels, onClose, onSave, isLoading }) => {
     // ============================================================
     // STATE
     // ============================================================
@@ -916,6 +939,13 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, kiloModels, onCl
                 finalForm.kilo = { model: filteredKiloModels[0].id };
             } else if (!currentModelExists && kiloModels.length > 0) {
                 finalForm.kilo = { model: kiloModels[0].id };
+            }
+        }
+        if (finalForm.agent_type === 'claude_glm' && finalForm.glm) {
+            // If current GLM model is not in the list, pick the first available
+            const currentModelExists = glmModels.some(m => m.id === finalForm.glm?.model);
+            if (!currentModelExists && glmModels.length > 0) {
+                finalForm.glm = { ...finalForm.glm, model: glmModels[0].id };
             }
         }
         onSave(finalForm);
@@ -1155,23 +1185,56 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, kiloModels, onCl
                                 </div>
 
                                 {/* Model Selection */}
-                                <div className="space-y-2">
-                                    <Label>Model</Label>
-                                    <Select
-                                        value={form.glm?.model || 'glm-4.7'}
-                                        onValueChange={(value) => setForm({
-                                            ...form,
-                                            glm: { ...form.glm!, model: value },
-                                        })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="glm-4.7">GLM-4.7 (Recommended)</SelectItem>
-                                            <SelectItem value="glm-4.5-air">GLM-4.5-Air (Faster)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                <div className="space-y-3">
+                                    <div className="space-y-2">
+                                        <Label>Model</Label>
+                                        <Select
+                                            value={form.glm?.model || 'glm-4.7'}
+                                            onValueChange={(value) => setForm({
+                                                ...form,
+                                                glm: { ...form.glm!, model: value },
+                                            })}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="max-h-60 overflow-y-auto">
+                                                {glmModels.length > 0 ? (
+                                                    glmModels.map((model) => (
+                                                        <SelectItem key={model.id} value={model.id}>
+                                                            {model.name}
+                                                        </SelectItem>
+                                                    ))
+                                                ) : (
+                                                    <>
+                                                        <SelectItem value="glm-4.7">GLM-4.7 (Recommended)</SelectItem>
+                                                        <SelectItem value="glm-4.5-air">GLM-4.5 Air</SelectItem>
+                                                    </>
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {/* Selected model info card */}
+                                    {(() => {
+                                        const selectedModel = glmModels.find(m => m.id === form.glm?.model);
+                                        if (!selectedModel) return null;
+                                        return (
+                                            <Card className="p-3 text-xs space-y-1">
+                                                <code className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-info">
+                                                    {selectedModel.id}
+                                                </code>
+                                                {selectedModel.context_length && (
+                                                    <div className="flex items-center gap-2 pt-1 border-t border-border">
+                                                        <span className="text-muted-foreground">Context window:</span>
+                                                        <span className="font-medium text-info">
+                                                            {selectedModel.context_length.toLocaleString()} tokens
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </Card>
+                                        );
+                                    })()}
                                 </div>
 
                                 {/* API Key */}
