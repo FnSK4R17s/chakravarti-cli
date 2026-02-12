@@ -170,6 +170,21 @@ pub struct KiloCodeModel {
     pub free: bool,
 }
 
+/// Available model from Z.AI GLM Coding Plan.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "typescript", derive(TS))]
+#[cfg_attr(feature = "typescript", ts(export))]
+pub struct GlmModel {
+    /// Model ID (e.g., "glm-4.7")
+    pub id: String,
+
+    /// Human-readable model name (e.g., "GLM-4.7")
+    pub name: String,
+
+    /// Context window size in tokens
+    pub context_length: Option<u32>,
+}
+
 // ============================================================================
 // Request/Response Types
 // ============================================================================

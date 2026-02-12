@@ -5,10 +5,10 @@
 use crate::error::TransportError;
 use crate::state::AppState;
 use crate::types::{
-    AgentConfig, AgentType, DeleteAgentRequest, GlmConfig, KiloCodeConfig, KiloCodeModel,
-    ListAgentsResponse, OpenRouterConfig, OpenRouterModel, SetDefaultAgentRequest,
-    SetQaAgentRequest, SetTestWriterAgentRequest, TestAgentRequest, TestAgentResponse,
-    UpsertAgentRequest,
+    AgentConfig, AgentType, DeleteAgentRequest, GlmConfig, GlmModel, KiloCodeConfig,
+    KiloCodeModel, ListAgentsResponse, OpenRouterConfig, OpenRouterModel,
+    SetDefaultAgentRequest, SetQaAgentRequest, SetTestWriterAgentRequest, TestAgentRequest,
+    TestAgentResponse, UpsertAgentRequest,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -745,6 +745,174 @@ fn get_fallback_models() -> Vec<OpenRouterModel> {
 }
 
 // ============================================================================
+// GLM Coding Plan Models
+// ============================================================================
+
+/// OpenAI-compatible model list response from Z.AI.
+#[derive(Debug, Deserialize)]
+struct GlmApiResponse {
+    data: Vec<GlmApiModel>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GlmApiModel {
+    id: String,
+    #[serde(default)]
+    owned_by: Option<String>,
+}
+
+/// Known context window sizes for GLM models.
+fn glm_context_length(id: &str) -> Option<u32> {
+    match id {
+        "glm-5" => Some(205_000),
+        "glm-4.7" => Some(205_000),
+        "glm-4.7-flash" => Some(200_000),
+        "glm-4.6" => Some(205_000),
+        "glm-4.6v" => Some(128_000),
+        "glm-4.5" => Some(131_000),
+        "glm-4.5-air" => Some(131_000),
+        "glm-4.5-flash" => Some(131_000),
+        "glm-4.5v" => Some(64_000),
+        _ => None,
+    }
+}
+
+/// Format a GLM model ID into a human-readable name.
+fn glm_display_name(id: &str) -> String {
+    match id {
+        "glm-5" => "GLM-5 (Flagship)".to_string(),
+        "glm-4.7" => "GLM-4.7 (Recommended)".to_string(),
+        "glm-4.7-flash" => "GLM-4.7 Flash".to_string(),
+        "glm-4.6" => "GLM-4.6".to_string(),
+        "glm-4.6v" => "GLM-4.6V (Multimodal)".to_string(),
+        "glm-4.5" => "GLM-4.5".to_string(),
+        "glm-4.5-air" => "GLM-4.5 Air".to_string(),
+        "glm-4.5-flash" => "GLM-4.5 Flash".to_string(),
+        "glm-4.5v" => "GLM-4.5V (Multimodal)".to_string(),
+        other => other.to_uppercase(),
+    }
+}
+
+/// Sort priority for GLM models (lower = higher priority).
+fn glm_sort_priority(id: &str) -> i32 {
+    match id {
+        "glm-5" => 0,
+        "glm-4.7" => 1,
+        "glm-4.7-flash" => 2,
+        "glm-4.6" => 3,
+        "glm-4.6v" => 4,
+        "glm-4.5" => 5,
+        "glm-4.5-air" => 6,
+        "glm-4.5-flash" => 7,
+        "glm-4.5v" => 8,
+        _ => 10,
+    }
+}
+
+/// Get models from Z.AI GLM Coding Plan API.
+pub async fn get_glm_models_handler() -> Result<Vec<GlmModel>, TransportError> {
+    match fetch_glm_models().await {
+        Ok(models) if !models.is_empty() => Ok(models),
+        _ => Ok(get_fallback_glm_models()),
+    }
+}
+
+/// Fetch models from Z.AI Coding Plan API (OpenAI-compatible `/models` endpoint).
+async fn fetch_glm_models() -> Result<Vec<GlmModel>, TransportError> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| TransportError::Internal(format!("Failed to create HTTP client: {e}")))?;
+
+    let response = client
+        .get("https://api.z.ai/api/coding/paas/v4/models")
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| {
+            TransportError::ServiceUnavailable(format!("Failed to fetch GLM models: {e}"))
+        })?;
+
+    if !response.status().is_success() {
+        return Err(TransportError::ServiceUnavailable(format!(
+            "Z.AI API returned status: {}",
+            response.status()
+        )));
+    }
+
+    let api_response: GlmApiResponse = response
+        .json()
+        .await
+        .map_err(|e| TransportError::Internal(format!("Failed to parse GLM response: {e}")))?;
+
+    let mut models: Vec<GlmModel> = api_response
+        .data
+        .into_iter()
+        .filter(|m| m.id.starts_with("glm-"))
+        .map(|m| GlmModel {
+            name: glm_display_name(&m.id),
+            context_length: glm_context_length(&m.id),
+            id: m.id,
+        })
+        .collect();
+
+    models.sort_by(|a, b| glm_sort_priority(&a.id).cmp(&glm_sort_priority(&b.id)));
+
+    Ok(models)
+}
+
+/// Fallback curated list of GLM models if API is unreachable.
+fn get_fallback_glm_models() -> Vec<GlmModel> {
+    vec![
+        GlmModel {
+            id: "glm-5".to_string(),
+            name: "GLM-5 (Flagship)".to_string(),
+            context_length: Some(205_000),
+        },
+        GlmModel {
+            id: "glm-4.7".to_string(),
+            name: "GLM-4.7 (Recommended)".to_string(),
+            context_length: Some(205_000),
+        },
+        GlmModel {
+            id: "glm-4.7-flash".to_string(),
+            name: "GLM-4.7 Flash".to_string(),
+            context_length: Some(200_000),
+        },
+        GlmModel {
+            id: "glm-4.6".to_string(),
+            name: "GLM-4.6".to_string(),
+            context_length: Some(205_000),
+        },
+        GlmModel {
+            id: "glm-4.6v".to_string(),
+            name: "GLM-4.6V (Multimodal)".to_string(),
+            context_length: Some(128_000),
+        },
+        GlmModel {
+            id: "glm-4.5".to_string(),
+            name: "GLM-4.5".to_string(),
+            context_length: Some(131_000),
+        },
+        GlmModel {
+            id: "glm-4.5-air".to_string(),
+            name: "GLM-4.5 Air".to_string(),
+            context_length: Some(131_000),
+        },
+        GlmModel {
+            id: "glm-4.5-flash".to_string(),
+            name: "GLM-4.5 Flash".to_string(),
+            context_length: Some(131_000),
+        },
+        GlmModel {
+            id: "glm-4.5v".to_string(),
+            name: "GLM-4.5V (Multimodal)".to_string(),
+            context_length: Some(64_000),
+        },
+    ]
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -764,5 +932,21 @@ mod tests {
         let models = get_fallback_models();
         assert!(!models.is_empty());
         assert!(models.iter().any(|m| m.id.contains("claude")));
+    }
+
+    #[test]
+    fn test_get_fallback_glm_models() {
+        let models = get_fallback_glm_models();
+        assert_eq!(models.len(), 9);
+        assert_eq!(models[0].id, "glm-5");
+        assert_eq!(models[1].id, "glm-4.7");
+        assert!(models.iter().all(|m| m.context_length.is_some()));
+    }
+
+    #[test]
+    fn test_glm_sort_priority() {
+        assert!(glm_sort_priority("glm-5") < glm_sort_priority("glm-4.7"));
+        assert!(glm_sort_priority("glm-4.7") < glm_sort_priority("glm-4.5-air"));
+        assert_eq!(glm_sort_priority("unknown-model"), 10);
     }
 }
