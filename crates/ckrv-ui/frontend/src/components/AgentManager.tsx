@@ -23,7 +23,9 @@
  * // Users can add new agents via the "Add Agent" button
  */
 
-// === IMPORTS ===
+// ============================================================
+// IMPORTS
+// ============================================================
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -75,7 +77,9 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
-// === TYPES ===
+// ============================================================
+// TYPES
+// ============================================================
 
 /** Supported agent types for task execution. */
 type AgentType = 'claude' | 'claude_open_router' | 'claude_glm' | 'codex' | 'kilo_code';
@@ -166,7 +170,9 @@ interface OpenRouterModel {
     pricing?: string;
 }
 
-// === API FUNCTIONS ===
+// ============================================================
+// API FUNCTIONS
+// ============================================================
 
 /** Fetches all configured agents from the backend. */
 const fetchAgents = async (): Promise<{ agents: AgentConfig[] }> => {

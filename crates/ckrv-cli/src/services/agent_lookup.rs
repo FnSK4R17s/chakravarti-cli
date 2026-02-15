@@ -25,43 +25,65 @@ impl Default for AgentType {
 /// OpenRouter configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpenRouterConfig {
+    /// API key for OpenRouter authentication.
     pub api_key: Option<String>,
+    /// Model identifier (e.g., "anthropic/claude-3-opus").
     pub model: String,
+    /// Custom base URL for OpenRouter API.
     pub base_url: Option<String>,
+    /// Maximum tokens for completions.
     pub max_tokens: Option<u32>,
+    /// Temperature for response generation.
     pub temperature: Option<f32>,
 }
 
 /// GLM configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GLMConfig {
+    /// API key for GLM authentication.
     pub api_key: Option<String>,
+    /// Model identifier for GLM.
     pub model: String,
+    /// Request timeout in milliseconds.
     pub timeout_ms: Option<u32>,
 }
 
 /// Agent configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
+    /// Unique identifier for the agent.
     pub id: String,
+    /// Display name for the agent.
     pub name: String,
+    /// Type of agent (Claude, Codex, etc.).
     #[serde(default)]
     pub agent_type: AgentType,
+    /// Agent capability level (1-5).
     #[serde(default = "default_level")]
     pub level: u8,
+    /// Whether this is the default agent for execution.
     #[serde(default)]
     pub is_default: bool,
+    /// Whether this agent is used for QA reviews.
     #[serde(default)]
     pub is_qa_agent: bool,
+    /// Whether this agent writes tests.
     #[serde(default)]
     pub is_test_writer: bool,
+    /// Whether this agent is enabled for use.
     #[serde(default = "default_enabled")]
     pub enabled: bool,
+    /// Optional description of the agent.
     pub description: Option<String>,
+    /// OpenRouter configuration if using OpenRouter.
     pub openrouter: Option<OpenRouterConfig>,
+    /// GLM configuration if using GLM models.
     pub glm: Option<GLMConfig>,
+    /// Custom binary path for the agent executable.
     pub binary_path: Option<String>,
+    /// Additional arguments to pass to the agent.
     pub extra_args: Option<Vec<String>>,
+    /// Environment variables to set for the agent.
     pub env_vars: Option<HashMap<String, String>>,
 }
 

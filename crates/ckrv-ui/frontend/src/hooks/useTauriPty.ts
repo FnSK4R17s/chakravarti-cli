@@ -5,6 +5,15 @@
  * Provides a unified interface for spawning and managing interactive docker exec
  * sessions that works with xterm.js.
  *
+ * @context
+ * Used by AgentCliModal, TestFixModal, TaskDetailModal for interactive terminal
+ * sessions within Tauri desktop app. Not available in web mode (falls back to WebSocket).
+ *
+ * @dependencies
+ * - tauri-pty: NPM package for frontend PTY API
+ * - tauri-plugin-pty: Rust crate (initialized in main.rs)
+ * - Docker: Container must be running with project mounted at /workspace
+ *
  * ## Architecture Overview
  *
  * In Tauri mode, we use `tauri-plugin-pty` instead of WebSocket for interactive terminals:
@@ -56,13 +65,6 @@
  * - **Version coupling**: tauri-plugin-pty (Rust) and tauri-pty (npm) versions must match
  * - **Current versions**: 0.2.x for both
  * - **Upgrade path**: When upgrading Tauri, check tauri-plugin-pty compatibility
- *
- * @context
- * Used by: AgentCliModal, TestFixModal, TaskDetailModal
- *
- * @dependencies
- * - tauri-pty: NPM package for frontend PTY API
- * - tauri-plugin-pty: Rust crate (initialized in main.rs)
  */
 
 import { useCallback, useRef } from 'react';

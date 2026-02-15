@@ -1,7 +1,7 @@
 ---
 command: qa bugs
 generated_from: crates/ckrv-cli/src/commands/qa.rs
-last_commit: 1b27ca2
+last_commit: 508766e
 ---
 
 # ckrv qa bugs

@@ -18,9 +18,13 @@ pub enum ChangeType {
 /// A file that changed
 #[derive(Debug, Clone, Serialize)]
 pub struct ChangedFile {
+    /// Path to the changed file.
     pub path: PathBuf,
+    /// Type of change (added, modified, deleted, renamed).
     pub change_type: ChangeType,
+    /// Number of lines added.
     pub lines_added: u32,
+    /// Number of lines removed.
     pub lines_removed: u32,
 }
 

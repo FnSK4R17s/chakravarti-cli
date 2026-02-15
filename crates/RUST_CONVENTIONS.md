@@ -18,6 +18,39 @@ Rust's type system already communicates much of this—our job is to fill in the
 
 ---
 
+## Documentation Checklist (Mandatory)
+
+> **AI Agents: Follow this checklist every time you create or modify a `.rs` file.**
+> Documentation is not a separate step — it is part of writing code.
+> If you write a `pub` item without docs, the code is **incomplete**.
+
+### For every new file:
+- [ ] Add `//! # ModuleName` header with `## Overview` explaining purpose
+- [ ] Add `// ===` section separators (IMPORTS, TYPES, IMPLEMENTATION at minimum)
+- [ ] Organize imports: std → external → workspace → crate
+
+### For every `pub` item you create:
+- [ ] Add `///` doc comment with a one-line description
+- [ ] Add `# Arguments` section if the function takes parameters
+- [ ] Add `# Returns` section if the return type isn't obvious
+- [ ] Add `# Errors` section if it returns `Result`
+- [ ] Add `# Example` showing basic usage (where practical)
+
+### For every struct/enum you create:
+- [ ] Document every field/variant with `///`
+- [ ] Include a state diagram for enums with lifecycle states
+
+### For CLI commands (ckrv-cli only):
+- [ ] Add `long_about` with multi-paragraph description
+- [ ] Add `after_help` starting with `Examples:\n` and 2-3 practical examples
+
+### Self-check before finishing:
+- [ ] Every `pub` item has a `///` doc comment
+- [ ] Section separators use exactly 60 `=` characters
+- [ ] No `TODO: add docs` placeholders left behind
+
+---
+
 ## Crate-Specific Requirements
 
 ### ckrv-cli: Command Documentation (Required)

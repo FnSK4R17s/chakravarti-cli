@@ -8,9 +8,13 @@ use super::test_framework::TestResult;
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
+    /// Critical issues that must be fixed before merge.
     Critical,
+    /// Major issues that should be addressed.
     Major,
+    /// Minor issues that could be improved.
     Minor,
+    /// Informational suggestions.
     Info,
 }
 
@@ -38,12 +42,19 @@ impl Severity {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IssueCategory {
+    /// Code style and maintainability issues.
     CodeQuality,
+    /// Potential bugs or logical errors.
     PotentialBug,
+    /// Missing or incorrect error handling.
     ErrorHandling,
+    /// Security vulnerabilities.
     Security,
+    /// Performance concerns.
     Performance,
+    /// Missing or incorrect documentation.
     Documentation,
+    /// Best practice violations.
     BestPractice,
 }
 
@@ -64,24 +75,38 @@ impl IssueCategory {
 /// A QA issue found by the agent
 #[derive(Debug, Clone, Serialize)]
 pub struct QAIssue {
+    /// Unique identifier for the issue.
     pub id: String,
+    /// File where the issue was found.
     pub file: String,
+    /// Line number if applicable.
     pub line: Option<u32>,
+    /// Severity level of the issue.
     pub severity: Severity,
+    /// Category classification of the issue.
     pub category: IssueCategory,
+    /// Description of the issue.
     pub message: String,
+    /// Suggested fix for the issue.
     pub suggestion: Option<String>,
 }
 
 /// Summary of QA review
 #[derive(Debug, Clone, Serialize)]
 pub struct QASummary {
+    /// Total number of issues found.
     pub total_issues: u32,
+    /// Count of critical severity issues.
     pub critical: u32,
+    /// Count of major severity issues.
     pub major: u32,
+    /// Count of minor severity issues.
     pub minor: u32,
+    /// Count of informational issues.
     pub info: u32,
+    /// Number of files reviewed.
     pub files_reviewed: u32,
+    /// Overall verdict ("pass", "review", or "fail").
     pub verdict: String,
 }
 
