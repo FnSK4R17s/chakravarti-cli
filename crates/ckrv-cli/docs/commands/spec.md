@@ -1,7 +1,7 @@
 ---
 command: spec
 generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 1b27ca2
+last_commit: 508766e
 ---
 
 # ckrv spec

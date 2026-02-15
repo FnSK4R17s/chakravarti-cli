@@ -6,7 +6,7 @@ compatibility: Claude Code, Cursor, any CLI-capable agent
 metadata:
   version: "0.1.0"
   auto-generated: true
-  generated-at: "2026-02-10T09:33:43Z"
+  generated-at: "2026-02-15T14:54:20Z"
 ---
 
 # Chakravarti CLI
@@ -449,7 +449,7 @@ ckrv run [SPEC] [OPTIONS]
 
 | Flag | Description |
 |------|-------------|
-| `--agent` | Agent to use for execution: claude or codex |
+| `--agent` | Agent to use for execution: claude, codex, or kilo |
 | `--cloud` | Execute job in Chakravarti Cloud instead of locally |
 | `--credential` | Git credential name to use for cloud execution (for private repos) |
 | `--executor-model`, `-e` | Override the AI model/agent to use for execution |
@@ -605,7 +605,7 @@ ckrv spec validate [PATH]
 
 Spawn an interactive AI agent terminal session.
 
-Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex) with the correct environment variables automatically configured.
+Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code) with the correct environment variables automatically configured.
 
 Without arguments, presents an interactive selection menu with options for common flags. Use -- to pass arguments directly for scripting.
 

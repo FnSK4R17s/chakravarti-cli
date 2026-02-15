@@ -1,10 +1,11 @@
 ---
-last_commit: 1b27ca2
-last_updated: 2026-02-10
+last_commit: 508766e
+last_updated: 2026-02-15
 related_files:
   - src/lib.rs
   - src/handlers/mod.rs
   - src/axum/mod.rs
+  - src/types/agents.rs
 ---
 
 # ckrv-transport
@@ -111,6 +112,53 @@ src/
 └── tauri/              # Tauri IPC wrappers
     ├── mod.rs          # get_invoke_handlers()
     └── ...
+```
+
+## Key Types
+
+### Agent Types (`types/agents.rs`)
+
+| Type | Purpose |
+|------|---------|
+| `AgentType` | Enum of agent backends (Claude, ClaudeOpenRouter, ClaudeGlm, Codex, KiloCode) |
+| `AgentConfig` | Full agent configuration with id, name, level, model, flags |
+| `OpenRouterConfig` | OpenRouter-specific settings (api_key, model, base_url) |
+| `GlmConfig` | GLM Coding Plan settings (api_key, model, timeout_ms) |
+| `KiloCodeConfig` | Kilo Code settings (model in provider/model format) |
+| `OpenRouterModel` | Model from OpenRouter catalog |
+| `KiloCodeModel` | Model from Kilo Code CLI (id, provider, name, free flag) |
+| `GlmModel` | Model from Z.AI GLM (id, name, context_length) |
+
+### AgentType Enum
+
+```rust
+pub enum AgentType {
+    Claude,             // Default Claude Code CLI
+    ClaudeOpenRouter,   // Claude Code with OpenRouter API
+    ClaudeGlm,          // Claude Code with Z.AI GLM Coding Plan
+    Codex,              // OpenAI Codex CLI
+    KiloCode,           // Kilo Code multi-provider CLI
+}
+```
+
+### AgentConfig Structure
+
+```rust
+pub struct AgentConfig {
+    pub id: String,
+    pub name: String,
+    pub agent_type: AgentType,
+    pub level: u8,              // Capability level 1-5
+    pub model: Option<String>,
+    pub is_default: bool,
+    pub is_qa_agent: bool,
+    pub is_test_writer: bool,
+    pub enabled: bool,
+    pub description: Option<String>,
+    pub openrouter: Option<OpenRouterConfig>,
+    pub glm: Option<GlmConfig>,
+    pub kilo: Option<KiloCodeConfig>,
+}
 ```
 
 ## Documentation

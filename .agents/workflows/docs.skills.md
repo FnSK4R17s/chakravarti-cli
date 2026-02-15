@@ -35,8 +35,20 @@ Store this as `NEW_COMMIT`.
 
 <!-- turbo -->
 ```bash
-# List commands that have long_about in lib.rs
+# List top-level commands that have long_about in lib.rs
+echo "=== Top-level commands (lib.rs) ==="
 grep -B2 "long_about" crates/ckrv-cli/src/lib.rs | grep "///"
+
+# List subcommands with long_about in command files
+echo "=== Subcommands (commands/*.rs) ==="
+for f in $(grep -rl "#\[derive(Subcommand)\]" crates/ckrv-cli/src/commands/ 2>/dev/null); do
+  name=$(basename "$f" .rs)
+  if grep -q "long_about" "$f"; then
+    echo "$name: $(grep -B2 'long_about' "$f" | grep '///' | head -5)"
+  else
+    echo "$name: ⚠️ No subcommands have long_about"
+  fi
+done
 ```
 
 ### 3. Create Output Directory
@@ -48,9 +60,9 @@ mkdir -p crates/ckrv-cli/docs/commands
 
 ### 4. For Each Documented Command
 
-For each command that has `long_about` in the code:
+For each command that has `long_about` in the code (both top-level in `lib.rs` AND subcommands in `commands/*.rs`):
 
-1. **Extract from lib.rs**:
+1. **Extract from source file** (`lib.rs` for top-level, `commands/<parent>.rs` for subcommands):
    - Doc comment (`/// ...`) = short description
    - `long_about = "..."` = detailed description
    - `after_help = "..."` = examples
@@ -77,7 +89,7 @@ Each generated file follows this format:
 ```markdown
 ---
 command: <command-path>
-generated_from: crates/ckrv-cli/src/lib.rs
+generated_from: <source-file>  # lib.rs for top-level, commands/<parent>.rs for subcommands
 last_commit: <NEW_COMMIT>
 ---
 
@@ -172,7 +184,9 @@ make skill
 ## Notes
 
 - Only generates docs for commands that have `long_about` in code
-- Subcommands go in subdirectories matching command hierarchy
+- Scans both `lib.rs` (top-level commands) and `commands/*.rs` (subcommands with `#[derive(Subcommand)]`)
+- Subcommands go in subdirectories matching command hierarchy (e.g., `commands/spec/clarify.md`)
+- `generated_from` frontmatter reflects the actual source file
 - Run `make skill` after to regenerate SKILL.md
 
 ---

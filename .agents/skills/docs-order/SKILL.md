@@ -11,8 +11,8 @@ This skill provides the execution order for documentation workflows. Reference t
 
 | Step | Workflow | What It Does |
 |------|----------|--------------|
-| **1** | `/docs.rust` | Documents Rust code, adds CLI `long_about`/`after_help` |
-| **2** | `/docs.frontend` | Documents TSX code, updates frontend/README, api-reference |
+| **1** | `/docs.rust` | Detects & fixes missing Rust docs (`///`, `//!`, `// ===`, CLI `long_about`/`after_help`) |
+| **2** | `/docs.frontend` | Detects & fixes missing TSX docs (`@module`, Props JSDoc, state/effect comments, sections) |
 | **3** | `/docs.skills` | Generates SKILL.md and command docs from CLI attributes |
 | **4** | `/docs.update` | Updates crates/docs/*.md and crate READMEs |
 | **5** | `/docs.readme` | Updates main README, CONTRIBUTING, npm/README |

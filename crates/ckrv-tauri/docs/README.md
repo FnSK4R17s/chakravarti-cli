@@ -1,6 +1,6 @@
 ---
-last_commit: 1b27ca2
-last_updated: 2026-02-10
+last_commit: 508766e
+last_updated: 2026-02-15
 related_files:
   - src/main.rs
   - src/commands/mod.rs
@@ -77,6 +77,7 @@ src/
 |---------|---------|---------|
 | `list_agents` | `agents::list_agents` | List configured agents |
 | `get_openrouter_models` | `agents::get_openrouter_models` | Fetch OpenRouter model catalog |
+| `get_kilo_models` | `agents::get_kilo_models` | Fetch Kilo Code model catalog |
 | `upsert_agent` | `agents::upsert_agent` | Create or update agent config |
 | `delete_agent` | `agents::delete_agent` | Remove agent |
 | `set_default_agent` | `agents::set_default_agent` | Set default execution agent |

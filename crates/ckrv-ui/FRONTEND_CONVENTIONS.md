@@ -16,6 +16,42 @@ This document establishes patterns that keep documentation colocated with code, 
 
 ---
 
+## Documentation Checklist (Mandatory)
+
+> **AI Agents: Follow this checklist every time you create or modify a `.tsx` or `.ts` file.**
+> Documentation is not a separate step — it is part of writing code.
+> If you write a component or hook without docs, the code is **incomplete**.
+
+### For every new file:
+- [ ] Add `@module` header with `@description`, `@context`, and `@dependencies`
+- [ ] Add `// ===` section separators (IMPORTS, TYPES, STATE, EFFECTS, HANDLERS, RENDER at minimum)
+- [ ] Organize imports: React → external → internal components → hooks → utils → relative → types
+
+### For every component you create:
+- [ ] Document the Props interface with a `/** */` block above the interface
+- [ ] Document each individual prop with a `/** description */` comment
+- [ ] Add `@default` tag for optional props with defaults
+- [ ] Document the component function with visual states and keyboard nav (if applicable)
+
+### For every hook you create:
+- [ ] Document `@param` for each parameter
+- [ ] Document `@returns` describing the return value/object
+- [ ] Include `@example` showing typical usage
+
+### For every state/effect:
+- [ ] Every `useState` gets a `/** purpose */` comment above it
+- [ ] Every `useEffect` gets a `/** what triggers it and why */` comment above it
+- [ ] Group related state under `// ===` section headers (e.g., EXECUTION STATE, UI STATE)
+
+### Self-check before finishing:
+- [ ] Every `useState` has a `/** */` JSDoc comment (not bare `//`)
+- [ ] Every `useEffect` has a `/** */` JSDoc comment
+- [ ] Section separators use exactly 60 `=` characters with UPPERCASE labels
+- [ ] All colors use semantic theme classes (no hardcoded `text-red-500` etc.)
+- [ ] No `TODO: add docs` placeholders left behind
+
+---
+
 ## File Structure
 
 Every `.tsx` or `.ts` file follows this structure:

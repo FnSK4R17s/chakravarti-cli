@@ -18,6 +18,7 @@ pub enum TestFramework {
 }
 
 impl TestFramework {
+    /// Returns a human-readable name for the test framework.
     pub fn name(&self) -> &'static str {
         match self {
             TestFramework::Cargo => "Cargo (Rust)",

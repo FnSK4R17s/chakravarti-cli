@@ -1,10 +1,11 @@
 ---
-last_commit: 1b27ca2
-last_updated: 2026-02-10
+last_commit: 508766e
+last_updated: 2026-02-15
 related_files:
   - src/main.rs
   - src/lib.rs
   - src/bin/skill_gen.rs
+  - src/bin/command_docs_gen.rs
   - src/commands/mod.rs
   - src/commands/test.rs
   - src/commands/qa.rs
@@ -132,6 +133,7 @@ pub struct CommandMetadata {
 |--------|---------|
 | `ckrv` | Main CLI executable |
 | `skill_gen` | Generates SKILL.md for AI agents |
+| `command_docs_gen` | Generates individual command docs in `docs/commands/` |
 
 ### skill_gen
 
@@ -144,6 +146,17 @@ cargo run -p ckrv-cli --bin skill_gen > .agent/skills/chakravarti-cli/SKILL.md
 # Or use Makefile
 make skill
 ```
+
+### command_docs_gen
+
+Generates individual markdown files for each CLI command in `crates/ckrv-cli/docs/commands/`:
+
+```bash
+# Generate command documentation
+cargo run -p ckrv-cli --bin command_docs_gen
+```
+
+This creates structured documentation files with frontmatter, descriptions, arguments, options, and examples extracted from clap attributes.
 
 ## Commands
 

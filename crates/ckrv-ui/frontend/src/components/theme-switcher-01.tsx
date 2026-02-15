@@ -26,7 +26,10 @@ import { Switch } from "@/components/ui/switch";
 export default function ThemeSwitcher() {
   const [isDark, setIsDark] = useState(true);
 
-  // Initialize from localStorage or document class on mount
+  /**
+   * Initialize theme from localStorage or document class on mount.
+   * Falls back to system preference if no saved preference exists.
+   */
   useEffect(() => {
     // Check localStorage first (source of truth)
     const savedTheme = localStorage.getItem("theme");

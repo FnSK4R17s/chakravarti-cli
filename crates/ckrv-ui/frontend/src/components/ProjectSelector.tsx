@@ -21,7 +21,9 @@ import { FolderOpen, Clock, Folder, RefreshCw, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-// ===== Types =====
+// ============================================================
+// TYPES
+// ============================================================
 
 /**
  * Information about a recent project for display in the selector.
@@ -46,13 +48,24 @@ interface ProjectSelectorProps {
 // ===== Main Component =====
 
 export default function ProjectSelector({ onProjectSelected }: ProjectSelectorProps) {
-    // State
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    /** List of recently opened projects loaded from Tauri backend */
     const [recentProjects, setRecentProjects] = useState<ProjectInfo[]>([]);
+    /** Whether the component is currently loading recent projects */
     const [isLoading, setIsLoading] = useState(true);
+    /** Whether a folder selection dialog is currently open */
     const [isSelecting, setIsSelecting] = useState(false);
+    /** Error message if folder selection or loading failed */
     const [error, setError] = useState<string | null>(null);
 
-    // Load recent projects on mount
+    // ============================================================
+    // EFFECTS
+    // ============================================================
+
+    /** Loads recent projects list from Tauri backend on component mount */
     useEffect(() => {
         const loadRecentProjects = async () => {
             try {
@@ -69,7 +82,11 @@ export default function ProjectSelector({ onProjectSelected }: ProjectSelectorPr
         loadRecentProjects();
     }, []);
 
-    // Handle folder selection via native dialog
+    // ============================================================
+    // HANDLERS
+    // ============================================================
+
+    /** Handle folder selection via native dialog */
     const handleChooseFolder = async () => {
         setIsSelecting(true);
         setError(null);

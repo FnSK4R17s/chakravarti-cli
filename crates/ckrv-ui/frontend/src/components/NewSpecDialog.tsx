@@ -38,6 +38,10 @@ import { Textarea } from './ui/textarea';
 import { Loader2, Sparkles, FileText } from 'lucide-react';
 import { useCreateSpec } from '../hooks/useSpec';
 
+// ============================================================
+// TYPES
+// ============================================================
+
 /**
  * Props for the NewSpecDialog component.
  */
@@ -50,12 +54,19 @@ interface NewSpecDialogProps {
     onSuccess?: (specId: string) => void;
 }
 
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+
 export function NewSpecDialog({
     open,
     onOpenChange,
     onSuccess,
 }: NewSpecDialogProps) {
-    // === STATE ===
+    // ============================================================
+    // STATE
+    // ============================================================
+
     /** Feature description input text */
     const [description, setDescription] = useState('');
     /** Optional custom spec name */

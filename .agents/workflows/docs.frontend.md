@@ -1,8 +1,8 @@
 ---
-description: Analyze frontend health and generate component documentation for ckrv-ui.
+description: Analyze frontend health and apply component documentation for ckrv-ui.
 ---
 
-# Frontend Documentation & Drift Detection
+# Frontend Documentation & Convention Application
 
 ## User Input
 
@@ -15,12 +15,17 @@ By default, analyzes **all components**.
 
 ## Goal
 
-Analyze frontend codebase health, detect documentation drift, apply missing documentation, and ensure code follows established conventions.
+Detect missing frontend documentation and apply it in a single pass. No report files are generated — issues are fixed inline and a summary is printed at the end.
 
-**Files maintained:**
-- Component/hook JSDoc and module headers
-- `crates/ckrv-ui/frontend/README.md` - Frontend project readme
-- `crates/ckrv-ui/docs/api-reference.md` - Backend API documentation
+**This workflow:**
+- ✅ Adds `@module` headers to components and hooks
+- ✅ Adds JSDoc to Props interfaces
+- ✅ Adds section separators (`// ===...`)
+- ✅ Adds state and effect documentation
+- ✅ Updates `crates/ckrv-ui/frontend/README.md` and `crates/ckrv-ui/docs/api-reference.md`
+- ⚠️ Warns about unfixable issues (component too large, needs splitting)
+- ❌ Does NOT modify component logic
+- ❌ Does NOT generate report files
 
 ## Frontend Location
 
@@ -32,7 +37,7 @@ crates/ckrv-ui/frontend/src/
 
 ## Phase 0: Load Conventions
 
-Before any analysis, load the conventions file for reference:
+Before any work, load the conventions file for reference:
 
 ```bash
 cat /apps/chakravarti-cli/crates/ckrv-ui/FRONTEND_CONVENTIONS.md 2>/dev/null || echo "⚠️ FRONTEND_CONVENTIONS.md not found"
@@ -40,141 +45,157 @@ cat /apps/chakravarti-cli/crates/ckrv-ui/FRONTEND_CONVENTIONS.md 2>/dev/null || 
 
 ---
 
-## Phase 1: Health Analysis
+## Phase 1: Discover Components
 
-*(Existing health checks - kept for completeness)*
+### Step 1.1: List All Components
 
-### Step 1.1: Component Size Analysis
-
+<!-- turbo -->
 ```bash
-cd /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components && \
-wc -l *.tsx 2>/dev/null | sort -rn | head -30
+find /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components -name "*.tsx" 2>/dev/null | head -50
 ```
 
-| Lines | Rating | Action |
-|-------|--------|--------|
-| < 200 | ✅ Good | Maintain |
-| 200-500 | ⚠️ Warning | Consider splitting |
-| > 500 | 🔴 Critical | Must refactor |
+### Step 1.2: List All Hooks
 
-### Step 1.2-1.8: Standard Health Checks
+<!-- turbo -->
+```bash
+find /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/hooks -name "*.ts" 2>/dev/null | head -50
+```
 
-*(Run existing checks from original workflow)*
+If `--component <name>` was specified, filter to just that component.
+
+### Step 1.3: Priority Order
+
+Process files in this order (highest impact first):
+1. **Large components** (>400 lines)
+2. **All hooks**
+3. **Remaining components**
 
 ---
 
-## Phase 2: Documentation Drift Detection 🆕
+## Phase 2: Detect & Fix (Per File)
 
-This phase compares what's documented against what's actually implemented.
+**For each file, detect issues and fix them immediately.**
 
-### Step 2.1: Extract Documented Props vs Actual Props
+### Step 2.1: Add Missing Module Headers
 
-For each component, compare the Props interface documentation against actual usage:
-
+<!-- turbo -->
 ```bash
-#!/bin/bash
-# drift-props.sh - Detect Props documentation drift
-
-COMPONENTS_DIR="/apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components"
-
-for file in "$COMPONENTS_DIR"/*.tsx; do
-  component=$(basename "$file" .tsx)
-  
-  echo "=== $component ==="
-  
-  # Extract documented props (from interface JSDoc)
-  echo "📝 Documented Props:"
-  grep -A 50 "interface.*Props" "$file" | \
-    grep -E "^\s*\/\*\*|^\s*\*|^\s*[a-zA-Z]+\??\s*:" | \
-    head -30
-  
-  # Extract actual props used in component
-  echo ""
-  echo "💻 Actually Used Props:"
-  # Find destructured props in function signature
-  grep -E "^export (function|const)" "$file" | head -1
-  
-  echo ""
-  echo "---"
+for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx \
+            /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/hooks/*.ts; do
+  name=$(basename "$file")
+  if ! head -30 "$file" | grep -q "@module"; then
+    echo "FIX $name - Missing @module header"
+  fi
 done
 ```
 
-### Step 2.2: Detect JSDoc Parameter Drift
+**For each file that says FIX:**
+1. Read the file to understand what it does
+2. **Edit the file** — insert `@module` block at line 1 (before imports):
 
-Check if function parameters match JSDoc @param annotations:
-
-```bash
-#!/bin/bash
-# drift-params.sh - Detect @param drift
-
-HOOKS_DIR="/apps/chakravarti-cli/crates/ckrv-ui/frontend/src/hooks"
-
-for file in "$HOOKS_DIR"/*.ts; do
-  hook=$(basename "$file" .ts)
-  
-  # Find functions with JSDoc
-  grep -B 20 "^export function\|^export const.*=" "$file" | \
-  awk '
-    /\/\*\*/ { in_jsdoc=1; jsdoc="" }
-    in_jsdoc { jsdoc = jsdoc "\n" $0 }
-    /\*\// { in_jsdoc=0 }
-    /^export (function|const)/ {
-      # Extract @param names from JSDoc
-      n = split(jsdoc, lines, "\n")
-      printf "📝 %s - Documented params: ", $0
-      for (i=1; i<=n; i++) {
-        if (match(lines[i], /@param\s+(\{[^}]+\}\s+)?([a-zA-Z_]+)/, arr)) {
-          printf "%s ", arr[2]
-        }
-      }
-      printf "\n"
-    }
-  '
-done 2>/dev/null
+```typescript
+/**
+ * @module ComponentName
+ * @description
+ * <Infer description from component name and JSX content>
+ *
+ * @context
+ * <Describe where this component is used>
+ *
+ * @dependencies
+ * <List key imports like hooks and external libs>
+ */
 ```
 
-### Step 2.3: Detect State Documentation Drift
+### Step 2.2: Add Missing Props Documentation
 
-Compare documented state variables against actual useState calls:
+For each component with an undocumented Props interface:
 
+<!-- turbo -->
 ```bash
-#!/bin/bash
-# drift-state.sh - Detect state documentation drift
-
 for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
-  component=$(basename "$file" .tsx)
+  name=$(basename "$file" .tsx)
   
-  # Count documented state (comments before useState)
-  documented=$(grep -B 1 "useState" "$file" 2>/dev/null | grep -c "/\*\*\|//" 2>/dev/null | tr -d '\n')
-  documented=${documented:-0}
-  
-  # Count actual useState calls
-  actual=$(grep -c "useState" "$file" 2>/dev/null | tr -d '\n')
-  actual=${actual:-0}
-  
-  if [ "$actual" -gt 0 ] 2>/dev/null; then
-    coverage=$((documented * 100 / actual))
-    if [ "$coverage" -lt 100 ]; then
-      echo "⚠️  $component: $documented/$actual useState documented ($coverage%)"
-    else
-      echo "✅ $component: All $actual useState documented"
+  # Check if Props interface exists but lacks JSDoc
+  if grep -q "interface.*Props" "$file"; then
+    if ! grep -B1 "interface.*Props" "$file" | grep -q "/\*\*"; then
+      echo "FIX $name - Props interface missing JSDoc"
     fi
   fi
 done
 ```
 
-### Step 2.4: Detect Effect Documentation Drift
+**For each file that says FIX:**
+1. Find the Props interface in the file
+2. **Edit the file** — add JSDoc block above it and above each prop:
 
-Check if useEffect hooks have explanatory comments:
+```typescript
+/**
+ * Props for ComponentName.
+ * <Description inferred from component purpose>
+ */
+interface ComponentNameProps {
+  /** <Description of this prop> */
+  propName: string;
+  /** <Description> @default <value if optional> */
+  optionalProp?: boolean;
+}
+```
 
+### Step 2.3: Add Missing State Documentation
+
+For components with undocumented `useState` calls:
+
+<!-- turbo -->
 ```bash
-#!/bin/bash
-# drift-effects.sh - Detect effect documentation drift
-
 for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
-  component=$(basename "$file" .tsx)
+  name=$(basename "$file" .tsx)
   
-  # Find useEffect without preceding comment
+  documented=$(grep -B 1 "useState" "$file" 2>/dev/null | grep -c "/\*\*\|//" 2>/dev/null | tr -d '\n')
+  documented=${documented:-0}
+  actual=$(grep -c "useState" "$file" 2>/dev/null | tr -d '\n')
+  actual=${actual:-0}
+  
+  if [ "$actual" -gt 0 ] 2>/dev/null; then
+    undoc=$((actual - documented))
+    if [ "$undoc" -gt 0 ] 2>/dev/null; then
+      echo "FIX $name: $undoc/$actual useState undocumented"
+    fi
+  fi
+done
+```
+
+**For each file that says FIX:**
+1. Find the undocumented `useState` calls
+2. **Edit the file** — add a comment above each:
+
+```typescript
+/** Current execution status: idle, running, paused, or completed */
+const [status, setStatus] = useState<ExecutionStatus>('idle');
+```
+
+For components with 5+ useState calls, group related state together:
+
+```typescript
+// ============================================================
+// EXECUTION STATE
+// ============================================================
+
+/** Current execution status */
+const [status, setStatus] = useState('idle');
+/** Error from most recent attempt */
+const [error, setError] = useState<Error | null>(null);
+```
+
+### Step 2.4: Add Missing Effect Documentation
+
+For components with undocumented `useEffect` calls:
+
+<!-- turbo -->
+```bash
+for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
+  name=$(basename "$file" .tsx)
+  
   undocumented=$(awk '
     /useEffect/ {
       if (prev !~ /\/\*\*|\/\//) {
@@ -186,393 +207,100 @@ for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; 
   ' "$file" 2>/dev/null | tr -d '\n')
   undocumented=${undocumented:-0}
   
-  total=$(grep -c "useEffect" "$file" 2>/dev/null | tr -d '\n')
-  total=${total:-0}
-  
-  if [ "$total" -gt 0 ] 2>/dev/null && [ "$undocumented" -gt 0 ] 2>/dev/null; then
-    echo "⚠️  $component: $undocumented/$total useEffect undocumented"
+  if [ "$undocumented" -gt 0 ] 2>/dev/null; then
+    echo "FIX $name: $undocumented useEffect undocumented"
   fi
 done
 ```
 
-### Step 2.5: Module Header Check
+**For each file that says FIX:**
+1. Find the undocumented `useEffect` calls
+2. **Edit the file** — add a comment above each:
 
-Verify each file has a proper @module header:
-
-```bash
-#!/bin/bash
-# drift-module-header.sh - Check for @module documentation
-
-for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx \
-            /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/hooks/*.ts; do
-  name=$(basename "$file")
-  
-  # Check for @module tag in first 30 lines
-  if head -30 "$file" | grep -q "@module"; then
-    echo "✅ $name"
-  else
-    echo "❌ $name - Missing @module header"
-  fi
-done
+```typescript
+/** Fetch task data when specId changes */
+useEffect(() => {
+  // ...
+}, [specId]);
 ```
 
-### Step 2.6: Example Code Validation
+### Step 2.5: Add Missing Section Separators
 
-Check if @example blocks exist and reference real types:
+For components > 200 lines without proper section organization:
 
+<!-- turbo -->
 ```bash
-#!/bin/bash
-# drift-examples.sh - Check @example coverage
-
 for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
-  component=$(basename "$file" .tsx)
-  
-  # Count exported functions/components
-  exports=$(grep -c "^export " "$file" 2>/dev/null | tr -d '\n')
-  exports=${exports:-0}
-  
-  # Count @example blocks
-  examples=$(grep -c "@example" "$file" 2>/dev/null | tr -d '\n')
-  examples=${examples:-0}
-  
-  if [ "$exports" -gt 0 ] 2>/dev/null; then
-    if [ "$examples" -eq 0 ] 2>/dev/null; then
-      echo "❌ $component: No @example blocks ($exports exports)"
-    elif [ "$examples" -lt "$exports" ] 2>/dev/null; then
-      echo "⚠️  $component: $examples examples for $exports exports"
-    else
-      echo "✅ $component: $examples examples"
-    fi
-  fi
-done
-```
-
----
-
-## Phase 3: Convention Compliance Check 🆕
-
-Check code against CONVENTIONS.md patterns:
-
-### Step 3.1: Import Order Check
-
-```bash
-#!/bin/bash
-# Check if imports follow convention order:
-# 1. React 2. External 3. Internal components 4. Hooks 5. Utils 6. Relative 7. Types
-
-for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
-  component=$(basename "$file" .tsx)
-  
-  # Extract import section
-  imports=$(sed -n '1,/^[^import]/p' "$file" | grep "^import")
-  
-  # Check if React is first
-  first_import=$(echo "$imports" | head -1)
-  if ! echo "$first_import" | grep -q "from 'react'"; then
-    echo "⚠️  $component: React import should be first"
-  fi
-  
-  # Check if type imports are last
-  last_import=$(echo "$imports" | tail -1)
-  type_imports=$(echo "$imports" | grep "import type")
-  if [ -n "$type_imports" ]; then
-    if ! echo "$last_import" | grep -q "import type"; then
-      echo "⚠️  $component: Type imports should be last"
-    fi
-  fi
-done
-```
-
-### Step 3.2: Naming Convention Check
-
-```bash
-#!/bin/bash
-# Check naming conventions
-
-for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
-  component=$(basename "$file" .tsx)
-  
-  # Check handler naming (should be handle*)
-  bad_handlers=$(grep -E "const on[A-Z]|const click|const submit" "$file" | head -5)
-  if [ -n "$bad_handlers" ]; then
-    echo "⚠️  $component: Handlers should use 'handle' prefix:"
-    echo "$bad_handlers" | sed 's/^/    /'
-  fi
-  
-  # Check boolean naming (should be is*/has*/should*/can*)
-  bad_booleans=$(grep -E "const (loading|error|open|visible|active|disabled)\s*=" "$file" | \
-                 grep -v "is\|has\|should\|can" | head -5)
-  if [ -n "$bad_booleans" ]; then
-    echo "⚠️  $component: Booleans should use is/has/should/can prefix:"
-    echo "$bad_booleans" | sed 's/^/    /'
-  fi
-done
-```
-
-### Step 3.3: Section Comment Check
-
-```bash
-#!/bin/bash
-# Check for section organization comments
-
-for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
-  component=$(basename "$file" .tsx)
+  name=$(basename "$file" .tsx)
   lines=$(wc -l < "$file" 2>/dev/null | tr -d ' \n')
   lines=${lines:-0}
   
-  # Only check files > 200 lines
   if [ "$lines" -gt 200 ] 2>/dev/null; then
     sections=$(grep -c "// ===" "$file" 2>/dev/null | tr -d '\n')
     sections=${sections:-0}
     if [ "$sections" -lt 3 ] 2>/dev/null; then
-      echo "⚠️  $component ($lines lines): Missing section comments (found $sections, want 3+)"
+      echo "FIX $name ($lines lines): needs section separators (found $sections, want 3+)"
     fi
   fi
 done
 ```
 
----
-
-## Phase 4: Generate Drift Report 🆕
-
-Compile all drift findings into a structured report:
-
-```markdown
-# Documentation Drift Report
-
-Generated: <CURRENT_DATE>
-Commit: <CURRENT_COMMIT>
-
-## Summary
-
-| Check | Passing | Failing | Coverage |
-|-------|---------|---------|----------|
-| Module Headers | X | Y | Z% |
-| Props Documentation | X | Y | Z% |
-| State Documentation | X | Y | Z% |
-| Effect Documentation | X | Y | Z% |
-| Example Blocks | X | Y | Z% |
-| Import Order | X | Y | Z% |
-| Naming Conventions | X | Y | Z% |
-
-## 🔴 Critical Drift (Code Changed, Docs Stale)
-
-| File | Issue | Line | Current Code | Documented As |
-|------|-------|------|--------------|---------------|
-| ExecutionRunner.tsx | Missing prop doc | 45 | `batchSize: number` | (undocumented) |
-| ... | ... | ... | ... | ... |
-
-## ⚠️ Missing Documentation
-
-| File | Missing |
-|------|---------|
-| AgentManager.tsx | @module header, 5 useState, 2 useEffect |
-| ... | ... |
-
-## 📋 Convention Violations
-
-| File | Violation | Line |
-|------|-----------|------|
-| TaskEditor.tsx | Handler should use 'handle' prefix | 142 |
-| ... | ... | ... |
-
-## Recommended Fixes
-
-### Priority 1: Module Headers
-Add @module headers to these files:
-- [ ] ExecutionRunner.tsx
-- [ ] AgentManager.tsx
-- [ ] PlanEditor.tsx
-
-### Priority 2: Props Documentation
-- [ ] Add JSDoc to TaskEditorProps interface
-- [ ] Document optional props with @default
-
-### Priority 3: State Documentation
-- [ ] Add comments before useState in ExecutionRunner
-- [ ] Group related state with section comments
-```
-
-Save to: `crates/ckrv-ui/docs/drift-report.md`
-
----
-
-## Phase 5: Apply Documentation (MANDATORY)
-
-**This phase MUST edit files to add missing documentation. Do not just report - actually make the changes.**
-
-### Step 5.1: Priority Order
-
-Apply documentation in this order (highest impact first):
-
-1. **Critical components** (>600 lines): ExecutionRunner, AgentManager, PlanEditor, TestRunner, TaskEditor, SpecEditor
-2. **Warning components** (400-600 lines): TaskDetailModal, QAReviewer, BarebonesExecutor
-3. **All hooks** in `src/hooks/`
-4. **Remaining components**
-
-### Step 5.2: Add Module Headers
-
-**For EACH file missing @module header, edit the file and add this at the very top:**
-
-```typescript
-/**
- * @module ${ComponentName}
- * @description
- * ${INFER_DESCRIPTION_FROM_COMPONENT_NAME_AND_JSX}
- * 
- * Example: "Manages agent configuration and displays available AI coding agents."
- *
- * @context
- * ${DESCRIBE_WHERE_THIS_COMPONENT_IS_USED}
- *
- * @dependencies
- * ${LIST_KEY_IMPORTS_LIKE_HOOKS_AND_EXTERNAL_LIBS}
- */
-```
-
-**Action for each file:**
-1. Read the file to understand what it does
-2. Edit the file - insert the @module block at line 1 (before imports)
-3. Move to next file
-
-### Step 5.3: Add Props Documentation
-
-**For EACH Props interface without JSDoc, edit the file and add documentation:**
-
-Find patterns like:
-```typescript
-interface ExecutionRunnerProps {
-  specId: string;
-  onComplete?: () => void;
-}
-```
-
-Replace with:
-```typescript
-/**
- * Props for ExecutionRunner.
- * Controls the execution of a spec through the agent orchestration pipeline.
- */
-interface ExecutionRunnerProps {
-  /** The ID of the spec to execute */
-  specId: string;
-  /** Callback fired when execution completes (success or failure) */
-  onComplete?: () => void;
-}
-```
-
-**Action for each interface:**
-1. Find the interface in the file
-2. Add JSDoc block above it
-3. Add JSDoc comment above each prop
-
-### Step 5.4: Add Section Comments to Large Components
-
-**For components >400 lines, add section organization comments:**
+**For each file that says FIX:**
+1. Read the file to identify logical sections
+2. **Edit the file** — add `// ===` separator comments:
 
 ```typescript
 // ============================================================
 // STATE
 // ============================================================
 
-const [isLoading, setIsLoading] = useState(false);
-// ... more state
-
 // ============================================================
 // EFFECTS
 // ============================================================
-
-useEffect(() => {
-  // ...
-}, []);
 
 // ============================================================
 // HANDLERS
 // ============================================================
 
-const handleSubmit = () => {
-  // ...
-};
-
 // ============================================================
 // RENDER HELPERS
 // ============================================================
 
-const renderTaskList = () => {
-  // ...
-};
-
 // ============================================================
 // MAIN RENDER
 // ============================================================
-
-return (
-  // ...
-);
 ```
 
-**Action:**
-1. Identify logical sections in the component
-2. Add `// ====...` separator comments before each section
-3. Ensure at least: STATE, EFFECTS, HANDLERS, RENDER sections are marked
+Ensure at least STATE, EFFECTS, HANDLERS, RENDER sections are marked.
 
-### Step 5.5: Document Complex State
+### Step 2.6: Warn About Large Components (Cannot Auto-Fix)
 
-**For components with >5 useState calls, add comments explaining each:**
-
-```typescript
-// ============================================================
-// EXECUTION STATE
-// ============================================================
-// These states track the current execution lifecycle
-
-/** Current execution status: idle, running, paused, or completed */
-const [status, setStatus] = useState<ExecutionStatus>('idle');
-
-/** Error from the most recent execution attempt, null if successful */
-const [error, setError] = useState<Error | null>(null);
-
-/** IDs of tasks currently being executed in parallel */
-const [runningTaskIds, setRunningTaskIds] = useState<string[]>([]);
-```
-
-**Action:**
-1. Group related useState calls together
-2. Add section comment explaining the group
-3. Add inline comment above each useState explaining its purpose
-
-### Step 5.6: Verification
-
-After applying documentation, verify by running:
-
+<!-- turbo -->
 ```bash
-# Check module headers were added
 for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
-  name=$(basename "$file")
-  if head -10 "$file" | grep -q "@module"; then
-    echo "✅ $name"
-  else
-    echo "❌ $name - STILL MISSING @module header"
+  lines=$(wc -l < "$file" 2>/dev/null | tr -d ' \n')
+  lines=${lines:-0}
+  name=$(basename "$file" .tsx)
+  if [ "$lines" -gt 500 ] 2>/dev/null; then
+    echo "⚠️ WARN $name ($lines lines): consider splitting"
   fi
 done
 ```
 
-**If any files still show ❌, go back and add the missing documentation.**
+These are logged in the summary but **not fixed** — splitting components requires logic changes.
 
 ---
 
-## Phase 5.5: Update Frontend Documentation Files
+## Phase 3: Update Documentation Files
 
-### Step 5.5.1: Update frontend/README.md
-
-The frontend README should describe the project, not be Vite boilerplate.
+### Step 3.1: Update frontend/README.md
 
 <!-- turbo -->
 ```bash
-cat crates/ckrv-ui/frontend/README.md
+cat /apps/chakravarti-cli/crates/ckrv-ui/frontend/README.md
 ```
 
-Generate a proper README:
+If the README is Vite boilerplate or outdated, **replace it** with a proper project README:
 
 ```markdown
 # ckrv-ui Frontend
@@ -621,116 +349,183 @@ The frontend communicates with the Rust backend via:
 See `crates/ckrv-ui/docs/api-reference.md` for endpoint documentation.
 ```
 
-### Step 5.5.2: Update api-reference.md
+### Step 3.2: Update api-reference.md
 
 <!-- turbo -->
 ```bash
-cat crates/ckrv-ui/docs/api-reference.md 2>/dev/null || echo "File needs to be created"
+cat /apps/chakravarti-cli/crates/ckrv-ui/docs/api-reference.md 2>/dev/null || echo "File needs to be created"
 ```
 
 <!-- turbo -->
 ```bash
 # Extract API routes from Rust backend
-grep -r "web::" crates/ckrv-ui/src/api/*.rs | grep -E "get|post|put|delete" | head -30
+grep -r "web::\|.route(" /apps/chakravarti-cli/crates/ckrv-ui/src/api/*.rs /apps/chakravarti-cli/crates/ckrv-transport/src/**/*.rs 2>/dev/null | grep -E "get|post|put|delete" | head -30
 ```
 
-Generate/update api-reference.md from the Rust API handlers:
-
-```markdown
-# ckrv-ui API Reference
-
-## REST Endpoints
-
-### Agents
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/agents` | List all configured agents |
-| POST | `/api/agents` | Add a new agent |
-| PUT | `/api/agents/:id` | Update agent configuration |
-| DELETE | `/api/agents/:id` | Remove an agent |
-
-### Executions
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/executions` | List execution history |
-| POST | `/api/executions` | Start new execution |
-| GET | `/api/executions/:id` | Get execution details |
-
-### Specs
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/specs` | List all specs |
-| GET | `/api/specs/:name` | Get spec content |
-
-## WebSocket
-
-Connect to `/ws` for real-time updates.
-
-### Message Types
-
-| Type | Direction | Payload |
-|------|-----------|---------|
-| `execution_started` | Server → Client | `{ id, spec, agents }` |
-| `batch_update` | Server → Client | `{ batch_id, status, logs }` |
-| `execution_complete` | Server → Client | `{ id, result }` |
-```
+Generate/update `api-reference.md` from the Rust API handlers with endpoint tables for each resource group (Agents, Executions, Specs, etc.) and WebSocket message types.
 
 ---
 
-## Phase 6: Output Summary
+## Phase 4: Post-Edit Verification
+
+**After all edits are complete, re-check every modified file to confirm the applied documentation follows conventions.** This catches mistakes — especially from smaller models that may generate wrong formats.
+
+### Step 4.1: Verify Module Header Format
+
+<!-- turbo -->
+```bash
+for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx \
+            /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/hooks/*.ts; do
+  name=$(basename "$file")
+  
+  if head -30 "$file" | grep -q "@module"; then
+    # Check required fields: @module, @description, @context, @dependencies
+    missing=""
+    head -30 "$file" | grep -q "@description" || missing="$missing @description"
+    head -30 "$file" | grep -q "@context"     || missing="$missing @context"
+    head -30 "$file" | grep -q "@dependencies" || missing="$missing @dependencies"
+    
+    if [ -n "$missing" ]; then
+      echo "REFIX $name - @module header missing fields:$missing"
+    fi
+  fi
+done
+```
+
+**Convention check:** Every `@module` header must include `@description`, `@context`, and `@dependencies` fields. If any say REFIX, edit the file to add the missing fields.
+
+### Step 4.2: Verify Props JSDoc Format
+
+<!-- turbo -->
+```bash
+for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
+  name=$(basename "$file" .tsx)
+  
+  if grep -q "interface.*Props" "$file"; then
+    # Check that Props interface has JSDoc above it
+    if ! grep -B1 "interface.*Props" "$file" | grep -q "\*/"; then
+      echo "REFIX $name - Props interface missing JSDoc block"
+      continue
+    fi
+    
+    # Check that individual props have /** */ comments
+    prop_count=$(sed -n '/interface.*Props/,/^}/p' "$file" | grep -cE "^\s+\w+\??\s*:" 2>/dev/null || echo 0)
+    doc_props=$(sed -n '/interface.*Props/,/^}/p' "$file" | grep -c "/\*\*" 2>/dev/null || echo 0)
+    
+    if [ "$prop_count" -gt 0 ] && [ "$doc_props" -eq 0 ]; then
+      echo "REFIX $name - Props have interface JSDoc but individual props need /** */ comments"
+    fi
+  fi
+done
+```
+
+**Convention check:** Each Props interface needs a JSDoc block above it AND each individual prop should have a `/** description */` comment. If any say REFIX, edit to add missing docs.
+
+### Step 4.3: Verify Section Separator Format
+
+<!-- turbo -->
+```bash
+for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
+  name=$(basename "$file" .tsx)
+  lines=$(wc -l < "$file" 2>/dev/null | tr -d ' \n')
+  lines=${lines:-0}
+  
+  if [ "$lines" -gt 200 ] 2>/dev/null; then
+    # Check separator format: must be exactly "// ============..." (60 =)
+    bad_separators=$(grep "// ===" "$file" | grep -vc "// ============================================================" 2>/dev/null || echo 0)
+    if [ "$bad_separators" -gt 0 ] 2>/dev/null; then
+      echo "REFIX $name - $bad_separators section separators have wrong format (need 60 = characters)"
+    fi
+    
+    # Check separator labels are UPPERCASE
+    lowercase_labels=$(grep "// ============" "$file" -A1 | grep "^// " | grep -vc "^// [A-Z ]" 2>/dev/null || echo 0)
+    if [ "$lowercase_labels" -gt 0 ] 2>/dev/null; then
+      echo "REFIX $name - Section separator labels must be UPPERCASE"
+    fi
+  fi
+done
+```
+
+**Convention check:** Separators must use exactly 60 `=` characters and labels must be UPPERCASE (e.g., `// STATE`, not `// state`). If any say REFIX, edit to correct.
+
+### Step 4.4: Verify State/Effect Comments
+
+<!-- turbo -->
+```bash
+for file in /apps/chakravarti-cli/crates/ckrv-ui/frontend/src/components/*.tsx; do
+  name=$(basename "$file" .tsx)
+  
+  # Verify useState comments use /** */ format (not just //)
+  bad_state_comments=$(grep -B1 "useState" "$file" | grep "^\s*//" | grep -vc "/\*\*" 2>/dev/null || echo 0)
+  if [ "$bad_state_comments" -gt 0 ] 2>/dev/null; then
+    echo "REFIX $name - $bad_state_comments useState comments use // instead of /** */ format"
+  fi
+done
+```
+
+**Convention check:** State documentation must use `/** description */` JSDoc format, not bare `//` comments. If any say REFIX, convert `//` to `/** */`.
+
+### Step 4.5: TypeScript Check
+
+<!-- turbo -->
+```bash
+cd /apps/chakravarti-cli/crates/ckrv-ui/frontend && npx tsc --noEmit 2>&1 | tail -10
+```
+
+Confirm no type errors were introduced by documentation changes. If errors appear, fix them before proceeding.
+
+---
+
+## Phase 5: Output Summary
+
+After processing all files, provide a combined summary **in the conversation** (no file generated):
 
 ```markdown
-## Frontend Documentation Audit Complete
+## Frontend Documentation Applied
 
-### Health Report
-📋 `crates/ckrv-ui/docs/frontend-health-report.md`
+### Files Processed
+- Components: 27
+- Hooks: 8
+- Documentation files: 2
 
-### Drift Report  
-📋 `crates/ckrv-ui/docs/drift-report.md`
+### Changes Made
 
-### Statistics
-
-| Metric | Before | After |
-|--------|--------|------------------|
-| Module Headers | 10/27 (37%) | 27/27 (100%) |
-| Props Documented | 17/27 (63%) | 27/27 (100%) |
-| State Documented | 45/120 (38%) | 120/120 (100%) |
-| Convention Compliance | 60% | 95% |
+| Fix Type | Count | Files |
+|----------|:-----:|-------|
+| @module headers added | 5 | AgentManager, PlanEditor, ... |
+| Props JSDoc added | 3 | TaskEditor, SpecEditor, ... |
+| State documented | 12 | ExecutionRunner (5), AgentManager (4), ... |
+| Effects documented | 4 | ExecutionRunner (2), TestRunner (2) |
+| Section separators added | 3 | ExecutionRunner, AgentManager, PlanEditor |
 
 ### Files Modified
-- ExecutionRunner.tsx (+45 lines documentation)
-- AgentManager.tsx (+32 lines documentation)
+- `ExecutionRunner.tsx` - Added @module, 5 useState docs, 2 useEffect docs, sections
+- `AgentManager.tsx` - Added @module, Props JSDoc, 4 useState docs
+- `crates/ckrv-ui/frontend/README.md` - Replaced Vite boilerplate with project docs
 - ...
 
-### Next Steps
-1. Review generated documentation for accuracy
-2. Run `--drift` weekly to catch new drift
-3. Add pre-commit hook to enforce conventions
+### Post-Edit Verification
+- ✅ @module header format: all have @description, @context, @dependencies
+- ✅ Props JSDoc format: all interfaces and props documented
+- ✅ Section separator format: all correct (60 =, UPPERCASE labels)
+- ✅ State/effect comment format: all use /** */ JSDoc
+- ✅ `tsc --noEmit`: no type errors
+
+### ⚠️ Warnings (Manual Action Needed)
+- `ExecutionRunner.tsx` (680 lines) - Consider splitting
+- `AgentManager.tsx` (550 lines) - Consider splitting
 ```
 
----
 ---
 
 ## Notes
 
-- **This workflow APPLIES documentation** - Phase 5 actually edits files to add missing docs
-- **Drift detection** finds discrepancies between what's documented and what exists
-- **Convention compliance** ensures new code follows patterns that make LLM editing easier
-- **Review after running** - generated docs need human review for accuracy
-- Run this workflow regularly (weekly or in CI) to catch documentation rot early
-- The goal is making every file **self-contained context** for LLMs
-
-### What This Workflow Modifies
-
-| File Type | What Gets Added |
-|-----------|-----------------|
-| `*.tsx` components | @module headers, Props JSDoc, section comments, state comments |
-| `*.ts` hooks | @module headers, @returns documentation |
-| `frontend/README.md` | Complete project documentation (replaces Vite boilerplate) |
-| `docs/drift-report.md` | Generated analysis report |
+- **Detect-and-fix in one pass**: No separate analysis phase — issues are fixed as they're found
+- **No report files**: Summary is printed in conversation, not saved to `drift-report.md` or `health-report.md`
+- **Documentation only**: Adds comments, JSDoc, and section separators — never changes component logic
+- **Warnings for unfixable issues**: Large components that need splitting are warned about but not touched
+- **Convention compliance**: Follows patterns from `FRONTEND_CONVENTIONS.md`
+- **Idempotent**: Safe to run multiple times — already-documented items are skipped
 
 ---
 

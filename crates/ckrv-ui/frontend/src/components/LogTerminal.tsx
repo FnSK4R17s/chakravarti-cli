@@ -68,7 +68,10 @@ export const LogTerminal: React.FC<LogTerminalProps> = ({ onMount, className }) 
         }, 50); // 50ms debounce - responsive but prevents rapid-fire calls
     }, []);
 
-    // Terminal initialization: create xterm instance, setup theme, attach WebGL renderer
+    /**
+     * Terminal initialization: create xterm instance, setup theme, and attach WebGL renderer.
+     * Sets up ResizeObserver for container-level resize detection and cleanup on unmount.
+     */
     useEffect(() => {
         if (!terminalRef.current || xtermRef.current) return;
 

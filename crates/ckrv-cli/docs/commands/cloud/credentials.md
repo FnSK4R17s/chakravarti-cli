@@ -1,7 +1,7 @@
 ---
 command: cloud credentials
 generated_from: crates/ckrv-cli/src/commands/cloud/credentials.rs
-last_commit: 1b27ca2
+last_commit: 508766e
 ---
 
 # ckrv cloud credentials
