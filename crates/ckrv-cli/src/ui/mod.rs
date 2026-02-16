@@ -108,8 +108,18 @@ impl UiContext {
         self.print(components::Panel::new(title, msg).success());
     }
 
+    /// Display an info panel (uses success styling).
+    pub fn info(&self, title: &str, msg: &str) {
+        self.print(components::Panel::new(title, msg).success());
+    }
+
     /// Display an error panel.
     pub fn error(&self, title: &str, msg: &str) {
+        self.print(components::Panel::new(title, msg).error());
+    }
+
+    /// Display a warning panel (uses error styling).
+    pub fn warn(&self, title: &str, msg: &str) {
         self.print(components::Panel::new(title, msg).error());
     }
 
