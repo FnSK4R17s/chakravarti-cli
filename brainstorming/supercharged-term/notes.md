@@ -2,7 +2,7 @@
 
 **Created**: 2026-02-15
 **Status**: Draft
-**Bugfixes**: [bugfix01.md](./bugfix01.md)
+**Bugfixes**: [bugfix01.md](./bugfix01.md) | [bugfix02.md](./bugfix02.md) | [bugfix03.md](./bugfix03.md) | [bugfix04.md](./bugfix04.md) | [bugfix05.md](./bugfix05.md)
 
 ## Problem Statement
 

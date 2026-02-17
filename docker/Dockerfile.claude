@@ -10,24 +10,33 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code CLI globally
-RUN npm install -g @anthropic-ai/claude-code
+# Create non-root user with home directory
+RUN useradd -m -s /bin/bash -d /home/claude claude && \
+    mkdir -p /home/claude/.claude && \
+    chown -R claude:claude /home/claude
 
-# Create /home/claude directory with open permissions
-# This allows the container to run as any host user while using this home directory
-RUN mkdir -p /home/claude/.claude && \
-    chmod -R 777 /home/claude
+# Create workspace directory
+RUN mkdir -p /workspace && chown claude:claude /workspace
 
-# Create workspace directory with open permissions
-RUN mkdir -p /workspace && chmod 777 /workspace
+# Install Claude Code CLI using the native installer (npm package is deprecated)
+# Install as the claude user so paths resolve correctly
+USER claude
+ENV HOME=/home/claude
+RUN curl -fsSL https://claude.ai/install.sh | bash && \
+    # Symlink to /usr/local/bin so it's available system-wide
+    ls -la $HOME/.local/bin/claude
+
+# Switch back to root to create system-wide symlink
+USER root
+RUN ln -sf /home/claude/.local/bin/claude /usr/local/bin/claude
 
 WORKDIR /workspace
 
-# Set HOME environment variable
-ENV HOME=/home/claude
-
 # Verify Claude is installed
 RUN claude --version || true
+
+# Switch to non-root user
+USER claude
 
 # Default command
 CMD ["/bin/bash"]

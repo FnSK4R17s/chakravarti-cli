@@ -161,6 +161,12 @@ struct SessionState {
     worktree_path: Option<String>,
     /// Worktree branch name
     worktree_branch: Option<String>,
+    /// Extra CLI args passed to the agent (e.g., --dangerously-skip-permissions)
+    #[serde(default)]
+    extra_args: Vec<String>,
+    /// Extra environment variables set for the agent (e.g., CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)
+    #[serde(default)]
+    env_vars: Vec<(String, String)>,
     /// Creation timestamp
     created_at: DateTime<Utc>,
     /// Current status
@@ -250,8 +256,8 @@ pub struct TermArgs {
     #[arg(long)]
     name: Option<String>,
 
-    /// Resume a named session
-    #[arg(long, conflicts_with = "agent")]
+    /// Resume a session. Optionally pass a session name, or omit to select interactively.
+    #[arg(long, conflicts_with = "agent", num_args = 0..=1, default_missing_value = "")]
     resume: Option<String>,
 
     /// List all sessions and exit
@@ -286,7 +292,7 @@ pub struct TermArgs {
 /// - Worktree creation fails
 /// - Session state cannot be saved
 /// - Agent execution fails
-pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
+pub async fn execute(mut args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
     // Handle --list flag (list agents)
@@ -306,6 +312,30 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
 
     // Handle --resume flag
     if let Some(session_name) = &args.resume {
+        if session_name.is_empty() {
+            let sessions = get_all_sessions()?;
+            if sessions.is_empty() {
+                ui.info("No Sessions", "No sessions available to resume.");
+                return Ok(());
+            }
+
+            let items: Vec<String> = sessions
+                .iter()
+                .map(|(name, state)| {
+                    let age = format_age(state.created_at);
+                    format!("{} [{}] {} — {}", name, state.status, state.agent_id, age)
+                })
+                .collect();
+
+            let selection = Select::with_theme(&ColorfulTheme::default())
+                .with_prompt("Select a session to resume")
+                .items(&items)
+                .interact()?;
+
+            let selected_name = &sessions[selection].0;
+            return resume_session(&args, selected_name, json, ui, &cwd).await;
+        }
+
         return resume_session(&args, session_name, json, ui, &cwd).await;
     }
 
@@ -338,16 +368,34 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
         select_agent_interactively(&enabled_agents)?
     };
 
-    // Collect extra arguments and env vars
-    let (extra_args, prompt_env_vars) = collect_args_and_env(&args, &agent.agent_type, json)?;
+    // Collect extra arguments and env vars (includes interactively-selected term options)
+    let prompt_result = collect_args_and_env(&args, &agent.agent_type, json)?;
+    let extra_args = prompt_result.args;
+
+    // Apply interactively-selected term-level options to args
+    if prompt_result.worktree {
+        args.worktree = true;
+    }
+    if prompt_result.sandbox {
+        args.sandbox = true;
+    }
+    if prompt_result.session_name.is_some() && args.name.is_none() {
+        args.name = prompt_result.session_name;
+    }
 
     // Build command based on agent type
     let (binary, mut env_vars) = build_agent_command(&agent)?;
 
-    env_vars.extend(prompt_env_vars);
+    env_vars.extend(prompt_result.env_vars);
 
-    // Generate session ID
-    let session_id = generate_session_id(args.name.as_deref());
+    // Generate session name — either user-provided or auto-generated
+    if args.name.is_none() {
+        args.name = Some(generate_session_name());
+    }
+    let session_name = args.name.as_ref().unwrap();
+
+    // Generate session ID (used for worktree branch naming)
+    let session_id = generate_session_id(Some(session_name));
 
     // Create worktree if requested
     let worktree_info = if args.worktree {
@@ -361,17 +409,17 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
         .as_ref()
         .map_or_else(|| cwd.clone(), |wt| wt.path.clone());
 
-    // Create named session state if --name provided
-    if let Some(session_name) = &args.name {
-        create_session_state(
-            session_name,
-            &agent.id,
-            worktree_info.as_ref(),
-            &cwd,
-            args.sandbox,
-            args.worktree,
-        )?;
-    }
+    // Always create session state (no longer gated by --name)
+    create_session_state(
+        session_name,
+        &agent.id,
+        worktree_info.as_ref(),
+        &cwd,
+        args.sandbox,
+        args.worktree,
+        &extra_args,
+        &env_vars,
+    )?;
 
     // Display session info
     if !json {
@@ -402,15 +450,27 @@ pub async fn execute(args: TermArgs, json: bool, ui: &UiContext) -> anyhow::Resu
         execute_locally(&binary, &env_vars, &extra_args, &agent, &working_dir)?
     };
 
+    // Print session info after agent exits
+    if !json {
+        let session_name = args.name.as_ref().unwrap();
+        println!();
+        ui.info(
+            "Session",
+            &format!(
+                "\"{}\" — resume with: ckrv term --resume {}",
+                session_name, session_name
+            ),
+        );
+    }
+
     // Handle post-session for worktree mode
     if let Some(ref wt) = worktree_info {
         handle_post_session(wt, &cwd, ui, &agent.name)?;
     }
 
-    // Update session status if named
-    if let Some(session_name) = &args.name {
-        update_session_status(session_name, SessionStatus::Stopped)?;
-    }
+    // Always update session status to stopped
+    let session_name = args.name.as_ref().unwrap();
+    update_session_status(session_name, SessionStatus::Stopped)?;
 
     // Exit with same code as agent
     if !exit_status.success() {
@@ -465,33 +525,8 @@ fn list_agents(_args: &TermArgs, json: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn list_sessions(_args: &TermArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
-    let sessions_dir = get_sessions_dir()?;
-    if !sessions_dir.exists() {
-        if json {
-            println!("[]");
-        } else {
-            ui.info("No Sessions", "No sessions found.");
-        }
-        return Ok(());
-    }
-
-    let mut sessions: Vec<(String, SessionState)> = Vec::new();
-    for entry in std::fs::read_dir(&sessions_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.extension().is_some_and(|e| e == "yaml") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if let Ok(state) = serde_yaml::from_str::<SessionState>(&content) {
-                    if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
-                        sessions.push((name.to_string(), state));
-                    }
-                }
-            }
-        }
-    }
-
-    sessions.sort_by(|a, b| b.1.created_at.cmp(&a.1.created_at));
+fn list_sessions(args: &TermArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
+    let sessions = get_all_sessions()?;
 
     if json {
         let sessions_json: Vec<_> = sessions
@@ -529,6 +564,34 @@ fn list_sessions(_args: &TermArgs, json: bool, ui: &UiContext) -> anyhow::Result
         }
     }
     Ok(())
+}
+
+/// Load all sessions from the sessions directory.
+///
+/// Returns sessions sorted by creation time (most recent first).
+fn get_all_sessions() -> anyhow::Result<Vec<(String, SessionState)>> {
+    let sessions_dir = get_sessions_dir()?;
+    if !sessions_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut sessions: Vec<(String, SessionState)> = Vec::new();
+    for entry in std::fs::read_dir(&sessions_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "yaml") {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Ok(state) = serde_yaml::from_str::<SessionState>(&content) {
+                    if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                        sessions.push((name.to_string(), state));
+                    }
+                }
+            }
+        }
+    }
+
+    sessions.sort_by(|a, b| b.1.created_at.cmp(&a.1.created_at));
+    Ok(sessions)
 }
 
 async fn cleanup_session(session_name: &str, ui: &UiContext, cwd: &PathBuf) -> anyhow::Result<()> {
@@ -642,8 +705,19 @@ async fn resume_session(
 
     let use_sandbox = state.sandbox;
 
-    let (binary, env_vars) = build_agent_command(&agent)?;
-    let (extra_args, _) = collect_args_and_env(_args, &agent.agent_type, json)?;
+    let (binary, mut env_vars) = build_agent_command(&agent)?;
+
+    // Restore persisted extra args and env vars from the session
+    let extra_args = if state.extra_args.is_empty() {
+        // Fallback: if session was created before args were persisted, prompt
+        let prompt_result = collect_args_and_env(_args, &agent.agent_type, json)?;
+        env_vars.extend(prompt_result.env_vars);
+        prompt_result.args
+    } else {
+        // Merge persisted env vars into the build_agent_command env vars
+        env_vars.extend(state.env_vars.clone());
+        state.extra_args.clone()
+    };
 
     if !json {
         ui.success(
@@ -655,6 +729,19 @@ async fn resume_session(
         }
         if use_sandbox {
             println!("  Mode: Docker sandbox");
+        }
+        if !env_vars.is_empty() {
+            println!(
+                "  Environment: {}",
+                env_vars
+                    .iter()
+                    .map(|(k, _)| k.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+        if !extra_args.is_empty() {
+            println!("  Extra args: {}", extra_args.join(" "));
         }
         println!();
     }
@@ -741,16 +828,27 @@ fn collect_args_and_env(
     args: &TermArgs,
     agent_type: &AgentType,
     json: bool,
-) -> anyhow::Result<(Vec<String>, Vec<(String, String)>)> {
+) -> anyhow::Result<PromptResult> {
     if !args.passthrough_args.is_empty() {
-        return Ok((args.passthrough_args.clone(), Vec::new()));
+        return Ok(PromptResult {
+            args: args.passthrough_args.clone(),
+            env_vars: Vec::new(),
+            worktree: false,
+            sandbox: false,
+            session_name: None,
+        });
     }
 
     if json {
-        Ok((Vec::new(), Vec::new()))
+        Ok(PromptResult {
+            args: Vec::new(),
+            env_vars: Vec::new(),
+            worktree: false,
+            sandbox: false,
+            session_name: None,
+        })
     } else {
-        let result = prompt_for_options(agent_type)?;
-        Ok((result.args, result.env_vars))
+        prompt_for_options(agent_type)
     }
 }
 
@@ -763,6 +861,50 @@ fn generate_session_id(name: Option<&str>) -> String {
         },
         |n| format!("term-{n}"),
     )
+}
+
+/// Generate a memorable, terminal-safe session name.
+///
+/// Format: `adjective-animal-NNNN` (e.g., "brave-panda-4821", "swift-falcon-0137").
+/// The 4-digit suffix prevents collisions across concurrent or rapid sessions.
+fn generate_session_name() -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    const ADJECTIVES: &[&str] = &[
+        "bold", "brave", "calm", "cool", "crisp", "deft", "fair", "fast", "fine", "firm", "fond",
+        "free", "glad", "gold", "good", "holy", "keen", "kind", "lean", "live", "neat", "nice",
+        "pure", "rare", "rich", "safe", "sage", "slim", "soft", "sure", "tall", "tidy", "true",
+        "vast", "warm", "wide", "wild", "wise", "zany", "epic", "swift",
+    ];
+
+    const ANIMALS: &[&str] = &[
+        "ape", "bat", "bear", "bison", "boar", "bull", "civet", "cobra", "crane", "crow", "deer",
+        "dove", "eagle", "elephant", "fox", "frog", "gaur", "gecko", "goat", "hawk", "hare",
+        "heron", "ibis", "jackal", "kite", "koel", "langur", "lion", "moth", "mongoose", "myna",
+        "newt", "otter", "owl", "panda", "peacock", "rat", "rhino", "robin", "shrew", "stork",
+        "tiger", "viper", "wolf",
+    ];
+
+    let mut hasher = DefaultHasher::new();
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+        .hash(&mut hasher);
+    let hash = hasher.finish();
+
+    let adj = ADJECTIVES[(hash as usize) % ADJECTIVES.len()];
+    let animal = ANIMALS[((hash >> 16) as usize) % ANIMALS.len()];
+    let suffix = (hash >> 32) % 10000;
+
+    let (adj, animal) = if adj == "holy" {
+        ("holy", "cow")
+    } else {
+        (adj, animal)
+    };
+
+    format!("{adj}-{animal}-{suffix:04}")
 }
 
 fn create_worktree(
@@ -793,6 +935,8 @@ fn create_session_state(
     _cwd: &std::path::Path,
     sandbox: bool,
     worktree: bool,
+    extra_args: &[String],
+    env_vars: &[(String, String)],
 ) -> anyhow::Result<()> {
     let sessions_dir = get_sessions_dir()?;
     std::fs::create_dir_all(&sessions_dir)?;
@@ -813,6 +957,8 @@ fn create_session_state(
         container_id: None,
         worktree_path: worktree_info.map(|wt| wt.path.to_string_lossy().to_string()),
         worktree_branch: worktree_info.map(|wt| wt.branch.clone()),
+        extra_args: extra_args.to_vec(),
+        env_vars: env_vars.to_vec(),
         created_at: Utc::now(),
         status: SessionStatus::Active,
     };
@@ -907,7 +1053,7 @@ async fn execute_in_sandbox(
     ui: &UiContext,
 ) -> anyhow::Result<std::process::ExitStatus> {
     // Check Docker availability
-    let docker = DockerClient::new().map_err(|e| {
+    let mut docker = DockerClient::new().map_err(|e| {
         anyhow::anyhow!(
             "Docker is not available: {}\n\n\
              Please ensure Docker is installed and running:\n\
@@ -928,13 +1074,25 @@ async fn execute_in_sandbox(
         )
     })?;
 
+    // Set agent-specific Docker image
+    let image = match &agent.agent_type {
+        AgentType::Codex => "ckrv-codex:latest",
+        AgentType::KiloCode => "ckrv-kilo:latest",
+        _ => "ckrv-claude:latest",
+    };
+    docker.set_image(image);
+
     // Get agent provider for credential mounts
     let sandbox_type = to_sandbox_agent_type(&agent.agent_type);
     let agent_provider = ckrv_sandbox::create_agent(sandbox_type);
 
-    // Get credential mounts
+    // Get credential mounts - set container home based on agent type
     let host_home = std::env::var("HOME").unwrap_or_default();
-    let container_home = "/home/claude".to_string();
+    let container_home = match &agent.agent_type {
+        AgentType::Codex => "/home/codex",
+        AgentType::KiloCode => "/home/kilo",
+        _ => "/home/claude",
+    };
     let mounts = agent_provider.config_mounts(&host_home, &container_home);
 
     // Convert to BindMount
@@ -954,6 +1112,9 @@ async fn execute_in_sandbox(
 
     // Convert env vars to HashMap
     let mut env_map: HashMap<String, String> = env_vars.iter().cloned().collect();
+
+    // Add HOME to env for the container
+    env_map.insert("HOME".to_string(), container_home.to_string());
 
     // Add agent-specific env vars from config
     if let Some(custom_env) = &agent.env_vars {
@@ -1006,9 +1167,32 @@ async fn execute_in_sandbox(
     // Add passthrough args
     agent_cmd.extend(extra_args.to_vec());
 
+    // Build docker exec command with env vars
+    let mut docker_args = vec![
+        "exec".to_string(),
+        "-it".to_string(),
+        "-w".to_string(),
+        container_workdir.to_string(),
+    ];
+
+    // Pass env vars explicitly via -e flags
+    for (key, value) in env_vars {
+        docker_args.push("-e".to_string());
+        docker_args.push(format!("{}={}", key, value));
+    }
+
+    // Add TERM for TUI rendering
+    docker_args.push("-e".to_string());
+    docker_args.push("TERM=xterm-256color".to_string());
+    docker_args.push("-e".to_string());
+    docker_args.push("COLORTERM=truecolor".to_string());
+
+    // Add container ID
+    docker_args.push(container_id.clone());
+
     // Execute via docker exec -it for interactive PTY
     let status = Command::new("docker")
-        .args(["exec", "-it", "-w", container_workdir, &container_id])
+        .args(&docker_args)
         .args(&agent_cmd)
         .status();
 
@@ -1291,6 +1475,12 @@ fn format_age(created_at: DateTime<Utc>) -> String {
 struct PromptResult {
     args: Vec<String>,
     env_vars: Vec<(String, String)>,
+    /// Whether the user selected worktree isolation mode interactively
+    worktree: bool,
+    /// Whether the user selected sandbox isolation mode interactively
+    sandbox: bool,
+    /// Session name if provided interactively
+    session_name: Option<String>,
 }
 
 /// Prompt user interactively for common options and custom args.
@@ -1298,15 +1488,14 @@ fn prompt_for_options(agent_type: &AgentType) -> anyhow::Result<PromptResult> {
     let theme = ColorfulTheme::default();
     let mut args: Vec<String> = Vec::new();
     let mut env_vars: Vec<(String, String)> = Vec::new();
+    let mut worktree = false;
+    let mut sandbox = false;
+    let mut session_name: Option<String> = None;
 
     let applicable: Vec<&CommonOption> = COMMON_OPTIONS
         .iter()
         .filter(|opt| opt.agents.contains(agent_type))
         .collect();
-
-    if applicable.is_empty() {
-        return Ok(PromptResult { args, env_vars });
-    }
 
     let launch_choice = Select::with_theme(&theme)
         .with_prompt("Launch options")
@@ -1315,28 +1504,63 @@ fn prompt_for_options(agent_type: &AgentType) -> anyhow::Result<PromptResult> {
         .interact()?;
 
     if launch_choice == 0 {
-        return Ok(PromptResult { args, env_vars });
+        return Ok(PromptResult {
+            args,
+            env_vars,
+            worktree,
+            sandbox,
+            session_name,
+        });
     }
 
-    let items: Vec<String> = applicable
-        .iter()
-        .map(|opt| format!("{} - {}", opt.label, opt.description))
-        .collect();
+    let term_options = [
+        "Worktree isolation - Run agent in an isolated git worktree branch",
+        "Docker sandbox - Run agent inside a Docker container",
+        "Name session - Create a named session for resume later",
+    ];
 
-    let selections = MultiSelect::with_theme(&theme)
-        .with_prompt("Select options (Space to toggle, Enter to confirm)")
-        .items(&items)
+    let term_selections = MultiSelect::with_theme(&theme)
+        .with_prompt("Isolation modes (Space to toggle, Enter to confirm)")
+        .items(&term_options)
         .interact()?;
 
-    for idx in selections {
-        match &applicable[idx].action {
-            OptionAction::Flag(flag) => {
-                for part in flag.split_whitespace() {
-                    args.push(part.to_string());
+    for idx in &term_selections {
+        match idx {
+            0 => worktree = true,
+            1 => sandbox = true,
+            2 => {
+                let name: String = Input::with_theme(&theme)
+                    .with_prompt("Session name")
+                    .interact_text()?;
+                if !name.trim().is_empty() {
+                    session_name = Some(name.trim().to_string());
                 }
             }
-            OptionAction::EnvVar(key, value) => {
-                env_vars.push(((*key).to_string(), (*value).to_string()));
+            _ => {}
+        }
+    }
+
+    if !applicable.is_empty() {
+        let items: Vec<String> = applicable
+            .iter()
+            .map(|opt| format!("{} - {}", opt.label, opt.description))
+            .collect();
+
+        let selections = MultiSelect::with_theme(&theme)
+            .with_prompt("Agent options (Space to toggle, Enter to confirm)")
+            .items(&items)
+            .interact()?;
+
+        for idx in selections {
+            match &applicable[idx].action {
+                OptionAction::Flag(flag) => {
+                    for part in flag.split_whitespace() {
+                        args.push(part.to_string());
+                    }
+                }
+                OptionAction::EnvVar(key, value) => {
+                    env_vars.push(((*key).to_string(), (*value).to_string()));
+                }
             }
         }
     }
@@ -1352,7 +1576,13 @@ fn prompt_for_options(agent_type: &AgentType) -> anyhow::Result<PromptResult> {
         }
     }
 
-    Ok(PromptResult { args, env_vars })
+    Ok(PromptResult {
+        args,
+        env_vars,
+        worktree,
+        sandbox,
+        session_name,
+    })
 }
 
 /// Build command binary and environment variables for an agent

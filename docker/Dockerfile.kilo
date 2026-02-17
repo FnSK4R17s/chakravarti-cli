@@ -14,21 +14,24 @@ RUN apt-get update && apt-get install -y \
 # Install Kilo Code CLI globally
 RUN npm install -g @kilocode/cli
 
-# Create /home/kilo directory with open permissions
-# This allows the container to run as any host user while using this home directory
-RUN mkdir -p /home/kilo/.config/kilo && \
-    chmod -R 777 /home/kilo
+# Create non-root user with home directory
+RUN useradd -m -s /bin/bash -d /home/kilo kilo && \
+    mkdir -p /home/kilo/.config/kilo && \
+    chown -R kilo:kilo /home/kilo
 
-# Create workspace directory with open permissions
-RUN mkdir -p /workspace && chmod 777 /workspace
+# Create workspace directory
+RUN mkdir -p /workspace && chown kilo:kilo /workspace
 
 WORKDIR /workspace
 
 # Set HOME environment variable
 ENV HOME=/home/kilo
 
-# Verify Kilo is installed
+# Verify Kilo is installed (must run before USER switch)
 RUN kilo --version || true
+
+# Switch to non-root user
+USER kilo
 
 # Default command
 CMD ["/bin/bash"]

@@ -10,39 +10,43 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code CLI globally
-RUN npm install -g @anthropic-ai/claude-code
-
-# Install OpenAI Codex CLI globally
+# Install OpenAI Codex CLI globally (still npm-based)
 RUN npm install -g @openai/codex
 
-# Install Kilo Code CLI globally
+# Install Kilo Code CLI globally (still npm-based)
 RUN npm install -g @kilocode/cli
 
-# Create /home/claude directory with open permissions
-# This allows the container to run as any host user while using this home directory
-RUN mkdir -p /home/claude/.claude && \
-    chmod -R 777 /home/claude
+# Create non-root user with home directory
+RUN useradd -m -s /bin/bash -d /home/agent agent && \
+    mkdir -p /home/agent/.claude && \
+    mkdir -p /home/agent/.codex && \
+    mkdir -p /home/agent/.config/openai && \
+    mkdir -p /home/agent/.config/kilo && \
+    chown -R agent:agent /home/agent
 
-# Create Codex config directory
-RUN mkdir -p /home/claude/.codex && \
-    mkdir -p /home/claude/.config/openai && \
-    chmod -R 777 /home/claude/.codex /home/claude/.config
+# Create workspace directory
+RUN mkdir -p /workspace && chown agent:agent /workspace
 
-# Create Kilo config directory
-RUN mkdir -p /home/claude/.config/kilo && \
-    chmod -R 777 /home/claude/.config/kilo
+# Install Claude Code CLI using the native installer (npm package is deprecated)
+# Install as the agent user so paths resolve correctly
+USER agent
+ENV HOME=/home/agent
+RUN curl -fsSL https://claude.ai/install.sh | bash && \
+    ls -la $HOME/.local/bin/claude
 
-# Create workspace directory with open permissions
-RUN mkdir -p /workspace && chmod 777 /workspace
+# Switch back to root to create system-wide symlink
+USER root
+RUN ln -sf /home/agent/.local/bin/claude /usr/local/bin/claude
 
 WORKDIR /workspace
 
-# Verify all CLIs are installed (as root, before switching)
+# Verify all CLIs are installed (must run before USER switch)
 RUN claude --version || true
 RUN codex --version || true
 RUN kilo --version || true
 
+# Switch to non-root user
+USER agent
+
 # Default command
 CMD ["/bin/bash"]
-

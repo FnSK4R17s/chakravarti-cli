@@ -13,22 +13,25 @@ RUN apt-get update && apt-get install -y \
 # Install OpenAI Codex CLI globally
 RUN npm install -g @openai/codex
 
-# Create /home/codex directory with open permissions
-# This allows the container to run as any host user while using this home directory
-RUN mkdir -p /home/codex/.codex && \
+# Create non-root user with home directory
+RUN useradd -m -s /bin/bash -d /home/codex codex && \
+    mkdir -p /home/codex/.codex && \
     mkdir -p /home/codex/.config/openai && \
-    chmod -R 777 /home/codex
+    chown -R codex:codex /home/codex
 
-# Create workspace directory with open permissions
-RUN mkdir -p /workspace && chmod 777 /workspace
+# Create workspace directory
+RUN mkdir -p /workspace && chown codex:codex /workspace
 
 WORKDIR /workspace
 
 # Set HOME environment variable
 ENV HOME=/home/codex
 
-# Verify Codex is installed
+# Verify Codex is installed (must run before USER switch)
 RUN codex --version || true
+
+# Switch to non-root user
+USER codex
 
 # Default command
 CMD ["/bin/bash"]
