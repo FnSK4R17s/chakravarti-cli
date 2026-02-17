@@ -1246,11 +1246,22 @@ fn handle_post_session(
     ui: &UiContext,
     agent_name: &str,
 ) -> anyhow::Result<()> {
-    let has_changes = Command::new("git")
+    // Check for tracked file modifications
+    let has_tracked_changes = Command::new("git")
         .args(["diff", "--quiet", "HEAD"])
         .current_dir(&worktree.path)
         .status()
         .is_ok_and(|s| !s.success());
+
+    // Check for untracked (new) files created by the agent
+    let has_untracked = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&worktree.path)
+        .output()
+        .map(|o| !o.stdout.is_empty())
+        .unwrap_or(false);
+
+    let has_changes = has_tracked_changes || has_untracked;
 
     if !has_changes {
         ui.info("No Changes", "Agent made no changes to the worktree.");
@@ -1312,6 +1323,7 @@ fn post_session_prompt() -> anyhow::Result<PostAction> {
 fn show_diff(worktree_path: &std::path::Path) -> anyhow::Result<()> {
     println!("\n--- Changes in worktree ---\n");
 
+    // Show tracked file changes
     let status = Command::new("git")
         .args(["diff", "HEAD"])
         .current_dir(worktree_path)
@@ -1319,6 +1331,20 @@ fn show_diff(worktree_path: &std::path::Path) -> anyhow::Result<()> {
 
     if !status.success() {
         println!("(No diff available)");
+    }
+
+    // Show untracked (new) files
+    let untracked = Command::new("git")
+        .args(["ls-files", "--others", "--exclude-standard"])
+        .current_dir(worktree_path)
+        .output()?;
+
+    let untracked_files = String::from_utf8_lossy(&untracked.stdout);
+    if !untracked_files.is_empty() {
+        println!("\nNew files (untracked):");
+        for file in untracked_files.lines() {
+            println!("  + {file}");
+        }
     }
 
     println!("\n---------------------------\n");
