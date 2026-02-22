@@ -34,6 +34,12 @@ All agent execution runs inside Docker containers:
 - No network by default
 - Command allow-list enforced
 - Secrets via env vars only
+- **Non-root user** — containers run as a dedicated user, not root
+
+> **Warning**: All agent Docker containers must run as a non-root user.
+> Agent CLIs like Claude Code enforce security restrictions when running as
+> root (e.g., blocking `--dangerously-skip-permissions`). Each Dockerfile
+> creates a dedicated user and switches to it via the `USER` directive.
 
 ## Credential Mounting
 

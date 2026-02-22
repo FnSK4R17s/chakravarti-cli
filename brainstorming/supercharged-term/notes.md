@@ -2,6 +2,7 @@
 
 **Created**: 2026-02-15
 **Status**: Draft
+**Bugfixes**: [bugfix01.md](./bugfix01.md) | [bugfix02.md](./bugfix02.md) | [bugfix03.md](./bugfix03.md) | [bugfix04.md](./bugfix04.md) | [bugfix05.md](./bugfix05.md)
 
 ## Problem Statement
 
@@ -457,7 +458,198 @@ tokio::spawn(async move {
 - [ ] Combine `--sandbox --worktree` mode
 - [ ] Add `--name` session persistence
 - [ ] Test with all agent types (Claude, Codex, Kilo)
-- [ ] Document in `long_about` / `after_help` attributes
+## Post-Implementation Review (2026-02-16)
+
+> ℹ️ Bugfix tasks generated: [bugfix01.md](./bugfix01.md)
+
+After the initial implementation, a code evaluation found three bugs and one UX improvement opportunity.
+
+### Bug 1: `create_worktree()` is needlessly `async`
+
+**File**: `term.rs:747`
+**Issue**: `create_worktree()` is declared `async` but performs only synchronous `git2` operations via `DefaultWorktreeManager`. No `.await` is ever called inside the function body.
+
+**Impact**: Clippy warning, misleading API surface. Callers are required to `.await` for no reason.
+
+**Fix**: Remove `async` from the function signature. Change call sites from `create_worktree(...).await?` to `create_worktree(...)?`.
+
+```rust
+// Before
+async fn create_worktree(session_id: &str, cwd: &PathBuf, ...) -> anyhow::Result<Worktree> { ... }
+
+// After
+fn create_worktree(session_id: &str, cwd: &Path, ...) -> anyhow::Result<Worktree> { ... }
+```
+
+---
+
+### Bug 2: `resume_session()` crashes on sandbox-only sessions
+
+**File**: `term.rs:620-627`
+**Issue**: When resuming a session that was created with `--sandbox` alone (no worktree), `resume_session()` unconditionally requires `worktree_path` to exist and errors with "Worktree for session 'X' no longer exists".
+
+```rust
+// Current code — bombs if worktree_path is None
+let worktree_path = state
+    .worktree_path
+    .as_ref()
+    .map(|p| PathBuf::from(p))
+    .filter(|p| p.exists())
+    .ok_or_else(|| anyhow::anyhow!("Worktree for session '{}' no longer exists", session_name))?;
+```
+
+**Impact**: Sandbox-only sessions (without `--worktree`) can never be resumed. This breaks the session resume feature for one of three valid modes.
+
+**Fix**: Split the logic into three paths:
+
+```rust
+// Proposed fix
+let working_dir = match &state.worktree_path {
+    Some(path) => {
+        let p = PathBuf::from(path);
+        if !p.exists() {
+            return Err(anyhow::anyhow!(
+                "Worktree for session '{}' no longer exists at {}",
+                session_name, path
+            ));
+        }
+        p
+    }
+    None => {
+        // Sandbox-only session — work in cwd
+        cwd.clone()
+    }
+};
+```
+
+Additionally, `SessionState` should store the original mode flags (`sandbox: bool`, `worktree: bool`) so that `--resume` knows what mode to use without requiring the user to re-specify flags:
+
+```yaml
+# Enhanced session state
+name: fix-auth-bug
+agent_id: claude-native
+sandbox: true      # <-- NEW: persists the mode
+worktree: true     # <-- NEW: persists the mode
+container_id: null
+worktree_path: "/repo/.chakravarti/worktrees/term-fix-auth-bug_1"
+worktree_branch: "worktree/main/ckrv-term-fix-auth-bug"
+created_at: "2026-02-15T20:54:00Z"
+status: active
+```
+
+---
+
+### Bug 3: `execute_in_sandbox()` mount path collision
+
+**File**: `term.rs:944-952`
+**Issue**: The Docker session mount uses the same path for host source AND container target:
+
+```rust
+// Current code — host path as both source and target
+let workdir_str = working_dir.to_string_lossy().to_string();
+let container_id = docker.create_session(
+    &workdir_str,    // container workdir
+    &workdir_str,    // mount source (host)
+    &workdir_str,    // mount target (container)
+    env_map,
+    extra_mounts,
+).await?;
+```
+
+This only works if the host path and container path happen to be identical (e.g., `/apps/chakravarti-cli` exists inside the container). In practice, the Docker container has a different filesystem layout — the mount target should be a fixed path like `/workspace`.
+
+**Impact**: Agent will fail to start in the container because the mount target path doesn't exist in the container's root filesystem.
+
+**Fix**: Use `/workspace` as the container mount target and working directory:
+
+```rust
+// Proposed fix
+let host_path = working_dir.to_string_lossy().to_string();
+let container_workdir = "/workspace";
+
+let container_id = docker.create_session(
+    container_workdir,   // container workdir
+    &host_path,          // mount source (host)
+    container_workdir,   // mount target (container)
+    env_map,
+    extra_mounts,
+).await?;
+```
+
+This aligns with how `run.rs` and the UI terminal modal mount workspaces — they all mount at `/workspace`.
+
+---
+
+### UX Improvement: Interactive Commit Message
+
+**Current behavior**: When the user chooses "Merge into current branch" from the post-session prompt, the commit message is hardcoded:
+
+```rust
+let commit_msg = format!("feat(term): changes from terminal session");
+```
+
+This is generic, untraceable, and makes `git log` useless for understanding what a session produced.
+
+**Proposed behavior**: After the user views the diff and chooses "Merge", ask them to write or edit the commit message:
+
+```
+Agent exited. What would you like to do?
+
+  ❯ View diff (ckrv diff --worktree)
+    Merge into current branch
+    Keep worktree for later
+    Discard all changes
+
+> Merge into current branch
+
+Commit message:
+  ❯ Write custom message...
+    Use auto-generated: "feat(term): session term-fix-auth changes from claude-default"
+    Use conventional commit format...
+
+> Write custom message...
+
+Enter commit message: fix(auth): add token refresh for expired sessions
+```
+
+**Implementation approach**:
+
+```rust
+fn prompt_commit_message(worktree: &Worktree, agent_name: &str) -> anyhow::Result<String> {
+    let auto_msg = format!(
+        "feat(term): {} session changes via {}",
+        worktree.job_id, agent_name
+    );
+
+    let items = [
+        "Write custom message...",
+        &format!("Use auto-generated: \"{}\"", auto_msg),
+    ];
+
+    let choice = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Commit message")
+        .items(&items)
+        .default(0)
+        .interact()?;
+
+    match choice {
+        0 => {
+            // Interactive text input
+            let msg: String = Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("Enter commit message")
+                .interact_text()?;
+            Ok(msg)
+        }
+        _ => Ok(auto_msg),
+    }
+}
+```
+
+This gives users control over traceability while providing a sensible default for quick workflows. The auto-generated message now includes the session ID and agent name for auditability.
+
+**Where this lives**: Called inside `merge_worktree()` before the `git commit` step. This only fires when merging — "Keep" and "Discard" don't need it.
+
+---
 
 ## References
 
@@ -470,3 +662,4 @@ tokio::spawn(async move {
 - `crates/ckrv-cli/src/commands/run.rs` — How `run` creates worktrees + uses Docker (reference pattern)
 - `guiding_docs/vision.md` — "Isolation Is Safety", "Git-Native", "Fire and Forget"
 - `brainstorming/dogfooding-ckrv-on-ckrv/notes.md` — Self-development workflow context
+
