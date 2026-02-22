@@ -235,14 +235,45 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
 
 ### Step 4: Add to Docker Image
 
-If your agent requires a CLI, add it to `docker/Dockerfile.agent`:
+If your agent requires a CLI, create a Dockerfile in `docker/`:
 
 ```dockerfile
-# Install your agent CLI
+FROM node:22-slim
+
+# Install system dependencies (as root)
+RUN apt-get update && apt-get install -y \
+    git curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install your agent CLI (as root)
 RUN npm install -g your-agent-cli
-# or
-RUN pip install your-agent-cli
+
+# Create non-root user — REQUIRED
+# Many agent CLIs (e.g., Claude Code) refuse to run certain flags as root.
+# Always create a dedicated user and switch to it.
+RUN useradd -m -s /bin/bash -d /home/youragent youragent && \
+    mkdir -p /home/youragent/.youragent && \
+    chown -R youragent:youragent /home/youragent
+
+# Create workspace with correct ownership
+RUN mkdir -p /workspace && chown youragent:youragent /workspace
+
+WORKDIR /workspace
+ENV HOME=/home/youragent
+
+# Verify install (before USER switch, still root)
+RUN your-agent-cli --version || true
+
+# Switch to non-root user
+USER youragent
+
+CMD ["/bin/bash"]
 ```
+
+> **Warning**: Always include a `USER` directive in your Dockerfile.
+> Running as root causes agent CLIs to reject security-sensitive flags.
+> For example, Claude Code blocks `--dangerously-skip-permissions` when
+> running as root/sudo for security reasons.
 
 ### Step 5: Add Tests
 

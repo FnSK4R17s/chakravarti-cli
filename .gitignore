@@ -44,6 +44,8 @@ coverage/
 # Chakravarti runtime directories
 .worktrees/
 .chakravarti/runs/
+.chakravarti/sessions/
+.chakravarti/worktrees/
 .ckrv/tasks/
 .ckrv/logs/*
 !.ckrv/logs/.gitkeep

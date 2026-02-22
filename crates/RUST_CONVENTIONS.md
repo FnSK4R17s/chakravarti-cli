@@ -44,6 +44,18 @@ Rust's type system already communicates much of this—our job is to fill in the
 - [ ] Add `long_about` with multi-paragraph description
 - [ ] Add `after_help` starting with `Examples:\n` and 2-3 practical examples
 
+### Clippy compliance (Required):
+- [ ] Run `cargo clippy -p <crate> -- -D warnings` before finishing
+- [ ] Fix all warnings — common ones to watch for:
+  - Use `&Path` instead of `&PathBuf` in function signatures
+  - Use `Self::Variant` instead of `EnumName::Variant` in impl blocks
+  - Use `Option<&T>` instead of `&Option<T>` in function signatures
+  - Use inline `format!("{variable}")` instead of `format!("{}", variable)`
+  - Remove `async` from functions with no `.await` calls
+  - Remove unused variables (or prefix with `_`)
+  - Add `# Errors` section to docs for functions returning `Result`
+- [ ] Do NOT suppress warnings with `#[allow(...)]` unless there is a documented reason
+
 ### Self-check before finishing:
 - [ ] Every `pub` item has a `///` doc comment
 - [ ] Section separators use exactly 60 `=` characters

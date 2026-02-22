@@ -520,9 +520,7 @@ impl DockerClient {
         let container_name = format!("ckrv-session-{}", uuid::Uuid::new_v4());
 
         // Prepare Env and Mounts
-        let mut env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
-        let container_home = "/home/claude".to_string();
-        env_vec.push(format!("HOME={}", container_home));
+        let env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
 
         let mut mounts = vec![Mount {
             target: Some(mount_target.to_string()),
@@ -543,6 +541,25 @@ impl DockerClient {
             });
         }
 
+        // Get current user UID:GID for proper permission handling
+        let uid_gid = std::process::Command::new("id")
+            .args(["-u"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "1000".to_string());
+
+        let gid = std::process::Command::new("id")
+            .args(["-g"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "1000".to_string());
+
+        let user_spec = format!("{}:{}", uid_gid, gid);
+
         let config = Config {
             image: Some(image.to_string()),
             cmd: Some(vec![
@@ -551,6 +568,7 @@ impl DockerClient {
                 "/dev/null".to_string(),
             ]),
             working_dir: Some(workdir.to_string()),
+            user: Some(user_spec),
             env: Some(env_vec),
             host_config: Some(HostConfig {
                 mounts: Some(mounts),
