@@ -3,6 +3,7 @@
 **Issue**: (New - not yet created)
 **Created**: 2026-02-22
 **Status**: Draft
+**Bugfixes**: [bugfix01.md](./bugfix01.md), [bugfix02.md](./bugfix02.md)
 
 ## Problem Statement
 
@@ -364,6 +365,18 @@ Update `.github/workflows/*.yml`:
 - [ ] Add parameterized recipes for test filtering
 - [ ] Add `just ci` recipe that mirrors CI pipeline
 - [ ] Add `just release` recipe for version bumps
+
+## Post-Implementation Review
+
+Initial implementation completed quickly, but follow-up review found verification and rollout-safety gaps.
+
+> ℹ️ Bugfix tasks generated: [bugfix01.md](./bugfix01.md)
+
+Primary findings:
+- Some acceptance checkboxes were marked complete before full command verification.
+- Makefile shim should provide better guidance when `just` is missing.
+- Docker-skip behavior and docs need explicit validation for container-first workflows.
+- Documentation consistency needs a final grep-based pass.
 
 ## References
 

@@ -14,6 +14,7 @@ related_files:
 Before developing Chakravarti CLI, ensure you have:
 
 - **Rust 1.75+**: Install via [rustup](https://rustup.rs/)
+- **just**: Task runner - install via [just installation](https://github.com/casey/just#installation)
 - **Docker**: For sandboxed execution ([Docker Desktop](https://www.docker.com/products/docker-desktop/) or [Podman](https://podman.io/))
 - **Git 2.20+**: For worktree operations
 - **Node.js 18+**: For UI development (optional)
@@ -25,17 +26,27 @@ Before developing Chakravarti CLI, ensure you have:
 git clone https://github.com/FnSK4R17s/chakravarti-cli.git
 cd chakravarti-cli
 
-# Build all crates
-cargo build --workspace
+# Quick install (recommended for containers/dev environments - no Docker needed)
+just install-quick
 
+# Or full install (includes Docker agent images for sandboxed execution)
+just install
+```
+
+### Install Options
+
+| Command | Docker Images | Use Case |
+|---------|---------------|----------|
+| `just install-quick` | Skipped | Containers, dev environments, CI without Docker |
+| `just install` | Built | Local development with full agent support |
+| `CKRV_SKIP_DOCKER=true just install` | Skipped | Environment variable override |
+
+```bash
 # Run tests
-cargo test --workspace
+just test
 
-# Build release binary
-cargo build --release -p ckrv-cli
-
-# Install locally
-cargo install --path crates/ckrv-cli
+# Run linters
+just lint
 ```
 
 ## Development Workflow
@@ -57,16 +68,14 @@ ckrv --help
 cargo run -p ckrv-cli -- ui --port 3000
 
 # For frontend development (in another terminal)
-cd crates/ckrv-ui/frontend
-npm install
-npm run dev
+just ui-dev
 ```
 
 ### Running Tests
 
 ```bash
 # All tests
-cargo test --workspace
+just test
 
 # Specific crate
 cargo test -p ckrv-core
@@ -79,13 +88,13 @@ cargo llvm-cov --workspace
 
 ```bash
 # Format code
-cargo fmt --all
+just fmt
 
 # Lint
-cargo clippy --workspace -- -D warnings
+just lint
 
 # Generate docs
-cargo doc --open --no-deps
+just docs
 ```
 
 ## Project Structure
@@ -135,10 +144,9 @@ Follow the [TDD approach](../ckrv-core/docs/README.md):
 
 ```bash
 # Must all pass
-cargo fmt --all --check
-cargo clippy --workspace -- -D warnings
-cargo test --workspace
-cargo doc --deny warnings
+just fmt
+just lint
+just test
 ```
 
 ### 5. Submit PR

@@ -37,10 +37,23 @@ Each spec generates a complete workflow—from **scope** to **plan** to **implem
 # Clone and install
 git clone https://github.com/FnSK4R17s/chakravarti-cli.git
 cd chakravarti-cli
-make install
+
+# Quick install (recommended for containers/dev environments - no Docker needed)
+just install-quick
+
+# Or full install (includes Docker agent images)
+just install
 ```
 
-This builds the Rust binary, Docker agent images, and links `ckrv` globally via npm.
+### Install Options
+
+| Command | Docker Images | Use Case |
+|---------|---------------|----------|
+| `just install-quick` | Skipped | Containers, dev environments, CI without Docker |
+| `just install` | Built | Local development with full agent support |
+| `CKRV_SKIP_DOCKER=true just install` | Skipped | Environment variable override |
+
+> **Note**: If you don't have `just` installed, run `make install` which will prompt you to install it. See [just installation](https://github.com/casey/just#installation).
 
 ## Quick Start
 
@@ -158,16 +171,19 @@ See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 
 ```bash
 # Build all crates
-cargo build --workspace
+just build
 
 # Run tests
-cargo test --workspace
+just test
 
-# Install locally
-cargo install --path crates/ckrv-cli
+# Run linters
+just lint
+
+# Install locally (skip Docker)
+just install-quick
 
 # Run UI in development
-cd crates/ckrv-ui/frontend && npm run dev
+just ui-dev
 ```
 
 See [Getting Started](crates/docs/getting-started.md) for full setup instructions.
