@@ -74,12 +74,12 @@ install *args:
         docker build -t ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
     fi
     
-    # Build CLI binary and resolve output path safely (supports CARGO_TARGET_DIR)
-    cargo build --release -p ckrv-cli --bin {{ binary_name }}
-    target_dir="${CARGO_TARGET_DIR:-target}"
-    built_bin="${target_dir}/release/{{ binary_name }}"
+    # Install CLI binary to ~/.cargo/bin in a path-agnostic way.
+    cargo install --path crates/ckrv-cli --bin {{ binary_name }} --force
+
+    built_bin="$HOME/.cargo/bin/{{ binary_name }}"
     if [ ! -f "$built_bin" ]; then
-        echo "Error: built binary not found at $built_bin" >&2
+        echo "Error: installed binary not found at $built_bin" >&2
         exit 1
     fi
 
@@ -87,8 +87,6 @@ install *args:
     cp "$built_bin" {{ bin_dir }}/{{ binary_name }}
     chmod +x {{ bin_dir }}/{{ binary_name }}
     cd {{ npm_dir }} && npm link
-    mkdir -p ~/.cargo/bin
-    cp "$built_bin" ~/.cargo/bin/{{ binary_name }}
     echo ""
     echo "✓ Chakravarti CLI installed and linked successfully!"
     echo "Run 'ckrv --version' to verify."
