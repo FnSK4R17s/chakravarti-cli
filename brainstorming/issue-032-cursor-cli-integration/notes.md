@@ -70,6 +70,7 @@ Add a first-class `CursorProvider` under the same provider model used by existin
 - Extend parser aliases:
   - `cursor`
   - `cursor-cli`
+  - `cursor-agent`
 - Register in `create_agent(...)`
 
 ### 2) New provider module
@@ -79,13 +80,28 @@ Create `crates/ckrv-sandbox/src/agent/cursor.rs` implementing `AgentProvider`:
 - `name()` → `"Cursor CLI"`
 - `agent_type()` → `AgentType::Cursor`
 - `build_command(...)`:
-  - Construct Cursor non-interactive execution call with prompt + working dir
-  - Respect optional model/profile config if available in `AgentConfig`
+  ```rust
+  let mut cmd = vec!["cursor-agent".to_string()];
+  cmd.push("--print".to_string());  // Non-interactive mode
+  cmd.push("-p".to_string());       // Short flag
+  cmd.push(prompt.to_string());
+  
+  // Optional model override
+  if let Some(ref model) = config.model {
+      cmd.push("--model".to_string());
+      cmd.push(model.to_string());
+  }
+  
+  cmd.push("--force".to_string());           // Auto-approve
+  cmd.push("--output-format=text".to_string());
+  cmd.push("--cwd".to_string());
+  cmd.push(workdir.to_string_lossy().to_string());
+  ```
 - `required_env_vars()`:
-  - Include required auth env(s) if Cursor supports env-based auth in this setup
-  - If auth is file-based, return empty and rely on mount checks
+  - `CURSOR_API_KEY` (primary auth method)
+  - Alternative: `--api-key` CLI flag
 - `config_mounts(...)`:
-  - Mount Cursor config/auth directory read-only (e.g. `~/.cursor` or equivalent actual path used by Cursor CLI)
+  - Mount `~/.cursor` directory for config/MCP (read-only)
 - `parse_output(...)`:
   - Keep normalization consistent with existing providers
 
@@ -106,6 +122,8 @@ agents:
     agent_type: cursor
     enabled: true
     description: Cursor-based execution provider
+    # Optional: specify model
+    # model: auto  # Options: auto, composer 1, opus 4.6, sonnet 4.6, gpt-5.2, gpt-5.3, codex, gemini 3 pro, grok
 ```
 
 - Ensure `ckrv` validation surfaces clear error when Cursor auth/config is missing.
@@ -120,18 +138,31 @@ Add/extend tests for:
 
 ## Open Questions
 
-- [ ] Exact Cursor CLI binary and non-interactive flags to standardize on (needs confirmation from current Cursor CLI docs/version in use).
-- [ ] Canonical auth strategy in sandbox: env vars vs mounted config files.
-- [ ] Whether model selection is exposed in Cursor CLI and how to map from `AgentConfig`.
-- [ ] Do we need a dedicated Docker image (like other providers) or can we extend an existing base image safely?
+- [x] Exact Cursor CLI command and non-interactive flags (CONFIRMED)
+  - Command: `cursor-agent` (not `cursor`)
+  - Non-interactive: `--print` or `-p` flag
+  - Full example: `cursor-agent -p "prompt" --model auto --force --output-format=text --print`
+  - Version check: `cursor-agent --version`
+- [x] Canonical auth strategy in sandbox: env vars vs mounted config files (CONFIRMED)
+  - Primary: `CURSOR_API_KEY` environment variable (recommended)
+  - Alternative: `--api-key` flag for CLI
+  - Browser login also supported: `cursor-agent login` (not useful for sandbox)
+- [x] Config directory location (CONFIRMED)
+  - Path: `~/.cursor` (similar structure to Claude's `~/.claude`)
+  - Can mount for MCP server configs if needed
+- [x] Model selection (CONFIRMED)
+  - Supported models: `auto`, `composer 1`, `opus 4.6`, `sonnet 4.6`, `gpt-5.2`, `gpt-5.3`, `codex`, `gemini 3 pro`, `grok`
+  - Use `--model` flag to specify
+- [ ] Do we need a dedicated Docker image or can we extend an existing base image?
 
 ## Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Cursor CLI invocation flags change across versions | Medium | Pin/test known compatible version; capture in docs and CI checks |
-| Auth path mismatch in container | High | Add explicit startup validation + actionable error text |
+| Cursor CLI invocation flags change across versions | Medium | Pin/test known compatible version in Docker image; capture in docs and CI checks |
+| CURSOR_API_KEY missing in container | High | Validate env var presence at startup with actionable error; require explicit config |
 | Behavior drift vs other providers | Medium | Keep output normalization and error schema aligned with current providers |
+| CLI hangs in non-interactive mode | Medium | Add timeout wrapper; use `--force` flag; monitor for known hang issues |
 
 ## Success Criteria
 
@@ -144,9 +175,9 @@ Add/extend tests for:
 
 ## Next Steps
 
-- [ ] Confirm Cursor CLI command/auth contract (version + flags)
+- [x] Confirm Cursor CLI command/auth contract (version + flags) - DONE via docs research
 - [ ] Implement `CursorProvider` and `AgentType` wiring
-- [ ] Add/adjust Docker image and validation checks
+- [ ] Add/adjust Docker image with Cursor CLI installation
 - [ ] Add tests and update docs
 - [ ] Validate end-to-end run with Cursor agent in a sample repo
 
