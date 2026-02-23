@@ -5,11 +5,19 @@
 #    Install just: https://github.com/casey/just#installation
 # ==============================================================================
 
-.PHONY: build install clean skill mcp install-mcp help ui-setup
+.PHONY: build install clean skill mcp install-mcp help ui-setup __forward
 
 JUST_CHECK := $(shell command -v just 2>/dev/null)
 
+# Explicit targets so commands like `make install` never become a no-op.
+build install clean skill mcp install-mcp ui-setup:
+	@$(MAKE) --no-print-directory __forward TARGET=$@
+
+# Fallback for any other command, e.g. `make test` -> `just test`.
 %:
+	@$(MAKE) --no-print-directory __forward TARGET=$@
+
+__forward:
 	@if [ -z "$(JUST_CHECK)" ]; then \
 		echo "Error: 'just' is not installed." >&2; \
 		echo "" >&2; \
@@ -21,8 +29,8 @@ JUST_CHECK := $(shell command -v just 2>/dev/null)
 		echo "See: https://github.com/casey/just#installation" >&2; \
 		exit 1; \
 	fi
-	@echo "⚠️  'make $@' is deprecated. Use 'just $@' instead." >&2
-	@just "$@"
+	@echo "⚠️  'make $(TARGET)' is deprecated. Use 'just $(TARGET)' instead." >&2
+	@just "$(TARGET)"
 
 .DEFAULT_GOAL := help
 help:
