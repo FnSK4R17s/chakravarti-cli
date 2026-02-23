@@ -1,120 +1,140 @@
-# Add Opencode integration
+# Add Opencode Integration
 
 **Issue**: [#35](https://github.com/FnSK4R17s/chakravarti-cli/issues/35)
 **Created**: 2026-02-23
-**Status**: In Progress
+**Status**: Draft
 
 ## Problem Statement
 
-chakravarti-cli currently supports multiple agent CLIs, but Opencode is not yet a first-class integration. Users with existing Opencode setup cannot route execution through `ckrv` without custom hacks.
-
-This blocks a key part of the product vision: orchestrating *all* major coding CLIs through one spec-first interface.
+Chakravarti-cli orchestrates multiple AI agents (Claude Code, Codex, Kilo) but lacks support for OpenCode, a popular open-source AI coding agent with 50k+ GitHub stars. Users want to add OpenCode to their agent pool for multi-provider orchestration.
 
 ## Current State
 
-- Existing integrations follow a common provider pattern (`AgentProvider` in `ckrv-sandbox`).
-- New providers usually require updates across:
-  - provider implementation in `crates/ckrv-sandbox/src/agent/`
-  - enum/factory wiring in `agent/mod.rs`
-  - CLI-facing lookup in `crates/ckrv-cli/src/services/agent_lookup.rs`
-  - Docker/mount behavior in `crates/ckrv-sandbox/src/docker.rs`
-  - docs (agent guide + user-facing command docs)
-- There is a symlinked `.opencode` config in repo roots, indicating ecosystem intent but no full provider implementation yet.
+- Chakravarti supports: Claude, Codex, KiloCode
+- Missing: OpenCode
+- Agent integration pattern is well-established via `AgentProvider` trait
 
 ## Proposed Solution
 
-Add a native `OpencodeProvider` integration using the same contract as existing providers.
-
-### High-level behavior
-
-1. User configures an agent with `agent_type: opencode`.
-2. `ckrv` routes task execution to Opencode CLI inside sandbox/worktree.
-3. Provider supports model override pass-through and deterministic non-interactive run mode.
-4. Config and auth data mount into sandbox safely (read-only where possible).
+Add OpenCode as a new agent type following the existing pattern:
+1. Add `OpenCode` variant to `AgentType` enum
+2. Create `OpenCodeProvider` implementing `AgentProvider` trait
+3. Add to factory function
+4. Document in agent guide
 
 ## User Stories
 
-### US1: Run tasks with Opencode
-**As a** user who already uses Opencode,
-**I want** to select Opencode as an executor in `ckrv`,
-**So that** I can use my existing Opencode account/models in orchestrated workflows.
+### US1: OpenCode as Execution Agent
+**As a** user with an OpenCode subscription,
+**I want** to use OpenCode as an implementation agent,
+**So that** I can leverage its 75+ LLM providers in my orchestration workflow.
 
-### US2: Switch providers without spec rewrite
-**As a** user with multiple AI CLI subscriptions,
-**I want** to swap task agent from Claude/Codex to Opencode via config,
-**So that** I can optimize quality/cost without changing my specs.
-
-### US3: Keep sandboxed execution behavior
-**As a** reliability-focused user,
-**I want** Opencode tasks to run with the same isolation guarantees as other providers,
-**So that** introducing Opencode does not reduce execution safety.
+### US2: Headless Execution
+**As a** Chakravarti user,
+**I want** OpenCode to run in headless/non-interactive mode,
+**So that** it works with the spec-driven "fire and forget" model.
 
 ## Technical Approach
+
+### OpenCode CLI Analysis
+
+From opencode.ai/docs:
+```bash
+# Basic non-interactive execution
+opencode run "prompt here"
+
+# With specific model
+opencode run "prompt" --model provider/model
+
+# With agent
+opencode run "prompt" --agent agent-name
+```
 
 ### Options Considered
 
 | Option | Pros | Cons |
 |--------|------|------|
-| Add minimal Opencode wrapper in CLI crate only | Fast initial patch | Breaks architecture consistency; bypasses sandbox provider model |
-| Full provider integration in `ckrv-sandbox` (recommended) | Matches existing design, reusable by orchestrator, testable | Slightly more up-front wiring |
-| External plugin architecture first, then Opencode | Most extensible long-term | Overkill for issue #35 scope |
+| OpenCode CLI (headless) | Native CLI, no TUI required | Need to handle session/daemon mode |
+| OpenCode MCP | Standard integration | MCP not designed for headless batch |
+| Crush (new name) | Active development | Different CLI, needs investigation |
 
 ### Decision
 
-**Use full provider integration in `ckrv-sandbox`** to preserve architecture consistency and avoid special-case execution paths.
+Use OpenCode CLI in headless mode. The `opencode run` command accepts prompts directly without requiring TUI. This matches the existing pattern used by Claude (`--print`) and Codex (`--print`).
 
-### Implementation Sketch
+**Note**: The original opencode-ai/opencode was archived and moved to "Crush". The current opencode.ai is a new Go-based version by Charm. We should support the current CLI.
 
-- Add `opencode.rs` provider with:
-  - `name()` => `"Opencode"`
-  - `agent_type()` => `AgentType::Opencode`
-  - command builder for non-interactive execution
-  - optional model pass-through
-  - required env var and mount declaration matching Opencode auth mechanism
-- Wire provider into module exports + factory.
-- Add CLI lookup/type parsing support.
-- Add tests for command construction and provider registration.
-- Add docs for setup and troubleshooting.
+## Implementation Notes
 
-## Integration Surface (Expected Files)
+### Key Files to Modify
 
-- `crates/ckrv-sandbox/src/agent/mod.rs`
-- `crates/ckrv-sandbox/src/agent/opencode.rs` (new)
-- `crates/ckrv-sandbox/src/agent/tests.rs`
-- `crates/ckrv-cli/src/services/agent_lookup.rs`
-- `crates/ckrv-sandbox/src/docker.rs` (if mounts required)
-- `crates/docs/agent-guide.md`
-- `crates/docs/cli-commands.md` (if flags/examples need update)
+1. `crates/ckrv-sandbox/src/agent/mod.rs` - Add `AgentType::OpenCode` variant
+2. `crates/ckrv-sandbox/src/agent/opencode.rs` - New file for OpenCodeProvider
+3. `crates/ckrv-sandbox/src/agent/mod.rs` - Add to `create_agent()` factory
+4. `crates/docs/agent-guide.md` - Document the new agent
+
+### OpenCodeProvider Implementation
+
+```rust
+// Based on existing patterns in claude.rs, codex.rs
+pub struct OpenCodeProvider;
+
+impl AgentProvider for OpenCodeProvider {
+    fn name(&self) -> &str { "OpenCode" }
+    fn agent_type(&self) -> AgentType { AgentType::OpenCode }
+    
+    fn build_command(&self, prompt: &str, workdir: &Path, config: &AgentConfig) -> Vec<String> {
+        // opencode run "prompt" --project /path/to/workdir
+        vec![
+            "opencode".to_string(),
+            "run".to_string(),
+            prompt.to_string(),
+            "--project".to_string(),
+            workdir.to_string_lossy().to_string(),
+        ]
+    }
+}
+```
+
+### Configuration (agents.yaml)
+
+```yaml
+agents:
+  - id: opencode-default
+    name: OpenCode Default
+    agent_type: opencode
+    level: 4
+    is_default: false
+    enabled: true
+```
 
 ## Open Questions
 
-- [ ] What is the canonical non-interactive Opencode invocation for deterministic runs?
-- [ ] Does Opencode require token env vars, config files, or both?
-- [ ] Where are Opencode credentials stored by default (path and format)?
-- [ ] Do we need a dedicated Dockerfile (`Dockerfile.opencode`) or can we extend existing agent image?
-- [ ] How should streaming/event output be normalized to existing execution logs?
+- [ ] Does OpenCode require a running daemon/server for CLI to work?
+- [ ] What is the exit code behavior on success/failure?
+- [ ] How does JSON output work for parsing?
+- [ ] Should we support the "Crush" rebrand or stick with "opencode"?
 
 ## Success Criteria
 
 | Metric | Target |
 |--------|--------|
-| Build health | `cargo build --workspace` passes |
-| Provider registration | `opencode` selectable in agent config + lookup |
-| Sandbox execution | test task can run using Opencode provider |
-| Docs completeness | setup + troubleshooting documented |
-| Parity | behavior consistent with existing provider UX |
+| Agent type added to enum | Yes |
+| Provider implementation | Complete |
+| Headless execution works | Verified |
+| Integration tests pass | Yes |
 
 ## Next Steps
 
-- [ ] Confirm Opencode CLI command contract and auth model
-- [ ] Implement `OpencodeProvider`
-- [ ] Wire enum/factory/lookup
+- [ ] Research OpenCode CLI headless behavior in detail
+- [ ] Implement OpenCodeProvider
 - [ ] Add tests
-- [ ] Document usage and limits
-- [ ] Run smoke validation in local sandbox
+- [ ] Update documentation
 
 ## References
 
-- Issue: https://github.com/FnSK4R17s/chakravarti-cli/issues/35
-- Vision: `guiding_docs/vision.md`
-- Similar brainstorm patterns: `brainstorming/kilo-code-agent/notes.md`
+- [opencode.ai](https://opencode.ai)
+- [OpenCode CLI Docs](https://opencode.ai/docs/cli/)
+- [GitHub: opencode-ai/opencode](https://github.com/opencode-ai/opencode) (archived)
+- [Crush (successor)](https://github.com/charmbracelet/crush)
+- Existing agent implementations: `crates/ckrv-sandbox/src/agent/{claude,codex,kilo}.rs`
