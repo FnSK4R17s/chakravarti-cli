@@ -41,7 +41,7 @@ build-dev:
 
 # Install: build, Docker images (optional), npm link
 # Optional arg: just install skip-docker=true
-install *args: build
+install *args:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -74,11 +74,21 @@ install *args: build
         docker build -t ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
     fi
     
+    # Build CLI binary and resolve output path safely (supports CARGO_TARGET_DIR)
+    cargo build --release -p ckrv-cli --bin {{ binary_name }}
+    target_dir="${CARGO_TARGET_DIR:-target}"
+    built_bin="${target_dir}/release/{{ binary_name }}"
+    if [ ! -f "$built_bin" ]; then
+        echo "Error: built binary not found at $built_bin" >&2
+        exit 1
+    fi
+
     mkdir -p {{ bin_dir }}
-    cp {{ rust_bin }} {{ bin_dir }}/{{ binary_name }}
+    cp "$built_bin" {{ bin_dir }}/{{ binary_name }}
     chmod +x {{ bin_dir }}/{{ binary_name }}
     cd {{ npm_dir }} && npm link
-    cp {{ rust_bin }} ~/.cargo/bin/{{ binary_name }}
+    mkdir -p ~/.cargo/bin
+    cp "$built_bin" ~/.cargo/bin/{{ binary_name }}
     echo ""
     echo "✓ Chakravarti CLI installed and linked successfully!"
     echo "Run 'ckrv --version' to verify."
