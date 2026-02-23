@@ -2,7 +2,7 @@
 
 **Issue**: [#35](https://github.com/FnSK4R17s/chakravarti-cli/issues/35)
 **Created**: 2026-02-23
-**Status**: In Progress
+**Status**: Ready for Spec
 
 ## Problem Statement
 
@@ -91,3 +91,11 @@ Prompt executed: "Please brainstorm on GitHub issue #35. Then summarize what you
 Changes made:
 - Created `brainstorming/issue-035-opencode-integration/notes.md`
 - Added problem framing, solution direction, user stories, options/decision, open questions, and measurable success criteria for issue #35.
+
+## Prompt 2 Summary
+
+Prompt executed: "Hey your brainstorming notes on github issue #35 look good, please create tasks for it. Then summarize what you changed."
+
+Changes made:
+- Created `brainstorming/issue-035-opencode-integration/tasks.md` with phased implementation tasks, estimates, dependencies, blockers, and acceptance criteria.
+- Updated brainstorm status to `Ready for Spec` after task breakdown.
