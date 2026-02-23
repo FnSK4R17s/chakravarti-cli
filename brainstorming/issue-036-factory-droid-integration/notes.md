@@ -2,117 +2,98 @@
 
 **Issue**: [#36](https://github.com/FnSK4R17s/chakravarti-cli/issues/36)
 **Created**: 2026-02-23
-**Status**: In Progress
+**Status**: Draft
 
 ## Problem Statement
 
-`ckrv` already supports multiple agent providers (Claude Code, Codex, Gemini/OpenCode paths), but it does not support Factory Droids yet. Users with Factory subscriptions cannot route execution through Factory while keeping the same spec-first orchestration flow.
-
-This misses a core value proposition from the vision doc: interoperability across agent ecosystems and avoiding vendor lock-in.
+Chakravarti-cli orchestrates multiple AI coding agents (Claude Code, Codex, Kilo). Factory AI offers "Droids" - agent-native software development tools that work across IDE, CLI, Web, Slack, and Linear. Adding Factory Droid as an agent provider increases the flexibility and capability of the orchestration engine.
 
 ## Current State
 
-- Issue #36 currently contains only the Factory homepage link (`https://factory.ai/`) and no technical acceptance criteria.
-- Existing agent integrations in `ckrv` follow a provider pattern and are wired into:
-  - config parsing / agent listing
-  - command construction for execution
-  - docs and UI visibility
-- There is no known Factory-specific provider, transport, or auth flow in the current codebase.
+Chakravarti currently supports three agent providers:
+- Claude Code (Anthropic)
+- OpenAI Codex
+- Kilo Code (multi-provider)
+
+Each agent implements the `AgentProvider` trait in `crates/ckrv-sandbox/src/agent/`.
 
 ## Proposed Solution
 
-Add a **Factory Droid provider integration** with a minimal-but-complete first version:
-
-1. Add Factory as a first-class provider in agent config.
-2. Implement command execution adapter for Factory Droid tasks.
-3. Support model/agent selection and required auth configuration.
-4. Surface Factory in CLI/UI agent lists.
-5. Document setup and troubleshooting.
+Implement a new `FactoryDroidProvider` that integrates the Factory Droid CLI (`droid`) as an agent provider. The integration will use `droid exec` for headless/non-interactive execution, which is suitable for orchestration.
 
 ## User Stories
 
-### US1: Configure Factory provider
-**As a** `ckrv` user with Factory access,
-**I want** to configure a Factory Droid agent in my agents config,
-**So that** I can assign tasks to Factory from within `ckrv`.
+### US1: Add Factory Droid to agent pool
+**As a** user with a Factory API key,
+**I want** to use Factory Droids as an execution agent,
+**So that** I can leverage Factory's agent capabilities within Chakravarti's orchestration.
 
-### US2: Run orchestration with mixed providers
-**As a** user with multiple AI tools,
-**I want** to run plans where some tasks use Factory and others use existing providers,
-**So that** I can optimize cost/speed/quality per task batch.
-
-### US3: Debug failures quickly
+### US2: Configure Factory model preference
 **As a** user,
-**I want** clear Factory-specific error messages (auth missing, CLI not found, unsupported mode),
-**So that** I can fix setup issues without digging through internals.
+**I want** to specify which model Factory uses,
+**So that** I can optimize for cost or capability.
 
 ## Technical Approach
 
-### Option A — Native CLI wrapper (recommended)
-Implement Factory integration similarly to existing CLI-based providers by mapping `ckrv` task payloads to Factory CLI invocations.
+### Options Considered
 
-**Pros**
-- Fits current architecture and mental model
-- Fastest path to deliver
-- Easy to keep isolated per worktree/container
-
-**Cons**
-- Depends on Factory CLI stability and availability in runtime
-- May require prompt/IO contract normalization
-
-### Option B — HTTP/API transport provider
-Use Factory APIs directly from Rust (if available and stable).
-
-**Pros**
-- Better programmatic control and richer telemetry potential
-- Less dependence on shell command formatting
-
-**Cons**
-- Higher implementation complexity and maintenance burden
-- Unknown API maturity and auth workflow details
+| Option | Pros | Cons | Decision |
+|--------|------|------|----------|
+| Interactive `droid` mode | Full capabilities | Requires TTY, not suitable for orchestration | No |
+| Headless `droid exec` | Designed for automation, CI/CD | Limited to single-shot tasks | **Yes** |
+| Factory API directly | Full control | Replicates what CLI already does, more work | No |
 
 ### Decision
 
-**Start with Option A (CLI wrapper)** for issue #36 scope. Keep provider boundary clean so API transport can be added later if needed.
+Use `droid exec` (headless mode) - it's the natural fit for Chakravarti's orchestration layer. This aligns with the existing pattern of other agent integrations.
+
+### Implementation Plan
+
+1. Add `Factory` to `AgentType` enum in `mod.rs`
+2. Create new `factory.rs` implementing `AgentProvider` trait
+3. Add to `create_agent()` match statement
+4. Support config file at `~/.factory/config.json` (if exists)
 
 ## Implementation Notes
 
-- Keep integration at orchestration layer (non-goal: becoming a coding agent itself).
-- Reuse existing provider abstraction traits/modules instead of one-off branching.
-- Add capability flags where Factory behavior differs (streaming, interactive mode, tool-use constraints).
-- Ensure errors include actionable setup hints.
+### Agent Configuration
+- CLI command: `droid exec "prompt"`
+- Environment variable: `FACTORY_API_KEY`
+- Config mount: `~/.factory/` directory
 
-Potential integration surface (to verify during implementation):
-- `crates/ckrv-sandbox/src/agent/*` (provider wiring)
-- config schema / defaults where providers are declared
-- UI/API agent listing endpoints if provider catalog is surfaced
-- docs: agent setup + examples
+### Model Selection
+Factory supports multiple models. Consider adding model configuration similar to other providers:
+- `FACTORY_MODEL` env var or config option
+- Default to Factory's default if not specified
+
+### Output Parsing
+`droid exec` outputs to stdout/stderr. Need to parse for success/failure detection.
 
 ## Open Questions
 
-- [ ] What is the exact Factory CLI binary name and invocation contract for non-interactive execution?
-- [ ] Which auth mechanism is expected in local and Docker runtime (env var, login session, token file)?
-- [ ] Does Factory support fully headless execution and deterministic output capture suitable for `ckrv` pipelines?
-- [ ] Are there rate-limit or concurrency constraints that require scheduler changes?
-- [ ] Does Factory expose model/droid selection that should map to existing `model` fields?
+- [ ] Does Factory support any special config files we need to mount?
+- [ ] What models does Factory support? Should we expose model selection?
+- [ ] How does Factory handle API authentication (just API key)?
+- [ ] Is there rate limiting we should be aware of?
 
 ## Success Criteria
 
 | Metric | Target |
 |--------|--------|
-| Provider availability | Factory appears in supported provider list and config docs |
-| Basic execution | A sample task can run through Factory provider end-to-end |
-| Error quality | Common setup failures return actionable messages |
-| Parity | Mixed-provider plans still execute without regression |
+| Agent type added to CLI | Yes |
+| Executes prompts via `droid exec` | Yes |
+| Streams output when enabled | Yes |
+| Handles errors gracefully | Yes |
 
 ## Next Steps
 
-- [x] Create issue-linked brainstorming notes and task breakdown
-- [ ] Validate Factory CLI/auth details and finalize command contract
-- [ ] Draft implementation spec or directly execute via tasks (depending on scope confidence)
+- [ ] Create factory.rs provider implementation
+- [ ] Add tests for command building and output parsing
+- [ ] Document in agent guide
 
 ## References
 
-- Issue: https://github.com/FnSK4R17s/chakravarti-cli/issues/36
-- Product: https://factory.ai/
-- Vision alignment: `guiding_docs/vision.md`
+- [Factory CLI Docs](https://docs.factory.ai/cli/getting-started/quickstart)
+- [droid exec Overview](https://docs.factory.ai/cli/droid-exec/overview)
+- [CLI Reference](https://docs.factory.ai/reference/cli-reference)
+- Existing agent implementations: `crates/ckrv-sandbox/src/agent/{claude,codex,kilo}.rs`
