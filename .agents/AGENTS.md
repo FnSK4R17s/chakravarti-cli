@@ -79,26 +79,31 @@ chakravarti-cli/
 
 ```bash
 # Build and install
-make install
+just install
 
 # Build only
-cargo build --workspace
+just build
 
 # Test
-cargo test --workspace
+just test
 
 # Lint
-cargo clippy --workspace -- -D warnings
+just lint
 
 # Format
-cargo fmt --all
+just fmt
 
 # Generate docs
-cargo doc --open --no-deps
+just docs
 
 # Run CLI
 cargo run -p ckrv-cli -- --help
+
+# Quick install (skip Docker)
+just install-quick
 ```
+
+> **Note**: The Makefile is a thin compatibility shim that forwards to just. If you don't have just installed, `make install` will prompt you to install it. See [just installation](https://github.com/casey/just#installation).
 
 ## CLI Usage
 
@@ -230,16 +235,16 @@ All colors are centralized in `crates/ckrv-ui/frontend/src/index.css` using OKLC
 1. **Tailwind v4**: Uses `@theme inline` for custom utilities, not `tailwind.config.js` extend
 2. **OKLCH colors**: All theme colors use OKLCH format for better color manipulation
 3. **Dark mode only**: The UI is dark-mode only (no light theme toggle)
-4. **Build before testing**: Always run `make install` before testing CLI changes
+4. **Build before testing**: Always run `just install` before testing CLI changes
 
 ## Troubleshooting
 
 ### "command not found: ckrv"
-Run `make install` from the repository root.
+Run `just install` from the repository root.
 
 ### Frontend changes not appearing
-1. Run `npm run build` in the frontend directory
-2. Run `make install` from root
+1. Run `just ui-build` from the repository root
+2. Run `just install`
 3. Restart `ckrv ui`
 
 ### CSS lint warnings about @plugin, @theme, @apply

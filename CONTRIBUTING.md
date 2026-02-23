@@ -7,6 +7,7 @@ Thank you for your interest in contributing to chakravarti-cli! This document pr
 ### Prerequisites
 
 - **Rust 1.75+**: Install via [rustup](https://rustup.rs/)
+- **just**: Task runner - install via [just installation](https://github.com/casey/just#installation)
 - **Docker**: For sandboxed execution ([Docker Desktop](https://www.docker.com/products/docker-desktop/) or [Podman](https://podman.io/))
 - **Git 2.20+**: For worktree operations
 - **Node.js 18+**: For UI development (optional)
@@ -18,17 +19,14 @@ Thank you for your interest in contributing to chakravarti-cli! This document pr
 git clone https://github.com/FnSK4R17s/chakravarti-cli
 cd chakravarti-cli
 
-# Build all crates
-cargo build --workspace
+# Build and install
+just install
 
 # Run tests
-cargo test --workspace
+just test
 
 # Run the CLI
 cargo run -p ckrv-cli -- --help
-
-# Install locally
-make install
 ```
 
 ### Agent Setup
@@ -87,16 +85,14 @@ ckrv --help
 cargo run -p ckrv-cli -- ui --port 3000
 
 # For frontend development (in another terminal)
-cd crates/ckrv-ui/frontend
-npm install
-npm run dev
+just ui-dev
 ```
 
 ### Running Tests
 
 ```bash
 # All tests
-cargo test --workspace
+just test
 
 # Specific crate
 cargo test -p ckrv-core
@@ -109,23 +105,20 @@ cargo llvm-cov --workspace
 
 ```bash
 # Format code
-cargo fmt --all
-
-# Check formatting
-cargo fmt --all -- --check
+just fmt
 
 # Lint
-cargo clippy --workspace -- -D warnings
+just lint
 
 # Documentation
-cargo doc --workspace --no-deps
+just docs
 ```
 
 ### Building Release
 
 ```bash
 # Build optimized binary
-cargo build --release
+just build
 
 # Binary location
 ./target/release/ckrv
@@ -157,9 +150,9 @@ cargo build --release
 2. Create a feature branch: `git checkout -b feature/my-feature`
 3. Make your changes
 4. Add tests for new functionality
-5. Ensure all tests pass: `cargo test --workspace`
-6. Format code: `cargo fmt --all`
-7. Check lints: `cargo clippy --workspace`
+5. Ensure all tests pass: `just test`
+6. Format code: `just fmt`
+7. Check lints: `just lint`
 8. Submit pull request
 
 ### Commit Messages

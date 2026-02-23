@@ -11,7 +11,7 @@ last_updated: 2026-02-10
 
 ## Installation
 
-### Via Make (Recommended)
+### Via just (Recommended)
 
 ```bash
 # Clone the repository
@@ -19,8 +19,13 @@ git clone https://github.com/FnSK4R17s/chakravarti-cli.git
 cd chakravarti-cli
 
 # Build and install (includes Docker images)
-make install
+just install
+
+# Or skip Docker for faster setup
+just install-quick
 ```
+
+> **Note**: If you don't have `just` installed, see [just installation](https://github.com/casey/just#installation). The Makefile provides a compatibility shim.
 
 ### Via npm (after building)
 
