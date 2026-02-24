@@ -1,7 +1,7 @@
 //! Tests for the agent module
 
 use super::{
-    create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
+    create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType, AmpProvider,
     ClaudeProvider, CodexProvider, KiloCodeProvider,
 };
 use std::path::Path;
@@ -19,6 +19,9 @@ fn test_agent_type_from_str() {
     assert_eq!(AgentType::from_str("Kilo"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilo-code"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilocode"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::from_str("amp"), Some(AgentType::Amp));
+    assert_eq!(AgentType::from_str("Amp"), Some(AgentType::Amp));
+    assert_eq!(AgentType::from_str("ampcode"), Some(AgentType::Amp));
     assert_eq!(AgentType::from_str("unknown"), None);
 }
 
@@ -33,6 +36,7 @@ fn test_agent_type_display_name() {
     assert_eq!(AgentType::Claude.display_name(), "Claude Code");
     assert_eq!(AgentType::Codex.display_name(), "OpenAI Codex");
     assert_eq!(AgentType::KiloCode.display_name(), "Kilo Code");
+    assert_eq!(AgentType::Amp.display_name(), "Amp");
 }
 
 #[test]
@@ -212,6 +216,74 @@ fn test_kilo_parse_output_success() {
 #[test]
 fn test_kilo_parse_output_failure() {
     let provider = KiloCodeProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+#[test]
+fn test_create_agent_amp() {
+    let agent = create_agent(AgentType::Amp);
+    assert_eq!(agent.name(), "Amp");
+    assert_eq!(agent.agent_type(), AgentType::Amp);
+    assert!(agent.required_env_vars().is_empty());
+}
+
+#[test]
+fn test_amp_provider_build_command() {
+    let provider = AmpProvider::new();
+    let config = AgentConfig::new(AgentType::Amp);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert_eq!(cmd[0], "amp");
+    assert!(cmd.contains(&"--execute".to_string()));
+    assert!(cmd.contains(&"--dangerously-allow-all".to_string()));
+    assert!(cmd.contains(&"--stream-json".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+}
+
+#[test]
+fn test_amp_provider_with_mode_override() {
+    let provider = AmpProvider::new();
+    let config = AgentConfig::new(AgentType::Amp).with_model("deep");
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert_eq!(cmd[0], "amp");
+    assert!(cmd.contains(&"--mode".to_string()));
+    assert!(cmd.contains(&"deep".to_string()));
+}
+
+#[test]
+fn test_amp_provider_no_streaming() {
+    let provider = AmpProvider::new();
+    let config = AgentConfig::new(AgentType::Amp).with_streaming(false);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert_eq!(cmd[0], "amp");
+    assert!(!cmd.contains(&"--stream-json".to_string()));
+}
+
+#[test]
+fn test_amp_parse_output_success() {
+    let provider = AmpProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_amp_parse_output_failure() {
+    let provider = AmpProvider::new();
     let result = provider.parse_output("", "error message", 1).unwrap();
 
     assert!(!result.success);

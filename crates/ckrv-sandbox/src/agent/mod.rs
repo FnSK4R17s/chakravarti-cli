@@ -4,12 +4,14 @@
 //! between AI agents (Claude Code, OpenAI Codex, etc.) allowing the sandbox
 //! to work with any supported agent interchangeably.
 
+mod amp;
 mod claude;
 mod codex;
 mod kilo;
 #[cfg(test)]
 mod tests;
 
+pub use amp::AmpProvider;
 pub use claude::ClaudeProvider;
 pub use codex::CodexProvider;
 pub use kilo::KiloCodeProvider;
@@ -28,6 +30,8 @@ pub enum AgentType {
     Codex,
     /// Kilo Code CLI (multi-provider)
     KiloCode,
+    /// Amp CLI
+    Amp,
 }
 
 impl AgentType {
@@ -37,6 +41,7 @@ impl AgentType {
             "claude" | "claude-code" => Some(Self::Claude),
             "codex" | "openai" | "openai-codex" => Some(Self::Codex),
             "kilo" | "kilo-code" | "kilocode" => Some(Self::KiloCode),
+            "amp" | "ampcode" => Some(Self::Amp),
             _ => None,
         }
     }
@@ -47,6 +52,7 @@ impl AgentType {
             Self::Claude => "Claude Code",
             Self::Codex => "OpenAI Codex",
             Self::KiloCode => "Kilo Code",
+            Self::Amp => "Amp",
         }
     }
 }
@@ -150,6 +156,7 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
         AgentType::Claude => Box::new(ClaudeProvider::new()),
         AgentType::Codex => Box::new(CodexProvider::new()),
         AgentType::KiloCode => Box::new(KiloCodeProvider::new()),
+        AgentType::Amp => Box::new(AmpProvider::new()),
     }
 }
 

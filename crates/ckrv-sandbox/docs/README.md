@@ -51,8 +51,9 @@ The sandbox automatically mounts agent credentials from the host:
 | Claude Code | OpenRouter API | `OPENROUTER_API_KEY`, `ANTHROPIC_BASE_URL` env vars |
 | Claude Code | GLM Coding Plan | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` env vars |
 | Codex | OpenAI Subscription | `~/.codex/` bind-mounted |
+| Amp | Amp account token | `~/.config/amp/`, `~/.cache/amp/` bind-mounted (or `AMP_API_KEY`) |
 
-> **Note**: OpenRouter and GLM authentication is handled by `ckrv-cli` and `ckrv-ui`, which set the appropriate environment variables. The sandbox (`ckrv-sandbox`) only provides native Claude and Codex providers.
+> **Note**: OpenRouter and GLM authentication is handled by `ckrv-cli` and `ckrv-ui`, which set the appropriate environment variables. The sandbox (`ckrv-sandbox`) provides native providers for Claude, Codex, Kilo, and Amp.
 
 ## Module Structure
 
@@ -66,6 +67,7 @@ src/
 ├── error.rs        # Error types
 └── agent/          # Agent providers
     ├── mod.rs      # AgentProvider trait, AgentType enum
+    ├── amp.rs      # Amp provider
     ├── claude.rs   # Claude Code provider
     ├── codex.rs    # OpenAI Codex provider
     └── tests.rs    # Agent unit tests
@@ -125,6 +127,7 @@ Supported agents in this crate:
 |-------|-----------------|------------|
 | Claude Code | `ClaudeProvider` | `claude` |
 | OpenAI Codex | `CodexProvider` | `codex` |
+| Amp | `AmpProvider` | `amp` |
 
 ```rust
 use ckrv_sandbox::{AgentType, create_agent, default_agent};
