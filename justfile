@@ -86,6 +86,9 @@ install *args:
     mkdir -p {{ bin_dir }}
     cp "$built_bin" {{ bin_dir }}/{{ binary_name }}
     chmod +x {{ bin_dir }}/{{ binary_name }}
+    # Note: npm link uses global prefix. In restricted/container envs you may need:
+    #   npm config set prefix ~/.npm-global
+    #   export PATH="$HOME/.npm-global/bin:$PATH"
     cd {{ npm_dir }} && npm link
     echo ""
     echo "✓ Chakravarti CLI installed and linked successfully!"

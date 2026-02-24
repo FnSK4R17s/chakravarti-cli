@@ -54,6 +54,11 @@ just install
 | `CKRV_SKIP_DOCKER=true just install` | Skipped | Environment variable override |
 
 > **Note**: If you don't have `just` installed, run `make install` which will prompt you to install it. See [just installation](https://github.com/casey/just#installation).
+>
+> **Container/dev-shell tip (no Docker):** if `just install-quick` fails at frontend build (`tsc` missing/permission), make sure dev dependencies are installed (avoid `NODE_ENV=production` during install), then run:
+> `CKRV_SKIP_DOCKER=true just install`.
+> If `npm link` fails with global permission errors, set a user prefix first:
+> `npm config set prefix ~/.npm-global` and add `~/.npm-global/bin` to `PATH`.
 
 ## Quick Start
 
