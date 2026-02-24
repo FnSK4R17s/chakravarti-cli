@@ -49,6 +49,29 @@ just test
 just lint
 ```
 
+### Quick start: Mistral Vibe
+
+1. **Install** — `curl -LsSf https://mistral.ai/vibe/install.sh | bash`
+   (or `uv tool install mistral-vibe` if you have uv; requires Python ≥3.12)
+2. **Get a Mistral API key** — https://console.mistral.ai → API Keys
+3. **Add agent config** — paste into `~/.config/chakravarti/agents.yaml`:
+   ```yaml
+   agents:
+     - id: mistral-vibe
+       name: Mistral Vibe
+       agent_type: mistral_vibe
+       enabled: true
+       vibe:
+         max_turns: 50
+   ```
+4. **Set API key and verify**:
+   ```bash
+   export MISTRAL_API_KEY="sk-..."
+   ckrv task run --agent mistral-vibe -p "Say hello"
+   ```
+
+See [Agent Guide](agent-guide.md#mistral-vibe-integration) for full details and troubleshooting.
+
 ## Development Workflow
 
 ### Running the CLI

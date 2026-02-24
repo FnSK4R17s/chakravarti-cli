@@ -7,12 +7,14 @@
 mod claude;
 mod codex;
 mod kilo;
+mod vibe;
 #[cfg(test)]
 mod tests;
 
 pub use claude::ClaudeProvider;
 pub use codex::CodexProvider;
 pub use kilo::KiloCodeProvider;
+pub use vibe::MistralVibeProvider;
 
 use anyhow::Result;
 use bollard::models::Mount;
@@ -28,6 +30,8 @@ pub enum AgentType {
     Codex,
     /// Kilo Code CLI (multi-provider)
     KiloCode,
+    /// Mistral Vibe CLI
+    MistralVibe,
 }
 
 impl AgentType {
@@ -37,6 +41,7 @@ impl AgentType {
             "claude" | "claude-code" => Some(Self::Claude),
             "codex" | "openai" | "openai-codex" => Some(Self::Codex),
             "kilo" | "kilo-code" | "kilocode" => Some(Self::KiloCode),
+            "mistral-vibe" | "mistral_vibe" | "vibe" => Some(Self::MistralVibe),
             _ => None,
         }
     }
@@ -47,6 +52,7 @@ impl AgentType {
             Self::Claude => "Claude Code",
             Self::Codex => "OpenAI Codex",
             Self::KiloCode => "Kilo Code",
+            Self::MistralVibe => "Mistral Vibe",
         }
     }
 }
@@ -66,6 +72,10 @@ pub struct AgentConfig {
     pub model: Option<String>,
     /// Whether to use streaming output
     pub streaming: bool,
+    /// Optional max turns for agents that support it
+    pub max_turns: Option<u32>,
+    /// Optional max spend in USD for agents that support it
+    pub max_price: Option<f64>,
 }
 
 impl Default for AgentConfig {
@@ -74,6 +84,8 @@ impl Default for AgentConfig {
             agent_type: AgentType::default(),
             model: None,
             streaming: true,
+            max_turns: None,
+            max_price: None,
         }
     }
 }
@@ -96,6 +108,18 @@ impl AgentConfig {
     /// Set streaming mode
     pub fn with_streaming(mut self, streaming: bool) -> Self {
         self.streaming = streaming;
+        self
+    }
+
+    /// Set max turns
+    pub fn with_max_turns(mut self, max_turns: u32) -> Self {
+        self.max_turns = Some(max_turns);
+        self
+    }
+
+    /// Set max price in USD
+    pub fn with_max_price(mut self, max_price: f64) -> Self {
+        self.max_price = Some(max_price);
         self
     }
 }
@@ -150,6 +174,7 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
         AgentType::Claude => Box::new(ClaudeProvider::new()),
         AgentType::Codex => Box::new(CodexProvider::new()),
         AgentType::KiloCode => Box::new(KiloCodeProvider::new()),
+        AgentType::MistralVibe => Box::new(MistralVibeProvider::new()),
     }
 }
 

@@ -14,6 +14,7 @@ pub enum AgentType {
     ClaudeGlm,
     Codex,
     KiloCode,
+    MistralVibe,
 }
 
 impl Default for AgentType {

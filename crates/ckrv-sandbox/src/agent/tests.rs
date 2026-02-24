@@ -2,7 +2,7 @@
 
 use super::{
     create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
-    ClaudeProvider, CodexProvider, KiloCodeProvider,
+    ClaudeProvider, CodexProvider, KiloCodeProvider, MistralVibeProvider,
 };
 use std::path::Path;
 
@@ -19,6 +19,15 @@ fn test_agent_type_from_str() {
     assert_eq!(AgentType::from_str("Kilo"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilo-code"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilocode"), Some(AgentType::KiloCode));
+    assert_eq!(
+        AgentType::from_str("mistral_vibe"),
+        Some(AgentType::MistralVibe)
+    );
+    assert_eq!(
+        AgentType::from_str("mistral-vibe"),
+        Some(AgentType::MistralVibe)
+    );
+    assert_eq!(AgentType::from_str("vibe"), Some(AgentType::MistralVibe));
     assert_eq!(AgentType::from_str("unknown"), None);
 }
 
@@ -33,6 +42,7 @@ fn test_agent_type_display_name() {
     assert_eq!(AgentType::Claude.display_name(), "Claude Code");
     assert_eq!(AgentType::Codex.display_name(), "OpenAI Codex");
     assert_eq!(AgentType::KiloCode.display_name(), "Kilo Code");
+    assert_eq!(AgentType::MistralVibe.display_name(), "Mistral Vibe");
 }
 
 #[test]
@@ -217,4 +227,35 @@ fn test_kilo_parse_output_failure() {
     assert!(!result.success);
     assert_eq!(result.stderr, "error message");
     assert_eq!(result.exit_code, 1);
+}
+
+#[test]
+fn test_create_agent_mistral_vibe() {
+    let agent = create_agent(AgentType::MistralVibe);
+    assert_eq!(agent.name(), "Mistral Vibe");
+    assert_eq!(agent.agent_type(), AgentType::MistralVibe);
+    assert!(agent.required_env_vars().contains(&"MISTRAL_API_KEY"));
+}
+
+#[test]
+fn test_mistral_vibe_provider_build_command() {
+    let provider = MistralVibeProvider::new();
+    let config = AgentConfig::new(AgentType::MistralVibe)
+        .with_max_turns(7)
+        .with_max_price(0.42);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert_eq!(cmd[0], "vibe");
+    assert!(cmd.contains(&"--prompt".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+    assert!(cmd.contains(&"--output".to_string()));
+    assert!(cmd.contains(&"streaming".to_string()));
+    assert!(cmd.contains(&"--workdir".to_string()));
+    assert!(cmd.contains(&"/workspace".to_string()));
+    assert!(cmd.contains(&"--max-turns".to_string()));
+    assert!(cmd.contains(&"7".to_string()));
+    assert!(cmd.contains(&"--max-price".to_string()));
+    assert!(cmd.contains(&"0.42".to_string()));
 }

@@ -143,11 +143,19 @@ pub async fn start_terminal_handler(
         .map(|a| matches!(a.agent_type, AgentType::KiloCode))
         .unwrap_or(false);
 
+    let is_vibe = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::MistralVibe))
+        .unwrap_or(false);
+
     // Set container home based on agent type
     let container_home = if is_codex {
         "/home/codex"
     } else if is_kilo {
         "/home/kilo"
+    } else if is_vibe {
+        "/home/vibe"
     } else {
         "/home/claude"
     };
@@ -171,6 +179,8 @@ pub async fn start_terminal_handler(
         "ckrv-codex:latest".to_string()
     } else if is_kilo {
         "ckrv-kilo:latest".to_string()
+    } else if is_vibe {
+        "ckrv-vibe:latest".to_string()
     } else {
         "ckrv-claude:latest".to_string()
     };
@@ -287,6 +297,25 @@ pub async fn start_terminal_handler(
         }
 
         tracing::info!("Terminal session using Kilo Code with mounted config");
+    } else if is_vibe {
+        // Mistral Vibe configuration - API key passthrough only (no auth mounts)
+        if let Ok(key) = std::env::var("MISTRAL_API_KEY") {
+            env_vars.push(format!("MISTRAL_API_KEY={key}"));
+        }
+
+        // Optional per-agent limits mapped to runtime env for command builders
+        if let Some(ref agent) = request.agent {
+            if let Some(ref vibe_config) = agent.vibe {
+                if let Some(max_turns) = vibe_config.max_turns {
+                    env_vars.push(format!("CKRV_VIBE_MAX_TURNS={max_turns}"));
+                }
+                if let Some(max_price) = vibe_config.max_price {
+                    env_vars.push(format!("CKRV_VIBE_MAX_PRICE={max_price}"));
+                }
+            }
+        }
+
+        tracing::info!("Terminal session using Mistral Vibe with env-based auth");
     } else {
         // For native Claude, mount credentials if they exist
         let claude_config = format!("{host_home}/.claude.json");

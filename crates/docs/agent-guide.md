@@ -410,6 +410,58 @@ JSON events include types: `step_start`, `tool_use`, `text`, `step_finish`.
 | Model selection | Env vars / `--model` | `--model provider/model` |
 | Streaming | `--output-format stream-json` | `--format json` (NDJSON) |
 
+## Mistral Vibe Integration
+
+Mistral Vibe is Mistral AI's first-party coding agent CLI (`vibe`) powered by Devstral by default.
+
+**Prerequisites / Install:**
+
+```bash
+# One-line install (Linux/macOS, recommended)
+curl -LsSf https://mistral.ai/vibe/install.sh | bash
+
+# OR: uv tool install mistral-vibe
+# OR: pip install mistral-vibe  (requires Python >=3.12)
+
+# API key: https://console.mistral.ai → API Keys
+export MISTRAL_API_KEY="sk-..."
+
+# Verify
+vibe --version
+vibe -p "Say hello" --max-turns 1
+```
+
+**agents.yaml configuration:**
+
+```yaml
+agents:
+  - id: mistral-vibe
+    name: Mistral Vibe
+    agent_type: mistral_vibe
+    enabled: true
+    vibe:
+      max_turns: 50
+      max_price: 1.0
+```
+
+**Run with Chakravarti:**
+
+```bash
+ckrv task run --agent mistral-vibe -p "Create a hello.txt file"
+```
+
+> Auth note: `MISTRAL_API_KEY` is injected into the container at runtime (not baked into image, and no auth-dir mount needed).
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `vibe: command not found` in container | `ckrv-vibe:latest` image not built | Run `just docker-build-vibe` (or `just install`) |
+| `MISTRAL_API_KEY missing` / auth errors | API key not exported in host shell | `export MISTRAL_API_KEY=...` before running `ckrv` |
+| CLI exits with Python version error | Host install path used with old Python | Use installer script or Python 3.12+ (`uv tool install mistral-vibe`) |
+| Prompt mode flags rejected | Using old command shape or wrong flags | Use `vibe --prompt "..." --output streaming --workdir ...` |
+| Task hangs / too expensive | No turn/cost limits configured | Set `vibe.max_turns` and/or `vibe.max_price` in `agents.yaml` |
+
 ## Best Practices
 
 1. **Fail fast**: Return errors early from `build_command`

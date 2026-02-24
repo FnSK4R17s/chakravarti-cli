@@ -6,7 +6,7 @@ use crate::error::TransportError;
 use crate::state::AppState;
 use crate::types::{
     AgentConfig, AgentType, DeleteAgentRequest, GlmConfig, GlmModel, KiloCodeConfig,
-    KiloCodeModel, ListAgentsResponse, OpenRouterConfig, OpenRouterModel,
+    KiloCodeModel, ListAgentsResponse, MistralVibeConfig, OpenRouterConfig, OpenRouterModel,
     SetDefaultAgentRequest, SetQaAgentRequest, SetTestWriterAgentRequest, TestAgentRequest,
     TestAgentResponse, UpsertAgentRequest,
 };
@@ -52,6 +52,8 @@ pub struct AgentFileConfig {
     pub glm: Option<GlmFileConfig>,
     /// Kilo Code configuration (for KiloCode type)
     pub kilo: Option<KiloCodeFileConfig>,
+    /// Mistral Vibe configuration (for MistralVibe type)
+    pub vibe: Option<MistralVibeFileConfig>,
     /// Custom CLI binary path (if not using default)
     pub binary_path: Option<String>,
     /// Additional CLI arguments
@@ -82,6 +84,13 @@ pub struct GlmFileConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KiloCodeFileConfig {
     pub model: String,
+}
+
+/// Mistral Vibe config as stored in file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MistralVibeFileConfig {
+    pub max_turns: Option<u32>,
+    pub max_price: Option<f64>,
 }
 
 fn default_level() -> u8 {
@@ -125,6 +134,7 @@ fn ensure_defaults(agents: &mut AgentsFile) {
             openrouter: None,
             glm: None,
             kilo: None,
+            vibe: None,
             binary_path: None,
             extra_args: None,
             env_vars: None,
@@ -186,6 +196,10 @@ impl From<AgentFileConfig> for AgentConfig {
         });
 
         let kilo = fc.kilo.map(|k| KiloCodeConfig { model: k.model });
+        let vibe = fc.vibe.map(|v| MistralVibeConfig {
+            max_turns: v.max_turns,
+            max_price: v.max_price,
+        });
 
         AgentConfig {
             id: fc.id,
@@ -201,6 +215,7 @@ impl From<AgentFileConfig> for AgentConfig {
             openrouter,
             glm,
             kilo,
+            vibe,
         }
     }
 }
@@ -258,6 +273,10 @@ pub async fn upsert_agent_handler(
         }),
         kilo: request.agent.kilo.as_ref().map(|k| KiloCodeFileConfig {
             model: k.model.clone(),
+        }),
+        vibe: request.agent.vibe.as_ref().map(|v| MistralVibeFileConfig {
+            max_turns: v.max_turns,
+            max_price: v.max_price,
         }),
         binary_path: None,
         extra_args: None,
@@ -481,6 +500,21 @@ pub async fn test_agent_handler(
                     }
                 }
                 Err(e) => Err(format!("Kilo Code CLI not found: {}", e)),
+            }
+        }
+        AgentType::MistralVibe => {
+            // Test Mistral Vibe CLI
+            let binary = "vibe";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Mistral Vibe CLI available: {}", version.trim()))
+                    } else {
+                        Err("Mistral Vibe CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Mistral Vibe CLI not found: {}", e)),
             }
         }
     };

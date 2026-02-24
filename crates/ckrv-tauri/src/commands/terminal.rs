@@ -108,6 +108,11 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
         AgentType::KiloCode => {
             // Kilo Code uses file-based auth (~/.config/kilo/) - no env vars needed
         }
+        AgentType::MistralVibe => {
+            if let Ok(key) = std::env::var("MISTRAL_API_KEY") {
+                env.insert("MISTRAL_API_KEY".to_string(), key);
+            }
+        }
     }
 
     // Set container home
@@ -115,6 +120,8 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
         "/home/codex"
     } else if matches!(agent.agent_type, AgentType::KiloCode) {
         "/home/kilo"
+    } else if matches!(agent.agent_type, AgentType::MistralVibe) {
+        "/home/vibe"
     } else {
         "/home/claude"
     };
@@ -184,10 +191,17 @@ pub async fn terminal_start(
         .map(|a| matches!(a.agent_type, AgentType::KiloCode))
         .unwrap_or(false);
 
+    let is_vibe = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::MistralVibe))
+        .unwrap_or(false);
+
     let image = if is_codex {
         "ckrv-codex:latest"
     } else if is_kilo {
         "ckrv-kilo:latest"
+    } else if is_vibe {
+        "ckrv-vibe:latest"
     } else {
         "ckrv-claude:latest"
     };

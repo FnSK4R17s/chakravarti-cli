@@ -72,6 +72,7 @@ install *args:
         docker build -t ckrv-claude:latest -f docker/Dockerfile.claude docker/
         docker build -t ckrv-codex:latest -f docker/Dockerfile.codex docker/
         docker build -t ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
+        docker build -t ckrv-vibe:latest -f docker/Dockerfile.vibe docker/
     fi
     
     # Install CLI binary to ~/.cargo/bin in a path-agnostic way.
@@ -204,7 +205,12 @@ docker-build:
     docker build -t ckrv-claude:latest -f docker/Dockerfile.claude docker/
     docker build -t ckrv-codex:latest -f docker/Dockerfile.codex docker/
     docker build -t ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
+    docker build -t ckrv-vibe:latest -f docker/Dockerfile.vibe docker/
     @echo "✓ Docker images built"
+
+# Build Mistral Vibe Docker image only
+docker-build-vibe:
+    docker build -t ckrv-vibe:latest -f docker/Dockerfile.vibe docker/
 
 # Stop all ckrv containers
 docker-stop:
