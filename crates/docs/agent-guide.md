@@ -24,6 +24,7 @@ These are the underlying CLI tools that execute code generation:
 | **Claude Code** | Anthropic | Native agentic coding CLI |
 | **Codex** | OpenAI | OpenAI's coding assistant CLI |
 | **Kilo Code** | Multi-provider | Open-source CLI supporting 30+ AI providers |
+| **Factory Droid** | Factory AI | Factory's autonomous software engineering CLI |
 
 ## Authentication Methods
 
@@ -36,6 +37,7 @@ Each tool can be authenticated in different ways:
 | Claude Code | GLM Coding Plan (Z.AI) | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` |
 | Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
 | Kilo Code | File-based auth | `~/.config/kilo/config.json` (configured via `kilo auth`) |
+| Factory Droid | File-based auth + API key fallback | `~/.factory/` and optionally `FACTORY_API_KEY` |
 
 > **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
 
@@ -59,10 +61,12 @@ graph TD
     Provider --> Claude[ClaudeProvider]
     Provider --> Codex[CodexProvider]
     Provider --> Kilo[KiloCodeProvider]
+    Provider --> Factory[FactoryDroidProvider]
     
     Claude --> Docker[Docker Container]
     Codex --> Docker
     Kilo --> Docker
+    Factory --> Docker
     
     subgraph "Authentication Layer"
         Claude --> ClaudeSub[Claude Subscription]
@@ -70,6 +74,7 @@ graph TD
         Claude --> GLM[GLM Coding Plan]
         Codex --> OpenAISub[OpenAI Subscription]
         Kilo --> KiloAuth[File-based auth via kilo auth]
+        Factory --> FactoryAuth[File-based auth via ~/.factory]
     end
 ```
 
@@ -219,7 +224,7 @@ impl AgentProvider for YourAgentProvider {
 }
 ```
 
-### Step 3: Register in Factory
+### Step 3: Register in `create_agent`
 
 Update `create_agent()` in `mod.rs`:
 
@@ -416,3 +421,34 @@ JSON events include types: `step_start`, `tool_use`, `text`, `step_finish`.
 2. **Normalize output**: Parse agent-specific output in `parse_output`
 3. **Minimal mounts**: Only mount required config files
 4. **Test locally**: Use `LocalSandbox` for development
+### Factory Droid Integration
+
+Factory Droid is supported via a dedicated `FactoryDroidProvider` in `ckrv-sandbox`.
+
+**Prerequisites:**
+
+```bash
+# Install Factory Droid CLI (see official docs)
+# Then authenticate
+# droid auth
+```
+
+**Configuration:**
+
+```yaml
+agents:
+  - id: factory-agent
+    name: Factory Droid
+    agent_type: factory_droid
+    enabled: true
+    description: Factory autonomous software engineering agent
+```
+
+**Execution behavior:**
+
+- Command: `droid run <prompt> --auto`
+- Streaming mode: `--format json`
+- Working directory: `--cwd <path>`
+- Config mount: `~/.factory/`
+- Optional env fallback: `FACTORY_API_KEY`
+

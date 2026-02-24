@@ -2,7 +2,7 @@
 
 use super::{
     create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
-    ClaudeProvider, CodexProvider, KiloCodeProvider,
+    ClaudeProvider, CodexProvider, FactoryDroidProvider, KiloCodeProvider,
 };
 use std::path::Path;
 
@@ -19,6 +19,18 @@ fn test_agent_type_from_str() {
     assert_eq!(AgentType::from_str("Kilo"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilo-code"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilocode"), Some(AgentType::KiloCode));
+    assert_eq!(
+        AgentType::from_str("factory"),
+        Some(AgentType::FactoryDroid)
+    );
+    assert_eq!(
+        AgentType::from_str("factory-droid"),
+        Some(AgentType::FactoryDroid)
+    );
+    assert_eq!(
+        AgentType::from_str("factory_droid"),
+        Some(AgentType::FactoryDroid)
+    );
     assert_eq!(AgentType::from_str("unknown"), None);
 }
 
@@ -33,6 +45,7 @@ fn test_agent_type_display_name() {
     assert_eq!(AgentType::Claude.display_name(), "Claude Code");
     assert_eq!(AgentType::Codex.display_name(), "OpenAI Codex");
     assert_eq!(AgentType::KiloCode.display_name(), "Kilo Code");
+    assert_eq!(AgentType::FactoryDroid.display_name(), "Factory Droid");
 }
 
 #[test]
@@ -212,6 +225,77 @@ fn test_kilo_parse_output_success() {
 #[test]
 fn test_kilo_parse_output_failure() {
     let provider = KiloCodeProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+#[test]
+fn test_create_agent_factory() {
+    let agent = create_agent(AgentType::FactoryDroid);
+    assert_eq!(agent.name(), "Factory Droid");
+    assert_eq!(agent.agent_type(), AgentType::FactoryDroid);
+    assert!(agent.required_env_vars().contains(&"FACTORY_API_KEY"));
+}
+
+#[test]
+fn test_factory_provider_build_command() {
+    let provider = FactoryDroidProvider::new();
+    let config = AgentConfig::new(AgentType::FactoryDroid);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"droid".to_string()));
+    assert!(cmd.contains(&"run".to_string()));
+    assert!(cmd.contains(&"--auto".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+    assert!(cmd.contains(&"--format".to_string()));
+    assert!(cmd.contains(&"json".to_string()));
+}
+
+#[test]
+fn test_factory_provider_with_model() {
+    let provider = FactoryDroidProvider::new();
+    let config = AgentConfig::new(AgentType::FactoryDroid).with_model("factory/droid-pro");
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"droid".to_string()));
+    assert!(cmd.contains(&"--model".to_string()));
+    assert!(cmd.contains(&"factory/droid-pro".to_string()));
+}
+
+#[test]
+fn test_factory_provider_no_streaming() {
+    let provider = FactoryDroidProvider::new();
+    let config = AgentConfig::new(AgentType::FactoryDroid).with_streaming(false);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"droid".to_string()));
+    assert!(cmd.contains(&"--auto".to_string()));
+    assert!(!cmd.contains(&"--format".to_string()));
+    assert!(!cmd.contains(&"json".to_string()));
+}
+
+#[test]
+fn test_factory_parse_output_success() {
+    let provider = FactoryDroidProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_factory_parse_output_failure() {
+    let provider = FactoryDroidProvider::new();
     let result = provider.parse_output("", "error message", 1).unwrap();
 
     assert!(!result.success);
