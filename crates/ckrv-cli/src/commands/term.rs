@@ -1715,15 +1715,7 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
             if let Ok(key) = std::env::var("MISTRAL_API_KEY") {
                 env_vars.push(("MISTRAL_API_KEY".to_string(), key));
             }
-
-            if let Some(vibe) = &agent.vibe {
-                if let Some(max_turns) = vibe.max_turns {
-                    env_vars.push(("CKRV_VIBE_MAX_TURNS".to_string(), max_turns.to_string()));
-                }
-                if let Some(max_price) = vibe.max_price {
-                    env_vars.push(("CKRV_VIBE_MAX_PRICE".to_string(), max_price.to_string()));
-                }
-            }
+            // Optional limits can be supplied via persisted/custom env vars.
         }
     }
 
