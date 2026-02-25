@@ -115,6 +115,8 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
         "/home/codex"
     } else if matches!(agent.agent_type, AgentType::KiloCode) {
         "/home/kilo"
+    } else if matches!(agent.agent_type, AgentType::GithubCopilot) {
+        "/home/copilot"
     } else {
         "/home/claude"
     };
@@ -188,6 +190,8 @@ pub async fn terminal_start(
         "ckrv-codex:latest"
     } else if is_kilo {
         "ckrv-kilo:latest"
+    } else if is_copilot {
+        "ckrv-copilot:latest"
     } else {
         "ckrv-claude:latest"
     };

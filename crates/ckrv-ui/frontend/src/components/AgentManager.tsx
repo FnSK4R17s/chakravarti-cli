@@ -82,7 +82,7 @@ import { Label } from '@/components/ui/label';
 // ============================================================
 
 /** Supported agent types for task execution. */
-type AgentType = 'claude' | 'claude_open_router' | 'claude_glm' | 'codex' | 'kilo_code';
+type AgentType = 'claude' | 'claude_open_router' | 'claude_glm' | 'codex' | 'kilo_code' | 'github_copilot';
 
 interface OpenRouterConfig {
     api_key?: string;
@@ -101,6 +101,11 @@ interface GLMConfig {
 interface KiloCodeConfig {
     /** Model ID in kilo format (e.g., "kilo/google/gemma-3-27b-it:free") */
     model: string;
+}
+
+interface GithubCopilotConfig {
+    /** Optional model override for gh-copilot integrations */
+    model?: string;
 }
 
 interface KiloCodeModel {
@@ -154,6 +159,8 @@ export interface AgentConfig {
     glm?: GLMConfig;
     /** Kilo Code configuration (for kilo_code type) */
     kilo?: KiloCodeConfig;
+    /** GitHub Copilot configuration (for github_copilot type) */
+    copilot?: GithubCopilotConfig;
     /** Path to the agent binary (for codex type) */
     binary_path?: string;
     /** Additional command-line arguments for the agent */
@@ -259,6 +266,7 @@ const AGENT_TYPE_INFO: Record<AgentType, { label: string; icon: React.ReactNode;
     claude_glm: { label: 'GLM Coding Plan', icon: <Zap size={16} />, color: 'hsl(var(--info))' },
     codex: { label: 'OpenAI Codex', icon: <Zap size={16} />, color: 'hsl(var(--success))' },
     kilo_code: { label: 'Kilo Code', icon: <Sparkles size={16} />, color: 'hsl(var(--chart-4))' },
+    github_copilot: { label: 'GitHub Copilot', icon: <Bot size={16} />, color: 'hsl(var(--chart-2))' },
 };
 
 const AgentManager: React.FC = () => {
@@ -602,6 +610,9 @@ const AgentCard: React.FC<AgentCardProps> = ({
                                 {agent.agent_type === 'kilo_code' && agent.kilo && (
                                     <> • {agent.kilo.model.replace('kilo/', '')}</>
                                 )}
+                                {agent.agent_type === 'github_copilot' && (
+                                    <> • gh copilot</>
+                                )}
                             </p>
                         </div>
 
@@ -726,6 +737,23 @@ const AgentCard: React.FC<AgentCardProps> = ({
                                     <span className="text-muted-foreground">Provider:</span>
                                     <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                                         {agent.kilo.model.split('/')[1] || 'unknown'}
+                                    </code>
+                                </div>
+                            </div>
+                        )}
+
+                        {agent.agent_type === 'github_copilot' && (
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">Mode:</span>
+                                    <code className="px-1.5 py-0.5 rounded bg-muted text-info">
+                                        gh copilot
+                                    </code>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">Auth:</span>
+                                    <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                        Uses ~/.config/gh
                                     </code>
                                 </div>
                             </div>
@@ -997,6 +1025,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, kiloModels, glmM
                                     openrouter: value === 'claude_open_router' ? form.openrouter || { model: 'anthropic/claude-sonnet-4' } : undefined,
                                     glm: value === 'claude_glm' ? form.glm || { model: 'glm-4.7' } : undefined,
                                     kilo: value === 'kilo_code' ? form.kilo || { model: kiloModels[0]?.id || 'kilo/deepseek/deepseek-r1-0528:free' } : undefined,
+                                    copilot: value === 'github_copilot' ? form.copilot || {} : undefined,
                                 })}
                             >
                                 <SelectTrigger>
@@ -1008,6 +1037,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, kiloModels, glmM
                                     <SelectItem value="claude_glm">GLM Coding Plan (Z.AI)</SelectItem>
                                     <SelectItem value="codex">OpenAI Codex</SelectItem>
                                     <SelectItem value="kilo_code">Kilo Code (Multi-Provider)</SelectItem>
+                                    <SelectItem value="github_copilot">GitHub Copilot (gh)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

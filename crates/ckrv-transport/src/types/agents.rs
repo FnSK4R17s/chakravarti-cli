@@ -23,6 +23,8 @@ pub enum AgentType {
     Codex,
     /// Kilo Code multi-provider CLI
     KiloCode,
+    /// GitHub Copilot CLI (via gh extension)
+    GithubCopilot,
 }
 
 impl Default for AgentType {
@@ -77,6 +79,9 @@ pub struct AgentConfig {
 
     /// Agent-specific configuration (Kilo Code config)
     pub kilo: Option<KiloCodeConfig>,
+
+    /// Agent-specific configuration (GitHub Copilot config)
+    pub copilot: Option<GithubCopilotConfig>,
 }
 
 fn default_level() -> u8 {
@@ -126,6 +131,15 @@ pub struct GlmConfig {
 pub struct KiloCodeConfig {
     /// Model ID in provider/model format (e.g., "google/gemma-3-27b-it:free")
     pub model: String,
+}
+
+/// GitHub Copilot-specific configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "typescript", derive(TS))]
+#[cfg_attr(feature = "typescript", ts(export))]
+pub struct GithubCopilotConfig {
+    /// Optional model override (if supported by local gh-copilot setup)
+    pub model: Option<String>,
 }
 
 /// Available model from OpenRouter.
@@ -285,6 +299,7 @@ mod tests {
             openrouter: None,
             glm: None,
             kilo: None,
+            copilot: None,
         };
 
         let json = serde_json::to_string(&config).expect("serialization failed");

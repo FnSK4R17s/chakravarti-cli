@@ -837,6 +837,7 @@ impl ExecutionEngine {
         if use_sandbox {
             // Determine agent type from the passed agent parameter
             let is_codex = agent == "codex";
+            let is_copilot = agent == "github_copilot" || agent == "copilot";
 
             // Determine if this is an OpenRouter model or native Claude
             let is_openrouter = model
@@ -846,6 +847,7 @@ impl ExecutionEngine {
                         && !m.starts_with("claude")
                         && !m.starts_with("glm")
                         && !is_codex
+                        && !is_copilot
                 })
                 .unwrap_or(false);
 
@@ -857,6 +859,8 @@ impl ExecutionEngine {
 
             let agent_name = if is_codex {
                 "OpenAI Codex"
+            } else if is_copilot {
+                "GitHub Copilot"
             } else if is_glm {
                 "GLM Coding Plan"
             } else {
@@ -920,6 +924,15 @@ impl ExecutionEngine {
                         if let Some(ref model_name) = model {
                             cfg = cfg.env("OPENAI_MODEL", model_name);
                         }
+
+                        cfg
+                    } else if is_copilot {
+                        let _ = sender
+                            .send(
+                                LogMessage::new("info", "Using GitHub Copilot via gh CLI")
+                                    .with_batch(&batch.id, &batch.name),
+                            )
+                            .await;
 
                         cfg
                     } else if is_glm {
@@ -1022,8 +1035,14 @@ impl ExecutionEngine {
                         cfg
                     };
 
-                    // Set HOME for Claude Code config
-                    let config = config.env("HOME", "/home/claude");
+                    // Set HOME for CLI config
+                    let config = if is_codex {
+                        config.env("HOME", "/home/codex")
+                    } else if is_copilot {
+                        config.env("HOME", "/home/copilot")
+                    } else {
+                        config.env("HOME", "/home/claude")
+                    };
                     let config = config.env("NO_COLOR", "1");
 
                     // Execute in sandbox with real-time streaming

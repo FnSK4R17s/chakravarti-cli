@@ -14,6 +14,7 @@ pub enum AgentType {
     ClaudeGlm,
     Codex,
     KiloCode,
+    GithubCopilot,
 }
 
 impl Default for AgentType {
@@ -48,6 +49,13 @@ pub struct GLMConfig {
     pub timeout_ms: Option<u32>,
 }
 
+/// GitHub Copilot configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GithubCopilotConfig {
+    /// Optional model override.
+    pub model: Option<String>,
+}
+
 /// Agent configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
@@ -79,6 +87,8 @@ pub struct AgentConfig {
     pub openrouter: Option<OpenRouterConfig>,
     /// GLM configuration if using GLM models.
     pub glm: Option<GLMConfig>,
+    /// GitHub Copilot configuration if using gh-copilot.
+    pub copilot: Option<GithubCopilotConfig>,
     /// Custom binary path for the agent executable.
     pub binary_path: Option<String>,
     /// Additional arguments to pass to the agent.

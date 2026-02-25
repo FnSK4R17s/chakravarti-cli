@@ -2,7 +2,7 @@
 
 use super::{
     create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
-    ClaudeProvider, CodexProvider, KiloCodeProvider,
+    ClaudeProvider, CodexProvider, GithubCopilotProvider, KiloCodeProvider,
 };
 use std::path::Path;
 
@@ -19,6 +19,14 @@ fn test_agent_type_from_str() {
     assert_eq!(AgentType::from_str("Kilo"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilo-code"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilocode"), Some(AgentType::KiloCode));
+    assert_eq!(
+        AgentType::from_str("copilot"),
+        Some(AgentType::GithubCopilot)
+    );
+    assert_eq!(
+        AgentType::from_str("gh-copilot"),
+        Some(AgentType::GithubCopilot)
+    );
     assert_eq!(AgentType::from_str("unknown"), None);
 }
 
@@ -33,6 +41,7 @@ fn test_agent_type_display_name() {
     assert_eq!(AgentType::Claude.display_name(), "Claude Code");
     assert_eq!(AgentType::Codex.display_name(), "OpenAI Codex");
     assert_eq!(AgentType::KiloCode.display_name(), "Kilo Code");
+    assert_eq!(AgentType::GithubCopilot.display_name(), "GitHub Copilot");
 }
 
 #[test]
@@ -217,4 +226,25 @@ fn test_kilo_parse_output_failure() {
     assert!(!result.success);
     assert_eq!(result.stderr, "error message");
     assert_eq!(result.exit_code, 1);
+}
+
+#[test]
+fn test_create_agent_copilot() {
+    let agent = create_agent(AgentType::GithubCopilot);
+    assert_eq!(agent.name(), "GitHub Copilot");
+    assert_eq!(agent.agent_type(), AgentType::GithubCopilot);
+}
+
+#[test]
+fn test_copilot_provider_build_command() {
+    let provider = GithubCopilotProvider::new();
+    let config = AgentConfig::new(AgentType::GithubCopilot);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"gh".to_string()));
+    assert!(cmd.contains(&"copilot".to_string()));
+    assert!(cmd.contains(&"suggest".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
 }

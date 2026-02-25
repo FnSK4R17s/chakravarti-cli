@@ -143,11 +143,19 @@ pub async fn start_terminal_handler(
         .map(|a| matches!(a.agent_type, AgentType::KiloCode))
         .unwrap_or(false);
 
+    let is_copilot = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::GithubCopilot))
+        .unwrap_or(false);
+
     // Set container home based on agent type
     let container_home = if is_codex {
         "/home/codex"
     } else if is_kilo {
         "/home/kilo"
+    } else if is_copilot {
+        "/home/copilot"
     } else {
         "/home/claude"
     };
@@ -171,6 +179,8 @@ pub async fn start_terminal_handler(
         "ckrv-codex:latest".to_string()
     } else if is_kilo {
         "ckrv-kilo:latest".to_string()
+    } else if is_copilot {
+        "ckrv-copilot:latest".to_string()
     } else {
         "ckrv-claude:latest".to_string()
     };
@@ -287,6 +297,15 @@ pub async fn start_terminal_handler(
         }
 
         tracing::info!("Terminal session using Kilo Code with mounted config");
+    } else if is_copilot {
+        // GitHub Copilot CLI via GitHub CLI (`gh copilot ...`)
+        // Mount gh config for auth/session persistence.
+        let gh_config = format!("{}/.config/gh", host_home);
+        if std::path::Path::new(&gh_config).exists() {
+            binds.push(format!("{gh_config}:{container_home}/.config/gh"));
+        }
+
+        tracing::info!("Terminal session using GitHub Copilot (gh)");
     } else {
         // For native Claude, mount credentials if they exist
         let claude_config = format!("{host_home}/.claude.json");

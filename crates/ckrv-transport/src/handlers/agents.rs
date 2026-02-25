@@ -5,8 +5,8 @@
 use crate::error::TransportError;
 use crate::state::AppState;
 use crate::types::{
-    AgentConfig, AgentType, DeleteAgentRequest, GlmConfig, GlmModel, KiloCodeConfig,
-    KiloCodeModel, ListAgentsResponse, OpenRouterConfig, OpenRouterModel,
+    AgentConfig, AgentType, DeleteAgentRequest, GithubCopilotConfig, GlmConfig, GlmModel,
+    KiloCodeConfig, KiloCodeModel, ListAgentsResponse, OpenRouterConfig, OpenRouterModel,
     SetDefaultAgentRequest, SetQaAgentRequest, SetTestWriterAgentRequest, TestAgentRequest,
     TestAgentResponse, UpsertAgentRequest,
 };
@@ -52,6 +52,8 @@ pub struct AgentFileConfig {
     pub glm: Option<GlmFileConfig>,
     /// Kilo Code configuration (for KiloCode type)
     pub kilo: Option<KiloCodeFileConfig>,
+    /// GitHub Copilot configuration (for GithubCopilot type)
+    pub copilot: Option<GithubCopilotFileConfig>,
     /// Custom CLI binary path (if not using default)
     pub binary_path: Option<String>,
     /// Additional CLI arguments
@@ -82,6 +84,12 @@ pub struct GlmFileConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KiloCodeFileConfig {
     pub model: String,
+}
+
+/// GitHub Copilot config as stored in file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GithubCopilotFileConfig {
+    pub model: Option<String>,
 }
 
 fn default_level() -> u8 {
@@ -125,6 +133,7 @@ fn ensure_defaults(agents: &mut AgentsFile) {
             openrouter: None,
             glm: None,
             kilo: None,
+            copilot: None,
             binary_path: None,
             extra_args: None,
             env_vars: None,
@@ -186,6 +195,7 @@ impl From<AgentFileConfig> for AgentConfig {
         });
 
         let kilo = fc.kilo.map(|k| KiloCodeConfig { model: k.model });
+        let copilot = fc.copilot.map(|c| GithubCopilotConfig { model: c.model });
 
         AgentConfig {
             id: fc.id,
@@ -201,6 +211,7 @@ impl From<AgentFileConfig> for AgentConfig {
             openrouter,
             glm,
             kilo,
+            copilot,
         }
     }
 }
@@ -259,6 +270,13 @@ pub async fn upsert_agent_handler(
         kilo: request.agent.kilo.as_ref().map(|k| KiloCodeFileConfig {
             model: k.model.clone(),
         }),
+        copilot: request
+            .agent
+            .copilot
+            .as_ref()
+            .map(|c| GithubCopilotFileConfig {
+                model: c.model.clone(),
+            }),
         binary_path: None,
         extra_args: None,
         env_vars: None,
@@ -481,6 +499,33 @@ pub async fn test_agent_handler(
                     }
                 }
                 Err(e) => Err(format!("Kilo Code CLI not found: {}", e)),
+            }
+        }
+        AgentType::GithubCopilot => {
+            // Test GitHub CLI + Copilot extension
+            match std::process::Command::new("gh").arg("--version").output() {
+                Ok(output) if output.status.success() => {
+                    match std::process::Command::new("gh")
+                        .args(["copilot", "--help"])
+                        .output()
+                    {
+                        Ok(help) if help.status.success() => {
+                            match std::process::Command::new("gh")
+                                .args(["auth", "status"])
+                                .output()
+                            {
+                                Ok(auth) if auth.status.success() => {
+                                    Ok("GitHub Copilot CLI available and GitHub auth is configured".to_string())
+                                }
+                                _ => Ok("GitHub Copilot CLI available (run 'gh auth login' if unauthenticated)".to_string()),
+                            }
+                        }
+                        Ok(_) => Err("GitHub Copilot extension not available. Install/update GitHub CLI Copilot extension and retry".to_string()),
+                        Err(e) => Err(format!("GitHub Copilot CLI check failed: {}", e)),
+                    }
+                }
+                Ok(_) => Err("GitHub CLI not responding correctly".to_string()),
+                Err(e) => Err(format!("GitHub CLI not found: {}", e)),
             }
         }
     };
