@@ -7,12 +7,14 @@
 mod claude;
 mod codex;
 mod kilo;
+mod qwen;
 #[cfg(test)]
 mod tests;
 
 pub use claude::ClaudeProvider;
 pub use codex::CodexProvider;
 pub use kilo::KiloCodeProvider;
+pub use qwen::QwenProvider;
 
 use anyhow::Result;
 use bollard::models::Mount;
@@ -28,6 +30,8 @@ pub enum AgentType {
     Codex,
     /// Kilo Code CLI (multi-provider)
     KiloCode,
+    /// Qwen Code CLI / OpenAI-compatible API
+    Qwen,
 }
 
 impl AgentType {
@@ -37,6 +41,7 @@ impl AgentType {
             "claude" | "claude-code" => Some(Self::Claude),
             "codex" | "openai" | "openai-codex" => Some(Self::Codex),
             "kilo" | "kilo-code" | "kilocode" => Some(Self::KiloCode),
+            "qwen" | "qwen-code" | "qwencode" => Some(Self::Qwen),
             _ => None,
         }
     }
@@ -47,6 +52,7 @@ impl AgentType {
             Self::Claude => "Claude Code",
             Self::Codex => "OpenAI Codex",
             Self::KiloCode => "Kilo Code",
+            Self::Qwen => "Qwen Code",
         }
     }
 }
@@ -66,6 +72,10 @@ pub struct AgentConfig {
     pub model: Option<String>,
     /// Whether to use streaming output
     pub streaming: bool,
+    /// For providers supporting both native CLI and API mode (e.g. Qwen)
+    pub use_api: bool,
+    /// Optional OpenAI-compatible API base URL override
+    pub api_base_url: Option<String>,
 }
 
 impl Default for AgentConfig {
@@ -74,6 +84,8 @@ impl Default for AgentConfig {
             agent_type: AgentType::default(),
             model: None,
             streaming: true,
+            use_api: false,
+            api_base_url: None,
         }
     }
 }
@@ -96,6 +108,18 @@ impl AgentConfig {
     /// Set streaming mode
     pub fn with_streaming(mut self, streaming: bool) -> Self {
         self.streaming = streaming;
+        self
+    }
+
+    /// Toggle OpenAI-compatible API mode for supported providers
+    pub fn with_api_mode(mut self, use_api: bool) -> Self {
+        self.use_api = use_api;
+        self
+    }
+
+    /// Set OpenAI-compatible API base URL override
+    pub fn with_api_base_url(mut self, api_base_url: impl Into<String>) -> Self {
+        self.api_base_url = Some(api_base_url.into());
         self
     }
 }
@@ -150,6 +174,7 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
         AgentType::Claude => Box::new(ClaudeProvider::new()),
         AgentType::Codex => Box::new(CodexProvider::new()),
         AgentType::KiloCode => Box::new(KiloCodeProvider::new()),
+        AgentType::Qwen => Box::new(QwenProvider::new()),
     }
 }
 

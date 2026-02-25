@@ -2,7 +2,7 @@
 
 use super::{
     create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
-    ClaudeProvider, CodexProvider, KiloCodeProvider,
+    ClaudeProvider, CodexProvider, KiloCodeProvider, QwenProvider,
 };
 use std::path::Path;
 
@@ -19,6 +19,10 @@ fn test_agent_type_from_str() {
     assert_eq!(AgentType::from_str("Kilo"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilo-code"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilocode"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::from_str("qwen"), Some(AgentType::Qwen));
+    assert_eq!(AgentType::from_str("Qwen"), Some(AgentType::Qwen));
+    assert_eq!(AgentType::from_str("qwen-code"), Some(AgentType::Qwen));
+    assert_eq!(AgentType::from_str("qwencode"), Some(AgentType::Qwen));
     assert_eq!(AgentType::from_str("unknown"), None);
 }
 
@@ -33,6 +37,7 @@ fn test_agent_type_display_name() {
     assert_eq!(AgentType::Claude.display_name(), "Claude Code");
     assert_eq!(AgentType::Codex.display_name(), "OpenAI Codex");
     assert_eq!(AgentType::KiloCode.display_name(), "Kilo Code");
+    assert_eq!(AgentType::Qwen.display_name(), "Qwen Code");
 }
 
 #[test]
@@ -41,17 +46,26 @@ fn test_agent_config_default() {
     assert_eq!(config.agent_type, AgentType::Claude);
     assert!(config.model.is_none());
     assert!(config.streaming);
+    assert!(!config.use_api);
+    assert!(config.api_base_url.is_none());
 }
 
 #[test]
 fn test_agent_config_builder() {
     let config = AgentConfig::new(AgentType::Codex)
         .with_model("gpt-4o")
-        .with_streaming(false);
+        .with_streaming(false)
+        .with_api_mode(true)
+        .with_api_base_url("https://api.openai.com/v1");
 
     assert_eq!(config.agent_type, AgentType::Codex);
     assert_eq!(config.model, Some("gpt-4o".to_string()));
     assert!(!config.streaming);
+    assert!(config.use_api);
+    assert_eq!(
+        config.api_base_url,
+        Some("https://api.openai.com/v1".to_string())
+    );
 }
 
 #[test]
@@ -212,6 +226,109 @@ fn test_kilo_parse_output_success() {
 #[test]
 fn test_kilo_parse_output_failure() {
     let provider = KiloCodeProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+#[test]
+fn test_create_agent_qwen() {
+    let agent = create_agent(AgentType::Qwen);
+    assert_eq!(agent.name(), "qwen-code");
+    assert_eq!(agent.agent_type(), AgentType::Qwen);
+    assert_eq!(
+        agent.required_env_vars(),
+        vec!["OPENAI_API_KEY", "QWEN_AUTH_TOKEN", "OPENAI_BASE_URL"]
+    );
+}
+
+#[test]
+fn test_qwen_provider_build_command_cli_mode() {
+    let provider = QwenProvider::new();
+    let config = AgentConfig::new(AgentType::Qwen);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert_eq!(cmd[0], "qwen");
+    assert!(cmd.contains(&"--yes".to_string()));
+    assert!(cmd.contains(&"--approval-mode=auto".to_string()));
+    assert!(cmd.contains(&"--cwd".to_string()));
+    assert!(cmd.contains(&"/workspace".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+    assert!(!cmd.contains(&"--base-url".to_string()));
+}
+
+#[test]
+fn test_qwen_provider_build_command_api_mode() {
+    let provider = QwenProvider::new();
+    let config = AgentConfig::new(AgentType::Qwen)
+        .with_api_mode(true)
+        .with_api_base_url("https://openrouter.ai/api/v1");
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert_eq!(cmd[0], "qwen");
+    assert!(cmd.contains(&"--model".to_string()));
+    assert!(cmd.contains(&"qwen/qwen3-coder".to_string()));
+    assert!(cmd.contains(&"--base-url".to_string()));
+    assert!(cmd.contains(&"https://openrouter.ai/api/v1".to_string()));
+}
+
+#[test]
+fn test_qwen_provider_with_custom_model() {
+    let provider = QwenProvider::new();
+    let config = AgentConfig::new(AgentType::Qwen)
+        .with_api_mode(true)
+        .with_model("qwen/qwen3-coder-plus");
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"--model".to_string()));
+    assert!(cmd.contains(&"qwen/qwen3-coder-plus".to_string()));
+}
+
+#[test]
+fn test_qwen_config_mounts() {
+    let provider = QwenProvider::new();
+
+    let unique = format!(
+        "ckrv-qwen-test-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let host_home = std::env::temp_dir().join(unique);
+    let qwen_dir = host_home.join(".qwen");
+    std::fs::create_dir_all(&qwen_dir).unwrap();
+
+    let mounts = provider.config_mounts(host_home.to_str().unwrap(), "/home/qwen");
+
+    assert_eq!(mounts.len(), 1);
+    assert_eq!(mounts[0].target.as_deref(), Some("/home/qwen/.qwen"));
+    assert_eq!(mounts[0].source.as_deref(), qwen_dir.to_str());
+
+    std::fs::remove_dir_all(&host_home).unwrap();
+}
+
+#[test]
+fn test_qwen_parse_output_success() {
+    let provider = QwenProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_qwen_parse_output_failure() {
+    let provider = QwenProvider::new();
     let result = provider.parse_output("", "error message", 1).unwrap();
 
     assert!(!result.success);
