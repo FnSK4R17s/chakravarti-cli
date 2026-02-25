@@ -29,6 +29,10 @@ jobs:
           npm config set prefix "$HOME/.npm-global"
           echo "$HOME/.npm-global/bin" >> "$GITHUB_PATH"
 
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: crates/ckrv-ui/frontend
+
       - name: Install just
         run: cargo install just --locked
 
