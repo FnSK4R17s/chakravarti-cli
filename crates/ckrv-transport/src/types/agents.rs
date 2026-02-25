@@ -23,6 +23,8 @@ pub enum AgentType {
     Codex,
     /// Kilo Code multi-provider CLI
     KiloCode,
+    /// Opencode CLI
+    Opencode,
 }
 
 impl Default for AgentType {

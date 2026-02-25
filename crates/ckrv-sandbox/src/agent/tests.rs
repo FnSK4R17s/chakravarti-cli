@@ -2,7 +2,7 @@
 
 use super::{
     create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
-    ClaudeProvider, CodexProvider, KiloCodeProvider,
+    ClaudeProvider, CodexProvider, KiloCodeProvider, OpencodeProvider,
 };
 use std::path::Path;
 
@@ -19,6 +19,8 @@ fn test_agent_type_from_str() {
     assert_eq!(AgentType::from_str("Kilo"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilo-code"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilocode"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::from_str("opencode"), Some(AgentType::Opencode));
+    assert_eq!(AgentType::from_str("open-code"), Some(AgentType::Opencode));
     assert_eq!(AgentType::from_str("unknown"), None);
 }
 
@@ -33,6 +35,7 @@ fn test_agent_type_display_name() {
     assert_eq!(AgentType::Claude.display_name(), "Claude Code");
     assert_eq!(AgentType::Codex.display_name(), "OpenAI Codex");
     assert_eq!(AgentType::KiloCode.display_name(), "Kilo Code");
+    assert_eq!(AgentType::Opencode.display_name(), "Opencode");
 }
 
 #[test]
@@ -217,4 +220,26 @@ fn test_kilo_parse_output_failure() {
     assert!(!result.success);
     assert_eq!(result.stderr, "error message");
     assert_eq!(result.exit_code, 1);
+}
+
+#[test]
+fn test_create_agent_opencode() {
+    let agent = create_agent(AgentType::Opencode);
+    assert_eq!(agent.name(), "Opencode");
+    assert_eq!(agent.agent_type(), AgentType::Opencode);
+    assert!(agent.required_env_vars().is_empty());
+}
+
+#[test]
+fn test_opencode_provider_build_command() {
+    let provider = OpencodeProvider::new();
+    let config = AgentConfig::new(AgentType::Opencode);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"opencode".to_string()));
+    assert!(cmd.contains(&"run".to_string()));
+    assert!(cmd.contains(&"--auto".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
 }

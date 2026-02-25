@@ -131,6 +131,12 @@ const COMMON_OPTIONS: &[CommonOption] = &[
         description: "Run autonomously without approval prompts",
         agents: &[AgentType::KiloCode],
     },
+    CommonOption {
+        label: "Auto mode",
+        action: OptionAction::Flag("--auto"),
+        description: "Run autonomously without approval prompts",
+        agents: &[AgentType::Opencode],
+    },
 ];
 
 /// Post-session action choices
@@ -202,7 +208,7 @@ impl std::fmt::Display for SessionStatus {
 #[allow(clippy::struct_excessive_bools)]
 #[command(
     long_about = "Spawn an interactive AI agent terminal session.\n\n\
-                  Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code) \
+                  Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code, Opencode) \
                   with the correct environment variables automatically configured.\n\n\
                   ## Isolation Modes\n\n\
                   - **Default**: Agent runs directly in the current working directory\n\
@@ -514,6 +520,7 @@ fn list_agents(_args: &TermArgs, json: bool) -> anyhow::Result<()> {
                 AgentType::ClaudeGlm => "glm",
                 AgentType::Codex => "codex",
                 AgentType::KiloCode => "kilo",
+                AgentType::Opencode => "opencode",
             };
             let default_marker = if agent.is_default { " ★" } else { "" };
             println!(
@@ -804,6 +811,7 @@ fn select_agent_interactively(enabled_agents: &[&AgentConfig]) -> anyhow::Result
                 AgentType::ClaudeGlm => "glm",
                 AgentType::Codex => "codex",
                 AgentType::KiloCode => "kilo",
+                AgentType::Opencode => "opencode",
             };
             let default_marker = if a.is_default { " ★" } else { "" };
             format!("{} ({}) [{}]{}", a.name, a.id, type_badge, default_marker)
@@ -1040,6 +1048,7 @@ fn to_sandbox_agent_type(cli_type: &AgentType) -> ckrv_sandbox::AgentType {
         }
         AgentType::Codex => ckrv_sandbox::AgentType::Codex,
         AgentType::KiloCode => ckrv_sandbox::AgentType::KiloCode,
+        AgentType::Opencode => ckrv_sandbox::AgentType::Opencode,
     }
 }
 
@@ -1078,6 +1087,7 @@ async fn execute_in_sandbox(
     let image = match &agent.agent_type {
         AgentType::Codex => "ckrv-codex:latest",
         AgentType::KiloCode => "ckrv-kilo:latest",
+        AgentType::Opencode => "ckrv-opencode:latest",
         _ => "ckrv-claude:latest",
     };
     docker.set_image(image);
@@ -1091,6 +1101,7 @@ async fn execute_in_sandbox(
     let container_home = match &agent.agent_type {
         AgentType::Codex => "/home/codex",
         AgentType::KiloCode => "/home/kilo",
+        AgentType::Opencode => "/home/opencode",
         _ => "/home/claude",
     };
     let mounts = agent_provider.config_mounts(&host_home, &container_home);
@@ -1119,6 +1130,15 @@ async fn execute_in_sandbox(
     // Add agent-specific env vars from config
     if let Some(custom_env) = &agent.env_vars {
         env_map.extend(custom_env.clone());
+    }
+
+    // Mount Opencode config directory for file-based auth
+    if matches!(agent.agent_type, AgentType::Opencode) {
+        let host_home = std::env::var("HOME").unwrap_or_default();
+        let opencode_config = format!("{host_home}/.config/opencode");
+        if std::path::Path::new(&opencode_config).exists() {
+            env_map.insert("XDG_CONFIG_HOME".to_string(), format!("{container_home}/.config"));
+        }
     }
 
     // Create container session - mount host path to /workspace in container
@@ -1622,6 +1642,7 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
             }
             AgentType::Codex => "codex".to_string(),
             AgentType::KiloCode => "kilo".to_string(),
+            AgentType::Opencode => "opencode".to_string(),
         });
 
     let mut env_vars: Vec<(String, String)> = Vec::new();
@@ -1703,6 +1724,9 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
         }
         AgentType::KiloCode => {
             // Kilo Code uses file-based auth (~/.config/kilo/) - no extra env vars needed
+        }
+        AgentType::Opencode => {
+            // Opencode uses file-based auth (~/.config/opencode/) - no extra env vars needed
         }
     }
 

@@ -7,12 +7,14 @@
 mod claude;
 mod codex;
 mod kilo;
+mod opencode;
 #[cfg(test)]
 mod tests;
 
 pub use claude::ClaudeProvider;
 pub use codex::CodexProvider;
 pub use kilo::KiloCodeProvider;
+pub use opencode::OpencodeProvider;
 
 use anyhow::Result;
 use bollard::models::Mount;
@@ -28,6 +30,8 @@ pub enum AgentType {
     Codex,
     /// Kilo Code CLI (multi-provider)
     KiloCode,
+    /// Opencode CLI
+    Opencode,
 }
 
 impl AgentType {
@@ -37,6 +41,7 @@ impl AgentType {
             "claude" | "claude-code" => Some(Self::Claude),
             "codex" | "openai" | "openai-codex" => Some(Self::Codex),
             "kilo" | "kilo-code" | "kilocode" => Some(Self::KiloCode),
+            "opencode" | "open-code" => Some(Self::Opencode),
             _ => None,
         }
     }
@@ -47,6 +52,7 @@ impl AgentType {
             Self::Claude => "Claude Code",
             Self::Codex => "OpenAI Codex",
             Self::KiloCode => "Kilo Code",
+            Self::Opencode => "Opencode",
         }
     }
 }
@@ -150,6 +156,7 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
         AgentType::Claude => Box::new(ClaudeProvider::new()),
         AgentType::Codex => Box::new(CodexProvider::new()),
         AgentType::KiloCode => Box::new(KiloCodeProvider::new()),
+        AgentType::Opencode => Box::new(OpencodeProvider::new()),
     }
 }
 

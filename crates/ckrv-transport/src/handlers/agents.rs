@@ -483,6 +483,21 @@ pub async fn test_agent_handler(
                 Err(e) => Err(format!("Kilo Code CLI not found: {}", e)),
             }
         }
+        AgentType::Opencode => {
+            // Test Opencode CLI
+            let binary = "opencode";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Opencode CLI available: {}", version.trim()))
+                    } else {
+                        Err("Opencode CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Opencode CLI not found: {}", e)),
+            }
+        }
     };
 
     match result {

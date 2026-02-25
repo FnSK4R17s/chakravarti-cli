@@ -190,6 +190,8 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                         if (agent.kilo?.model) {
                             term.writeln(`\x1b[34m# Model: ${agent.kilo.model}\x1b[0m`);
                         }
+                    } else if (agent.agent_type === 'opencode') {
+                        term.writeln(`\x1b[33m# Mode: Opencode\x1b[0m`);
                     } else {
                         term.writeln(`\x1b[36m# Mode: Native Claude\x1b[0m`);
                     }

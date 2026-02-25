@@ -143,11 +143,19 @@ pub async fn start_terminal_handler(
         .map(|a| matches!(a.agent_type, AgentType::KiloCode))
         .unwrap_or(false);
 
+    let is_opencode = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Opencode))
+        .unwrap_or(false);
+
     // Set container home based on agent type
     let container_home = if is_codex {
         "/home/codex"
     } else if is_kilo {
         "/home/kilo"
+    } else if is_opencode {
+        "/home/opencode"
     } else {
         "/home/claude"
     };
@@ -171,6 +179,8 @@ pub async fn start_terminal_handler(
         "ckrv-codex:latest".to_string()
     } else if is_kilo {
         "ckrv-kilo:latest".to_string()
+    } else if is_opencode {
+        "ckrv-opencode:latest".to_string()
     } else {
         "ckrv-claude:latest".to_string()
     };
@@ -287,6 +297,14 @@ pub async fn start_terminal_handler(
         }
 
         tracing::info!("Terminal session using Kilo Code with mounted config");
+    } else if is_opencode {
+        // Opencode configuration - mount config directory for file-based auth
+        let opencode_config = format!("{}/.config/opencode", host_home);
+        if std::path::Path::new(&opencode_config).exists() {
+            binds.push(format!("{opencode_config}:/home/opencode/.config/opencode"));
+        }
+
+        tracing::info!("Terminal session using Opencode with mounted config");
     } else {
         // For native Claude, mount credentials if they exist
         let claude_config = format!("{host_home}/.claude.json");
