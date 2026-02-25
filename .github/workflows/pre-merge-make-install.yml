@@ -1,0 +1,38 @@
+name: Pre-merge Make Install (No Docker)
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  make-install-without-docker:
+    name: CKRV_SKIP_DOCKER=true make install
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up npm user prefix (for npm link)
+        run: |
+          mkdir -p "$HOME/.npm-global"
+          npm config set prefix "$HOME/.npm-global"
+          echo "$HOME/.npm-global/bin" >> "$GITHUB_PATH"
+
+      - name: Install just
+        run: cargo install just --locked
+
+      - name: Run install without Docker
+        env:
+          CKRV_SKIP_DOCKER: "true"
+        run: make install
