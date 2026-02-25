@@ -14,6 +14,7 @@ pub enum AgentType {
     ClaudeGlm,
     Codex,
     KiloCode,
+    Cursor,
 }
 
 impl Default for AgentType {
@@ -184,4 +185,24 @@ To configure a QA agent:
        enabled: true
 "#
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserializes_cursor_agent_type() {
+        let yaml = r#"
+agents:
+  - id: cursor-default
+    name: Cursor CLI
+    agent_type: cursor
+    enabled: true
+"#;
+
+        let parsed: AgentsFile = serde_yaml::from_str(yaml).expect("cursor config should parse");
+        assert_eq!(parsed.agents.len(), 1);
+        assert_eq!(parsed.agents[0].agent_type, AgentType::Cursor);
+    }
 }

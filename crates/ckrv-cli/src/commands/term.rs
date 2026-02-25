@@ -202,7 +202,7 @@ impl std::fmt::Display for SessionStatus {
 #[allow(clippy::struct_excessive_bools)]
 #[command(
     long_about = "Spawn an interactive AI agent terminal session.\n\n\
-                  Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code) \
+                  Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code, Cursor) \
                   with the correct environment variables automatically configured.\n\n\
                   ## Isolation Modes\n\n\
                   - **Default**: Agent runs directly in the current working directory\n\
@@ -514,6 +514,7 @@ fn list_agents(_args: &TermArgs, json: bool) -> anyhow::Result<()> {
                 AgentType::ClaudeGlm => "glm",
                 AgentType::Codex => "codex",
                 AgentType::KiloCode => "kilo",
+                AgentType::Cursor => "cursor",
             };
             let default_marker = if agent.is_default { " ★" } else { "" };
             println!(
@@ -804,6 +805,7 @@ fn select_agent_interactively(enabled_agents: &[&AgentConfig]) -> anyhow::Result
                 AgentType::ClaudeGlm => "glm",
                 AgentType::Codex => "codex",
                 AgentType::KiloCode => "kilo",
+                AgentType::Cursor => "cursor",
             };
             let default_marker = if a.is_default { " ★" } else { "" };
             format!("{} ({}) [{}]{}", a.name, a.id, type_badge, default_marker)
@@ -1040,6 +1042,7 @@ fn to_sandbox_agent_type(cli_type: &AgentType) -> ckrv_sandbox::AgentType {
         }
         AgentType::Codex => ckrv_sandbox::AgentType::Codex,
         AgentType::KiloCode => ckrv_sandbox::AgentType::KiloCode,
+        AgentType::Cursor => ckrv_sandbox::AgentType::Claude,
     }
 }
 
@@ -1078,6 +1081,7 @@ async fn execute_in_sandbox(
     let image = match &agent.agent_type {
         AgentType::Codex => "ckrv-codex:latest",
         AgentType::KiloCode => "ckrv-kilo:latest",
+        AgentType::Cursor => "ckrv-claude:latest",
         _ => "ckrv-claude:latest",
     };
     docker.set_image(image);
@@ -1091,6 +1095,7 @@ async fn execute_in_sandbox(
     let container_home = match &agent.agent_type {
         AgentType::Codex => "/home/codex",
         AgentType::KiloCode => "/home/kilo",
+        AgentType::Cursor => "/home/claude",
         _ => "/home/claude",
     };
     let mounts = agent_provider.config_mounts(&host_home, &container_home);
@@ -1622,6 +1627,7 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
             }
             AgentType::Codex => "codex".to_string(),
             AgentType::KiloCode => "kilo".to_string(),
+            AgentType::Cursor => "cursor".to_string(),
         });
 
     let mut env_vars: Vec<(String, String)> = Vec::new();
@@ -1704,7 +1710,50 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
         AgentType::KiloCode => {
             // Kilo Code uses file-based auth (~/.config/kilo/) - no extra env vars needed
         }
+        AgentType::Cursor => {
+            // Cursor CLI uses its own authentication context
+        }
     }
 
     Ok((binary, env_vars))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn base_agent(agent_type: AgentType) -> AgentConfig {
+        AgentConfig {
+            id: "a1".to_string(),
+            name: "Agent One".to_string(),
+            agent_type,
+            level: 3,
+            is_default: false,
+            is_qa_agent: false,
+            is_test_writer: false,
+            enabled: true,
+            description: None,
+            openrouter: None,
+            glm: None,
+            binary_path: None,
+            extra_args: None,
+            env_vars: None,
+        }
+    }
+
+    #[test]
+    fn build_agent_command_uses_cursor_default_binary() {
+        let agent = base_agent(AgentType::Cursor);
+        let (binary, env_vars) = build_agent_command(&agent).expect("cursor command should build");
+        assert_eq!(binary, "cursor");
+        assert!(env_vars.is_empty());
+    }
+
+    #[test]
+    fn build_agent_command_respects_cursor_binary_override() {
+        let mut agent = base_agent(AgentType::Cursor);
+        agent.binary_path = Some("/usr/local/bin/cursor".to_string());
+        let (binary, _env_vars) = build_agent_command(&agent).expect("cursor command should build");
+        assert_eq!(binary, "/usr/local/bin/cursor");
+    }
 }

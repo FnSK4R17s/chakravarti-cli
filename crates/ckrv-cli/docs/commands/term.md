@@ -12,7 +12,7 @@ Spawn an interactive AI agent terminal
 
 Spawn an interactive AI agent terminal session.
 
-Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex) with the correct environment variables automatically configured.
+Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Cursor) with the correct environment variables automatically configured.
 
 Without arguments, presents an interactive selection menu with options for common flags. Use -- to pass arguments directly for scripting.
 
@@ -29,6 +29,21 @@ Without arguments, presents an interactive selection menu with options for commo
 | `--agent`, `-a` | Agent ID to spawn directly (skips interactive agent selection) |
 | `--list`, `-l` | List available agents and exit |
 
+## Cursor agent config example
+
+```yaml
+agents:
+  - id: cursor-default
+    name: Cursor CLI
+    agent_type: cursor
+    enabled: true
+    is_default: false
+    binary_path: /usr/local/bin/cursor # optional, defaults to "cursor" from PATH
+    extra_args:
+      - --model
+      - gpt-5
+```
+
 ## Examples
 
 ```bash
@@ -38,8 +53,8 @@ ckrv term
 # Launch specific agent (skips agent selection)
 ckrv term --agent my-openrouter-agent
 
-# Pass flags directly (scripting)
-ckrv term -- --dangerously-skip-permissions --continue
+# Launch cursor agent with passthrough args
+ckrv term --agent cursor-default -- --print "Summarize this repository"
 
 # List available agents
 ckrv term --list
