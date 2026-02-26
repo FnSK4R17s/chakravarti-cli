@@ -35,7 +35,7 @@ jobs:
             name: macOS-arm64
             bundles: dmg
 
-          - os: macos-13
+          - os: macos-14
             target: x86_64-apple-darwin
             name: macOS-x64
             bundles: dmg
@@ -92,7 +92,7 @@ jobs:
 
       # ── Tauri Build ──────────────────────────────────────────────────
       - name: Install Tauri CLI
-        run: cargo install tauri-cli@2 --locked
+        run: cargo install tauri-cli@^2 --locked
 
       - name: Build Tauri app
         run: cargo tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
