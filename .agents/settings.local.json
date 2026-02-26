@@ -16,7 +16,8 @@
       "Bash(./target/debug/ckrv term:*)",
       "Bash(cargo clean:*)",
       "Bash(gh run list:*)",
-      "Bash(cargo tree:*)"
+      "Bash(cargo tree:*)",
+      "Bash(docker build:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
