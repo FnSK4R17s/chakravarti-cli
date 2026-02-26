@@ -15,7 +15,8 @@
       "Bash(do echo '=== $CRATE ===' find /apps/chakravarti-cli/crates/$CRATE/src -name *.rs)",
       "Bash(./target/debug/ckrv term:*)",
       "Bash(cargo clean:*)",
-      "Bash(gh run list:*)"
+      "Bash(gh run list:*)",
+      "Bash(cargo tree:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

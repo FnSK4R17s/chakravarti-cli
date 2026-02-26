@@ -3,17 +3,23 @@
 
 FROM rust:1.85-slim AS builder
 
-# Install build dependencies
+# Install build dependencies + Node.js for frontend
 RUN apt-get update && apt-get install -y \
     git \
     pkg-config \
     libssl-dev \
+    curl \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
 # Copy source code
 COPY . .
+
+# Build frontend first so build.rs skips it
+RUN cd crates/ckrv-ui/frontend && npm install && npm run build
 
 # Build release binary
 RUN cargo build --release --package ckrv-cli
