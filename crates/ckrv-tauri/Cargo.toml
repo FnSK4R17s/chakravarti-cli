@@ -44,6 +44,9 @@ ckrv-sandbox = { workspace = true }
 # Directory utilities
 dirs = "6.0"
 
+# Vendored OpenSSL for cross-compilation (macOS ARM → x86_64)
+openssl = { version = "0.10", features = ["vendored"] }
+
 # Thread-safe session storage
 parking_lot = "0.12"
 

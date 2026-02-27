@@ -15,8 +15,11 @@ use futures_util::StreamExt;
 
 use crate::SandboxError;
 
+/// GHCR registry prefix for pre-built agent images.
+pub const GHCR_PREFIX: &str = "ghcr.io/fnsk4r17s";
+
 /// Default Docker image for execution (contains Claude Code CLI).
-pub const DEFAULT_IMAGE: &str = "ckrv-agent:latest";
+pub const DEFAULT_IMAGE: &str = "ghcr.io/fnsk4r17s/ckrv-agent:latest";
 
 /// Docker client wrapper.
 pub struct DockerClient {

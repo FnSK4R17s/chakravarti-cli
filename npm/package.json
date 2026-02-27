@@ -1,5 +1,5 @@
 {
-  "name": "@chakravarti/cli",
+  "name": "@ckrv/cli",
   "version": "0.1.0",
   "description": "AI-powered code generation CLI with spec-driven development",
   "keywords": [
