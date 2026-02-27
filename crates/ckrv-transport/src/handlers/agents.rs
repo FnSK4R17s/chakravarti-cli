@@ -5,8 +5,8 @@
 use crate::error::TransportError;
 use crate::state::AppState;
 use crate::types::{
-    AgentConfig, AgentType, DeleteAgentRequest, GlmConfig, GlmModel, KiloCodeConfig,
-    KiloCodeModel, ListAgentsResponse, OpenRouterConfig, OpenRouterModel,
+    AgentConfig, AgentType, DeleteAgentRequest, GeminiConfig, GlmConfig, GlmModel,
+    KiloCodeConfig, KiloCodeModel, ListAgentsResponse, OpenRouterConfig, OpenRouterModel,
     SetDefaultAgentRequest, SetQaAgentRequest, SetTestWriterAgentRequest, TestAgentRequest,
     TestAgentResponse, UpsertAgentRequest,
 };
@@ -52,6 +52,8 @@ pub struct AgentFileConfig {
     pub glm: Option<GlmFileConfig>,
     /// Kilo Code configuration (for KiloCode type)
     pub kilo: Option<KiloCodeFileConfig>,
+    /// Gemini CLI configuration (for Gemini type)
+    pub gemini: Option<GeminiFileConfig>,
     /// Custom CLI binary path (if not using default)
     pub binary_path: Option<String>,
     /// Additional CLI arguments
@@ -82,6 +84,12 @@ pub struct GlmFileConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KiloCodeFileConfig {
     pub model: String,
+}
+
+/// Gemini CLI config as stored in file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeminiFileConfig {
+    pub model: Option<String>,
 }
 
 fn default_level() -> u8 {
@@ -125,6 +133,7 @@ fn ensure_defaults(agents: &mut AgentsFile) {
             openrouter: None,
             glm: None,
             kilo: None,
+            gemini: None,
             binary_path: None,
             extra_args: None,
             env_vars: None,
@@ -186,6 +195,7 @@ impl From<AgentFileConfig> for AgentConfig {
         });
 
         let kilo = fc.kilo.map(|k| KiloCodeConfig { model: k.model });
+        let gemini = fc.gemini.map(|g| GeminiConfig { model: g.model });
 
         AgentConfig {
             id: fc.id,
@@ -201,6 +211,7 @@ impl From<AgentFileConfig> for AgentConfig {
             openrouter,
             glm,
             kilo,
+            gemini,
         }
     }
 }
@@ -258,6 +269,9 @@ pub async fn upsert_agent_handler(
         }),
         kilo: request.agent.kilo.as_ref().map(|k| KiloCodeFileConfig {
             model: k.model.clone(),
+        }),
+        gemini: request.agent.gemini.as_ref().map(|g| GeminiFileConfig {
+            model: g.model.clone(),
         }),
         binary_path: None,
         extra_args: None,
@@ -481,6 +495,21 @@ pub async fn test_agent_handler(
                     }
                 }
                 Err(e) => Err(format!("Kilo Code CLI not found: {}", e)),
+            }
+        }
+        AgentType::Gemini => {
+            // Test Gemini CLI
+            let binary = "gemini";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Gemini CLI available: {}", version.trim()))
+                    } else {
+                        Err("Gemini CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Gemini CLI not found: {}", e)),
             }
         }
     };

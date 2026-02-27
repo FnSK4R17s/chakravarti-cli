@@ -1,0 +1,34 @@
+# Gemini agent container
+
+FROM node:22-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Google Gemini CLI
+RUN npm install -g @google/gemini-cli
+
+# Create non-root user
+RUN useradd -m -s /bin/bash -d /home/gemini gemini && \
+    mkdir -p /home/gemini/.gemini && \
+    mkdir -p /home/gemini/.config/google && \
+    chown -R gemini:gemini /home/gemini
+
+# Create workspace directory
+RUN mkdir -p /workspace && chown gemini:gemini /workspace
+
+WORKDIR /workspace
+ENV HOME=/home/gemini
+
+# Verify Gemini is installed (best effort)
+RUN gemini --version || true
+
+# Switch to non-root user
+USER gemini
+
+# Default command
+CMD ["/bin/bash"]
