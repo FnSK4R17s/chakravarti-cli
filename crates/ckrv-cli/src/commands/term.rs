@@ -1085,10 +1085,10 @@ async fn execute_in_sandbox(
 
     // Set agent-specific Docker image
     let image = match &agent.agent_type {
-        AgentType::Codex => "ckrv-codex:latest",
-        AgentType::KiloCode => "ckrv-kilo:latest",
-        AgentType::FactoryDroid => "ckrv-factory:latest",
-        _ => "ckrv-claude:latest",
+        AgentType::Codex => "ghcr.io/fnsk4r17s/ckrv-codex:latest",
+        AgentType::KiloCode => "ghcr.io/fnsk4r17s/ckrv-kilo:latest",
+        AgentType::FactoryDroid => "ghcr.io/fnsk4r17s/ckrv-factory:latest",
+        _ => "ghcr.io/fnsk4r17s/ckrv-claude:latest",
     };
     docker.set_image(image);
 
