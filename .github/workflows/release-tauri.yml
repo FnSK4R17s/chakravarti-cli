@@ -1,0 +1,161 @@
+name: Release Tauri Desktop App
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build only, skip release upload)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────
+  # Build Tauri desktop app for all platforms
+  # ──────────────────────────────────────────────────────────────────────
+  build-tauri:
+    name: Tauri ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── macOS ────────────────────────────────────────────────────
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            name: macOS-arm64
+            bundles: dmg
+
+          - os: macos-14
+            target: x86_64-apple-darwin
+            name: macOS-x64
+            bundles: dmg
+
+          # ── Linux ────────────────────────────────────────────────────
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            name: Linux-x64
+            bundles: deb,appimage
+
+          # ── Windows ──────────────────────────────────────────────────
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: Windows-x64
+            bundles: msi,nsis
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── System dependencies (Linux) ──────────────────────────────────
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libssl-dev
+
+      # ── Toolchains ───────────────────────────────────────────────────
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: tauri-${{ matrix.target }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── Frontend ─────────────────────────────────────────────────────
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: crates/ckrv-ui/frontend
+
+      # ── Tauri Build ──────────────────────────────────────────────────
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli@^2 --locked
+
+      - name: Build Tauri app
+        run: cargo tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        working-directory: crates/ckrv-tauri
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      # ── Collect artifacts ────────────────────────────────────────────
+      - name: Collect macOS artifacts
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          find target/${{ matrix.target }}/release/bundle -name "*.dmg" -exec cp {} dist/ \;
+          ls -lh dist/
+
+      - name: Collect Linux artifacts
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist
+          find target/${{ matrix.target }}/release/bundle -name "*.deb" -exec cp {} dist/ \;
+          find target/${{ matrix.target }}/release/bundle -name "*.AppImage" -exec cp {} dist/ \;
+          ls -lh dist/
+
+      - name: Collect Windows artifacts
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Get-ChildItem -Recurse "target/${{ matrix.target }}/release/bundle" -Include *.msi,*.exe | Copy-Item -Destination dist/
+          Get-ChildItem dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Upload Tauri artifacts to the GitHub Release
+  # ──────────────────────────────────────────────────────────────────────
+  publish-tauri:
+    name: Publish Tauri to Release
+    needs: build-tauri
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') && inputs.dry_run != 'true'
+
+    steps:
+      - name: Download all Tauri artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: tauri-*
+          merge-multiple: true
+          path: dist/
+
+      - name: List artifacts
+        run: ls -lhR dist/
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

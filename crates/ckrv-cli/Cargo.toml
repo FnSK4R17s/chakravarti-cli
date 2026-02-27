@@ -55,6 +55,7 @@ keyring = "3.6"
 rpassword = "7.3"
 dirs = "5.0"
 thiserror = { workspace = true }
+openssl = { version = "0.10", features = ["vendored"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }

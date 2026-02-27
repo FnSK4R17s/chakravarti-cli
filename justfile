@@ -63,16 +63,16 @@ install *args:
     docker ps -aq --filter "name=ckrv-" | xargs -r docker rm 2>/dev/null || true
     
     if [ "$effective_skip" = "true" ]; then
-        echo "Skipping Docker image builds (skip-docker=true)"
+        echo "Skipping Docker images (skip-docker=true)"
         echo ""
-        echo "Note: Agent sandboxing requires Docker images. Build them later with:"
-        echo "  just docker-build"
+        echo "Note: Agent sandboxing requires Docker images. Pull them later with:"
+        echo "  just docker-pull"
     else
-        echo "Building Docker agent images..."
-        docker build -t ckrv-claude:latest -f docker/Dockerfile.claude docker/
-        docker build -t ckrv-codex:latest -f docker/Dockerfile.codex docker/
-        docker build -t ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
-        docker build -t ckrv-opencode:latest -f docker/Dockerfile.opencode docker/
+        echo "Pulling Docker agent images from GHCR..."
+        docker pull {{ ghcr_prefix }}/ckrv-claude:latest
+        docker pull {{ ghcr_prefix }}/ckrv-codex:latest
+        docker pull {{ ghcr_prefix }}/ckrv-kilo:latest
+        docker pull {{ ghcr_prefix }}/ckrv-opencode:latest
     fi
     
     # Install CLI binary to ~/.cargo/bin in a path-agnostic way.
@@ -199,13 +199,25 @@ watch:
 # DOCKER OPERATIONS
 # ==============================================================================
 
-# Build all Docker agent images
+# GHCR registry prefix
+ghcr_prefix := "ghcr.io/fnsk4r17s"
+
+# Pull pre-built agent images from GHCR
+docker-pull:
+    @echo "Pulling Docker agent images from GHCR..."
+    docker pull {{ ghcr_prefix }}/ckrv-claude:latest
+    docker pull {{ ghcr_prefix }}/ckrv-codex:latest
+    docker pull {{ ghcr_prefix }}/ckrv-kilo:latest
+    docker pull {{ ghcr_prefix }}/ckrv-opencode:latest
+    @echo "✓ Docker images pulled"
+
+# Build all Docker agent images locally (for debugging)
 docker-build:
-    @echo "Building Docker agent images..."
-    docker build -t ckrv-claude:latest -f docker/Dockerfile.claude docker/
-    docker build -t ckrv-codex:latest -f docker/Dockerfile.codex docker/
-    docker build -t ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
-    docker build -t ckrv-opencode:latest -f docker/Dockerfile.opencode docker/
+    @echo "Building Docker agent images locally..."
+    docker build -t {{ ghcr_prefix }}/ckrv-claude:latest -f docker/Dockerfile.claude docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-codex:latest -f docker/Dockerfile.codex docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-opencode:latest -f docker/Dockerfile.opencode docker/
     @echo "✓ Docker images built"
 
 # Stop all ckrv containers

@@ -195,13 +195,13 @@ pub async fn terminal_start(
         .unwrap_or(false);
 
     let image = if is_codex {
-        "ckrv-codex:latest"
+        "ghcr.io/fnsk4r17s/ckrv-codex:latest"
     } else if is_kilo {
-        "ckrv-kilo:latest"
+        "ghcr.io/fnsk4r17s/ckrv-kilo:latest"
     } else if is_opencode {
-        "ckrv-opencode:latest"
+        "ghcr.io/fnsk4r17s/ckrv-opencode:latest"
     } else {
-        "ckrv-claude:latest"
+        "ghcr.io/fnsk4r17s/ckrv-claude:latest"
     };
     docker.set_image(image);
 
