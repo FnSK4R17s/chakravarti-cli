@@ -151,13 +151,14 @@ Chakravarti orchestrates multiple AI coding agents, each running in isolated Doc
 | Claude Code | GLM Coding Plan | CLI + UI | Z.AI's GLM-4.7 and GLM-4.5-Air |
 | Codex | OpenAI Subscription | CLI + UI | Native Codex CLI integration |
 | Kilo Code | File-based auth | CLI + UI | 30+ AI providers (Gemini, DeepSeek, Mistral, Qwen, etc.) |
+| Cursor CLI | File-based auth | CLI + UI | Cursor coding assistant CLI integration |
 
 ### Future Integrations
 
 The following agents are planned for future releases:
 
 - **Gemini CLI** - Google's Gemini models ([#31](https://github.com/FnSK4R17s/chakravarti-cli/issues/31))
-- **Cursor CLI** - Cursor's AI coding assistant ([#32](https://github.com/FnSK4R17s/chakravarti-cli/issues/32))
+- **Cursor CLI** - ✅ Now supported in current release ([#32](https://github.com/FnSK4R17s/chakravarti-cli/issues/32))
 - **Amp** - Ampcode AI coding agent ([#33](https://github.com/FnSK4R17s/chakravarti-cli/issues/33))
 - **Qwen Code** - Alibaba's Qwen coding models ([#34](https://github.com/FnSK4R17s/chakravarti-cli/issues/34))
 - **Opencode** - Open source coding CLI ([#35](https://github.com/FnSK4R17s/chakravarti-cli/issues/35))

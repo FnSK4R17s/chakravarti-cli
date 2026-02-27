@@ -143,11 +143,19 @@ pub async fn start_terminal_handler(
         .map(|a| matches!(a.agent_type, AgentType::KiloCode))
         .unwrap_or(false);
 
+    let is_cursor = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Cursor))
+        .unwrap_or(false);
+
     // Set container home based on agent type
     let container_home = if is_codex {
         "/home/codex"
     } else if is_kilo {
         "/home/kilo"
+    } else if is_cursor {
+        "/home/cursor"
     } else {
         "/home/claude"
     };
@@ -171,6 +179,8 @@ pub async fn start_terminal_handler(
         "ckrv-codex:latest".to_string()
     } else if is_kilo {
         "ckrv-kilo:latest".to_string()
+    } else if is_cursor {
+        "ckrv-cursor:latest".to_string()
     } else {
         "ckrv-claude:latest".to_string()
     };
@@ -287,6 +297,18 @@ pub async fn start_terminal_handler(
         }
 
         tracing::info!("Terminal session using Kilo Code with mounted config");
+    } else if is_cursor {
+        // Cursor configuration - mount config directories
+        let cursor_dir = format!("{}/.cursor", host_home);
+        if std::path::Path::new(&cursor_dir).exists() {
+            binds.push(format!("{cursor_dir}:/home/cursor/.cursor"));
+        }
+        let cursor_config = format!("{}/.config/cursor", host_home);
+        if std::path::Path::new(&cursor_config).exists() {
+            binds.push(format!("{cursor_config}:/home/cursor/.config/cursor"));
+        }
+
+        tracing::info!("Terminal session using Cursor with mounted config");
     } else {
         // For native Claude, mount credentials if they exist
         let claude_config = format!("{host_home}/.claude.json");

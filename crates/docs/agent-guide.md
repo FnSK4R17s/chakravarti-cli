@@ -1,11 +1,12 @@
 ---
 last_commit: 1b27ca2
-last_updated: 2026-02-10
+last_updated: 2026-02-27
 related_files:
   - crates/ckrv-sandbox/src/agent/mod.rs
   - crates/ckrv-sandbox/src/agent/claude.rs
   - crates/ckrv-sandbox/src/agent/codex.rs
   - crates/ckrv-sandbox/src/agent/kilo.rs
+  - crates/ckrv-sandbox/src/agent/cursor.rs
   - crates/ckrv-core/src/runner.rs
 ---
 
@@ -24,6 +25,7 @@ These are the underlying CLI tools that execute code generation:
 | **Claude Code** | Anthropic | Native agentic coding CLI |
 | **Codex** | OpenAI | OpenAI's coding assistant CLI |
 | **Kilo Code** | Multi-provider | Open-source CLI supporting 30+ AI providers |
+| **Cursor CLI** | Anysphere | Cursor coding assistant CLI |
 
 ## Authentication Methods
 
@@ -36,6 +38,7 @@ Each tool can be authenticated in different ways:
 | Claude Code | GLM Coding Plan (Z.AI) | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` |
 | Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
 | Kilo Code | File-based auth | `~/.config/kilo/config.json` (configured via `kilo auth`) |
+| Cursor CLI | File-based auth | `~/.cursor/`, `~/.config/cursor/` |
 
 > **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
 
@@ -43,7 +46,7 @@ Each tool can be authenticated in different ways:
 
 | Crate | Responsibility |
 |-------|----------------|
-| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo providers, Docker execution |
+| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo/Cursor providers, Docker execution |
 | `ckrv-core` | `RunnerConfig` with OpenRouter and GLM fields |
 | `ckrv-cli` | Agent config loading, CLI flags |
 | `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
@@ -59,10 +62,12 @@ graph TD
     Provider --> Claude[ClaudeProvider]
     Provider --> Codex[CodexProvider]
     Provider --> Kilo[KiloCodeProvider]
+    Provider --> Cursor[CursorProvider]
     
     Claude --> Docker[Docker Container]
     Codex --> Docker
     Kilo --> Docker
+    Cursor --> Docker
     
     subgraph "Authentication Layer"
         Claude --> ClaudeSub[Claude Subscription]
@@ -70,6 +75,7 @@ graph TD
         Claude --> GLM[GLM Coding Plan]
         Codex --> OpenAISub[OpenAI Subscription]
         Kilo --> KiloAuth[File-based auth via kilo auth]
+        Cursor --> CursorAuth[File-based auth via ~/.cursor/]
     end
 ```
 
@@ -409,6 +415,36 @@ JSON events include types: `step_start`, `tool_use`, `text`, `step_finish`.
 | Execution | `--print` | `--auto` |
 | Model selection | Env vars / `--model` | `--model provider/model` |
 | Streaming | `--output-format stream-json` | `--format json` (NDJSON) |
+
+## Cursor CLI Integration
+
+Cursor CLI can run through Chakravarti as a first-class agent provider.
+
+**Configuration:**
+
+```yaml
+agents:
+  - id: cursor-agent
+    name: Cursor CLI
+    agent_type: cursor
+    enabled: true
+    description: Cursor coding assistant
+```
+
+**Usage via CLI:**
+
+```bash
+# Run a task with Cursor
+ckrv task run --agent cursor-agent -p "Create hello.txt"
+
+# Spawn interactive Cursor terminal
+ckrv term --agent cursor-agent
+```
+
+**Auth + Mounts:**
+- `~/.cursor/` is mounted into `/home/cursor/.cursor`
+- `~/.config/cursor/` is mounted into `/home/cursor/.config/cursor`
+- No required env vars; Cursor uses file/session-based auth
 
 ## Best Practices
 

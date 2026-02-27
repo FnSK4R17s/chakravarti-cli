@@ -483,6 +483,21 @@ pub async fn test_agent_handler(
                 Err(e) => Err(format!("Kilo Code CLI not found: {}", e)),
             }
         }
+        AgentType::Cursor => {
+            // Test Cursor CLI
+            let binary = "cursor";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Cursor CLI available: {}", version.trim()))
+                    } else {
+                        Err("Cursor CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Cursor CLI not found: {}", e)),
+            }
+        }
     };
 
     match result {

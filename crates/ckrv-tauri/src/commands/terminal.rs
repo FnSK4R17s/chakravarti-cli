@@ -108,6 +108,9 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
         AgentType::KiloCode => {
             // Kilo Code uses file-based auth (~/.config/kilo/) - no env vars needed
         }
+        AgentType::Cursor => {
+            // Cursor uses its own session-based auth - no env vars needed
+        }
     }
 
     // Set container home
@@ -115,6 +118,8 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
         "/home/codex"
     } else if matches!(agent.agent_type, AgentType::KiloCode) {
         "/home/kilo"
+    } else if matches!(agent.agent_type, AgentType::Cursor) {
+        "/home/cursor"
     } else {
         "/home/claude"
     };
@@ -184,10 +189,17 @@ pub async fn terminal_start(
         .map(|a| matches!(a.agent_type, AgentType::KiloCode))
         .unwrap_or(false);
 
+    let is_cursor = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Cursor))
+        .unwrap_or(false);
+
     let image = if is_codex {
         "ckrv-codex:latest"
     } else if is_kilo {
         "ckrv-kilo:latest"
+    } else if is_cursor {
+        "ckrv-cursor:latest"
     } else {
         "ckrv-claude:latest"
     };

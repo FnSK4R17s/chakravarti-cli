@@ -1042,7 +1042,7 @@ fn to_sandbox_agent_type(cli_type: &AgentType) -> ckrv_sandbox::AgentType {
         }
         AgentType::Codex => ckrv_sandbox::AgentType::Codex,
         AgentType::KiloCode => ckrv_sandbox::AgentType::KiloCode,
-        AgentType::Cursor => ckrv_sandbox::AgentType::Claude,
+        AgentType::Cursor => ckrv_sandbox::AgentType::Cursor,
     }
 }
 
@@ -1081,7 +1081,7 @@ async fn execute_in_sandbox(
     let image = match &agent.agent_type {
         AgentType::Codex => "ckrv-codex:latest",
         AgentType::KiloCode => "ckrv-kilo:latest",
-        AgentType::Cursor => "ckrv-claude:latest",
+        AgentType::Cursor => "ckrv-cursor:latest",
         _ => "ckrv-claude:latest",
     };
     docker.set_image(image);
@@ -1095,7 +1095,7 @@ async fn execute_in_sandbox(
     let container_home = match &agent.agent_type {
         AgentType::Codex => "/home/codex",
         AgentType::KiloCode => "/home/kilo",
-        AgentType::Cursor => "/home/claude",
+        AgentType::Cursor => "/home/cursor",
         _ => "/home/claude",
     };
     let mounts = agent_provider.config_mounts(&host_home, &container_home);

@@ -23,6 +23,8 @@ pub enum AgentType {
     Codex,
     /// Kilo Code multi-provider CLI
     KiloCode,
+    /// Cursor CLI (AI-powered editor agent)
+    Cursor,
 }
 
 impl Default for AgentType {
