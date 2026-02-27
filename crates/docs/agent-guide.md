@@ -1,11 +1,12 @@
 ---
-last_commit: 1b27ca2
-last_updated: 2026-02-10
+last_commit: 19bf263
+last_updated: 2026-02-27
 related_files:
   - crates/ckrv-sandbox/src/agent/mod.rs
   - crates/ckrv-sandbox/src/agent/claude.rs
   - crates/ckrv-sandbox/src/agent/codex.rs
   - crates/ckrv-sandbox/src/agent/kilo.rs
+  - crates/ckrv-sandbox/src/agent/opencode.rs
   - crates/ckrv-core/src/runner.rs
 ---
 
@@ -24,6 +25,7 @@ These are the underlying CLI tools that execute code generation:
 | **Claude Code** | Anthropic | Native agentic coding CLI |
 | **Codex** | OpenAI | OpenAI's coding assistant CLI |
 | **Kilo Code** | Multi-provider | Open-source CLI supporting 30+ AI providers |
+| **Opencode** | File-based auth | Open-source coding agent CLI |
 
 ## Authentication Methods
 
@@ -36,6 +38,7 @@ Each tool can be authenticated in different ways:
 | Claude Code | GLM Coding Plan (Z.AI) | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` |
 | Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
 | Kilo Code | File-based auth | `~/.config/kilo/config.json` (configured via `kilo auth`) |
+| Opencode | File-based auth | `~/.config/opencode/` (project-local config) |
 
 > **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
 
@@ -43,7 +46,7 @@ Each tool can be authenticated in different ways:
 
 | Crate | Responsibility |
 |-------|----------------|
-| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo providers, Docker execution |
+| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo/Opencode providers, Docker execution |
 | `ckrv-core` | `RunnerConfig` with OpenRouter and GLM fields |
 | `ckrv-cli` | Agent config loading, CLI flags |
 | `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
@@ -59,17 +62,20 @@ graph TD
     Provider --> Claude[ClaudeProvider]
     Provider --> Codex[CodexProvider]
     Provider --> Kilo[KiloCodeProvider]
-    
+    Provider --> Opencode[OpencodeProvider]
+
     Claude --> Docker[Docker Container]
     Codex --> Docker
     Kilo --> Docker
-    
+    Opencode --> Docker
+
     subgraph "Authentication Layer"
         Claude --> ClaudeSub[Claude Subscription]
         Claude --> OpenRouter[OpenRouter API]
         Claude --> GLM[GLM Coding Plan]
         Codex --> OpenAISub[OpenAI Subscription]
         Kilo --> KiloAuth[File-based auth via kilo auth]
+        Opencode --> OcAuth[File-based auth via ~/.config/opencode/]
     end
 ```
 
@@ -409,6 +415,49 @@ JSON events include types: `step_start`, `tool_use`, `text`, `step_finish`.
 | Execution | `--print` | `--auto` |
 | Model selection | Env vars / `--model` | `--model provider/model` |
 | Streaming | `--output-format stream-json` | `--format json` (NDJSON) |
+
+## Opencode Integration
+
+Opencode is an open-source coding agent CLI that runs non-interactively via `opencode run`.
+
+**Prerequisites:**
+
+```bash
+# Install Opencode CLI
+npm install -g opencode-ai
+# or
+npm install -g @opencode-ai/cli
+```
+
+**Configuration:**
+
+```yaml
+agents:
+  - id: opencode-agent
+    name: Opencode
+    agent_type: opencode
+    enabled: true
+    description: Open-source coding agent
+```
+
+**Usage via CLI:**
+
+```bash
+# Run a task with Opencode agent
+ckrv task run --agent opencode-agent -p "Create hello.txt"
+
+# Spawn interactive Opencode terminal
+ckrv term --agent opencode-agent
+```
+
+**Key Differences from Claude/Codex/Kilo:**
+
+| Feature | Claude/Codex | Kilo Code | Opencode |
+|---------|-------------|------------|----------|
+| Auth | Env vars | File-based (`~/.config/kilo/`) | File-based (`~/.config/opencode/`) |
+| Execution | `--print` | `--auto` | `run --auto` |
+| Model selection | Env vars / `--model` | `--model provider/model` | `--model model` |
+| Working dir | `--workdir` | `--cwd` | `--cwd` |
 
 ## Best Practices
 
