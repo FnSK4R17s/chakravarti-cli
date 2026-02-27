@@ -51,8 +51,10 @@ The sandbox automatically mounts agent credentials from the host:
 | Claude Code | OpenRouter API | `OPENROUTER_API_KEY`, `ANTHROPIC_BASE_URL` env vars |
 | Claude Code | GLM Coding Plan | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` env vars |
 | Codex | OpenAI Subscription | `~/.codex/` bind-mounted |
+| Kilo Code | File-based auth | `~/.config/kilo/` bind-mounted |
+| Mistral Vibe | MISTRAL_API_KEY | `MISTRAL_API_KEY` env var |
 
-> **Note**: OpenRouter and GLM authentication is handled by `ckrv-cli` and `ckrv-ui`, which set the appropriate environment variables. The sandbox (`ckrv-sandbox`) only provides native Claude and Codex providers.
+> **Note**: OpenRouter and GLM authentication is handled by `ckrv-cli` and `ckrv-ui`, which set the appropriate environment variables. The sandbox (`ckrv-sandbox`) provides native Claude, Codex, Kilo Code, and Mistral Vibe providers.
 
 ## Module Structure
 
@@ -68,6 +70,8 @@ src/
     ├── mod.rs      # AgentProvider trait, AgentType enum
     ├── claude.rs   # Claude Code provider
     ├── codex.rs    # OpenAI Codex provider
+    ├── kilo.rs     # Kilo Code provider
+    ├── vibe.rs     # Mistral Vibe provider
     └── tests.rs    # Agent unit tests
 ```
 
@@ -125,6 +129,8 @@ Supported agents in this crate:
 |-------|-----------------|------------|
 | Claude Code | `ClaudeProvider` | `claude` |
 | OpenAI Codex | `CodexProvider` | `codex` |
+| Kilo Code | `KiloProvider` | `kilo` |
+| Mistral Vibe | `MistralVibeProvider` | `vibe` |
 
 ```rust
 use ckrv_sandbox::{AgentType, create_agent, default_agent};

@@ -82,7 +82,7 @@ import { Label } from '@/components/ui/label';
 // ============================================================
 
 /** Supported agent types for task execution. */
-type AgentType = 'claude' | 'claude_open_router' | 'claude_glm' | 'codex' | 'kilo_code';
+type AgentType = 'claude' | 'claude_open_router' | 'claude_glm' | 'codex' | 'kilo_code' | 'mistral_vibe';
 
 interface OpenRouterConfig {
     api_key?: string;
@@ -101,6 +101,13 @@ interface GLMConfig {
 interface KiloCodeConfig {
     /** Model ID in kilo format (e.g., "kilo/google/gemma-3-27b-it:free") */
     model: string;
+}
+
+interface MistralVibeConfig {
+    /** Maximum number of agent turns */
+    max_turns?: number;
+    /** Maximum cost ceiling in dollars */
+    max_price?: number;
 }
 
 interface KiloCodeModel {
@@ -154,6 +161,8 @@ export interface AgentConfig {
     glm?: GLMConfig;
     /** Kilo Code configuration (for kilo_code type) */
     kilo?: KiloCodeConfig;
+    /** Mistral Vibe configuration (for mistral_vibe type) */
+    vibe?: MistralVibeConfig;
     /** Path to the agent binary (for codex type) */
     binary_path?: string;
     /** Additional command-line arguments for the agent */
@@ -259,6 +268,7 @@ const AGENT_TYPE_INFO: Record<AgentType, { label: string; icon: React.ReactNode;
     claude_glm: { label: 'GLM Coding Plan', icon: <Zap size={16} />, color: 'hsl(var(--info))' },
     codex: { label: 'OpenAI Codex', icon: <Zap size={16} />, color: 'hsl(var(--success))' },
     kilo_code: { label: 'Kilo Code', icon: <Sparkles size={16} />, color: 'hsl(var(--chart-4))' },
+    mistral_vibe: { label: 'Mistral Vibe', icon: <Zap size={16} />, color: 'hsl(var(--chart-5))' },
 };
 
 const AgentManager: React.FC = () => {

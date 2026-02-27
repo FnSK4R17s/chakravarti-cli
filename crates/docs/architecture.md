@@ -145,6 +145,8 @@ pub trait AgentProvider {
 // - Claude (native)
 // - OpenAI Codex
 // - OpenRouter Models (via Claude Code CLI)
+// - Kilo Code (multi-provider)
+// - Mistral Vibe (native)
 ```
 
 ## Data Flow

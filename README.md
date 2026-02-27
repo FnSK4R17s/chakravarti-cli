@@ -151,6 +151,7 @@ Chakravarti orchestrates multiple AI coding agents, each running in isolated Doc
 | Claude Code | GLM Coding Plan | CLI + UI | Z.AI's GLM-4.7 and GLM-4.5-Air |
 | Codex | OpenAI Subscription | CLI + UI | Native Codex CLI integration |
 | Kilo Code | File-based auth | CLI + UI | 30+ AI providers (Gemini, DeepSeek, Mistral, Qwen, etc.) |
+| Mistral Vibe | MISTRAL_API_KEY | CLI + UI | Mistral AI's first-party coding agent (Devstral) |
 
 ### Future Integrations
 
@@ -163,7 +164,6 @@ The following agents are planned for future releases:
 - **Opencode** - Open source coding CLI ([#35](https://github.com/FnSK4R17s/chakravarti-cli/issues/35))
 - **Factory Droid** - Factory's autonomous developer ([#36](https://github.com/FnSK4R17s/chakravarti-cli/issues/36))
 - **GitHub Copilot** - GitHub Copilot via CLI ([#37](https://github.com/FnSK4R17s/chakravarti-cli/issues/37))
-- **Mistral Vibe** - Mistral AI's coding assistant ([#29](https://github.com/FnSK4R17s/chakravarti-cli/issues/29))
 
 See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 

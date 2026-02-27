@@ -605,7 +605,7 @@ ckrv spec validate [PATH]
 
 Spawn an interactive AI agent terminal session.
 
-Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code) with the correct environment variables automatically configured.
+Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code, Mistral Vibe) with the correct environment variables automatically configured.
 
 Without arguments, presents an interactive selection menu with options for common flags. Use -- to pass arguments directly for scripting.
 
