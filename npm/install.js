@@ -16,8 +16,8 @@ const PACKAGE = require('./package.json');
 const VERSION = PACKAGE.version;
 
 // GitHub release configuration
-const GITHUB_OWNER = 'chakravarti';
-const GITHUB_REPO = 'cli';
+const GITHUB_OWNER = 'FnSK4R17s';
+const GITHUB_REPO = 'chakravarti-cli';
 const BINARY_NAME = 'ckrv';
 
 // Platform mappings
