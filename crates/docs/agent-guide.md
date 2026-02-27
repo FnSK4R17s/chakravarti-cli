@@ -24,6 +24,7 @@ These are the underlying CLI tools that execute code generation:
 | **Claude Code** | Anthropic | Native agentic coding CLI |
 | **Codex** | OpenAI | OpenAI's coding assistant CLI |
 | **Kilo Code** | Multi-provider | Open-source CLI supporting 30+ AI providers |
+| **Amp** | Sourcegraph | Agentic coding CLI with execute mode |
 
 ## Authentication Methods
 
@@ -36,6 +37,7 @@ Each tool can be authenticated in different ways:
 | Claude Code | GLM Coding Plan (Z.AI) | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` |
 | Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
 | Kilo Code | File-based auth | `~/.config/kilo/config.json` (configured via `kilo auth`) |
+| Amp | File-based / env var | `~/.config/amp/settings.json` (or `AMP_API_KEY`) |
 
 > **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
 
@@ -43,7 +45,7 @@ Each tool can be authenticated in different ways:
 
 | Crate | Responsibility |
 |-------|----------------|
-| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo providers, Docker execution |
+| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo/Amp providers, Docker execution |
 | `ckrv-core` | `RunnerConfig` with OpenRouter and GLM fields |
 | `ckrv-cli` | Agent config loading, CLI flags |
 | `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
@@ -59,17 +61,20 @@ graph TD
     Provider --> Claude[ClaudeProvider]
     Provider --> Codex[CodexProvider]
     Provider --> Kilo[KiloCodeProvider]
-    
+    Provider --> Amp[AmpProvider]
+
     Claude --> Docker[Docker Container]
     Codex --> Docker
     Kilo --> Docker
-    
+    Amp --> Docker
+
     subgraph "Authentication Layer"
         Claude --> ClaudeSub[Claude Subscription]
         Claude --> OpenRouter[OpenRouter API]
         Claude --> GLM[GLM Coding Plan]
         Codex --> OpenAISub[OpenAI Subscription]
         Kilo --> KiloAuth[File-based auth via kilo auth]
+        Amp --> AmpAuth[File-based settings or AMP_API_KEY]
     end
 ```
 
@@ -409,6 +414,59 @@ JSON events include types: `step_start`, `tool_use`, `text`, `step_finish`.
 | Execution | `--print` | `--auto` |
 | Model selection | Env vars / `--model` | `--model provider/model` |
 | Streaming | `--output-format stream-json` | `--format json` (NDJSON) |
+
+## Amp Integration
+
+Amp is a coding agent CLI from Sourcegraph that supports multiple execution modes (deep, rush, smart, free) through a single interface.
+
+**Prerequisites:**
+
+```bash
+# Install Amp CLI
+curl -fsSL https://ampcode.com/install.sh | bash
+```
+
+**Configuration:**
+
+```yaml
+agents:
+  - id: amp-agent
+    name: Amp
+    agent_type: amp
+    enabled: true
+    description: Sourcegraph Amp agentic coding
+```
+
+**Usage via CLI:**
+
+```bash
+# Run a task with Amp agent
+ckrv task run --agent amp-agent -p "Create hello.txt"
+
+# Full workflow execution with Amp agent
+ckrv run --agent amp
+```
+
+**Mode Override:**
+
+Amp maps `config.model` to its `--mode` parameter:
+
+| Mode | Description |
+|------|-------------|
+| `deep` | Thorough, multi-step reasoning |
+| `rush` | Fast, minimal reasoning |
+| `smart` | Balanced (default) |
+| `free` | Free-tier execution |
+
+**Key Differences from Claude/Codex:**
+
+| Feature | Claude/Codex | Amp |
+|---------|-------------|-----|
+| Auth | Env vars | File-based (`~/.config/amp/`) or `AMP_API_KEY` |
+| Execution | `--print` | `--execute` |
+| Permissions | `--dangerously-skip-permissions` | `--dangerously-allow-all` |
+| Model selection | `--model` | `--mode` (deep, rush, smart, free) |
+| Streaming | `--output-format stream-json` | `--stream-json` |
 
 ## Best Practices
 

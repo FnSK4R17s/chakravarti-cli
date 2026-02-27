@@ -70,6 +70,7 @@ src/
     ├── amp.rs      # Amp provider
     ├── claude.rs   # Claude Code provider
     ├── codex.rs    # OpenAI Codex provider
+    ├── kilo.rs     # Kilo Code provider
     └── tests.rs    # Agent unit tests
 ```
 
@@ -127,6 +128,7 @@ Supported agents in this crate:
 |-------|-----------------|------------|
 | Claude Code | `ClaudeProvider` | `claude` |
 | OpenAI Codex | `CodexProvider` | `codex` |
+| Kilo Code | `KiloCodeProvider` | `kilo` |
 | Amp | `AmpProvider` | `amp` |
 
 ```rust
