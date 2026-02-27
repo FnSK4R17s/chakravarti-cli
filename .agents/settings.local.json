@@ -14,7 +14,10 @@
       "Bash(for CRATE in ckrv-cli ckrv-core ckrv-git ckrv-integrations ckrv-mcp ckrv-metrics ckrv-model ckrv-sandbox ckrv-spec ckrv-tauri ckrv-transport ckrv-ui ckrv-verify)",
       "Bash(do echo '=== $CRATE ===' find /apps/chakravarti-cli/crates/$CRATE/src -name *.rs)",
       "Bash(./target/debug/ckrv term:*)",
-      "Bash(cargo clean:*)"
+      "Bash(cargo clean:*)",
+      "Bash(gh run list:*)",
+      "Bash(cargo tree:*)",
+      "Bash(docker build:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
