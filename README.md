@@ -34,24 +34,23 @@ Each spec generates a complete workflow—from **scope** to **plan** to **implem
 ## Installation
 
 ```bash
-# Clone and install
+npm install -g @ckrv/cli
+```
+
+Or download a binary from the [latest release](https://github.com/FnSK4R17s/chakravarti-cli/releases/latest).
+
+### Build from source
+
+```bash
 git clone https://github.com/FnSK4R17s/chakravarti-cli.git
 cd chakravarti-cli
 
-# Quick install (recommended for containers/dev environments - no Docker needed)
+# Quick install (no Docker needed)
 just install-quick
 
-# Or full install (includes Docker agent images)
+# Full install (includes Docker agent images)
 just install
 ```
-
-### Install Options
-
-| Command | Docker Images | Use Case |
-|---------|---------------|----------|
-| `just install-quick` | Skipped | Containers, dev environments, CI without Docker |
-| `just install` | Built | Local development with full agent support |
-| `CKRV_SKIP_DOCKER=true just install` | Skipped | Environment variable override |
 
 > **Note**: If you don't have `just` installed, run `make install` which will prompt you to install it. See [just installation](https://github.com/casey/just#installation).
 
