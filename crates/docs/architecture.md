@@ -144,6 +144,7 @@ pub trait AgentProvider {
 // Implementations:
 // - Claude (native)
 // - OpenAI Codex
+// - GitHub Copilot
 // - OpenRouter Models (via Claude Code CLI)
 ```
 

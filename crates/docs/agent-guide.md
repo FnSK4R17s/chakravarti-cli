@@ -1,11 +1,12 @@
 ---
-last_commit: 1b27ca2
-last_updated: 2026-02-10
+last_commit: b56f8cc
+last_updated: 2026-02-27
 related_files:
   - crates/ckrv-sandbox/src/agent/mod.rs
   - crates/ckrv-sandbox/src/agent/claude.rs
   - crates/ckrv-sandbox/src/agent/codex.rs
   - crates/ckrv-sandbox/src/agent/kilo.rs
+  - crates/ckrv-sandbox/src/agent/copilot.rs
   - crates/ckrv-core/src/runner.rs
 ---
 
@@ -24,6 +25,7 @@ These are the underlying CLI tools that execute code generation:
 | **Claude Code** | Anthropic | Native agentic coding CLI |
 | **Codex** | OpenAI | OpenAI's coding assistant CLI |
 | **Kilo Code** | Multi-provider | Open-source CLI supporting 30+ AI providers |
+| **GitHub Copilot** | GitHub | GitHub CLI-based coding assistant |
 
 ## Authentication Methods
 
@@ -36,6 +38,7 @@ Each tool can be authenticated in different ways:
 | Claude Code | GLM Coding Plan (Z.AI) | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` |
 | Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
 | Kilo Code | File-based auth | `~/.config/kilo/config.json` (configured via `kilo auth`) |
+| GitHub Copilot | GitHub CLI auth | `~/.config/gh/` (configured via `gh auth login`) |
 
 > **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
 
@@ -43,7 +46,7 @@ Each tool can be authenticated in different ways:
 
 | Crate | Responsibility |
 |-------|----------------|
-| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo providers, Docker execution |
+| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo/Copilot providers, Docker execution |
 | `ckrv-core` | `RunnerConfig` with OpenRouter and GLM fields |
 | `ckrv-cli` | Agent config loading, CLI flags |
 | `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
@@ -59,17 +62,20 @@ graph TD
     Provider --> Claude[ClaudeProvider]
     Provider --> Codex[CodexProvider]
     Provider --> Kilo[KiloCodeProvider]
-    
+    Provider --> Copilot[GithubCopilotProvider]
+
     Claude --> Docker[Docker Container]
     Codex --> Docker
     Kilo --> Docker
-    
+    Copilot --> Docker
+
     subgraph "Authentication Layer"
         Claude --> ClaudeSub[Claude Subscription]
         Claude --> OpenRouter[OpenRouter API]
         Claude --> GLM[GLM Coding Plan]
         Codex --> OpenAISub[OpenAI Subscription]
         Kilo --> KiloAuth[File-based auth via kilo auth]
+        Copilot --> GhAuth[GitHub CLI auth via gh auth login]
     end
 ```
 
@@ -409,6 +415,54 @@ JSON events include types: `step_start`, `tool_use`, `text`, `step_finish`.
 | Execution | `--print` | `--auto` |
 | Model selection | Env vars / `--model` | `--model provider/model` |
 | Streaming | `--output-format stream-json` | `--format json` (NDJSON) |
+
+## GitHub Copilot Integration
+
+GitHub Copilot is accessed through the GitHub CLI (`gh copilot`) for code suggestions and shell assistance.
+
+**Prerequisites:**
+
+```bash
+# Install GitHub CLI
+# macOS: brew install gh
+# Linux: see https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+
+# Authenticate with GitHub
+gh auth login
+
+# Enable Copilot extension
+gh extension install github/gh-copilot
+```
+
+**Configuration:**
+
+```yaml
+agents:
+  - id: copilot-agent
+    name: GitHub Copilot
+    agent_type: github_copilot
+    enabled: true
+    description: GitHub CLI-based coding assistant
+```
+
+**Usage via CLI:**
+
+```bash
+# Run a task with Copilot agent
+ckrv task run --agent copilot-agent -p "Create hello.txt"
+
+# Spawn interactive Copilot terminal
+ckrv term --agent copilot-agent
+```
+
+**Key Differences from Claude/Codex/Kilo:**
+
+| Feature | Claude/Codex | Kilo Code | GitHub Copilot |
+|---------|-------------|------------|----------------|
+| Auth | Env vars | File-based (`~/.config/kilo/`) | GitHub CLI (`~/.config/gh/`) |
+| Execution | `--print` | `--auto` | `copilot suggest -t shell` |
+| Model selection | Env vars / `--model` | `--model provider/model` | N/A (GitHub-managed) |
+| Working dir | `--workdir` | `--cwd` | Inherited from CWD |
 
 ## Best Practices
 

@@ -127,7 +127,8 @@ Chakravarti uses Claude Code CLI as the execution interface:
 - **Claude Code (Native)** - Default agent
 - **Claude Code + OpenRouter** - 12+ models via Claude Code CLI
 - **Claude Code + GLM Coding Plan** - Z.AI's GLM models (UI only for now)
-- **OpenAI Codex** - Native CLI integration  
+- **OpenAI Codex** - Native CLI integration
+- **GitHub Copilot** - GitHub CLI-based coding assistant
 
 See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 
