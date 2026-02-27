@@ -93,7 +93,7 @@ ckrv run [OPTIONS] [SPEC]
 ```
 
 **Options:**
-- `--agent`: Agent to use for execution (claude or codex)
+- `--agent`: Agent to use for execution (claude, codex, kilo, or qwen)
 - `--cloud`: Execute job in Chakravarti Cloud
 - `--credential`: Git credential name for cloud execution
 - `--executor-model, -e`: Override the AI model/agent

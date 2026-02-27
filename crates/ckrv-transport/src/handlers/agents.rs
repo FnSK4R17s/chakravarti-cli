@@ -483,6 +483,21 @@ pub async fn test_agent_handler(
                 Err(e) => Err(format!("Kilo Code CLI not found: {}", e)),
             }
         }
+        AgentType::Qwen => {
+            // Test Qwen Code CLI
+            let binary = "qwen";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Qwen Code CLI available: {}", version.trim()))
+                    } else {
+                        Err("Qwen Code CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Qwen Code CLI not found: {}", e)),
+            }
+        }
     };
 
     match result {

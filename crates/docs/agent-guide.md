@@ -6,6 +6,7 @@ related_files:
   - crates/ckrv-sandbox/src/agent/claude.rs
   - crates/ckrv-sandbox/src/agent/codex.rs
   - crates/ckrv-sandbox/src/agent/kilo.rs
+  - crates/ckrv-sandbox/src/agent/qwen.rs
   - crates/ckrv-core/src/runner.rs
 ---
 
@@ -24,6 +25,7 @@ These are the underlying CLI tools that execute code generation:
 | **Claude Code** | Anthropic | Native agentic coding CLI |
 | **Codex** | OpenAI | OpenAI's coding assistant CLI |
 | **Kilo Code** | Multi-provider | Open-source CLI supporting 30+ AI providers |
+| **Qwen Code** | Alibaba | Alibaba's Qwen coding agent CLI |
 
 ## Authentication Methods
 
@@ -36,6 +38,7 @@ Each tool can be authenticated in different ways:
 | Claude Code | GLM Coding Plan (Z.AI) | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` |
 | Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
 | Kilo Code | File-based auth | `~/.config/kilo/config.json` (configured via `kilo auth`) |
+| Qwen Code | API key / OAuth | `~/.qwen/`, `OPENAI_API_KEY`, `QWEN_AUTH_TOKEN` |
 
 > **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
 
@@ -43,7 +46,7 @@ Each tool can be authenticated in different ways:
 
 | Crate | Responsibility |
 |-------|----------------|
-| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo providers, Docker execution |
+| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo/Qwen providers, Docker execution |
 | `ckrv-core` | `RunnerConfig` with OpenRouter and GLM fields |
 | `ckrv-cli` | Agent config loading, CLI flags |
 | `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
@@ -59,17 +62,20 @@ graph TD
     Provider --> Claude[ClaudeProvider]
     Provider --> Codex[CodexProvider]
     Provider --> Kilo[KiloCodeProvider]
-    
+    Provider --> Qwen[QwenProvider]
+
     Claude --> Docker[Docker Container]
     Codex --> Docker
     Kilo --> Docker
-    
+    Qwen --> Docker
+
     subgraph "Authentication Layer"
         Claude --> ClaudeSub[Claude Subscription]
         Claude --> OpenRouter[OpenRouter API]
         Claude --> GLM[GLM Coding Plan]
         Codex --> OpenAISub[OpenAI Subscription]
         Kilo --> KiloAuth[File-based auth via kilo auth]
+        Qwen --> QwenAuth[API key / OAuth via ~/.qwen/]
     end
 ```
 
@@ -409,6 +415,47 @@ JSON events include types: `step_start`, `tool_use`, `text`, `step_finish`.
 | Execution | `--print` | `--auto` |
 | Model selection | Env vars / `--model` | `--model provider/model` |
 | Streaming | `--output-format stream-json` | `--format json` (NDJSON) |
+
+## Qwen Code Integration
+
+Qwen Code is Alibaba's coding agent CLI that supports both native CLI and OpenAI-compatible API modes.
+
+**Prerequisites:**
+
+```bash
+# Install Qwen Code CLI (requires Node.js 20+)
+npm install -g @qwen-code/qwen-code
+```
+
+**Configuration:**
+
+```yaml
+agents:
+  - id: qwen-agent
+    name: Qwen Code
+    agent_type: qwen
+    enabled: true
+    description: Alibaba's Qwen coding agent
+```
+
+**Usage via CLI:**
+
+```bash
+# Run a task with Qwen agent
+ckrv task run --agent qwen-agent -p "Create hello.txt"
+
+# Spawn interactive Qwen terminal
+ckrv term --agent qwen-agent
+```
+
+**Key Differences from Claude/Codex/Kilo:**
+
+| Feature | Claude/Codex | Kilo Code | Qwen Code |
+|---------|-------------|------------|-----------|
+| Auth | Env vars | File-based (`~/.config/kilo/`) | API key / OAuth (`~/.qwen/`) |
+| Execution | `--print` | `--auto` | `--yes --approval-mode=auto` |
+| Model selection | Env vars / `--model` | `--model provider/model` | `--model model` |
+| Working dir | `--workdir` | `--cwd` | `--workdir` |
 
 ## Best Practices
 
