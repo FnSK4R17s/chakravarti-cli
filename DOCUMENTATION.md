@@ -15,7 +15,8 @@ chakravarti-cli/
 │   ├── architecture.md    # System architecture and diagrams
 │   ├── getting-started.md # New contributor onboarding
 │   ├── cli-commands.md    # Complete CLI reference
-│   └── agent-guide.md     # Adding new AI agents
+│   ├── agent-guide.md     # Adding new AI agents
+│   └── agent-integration-playbook.md  # Full-stack agent onboarding
 │
 ├── crates/<crate>/docs/   # Per-crate documentation
 │   └── README.md          # Crate-specific docs
@@ -54,6 +55,7 @@ These documents span multiple crates and provide holistic guidance:
 | `getting-started.md` | Environment setup, first contribution |
 | `cli-commands.md` | All CLI commands with options and examples |
 | `agent-guide.md` | How to add new AI agent integrations |
+| `agent-integration-playbook.md` | Full-stack agent onboarding: types, both backends, frontend, Docker, tests |
 
 
 ### Per-Crate Documentation (`crates/<crate>/docs/`)
