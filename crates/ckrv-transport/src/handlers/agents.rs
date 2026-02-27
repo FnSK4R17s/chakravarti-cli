@@ -483,6 +483,21 @@ pub async fn test_agent_handler(
                 Err(e) => Err(format!("Kilo Code CLI not found: {}", e)),
             }
         }
+        AgentType::FactoryDroid => {
+            // Test Factory Droid CLI
+            let binary = "droid";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Factory Droid CLI available: {}", version.trim()))
+                    } else {
+                        Err("Factory Droid CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Factory Droid CLI not found: {}", e)),
+            }
+        }
     };
 
     match result {

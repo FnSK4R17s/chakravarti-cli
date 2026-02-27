@@ -143,11 +143,19 @@ pub async fn start_terminal_handler(
         .map(|a| matches!(a.agent_type, AgentType::KiloCode))
         .unwrap_or(false);
 
+    let is_factory = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::FactoryDroid))
+        .unwrap_or(false);
+
     // Set container home based on agent type
     let container_home = if is_codex {
         "/home/codex"
     } else if is_kilo {
         "/home/kilo"
+    } else if is_factory {
+        "/home/factory"
     } else {
         "/home/claude"
     };
@@ -171,6 +179,8 @@ pub async fn start_terminal_handler(
         "ckrv-codex:latest".to_string()
     } else if is_kilo {
         "ckrv-kilo:latest".to_string()
+    } else if is_factory {
+        "ckrv-factory:latest".to_string()
     } else {
         "ckrv-claude:latest".to_string()
     };
@@ -287,6 +297,19 @@ pub async fn start_terminal_handler(
         }
 
         tracing::info!("Terminal session using Kilo Code with mounted config");
+    } else if is_factory {
+        // Factory Droid configuration - mount config directory for file-based auth
+        let factory_config = format!("{}/.factory", host_home);
+        if std::path::Path::new(&factory_config).exists() {
+            binds.push(format!("{factory_config}:/home/factory/.factory"));
+        }
+
+        // Optional API key fallback
+        if let Ok(key) = std::env::var("FACTORY_API_KEY") {
+            env_vars.push(format!("FACTORY_API_KEY={key}"));
+        }
+
+        tracing::info!("Terminal session using Factory Droid with mounted config");
     } else {
         // For native Claude, mount credentials if they exist
         let claude_config = format!("{host_home}/.claude.json");

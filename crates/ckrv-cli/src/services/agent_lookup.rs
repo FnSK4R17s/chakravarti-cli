@@ -14,6 +14,7 @@ pub enum AgentType {
     ClaudeGlm,
     Codex,
     KiloCode,
+    FactoryDroid,
 }
 
 impl Default for AgentType {

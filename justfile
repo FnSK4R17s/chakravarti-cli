@@ -72,6 +72,7 @@ install *args:
         docker build -t ckrv-claude:latest -f docker/Dockerfile.claude docker/
         docker build -t ckrv-codex:latest -f docker/Dockerfile.codex docker/
         docker build -t ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
+        docker build -t ckrv-factory:latest -f docker/Dockerfile.factory docker/
     fi
     
     # Install CLI binary to ~/.cargo/bin in a path-agnostic way.
@@ -204,6 +205,7 @@ docker-build:
     docker build -t ckrv-claude:latest -f docker/Dockerfile.claude docker/
     docker build -t ckrv-codex:latest -f docker/Dockerfile.codex docker/
     docker build -t ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
+    docker build -t ckrv-factory:latest -f docker/Dockerfile.factory docker/
     @echo "✓ Docker images built"
 
 # Stop all ckrv containers

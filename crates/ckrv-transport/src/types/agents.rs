@@ -23,6 +23,8 @@ pub enum AgentType {
     Codex,
     /// Kilo Code multi-provider CLI
     KiloCode,
+    /// Factory Droid CLI
+    FactoryDroid,
 }
 
 impl Default for AgentType {
