@@ -87,6 +87,13 @@ export type GlmConfig = {
     endpoint: string | null,
 };
 
+export type GeminiConfig = {
+    /**
+     * Optional model override (e.g., "gemini-2.5-pro")
+     */
+    model: string | null,
+};
+
 export type OpenRouterModel = {
     /**
      * Model ID
