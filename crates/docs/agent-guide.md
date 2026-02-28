@@ -11,6 +11,8 @@ related_files:
 
 # Agent Extensibility Guide
 
+> **Full-stack integration?** This guide covers the sandbox/provider layer. For the complete cross-crate playbook — including both backends (Axum + Tauri), frontend UI, type generation, endpoint parity, and Docker — see **[Agent Integration Playbook](agent-integration-playbook.md)**.
+
 ## Overview
 
 Chakravarti CLI supports multiple AI agents through the `AgentProvider` trait. This guide explains how agents are structured and how to add new ones.
