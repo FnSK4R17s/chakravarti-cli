@@ -164,9 +164,7 @@ Every agent-related operation must work identically in both Axum (web) and Tauri
 | Test agent | `POST /agents/test` | `test_agent` | `/api/agents/test` → `test_agent` | Parity |
 | OpenRouter models | `GET /agents/models` | `get_openrouter_models` | `/api/agents/models` → `get_openrouter_models` | Parity |
 | Kilo models | `GET /agents/kilo-models` | `get_kilo_models` | `/api/agents/kilo-models` → `get_kilo_models` | Parity |
-| GLM models | `GET /agents/glm-models` | **Missing** | `/api/agents/glm-models` → `get_glm_models` | **GAP** |
-
-> **Known issue**: `get_glm_models` has an Axum route and a handler but is **not registered** in Tauri's `generate_handler![]` macro in `crates/ckrv-tauri/src/main.rs`. The frontend `api.ts` also lacks a mapping for `/api/agents/glm-models`. Desktop GLM model listing will return a 501. Fix: implement the Tauri command wrapper and register it.
+| GLM models | `GET /agents/glm-models` | `get_glm_models` | `/api/agents/glm-models` → `get_glm_models` | Parity |
 
 ---
 
