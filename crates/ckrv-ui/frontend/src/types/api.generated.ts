@@ -34,7 +34,7 @@ export type SuccessResponse = {
 
 // === Agent Types ===
 
-export type AgentType = "claude" | "claude_open_router" | "claude_glm" | "codex" | "kilo_code";
+export type AgentType = "claude" | "claude_open_router" | "claude_glm" | "codex" | "kilo_code" | "mistral_vibe";
 
 export type AgentConfig = {
     /**
@@ -85,6 +85,17 @@ export type GlmConfig = {
      * Optional custom endpoint
      */
     endpoint: string | null,
+};
+
+export type MistralVibeConfig = {
+    /**
+     * Maximum conversation turns for prompt mode
+     */
+    max_turns: number | null,
+    /**
+     * Maximum spend in USD for prompt mode
+     */
+    max_price: number | null,
 };
 
 export type OpenRouterModel = {

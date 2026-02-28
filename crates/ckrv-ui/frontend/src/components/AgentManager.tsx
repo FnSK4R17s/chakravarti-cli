@@ -1018,6 +1018,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, kiloModels, glmM
                                     <SelectItem value="claude_glm">GLM Coding Plan (Z.AI)</SelectItem>
                                     <SelectItem value="codex">OpenAI Codex</SelectItem>
                                     <SelectItem value="kilo_code">Kilo Code (Multi-Provider)</SelectItem>
+                                    <SelectItem value="mistral_vibe">Mistral Vibe</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
