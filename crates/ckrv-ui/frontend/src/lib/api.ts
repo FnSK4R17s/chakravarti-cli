@@ -33,6 +33,7 @@ const endpointToCommand: Record<string, string> = {
     '/api/agents': 'list_agents',
     '/api/agents/models': 'get_openrouter_models',
     '/api/agents/kilo-models': 'get_kilo_models',
+    '/api/agents/glm-models': 'get_glm_models',
     '/api/agents/upsert': 'upsert_agent',
     '/api/agents/delete': 'delete_agent',
     '/api/agents/set-default': 'set_default_agent',
