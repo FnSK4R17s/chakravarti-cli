@@ -514,6 +514,7 @@ fn list_agents(_args: &TermArgs, json: bool) -> anyhow::Result<()> {
                 AgentType::ClaudeGlm => "glm",
                 AgentType::Codex => "codex",
                 AgentType::KiloCode => "kilo",
+                AgentType::Amp => "amp",
             };
             let default_marker = if agent.is_default { " ★" } else { "" };
             println!(
@@ -804,6 +805,7 @@ fn select_agent_interactively(enabled_agents: &[&AgentConfig]) -> anyhow::Result
                 AgentType::ClaudeGlm => "glm",
                 AgentType::Codex => "codex",
                 AgentType::KiloCode => "kilo",
+                AgentType::Amp => "amp",
             };
             let default_marker = if a.is_default { " ★" } else { "" };
             format!("{} ({}) [{}]{}", a.name, a.id, type_badge, default_marker)
@@ -1040,6 +1042,7 @@ fn to_sandbox_agent_type(cli_type: &AgentType) -> ckrv_sandbox::AgentType {
         }
         AgentType::Codex => ckrv_sandbox::AgentType::Codex,
         AgentType::KiloCode => ckrv_sandbox::AgentType::KiloCode,
+        AgentType::Amp => ckrv_sandbox::AgentType::Amp,
     }
 }
 
@@ -1622,6 +1625,7 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
             }
             AgentType::Codex => "codex".to_string(),
             AgentType::KiloCode => "kilo".to_string(),
+            AgentType::Amp => "amp".to_string(),
         });
 
     let mut env_vars: Vec<(String, String)> = Vec::new();
@@ -1703,6 +1707,9 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
         }
         AgentType::KiloCode => {
             // Kilo Code uses file-based auth (~/.config/kilo/) - no extra env vars needed
+        }
+        AgentType::Amp => {
+            // Amp uses stored settings (~/.config/amp/) or AMP_API_KEY - no extra env vars needed
         }
     }
 
