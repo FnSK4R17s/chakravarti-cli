@@ -2,7 +2,15 @@
 //!
 //! Parses output from various test frameworks (cargo test, npm test, etc.)
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::{TestResult, TestStatus};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Supported test frameworks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,7 +27,14 @@ pub enum TestFramework {
     Generic,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 /// Parser for test output.
+///
+/// Converts raw test runner stdout/stderr into structured [`TestResult`] entries
+/// based on the detected [`TestFramework`].
 pub struct TestOutputParser {
     framework: TestFramework,
 }
@@ -32,6 +47,10 @@ impl TestOutputParser {
     }
 
     /// Detect framework from command string.
+    ///
+    /// # Arguments
+    ///
+    /// * `command` - The shell command string used to run tests.
     #[must_use]
     pub fn detect_framework(command: &str) -> TestFramework {
         if command.contains("cargo test") {
@@ -48,6 +67,12 @@ impl TestOutputParser {
     }
 
     /// Parse test output into structured results.
+    ///
+    /// # Arguments
+    ///
+    /// * `output` - The raw stdout/stderr output from the test runner.
+    /// * `success` - Whether the test process exited successfully.
+    /// * `duration_ms` - Total duration of the test run in milliseconds.
     #[must_use]
     pub fn parse(&self, output: &str, success: bool, duration_ms: u64) -> Vec<TestResult> {
         match self.framework {
@@ -273,6 +298,10 @@ impl TestOutputParser {
         }]
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

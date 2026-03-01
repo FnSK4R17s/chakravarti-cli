@@ -1,10 +1,18 @@
 //! Report generator - generate Markdown reports for test and QA results.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use serde::Serialize;
 
 use super::test_framework::TestResult;
 
-/// Severity level for QA issues
+// ============================================================
+// TYPES
+// ============================================================
+
+/// Severity level for QA issues.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
@@ -19,6 +27,7 @@ pub enum Severity {
 }
 
 impl Severity {
+    /// Returns the emoji icon for this severity level.
     pub fn emoji(&self) -> &'static str {
         match self {
             Severity::Critical => "🔴",
@@ -28,6 +37,7 @@ impl Severity {
         }
     }
 
+    /// Returns a human-readable label for this severity level.
     pub fn label(&self) -> &'static str {
         match self {
             Severity::Critical => "Critical",
@@ -38,7 +48,7 @@ impl Severity {
     }
 }
 
-/// Category of QA issue
+/// Category of QA issue.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IssueCategory {
@@ -59,6 +69,7 @@ pub enum IssueCategory {
 }
 
 impl IssueCategory {
+    /// Returns a human-readable label for this issue category.
     pub fn label(&self) -> &'static str {
         match self {
             IssueCategory::CodeQuality => "Code Quality",
@@ -110,7 +121,12 @@ pub struct QASummary {
     pub verdict: String,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 impl QASummary {
+    /// Build a summary from a list of issues and the number of files reviewed.
     pub fn from_issues(issues: &[QAIssue], files_reviewed: u32) -> Self {
         let critical = issues
             .iter()

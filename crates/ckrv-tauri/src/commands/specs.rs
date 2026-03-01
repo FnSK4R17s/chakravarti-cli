@@ -1,4 +1,8 @@
-//! Specs commands for Tauri IPC
+//! Specs commands for Tauri IPC.
+
+// ============================================================
+// Imports
+// ============================================================
 
 use crate::SharedState;
 use ckrv_transport::handlers::specs::{
@@ -10,11 +14,20 @@ use ckrv_transport::types::{CreateSpecRequest, SpecDetail, SpecSummary, UpdateSp
 use serde::Serialize;
 use tauri::State;
 
+// ============================================================
+// Types
+// ============================================================
+
 /// Response wrapper for list_specs to match frontend expectations.
 #[derive(Serialize)]
 pub struct ListSpecsWrapped {
+    /// List of specification summaries.
     specs: Vec<SpecSummary>,
 }
+
+// ============================================================
+// Handlers
+// ============================================================
 
 /// List all specifications.
 #[tauri::command]

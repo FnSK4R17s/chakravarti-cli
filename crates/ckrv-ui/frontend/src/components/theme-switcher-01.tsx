@@ -24,6 +24,7 @@ import { Moon, Sun } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 export default function ThemeSwitcher() {
+  /** Whether dark mode is currently active. @default true */
   const [isDark, setIsDark] = useState(true);
 
   /**

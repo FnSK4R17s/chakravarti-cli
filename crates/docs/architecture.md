@@ -1,6 +1,6 @@
 ---
-last_commit: 508766e
-last_updated: 2026-02-15
+last_commit: f92f604
+last_updated: 2026-03-01
 related_files:
   - Cargo.toml
   - crates/ckrv-core/src/lib.rs
@@ -136,15 +136,20 @@ pub trait Sandbox {
 The `AgentProvider` trait enables multiple AI backends:
 
 ```rust
-pub trait AgentProvider {
-    fn execute(&self, task: &AgentTask) -> AgentOutput;
-    fn is_available(&self) -> bool;
+pub trait AgentProvider: Send + Sync {
+    fn name(&self) -> &str;
+    fn agent_type(&self) -> AgentType;
+    fn build_command(&self, prompt: &str, workdir: &Path, config: &AgentConfig) -> Vec<String>;
+    fn required_env_vars(&self) -> Vec<&str>;
+    fn config_mounts(&self, host_home: &str, container_home: &str) -> Vec<Mount>;
+    fn parse_output(&self, stdout: &str, stderr: &str, exit_code: i32) -> Result<AgentOutput>;
 }
 
 // Implementations:
-// - Claude (native)
-// - OpenAI Codex
-// - OpenRouter Models (via Claude Code CLI)
+// - ClaudeProvider (Claude Code native)
+// - CodexProvider (OpenAI Codex)
+// - KiloCodeProvider (Kilo Code multi-provider)
+// OpenRouter and GLM models route through Claude Code CLI via env vars
 ```
 
 ## Data Flow

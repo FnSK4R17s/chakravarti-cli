@@ -211,7 +211,8 @@ export const StatusWidget: React.FC = () => {
 // ============================================================
 
 /**
- * Props for the StatusRow sub-component.
+ * Props for StatusRow.
+ * Displays a single key-value status row with optional icon and color indicator.
  */
 interface StatusRowProps {
     /** Icon to display alongside the label */

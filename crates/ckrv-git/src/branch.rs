@@ -1,9 +1,17 @@
 //! Git branch management.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::Path;
 use std::process::Command;
 
 use crate::{GitError, Worktree};
+
+// ============================================================
+// TRAITS
+// ============================================================
 
 /// Trait for managing git branches.
 pub trait BranchManager: Send + Sync {
@@ -37,13 +45,21 @@ pub trait BranchManager: Send + Sync {
     fn delete(&self, branch_name: &str, force: bool) -> Result<(), GitError>;
 }
 
-/// Git-based branch manager.
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Git-based branch manager using shell `git` commands.
 pub struct GitBranchManager {
     repo_root: std::path::PathBuf,
 }
 
 impl GitBranchManager {
     /// Create a new branch manager for a repository.
+    ///
+    /// # Arguments
+    ///
+    /// * `repo_root` - Path to the root of the git repository.
     pub fn new(repo_root: impl Into<std::path::PathBuf>) -> Self {
         Self {
             repo_root: repo_root.into(),
@@ -164,6 +180,10 @@ impl BranchManager for GitBranchManager {
     }
 }
 
+// ============================================================
+// TYPES
+// ============================================================
+
 /// Result of a promote operation.
 #[derive(Debug, Clone)]
 pub struct PromoteResult {
@@ -174,6 +194,10 @@ pub struct PromoteResult {
     /// The commit hash.
     pub commit: String,
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

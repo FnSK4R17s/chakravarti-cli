@@ -159,9 +159,9 @@ interface SectionProps {
     count?: number;
     /** Content to show when expanded */
     children: React.ReactNode;
-    /** Whether the section starts expanded */
+    /** Whether the section starts expanded. @default true */
     defaultOpen?: boolean;
-    /** Color theme for the section border and background */
+    /** Color theme for the section border and background. @default 'slate' */
     color?: 'slate' | 'blue' | 'green' | 'amber' | 'purple' | 'cyan';
     /** Optional icon to display before the title */
     icon?: React.ReactNode;

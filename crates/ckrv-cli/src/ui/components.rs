@@ -24,17 +24,35 @@
 //! println!("{}", banner.render(&theme));
 //! ```
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::ui::theme::Theme;
 use crate::ui::Renderable;
 use console::Style;
 use tabled::settings::{object::Rows, Format, Modify};
 
+// ============================================================
+// TYPES
+// ============================================================
+
+/// ASCII art banner header with gradient coloring.
+///
+/// Renders the "CKRV" logo with a gold gradient and an optional subtitle.
 pub struct Banner {
+    /// Banner title text (reserved for future dynamic use).
     pub title: String, // Kept for future dynamic use, currently ignoring for hardcoded art
+    /// Optional subtitle displayed beneath the banner art.
     pub subtitle: Option<String>,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 impl Banner {
+    /// Create a new banner with the given title.
     pub fn new(_title: impl Into<String>) -> Self {
         Self {
             title: _title.into(),
@@ -42,6 +60,7 @@ impl Banner {
         }
     }
 
+    /// Set an optional subtitle line below the banner art.
     pub fn subtitle(mut self, sub: impl Into<String>) -> Self {
         self.subtitle = Some(sub.into());
         self
@@ -96,11 +115,14 @@ impl Renderable for Banner {
     }
 }
 
+/// Themed table with colored borders and styled header row.
 pub struct RichTable {
+    /// The underlying `tabled::Table` to render.
     pub inner: tabled::Table,
 }
 
 impl RichTable {
+    /// Wrap a `tabled::Table` in themed styling.
     pub fn new(table: tabled::Table) -> Self {
         Self { inner: table }
     }
@@ -148,19 +170,28 @@ impl Renderable for RichTable {
     }
 }
 
+/// Severity level controlling panel color and icon.
 pub enum PanelLevel {
+    /// Informational panel (secondary/cyan color).
     Info,
+    /// Success panel (green color with checkmark).
     Success,
+    /// Error panel (red color with cross).
     Error,
 }
 
+/// Left-bordered message panel for info, success, and error output.
 pub struct Panel {
+    /// Panel heading text.
     pub title: String,
+    /// Panel body content (supports newlines).
     pub content: String,
+    /// Severity level controlling styling.
     pub level: PanelLevel,
 }
 
 impl Panel {
+    /// Create a new panel with info-level styling.
     pub fn new(title: impl Into<String>, content: impl Into<String>) -> Self {
         Self {
             title: title.into(),
@@ -169,10 +200,12 @@ impl Panel {
         }
     }
 
+    /// Set the panel level to success (green styling).
     pub fn success(mut self) -> Self {
         self.level = PanelLevel::Success;
         self
     }
+    /// Set the panel level to error (red styling).
     pub fn error(mut self) -> Self {
         self.level = PanelLevel::Error;
         self

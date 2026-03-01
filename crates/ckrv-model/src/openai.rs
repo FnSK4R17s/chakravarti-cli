@@ -1,5 +1,9 @@
 //! OpenAI model provider implementation.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -7,6 +11,10 @@ use crate::{
     provider::{CompletionRequest, CompletionResponse, Message, ModelProvider},
     ModelError, TokenUsage,
 };
+
+// ============================================================
+// OPENAI PROVIDER
+// ============================================================
 
 /// OpenAI API provider.
 pub struct OpenAIProvider {
@@ -42,6 +50,10 @@ impl OpenAIProvider {
         }
     }
 }
+
+// ============================================================
+// API TYPES
+// ============================================================
 
 #[derive(Serialize)]
 struct OpenAIRequest {
@@ -93,6 +105,10 @@ struct OpenAIError {
 struct OpenAIErrorDetail {
     message: String,
 }
+
+// ============================================================
+// MODEL PROVIDER IMPL
+// ============================================================
 
 #[async_trait]
 impl ModelProvider for OpenAIProvider {
@@ -167,6 +183,10 @@ impl ModelProvider for OpenAIProvider {
         })
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

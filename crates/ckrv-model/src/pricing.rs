@@ -1,8 +1,16 @@
 //! Model pricing configuration.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+
+// ============================================================
+// MODEL PRICING
+// ============================================================
 
 /// Pricing information for a model.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +44,10 @@ impl ModelPricing {
         (self.input_cost_per_million + self.output_cost_per_million) / 2.0 / 1000.0
     }
 }
+
+// ============================================================
+// PRICING CATALOG
+// ============================================================
 
 /// Pricing catalog with known model prices.
 pub struct PricingCatalog {
@@ -187,7 +199,11 @@ impl PricingCatalog {
         self.models.keys().map(String::as_str).collect()
     }
 
-    /// Get models by provider.
+    /// Get models filtered by provider name.
+    ///
+    /// # Arguments
+    ///
+    /// * `provider` - Provider name to filter by (e.g., "openai", "anthropic").
     #[must_use]
     pub fn by_provider(&self, provider: &str) -> Vec<&ModelPricing> {
         self.models
@@ -218,6 +234,10 @@ impl PricingCatalog {
             .max_by_key(|p| p.context_window)
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {
