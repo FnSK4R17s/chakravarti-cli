@@ -84,6 +84,7 @@ pub use commands::status;
 pub use commands::task;
 pub use commands::term;
 pub use commands::test;
+pub use commands::usage;
 pub use commands::verify;
 
 // Re-export commands with name conflicts (cloud command vs cloud module, ui command vs ui module)
@@ -252,6 +253,25 @@ pub enum Commands {
                       ckrv fix --tests-only"
     )]
     Fix(commands::fix::FixArgs),
+
+    /// View aggregate usage metrics across all jobs
+    #[command(
+        display_order = 8,
+        long_about = "View aggregate usage metrics across all jobs.\n\n\
+                      Shows total token usage, cost estimates, and timing across all recorded \
+                      job runs. Breaks down usage by model to help monitor resource consumption \
+                      of agents such as Claude, Codex, and OpenRouter models.",
+        after_help = "Examples:\n\
+                      # Show usage summary\n\
+                      ckrv usage\n\n\
+                      # Show per-job breakdown\n\
+                      ckrv usage --detailed\n\n\
+                      # Show per-agent quota/usage summary\n\
+                      ckrv usage --agents\n\n\
+                      # Output as JSON\n\
+                      ckrv usage --json"
+    )]
+    Usage(commands::usage::UsageArgs),
 
     /// Execute a workflow-based agent task
     #[command(hide = true)]

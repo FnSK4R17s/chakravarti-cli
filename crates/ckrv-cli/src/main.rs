@@ -60,6 +60,7 @@ async fn main() -> anyhow::Result<()> {
         Some(Commands::Test(args)) => ckrv_cli::test::execute(args, cli.json, &ui).await,
         Some(Commands::Qa(args)) => ckrv_cli::qa::execute(args, cli.json, &ui).await,
         Some(Commands::Term(args)) => ckrv_cli::term::execute(args, cli.json, &ui).await,
+        Some(Commands::Usage(args)) => ckrv_cli::usage::execute(args, cli.json).await,
         None => {
             use clap::CommandFactory;
             let mut cmd = Cli::command();

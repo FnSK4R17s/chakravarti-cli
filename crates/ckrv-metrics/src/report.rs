@@ -1,6 +1,6 @@
 //! Metrics reporting and storage.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
@@ -153,6 +153,13 @@ pub trait MetricsStorage: Send + Sync {
 
     /// Check if metrics exist for a job.
     fn exists(&self, job_id: &str) -> bool;
+
+    /// List all stored metrics.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if reading the storage directory fails.
+    fn list_all(&self) -> Result<Vec<Metrics>, MetricsError>;
 }
 
 /// File-based metrics storage.
@@ -210,6 +217,26 @@ impl MetricsStorage for FileMetricsStorage {
 
     fn exists(&self, job_id: &str) -> bool {
         self.metrics_path(job_id).exists()
+    }
+
+    fn list_all(&self) -> Result<Vec<Metrics>, MetricsError> {
+        let runs_dir = self.base_path.join("runs");
+        if !runs_dir.exists() {
+            return Ok(Vec::new());
+        }
+        let entries = std::fs::read_dir(&runs_dir)
+            .map_err(|e| MetricsError::StorageError(e.to_string()))?;
+        let mut all = Vec::new();
+        for entry in entries {
+            let entry = entry.map_err(|e| MetricsError::StorageError(e.to_string()))?;
+            if entry.path().is_dir() {
+                let job_id = entry.file_name().to_string_lossy().to_string();
+                if let Ok(m) = self.load(&job_id) {
+                    all.push(m);
+                }
+            }
+        }
+        Ok(all)
     }
 }
 
@@ -270,5 +297,35 @@ mod tests {
 
         let result = storage.load("nonexistent");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_file_storage_list_all_empty() {
+        let dir = TempDir::new().expect("temp dir");
+        let storage = FileMetricsStorage::new(dir.path().join(".chakravarti"));
+
+        let all = storage.list_all().expect("list_all");
+        assert!(all.is_empty());
+    }
+
+    #[test]
+    fn test_file_storage_list_all() {
+        let dir = TempDir::new().expect("temp dir");
+        let storage = FileMetricsStorage::new(dir.path().join(".chakravarti"));
+
+        let mut m1 = Metrics::new("job-a", "spec-1");
+        m1.total_time_ms = 100;
+        storage.save(&m1).expect("save m1");
+
+        let mut m2 = Metrics::new("job-b", "spec-2");
+        m2.total_time_ms = 200;
+        storage.save(&m2).expect("save m2");
+
+        let all = storage.list_all().expect("list_all");
+        assert_eq!(all.len(), 2);
+
+        let ids: Vec<&str> = all.iter().map(|m| m.job_id.as_str()).collect();
+        assert!(ids.contains(&"job-a"));
+        assert!(ids.contains(&"job-b"));
     }
 }

@@ -18,6 +18,7 @@ pub mod task;
 pub mod term;
 pub mod test;
 pub mod ui;
+pub mod usage;
 pub mod verify;
 
 /// Emit a JSON value to stdout if requested.
