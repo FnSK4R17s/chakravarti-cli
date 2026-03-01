@@ -25,34 +25,48 @@ pub struct DiffQuery {
 /// Diff response.
 #[derive(Debug, Serialize)]
 pub struct DiffResponse {
+    /// Base branch used for comparison.
     pub base_branch: String,
+    /// Target branch or ref.
     pub target_branch: String,
+    /// Per-file diff details.
     pub files: Vec<FileDiff>,
+    /// Aggregate diff statistics.
     pub stats: DiffStats,
 }
 
 /// File diff details.
 #[derive(Debug, Serialize)]
 pub struct FileDiff {
+    /// File path relative to project root.
     pub path: String,
+    /// Change status (added, modified, deleted).
     pub status: String,
+    /// Number of lines added.
     pub additions: u32,
+    /// Number of lines deleted.
     pub deletions: u32,
+    /// Full unified diff output.
     pub diff: String,
 }
 
 /// Diff statistics.
 #[derive(Debug, Serialize)]
 pub struct DiffStats {
+    /// Total number of files changed.
     pub files_changed: u32,
+    /// Total lines inserted across all files.
     pub insertions: u32,
+    /// Total lines deleted across all files.
     pub deletions: u32,
 }
 
 /// Branches response.
 #[derive(Debug, Serialize)]
 pub struct BranchesResponse {
+    /// Current HEAD branch name.
     pub current: String,
+    /// All available branch names.
     pub branches: Vec<String>,
 }
 

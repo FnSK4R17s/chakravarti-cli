@@ -1,6 +1,14 @@
 //! Step types for plan execution.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use serde::{Deserialize, Serialize};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// A single step in an execution plan.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +36,10 @@ pub struct Step {
     #[serde(default)]
     pub duration_ms: Option<u64>,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl Step {
     /// Create a new step with default status.
@@ -79,9 +91,15 @@ pub enum StepStatus {
     /// Completed successfully.
     Completed,
     /// Failed with an error.
-    Failed { error: String },
+    Failed {
+        /// The error message describing the failure.
+        error: String,
+    },
     /// Skipped (dependency failed or not needed).
-    Skipped { reason: String },
+    Skipped {
+        /// The reason the step was skipped.
+        reason: String,
+    },
 }
 
 impl StepStatus {

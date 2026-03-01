@@ -11,6 +11,7 @@ use tauri::State;
 /// Response wrapper for list_plans.
 #[derive(Serialize)]
 pub struct ListPlansWrapped {
+    /// Plans response data.
     plans: ListPlansResponse,
 }
 

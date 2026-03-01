@@ -510,6 +510,11 @@ impl DockerClient {
         })
     }
 
+    /// Create a long-lived session container for interactive command execution.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the container cannot be created or started.
     pub async fn create_session(
         &self,
         workdir: &str,

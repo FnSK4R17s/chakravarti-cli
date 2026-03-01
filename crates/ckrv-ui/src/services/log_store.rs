@@ -3,6 +3,10 @@
 //! Logs are stored as JSONL (JSON Lines) files, one line per log entry.
 //! This format supports append-only writes and streaming reads.
 
+// ============================================================
+// Imports
+// ============================================================
+
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -11,6 +15,10 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 
 use crate::models::log::{ExecutionLogFile, LogEntry};
+
+// ============================================================
+// LogStore
+// ============================================================
 
 /// Service for reading and writing execution logs to disk.
 ///
@@ -269,6 +277,10 @@ impl LogStore {
         Ok(executions)
     }
 }
+
+// ============================================================
+// Tests
+// ============================================================
 
 #[cfg(test)]
 mod tests {

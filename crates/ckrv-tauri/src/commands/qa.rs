@@ -1,4 +1,8 @@
-//! QA commands for Tauri IPC
+//! QA commands for Tauri IPC.
+
+// ============================================================
+// Imports
+// ============================================================
 
 use crate::SharedState;
 use ckrv_transport::handlers::qa::{
@@ -8,36 +12,55 @@ use ckrv_transport::handlers::qa::{
 use serde::Serialize;
 use tauri::State;
 
+// ============================================================
+// Types
+// ============================================================
+
 /// Response wrapper for QA agent to match frontend expectations.
 #[derive(Serialize)]
 pub struct QAAgentWrapped {
+    /// Configured QA agent, if any.
     agent: Option<QAAgentInfo>,
 }
 
 /// Response wrapper for QA review to match frontend expectations.
 #[derive(Serialize)]
 pub struct QAReviewWrapped {
+    /// Whether the review completed successfully.
     success: bool,
+    /// Review output if successful.
     review: Option<QAReviewOutput>,
+    /// Error message if the review failed.
     error: Option<String>,
 }
 
 /// Response wrapper for QA bugs to match frontend expectations.
 #[derive(Serialize)]
 pub struct QABugsWrapped {
+    /// Whether bug analysis completed successfully.
     success: bool,
+    /// List of issues found.
     issues: Option<Vec<QAIssue>>,
+    /// Error message if analysis failed.
     error: Option<String>,
 }
 
 /// Response wrapper for QA report to match frontend expectations.
 #[derive(Serialize)]
 pub struct QAReportWrapped {
+    /// Whether the report was generated successfully.
     success: bool,
+    /// Full review output.
     review: Option<QAReviewOutput>,
+    /// Generated report content.
     report: Option<String>,
+    /// Error message if generation failed.
     error: Option<String>,
 }
+
+// ============================================================
+// Handlers
+// ============================================================
 
 /// Get the configured QA agent.
 #[tauri::command]

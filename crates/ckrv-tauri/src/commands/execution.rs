@@ -1,7 +1,11 @@
-//! Execution commands for Tauri IPC
+//! Execution commands for Tauri IPC.
 //!
 //! Provides commands for starting/stopping executions and listening to events.
 //! Events are emitted to the frontend via Tauri's event system.
+
+// ============================================================
+// Imports
+// ============================================================
 
 use crate::SharedState;
 use ckrv_transport::handlers::execution::{
@@ -12,6 +16,10 @@ use ckrv_transport::handlers::execution::{
 use ckrv_transport::hub::OrchestrationEvent;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
+
+// ============================================================
+// Handlers
+// ============================================================
 
 /// Start an execution and emit events to the frontend.
 ///
@@ -96,12 +104,20 @@ pub async fn stop_execution(
         .map_err(|e| e.to_string())
 }
 
+// ============================================================
+// Types
+// ============================================================
+
 /// Execution status response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionStatusResponse {
+    /// Whether an execution is currently running.
     pub is_running: bool,
+    /// Name of the spec being executed.
     pub current_spec: Option<String>,
+    /// ID of the currently executing batch.
     pub current_batch: Option<String>,
+    /// Overall progress as a fraction (0.0 to 1.0).
     pub progress: f32,
 }
 

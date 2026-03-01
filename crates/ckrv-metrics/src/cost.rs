@@ -1,8 +1,16 @@
 //! Cost estimation with model pricing.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+
+// ============================================================
+// COST ESTIMATE
+// ============================================================
 
 /// Cost estimate for a job.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -34,6 +42,10 @@ impl CostEstimate {
         pricing.calculate(model, input_tokens, output_tokens)
     }
 }
+
+// ============================================================
+// MODEL PRICING
+// ============================================================
 
 /// Model pricing information (per 1M tokens).
 #[derive(Debug, Clone)]
@@ -113,6 +125,10 @@ impl ModelPricing {
         (1.0, 2.0)
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

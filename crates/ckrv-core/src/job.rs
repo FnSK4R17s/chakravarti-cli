@@ -1,11 +1,19 @@
 //! Job and Attempt types.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{RunState, Spec};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// A job execution configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,6 +30,10 @@ pub struct JobConfig {
     /// Maximum retry attempts.
     pub max_attempts: u32,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl Default for JobConfig {
     fn default() -> Self {
@@ -188,6 +200,10 @@ impl AttemptResult {
         matches!(self, Self::Succeeded { .. })
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

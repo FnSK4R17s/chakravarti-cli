@@ -1,7 +1,11 @@
-//! Terminal commands for Tauri IPC
+//! Terminal commands for Tauri IPC.
 //!
 //! This module provides terminal/shell capabilities using Docker containers for
 //! sandboxed agent execution. Uses ckrv-sandbox for container management.
+
+// ============================================================
+// Imports
+// ============================================================
 
 use crate::SharedState;
 use ckrv_sandbox::DockerClient;
@@ -11,6 +15,10 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::State;
+
+// ============================================================
+// Types
+// ============================================================
 
 /// Session state for managing active terminal sessions.
 pub type TerminalSessions = Arc<Mutex<HashMap<String, TerminalSession>>>;
@@ -26,20 +34,26 @@ pub struct TerminalSession {
 /// Response for terminal start.
 #[derive(Debug, Serialize)]
 pub struct TerminalStartResponse {
+    /// Session identifier.
     pub session_id: String,
+    /// Whether the session was created successfully.
     pub success: bool,
+    /// Status message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+    /// Docker container ID if created.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_id: Option<String>,
-    /// Mode indicator for frontend (tauri = use IPC, web = use WebSocket)  
+    /// Mode indicator for frontend (tauri = use IPC, web = use WebSocket).
     pub mode: String,
 }
 
 /// Response for terminal stop.
 #[derive(Debug, Serialize)]
 pub struct TerminalStopResponse {
+    /// Whether the session was stopped successfully.
     pub success: bool,
+    /// Status message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
 }
@@ -47,10 +61,17 @@ pub struct TerminalStopResponse {
 /// Terminal output event.
 #[derive(Debug, Clone, Serialize)]
 pub struct TerminalOutput {
+    /// Session this output belongs to.
     pub session_id: String,
+    /// Output content.
     pub data: String,
+    /// Whether this is error output.
     pub is_error: bool,
 }
+
+// ============================================================
+// Helpers
+// ============================================================
 
 /// Convert transport AgentConfig to sandbox AgentConfig for container setup.
 fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
@@ -132,6 +153,10 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
 
     env
 }
+
+// ============================================================
+// Handlers
+// ============================================================
 
 /// Start a terminal session with Docker container.
 #[tauri::command(rename_all = "snake_case")]

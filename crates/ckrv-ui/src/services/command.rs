@@ -47,9 +47,14 @@ use ckrv_transport::{AppState, SystemMode, OrchestrationEvent};
 use std::process::{Command, Stdio};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
+/// CLI command execution wrapper for web UI integration.
+///
+/// Provides async methods that invoke `ckrv` CLI commands as child processes,
+/// streaming stdout/stderr to connected WebSocket clients via orchestration events.
 pub struct CommandService;
 
 impl CommandService {
+    /// Create a new command service instance.
     pub fn new() -> Self {
         Self
     }
@@ -119,6 +124,7 @@ impl CommandService {
         }
     }
 
+    /// Run `ckrv init` to initialize the repository structure.
     pub async fn run_init(state: &AppState) -> Result<String, String> {
         Self::emit_step_start(state, "Initialize Repository");
         Self::emit_log(state, "Starting repository initialization...");
@@ -220,6 +226,7 @@ impl CommandService {
         }
     }
 
+    /// Run `git init` to initialize a new Git repository.
     pub async fn run_git_init(state: &AppState) -> Result<String, String> {
         Self::emit_step_start(state, "Git Initialize");
         Self::emit_log(state, "Initializing git repository...");
@@ -303,6 +310,7 @@ impl CommandService {
         }
     }
 
+    /// Run `ckrv spec new` to create a new specification from a description.
     pub async fn run_spec_new(
         state: &AppState,
         description: &str,
@@ -428,6 +436,7 @@ impl CommandService {
         }
     }
 
+    /// Run `ckrv spec tasks` to generate tasks from the active specification.
     pub async fn run_spec_tasks(state: &AppState) -> Result<String, String> {
         Self::emit_step_start(state, "Generate Tasks");
         Self::emit_log(
@@ -764,6 +773,7 @@ impl CommandService {
         Self::run_execute(state).await
     }
 
+    /// Run `ckrv diff` to view changes between the current branch and base.
     pub async fn run_diff(
         state: &AppState,
         base: Option<&str>,
@@ -916,6 +926,7 @@ impl CommandService {
         }
     }
 
+    /// Run `ckrv verify` to check lint, types, and tests.
     pub async fn run_verify(
         state: &AppState,
         lint: bool,
@@ -1119,6 +1130,7 @@ impl CommandService {
         }
     }
 
+    /// Run `ckrv promote` to create a pull request from the current branch.
     pub async fn run_promote(
         state: &AppState,
         base: Option<&str>,
@@ -1210,6 +1222,7 @@ impl CommandService {
         }
     }
 
+    /// Run `ckrv fix` to auto-fix lint, type, and test issues.
     pub async fn run_fix(
         state: &AppState,
         lint: bool,

@@ -1,5 +1,9 @@
 //! Tool allowlist for sandboxed execution.
 
+// ============================================================
+// ALLOWLIST TRAIT
+// ============================================================
+
 /// Trait for checking command allowlist.
 pub trait AllowList: Send + Sync {
     /// Check if a command is allowed.
@@ -11,6 +15,10 @@ pub trait AllowList: Send + Sync {
     /// Get list of blocked patterns.
     fn blocked_patterns(&self) -> &[String];
 }
+
+// ============================================================
+// DEFAULT ALLOWLIST
+// ============================================================
 
 /// Default allowlist configuration.
 #[derive(Debug, Clone)]
@@ -129,6 +137,10 @@ impl DefaultAllowList {
         self
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

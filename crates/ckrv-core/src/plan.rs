@@ -1,9 +1,17 @@
 //! Plan and step dependencies.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::Step;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// A plan is a deterministic DAG of execution steps.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,6 +28,10 @@ pub struct Plan {
     /// When the plan was generated.
     pub created_at: DateTime<Utc>,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl Plan {
     /// Create a new plan for a specification.
@@ -50,6 +62,10 @@ impl Plan {
             .collect()
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

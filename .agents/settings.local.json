@@ -17,7 +17,14 @@
       "Bash(cargo clean:*)",
       "Bash(gh run list:*)",
       "Bash(cargo tree:*)",
-      "Bash(docker build:*)"
+      "Bash(docker build:*)",
+      "Bash(make help:*)",
+      "Bash(just --dry-run install-quick:*)",
+      "Bash(CKRV_SKIP_DOCKER=true just --dry-run:*)",
+      "Bash(ls:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker exec:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
