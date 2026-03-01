@@ -235,6 +235,7 @@ impl std::fmt::Display for SessionStatus {
                   # Pass flags directly (scripting)\n\
                   ckrv term -- --dangerously-skip-permissions --continue"
 )]
+/// Arguments for the interactive agent terminal session command.
 pub struct TermArgs {
     /// Agent ID to spawn directly (skips interactive agent selection)
     #[arg(short, long)]

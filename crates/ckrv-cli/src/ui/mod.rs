@@ -35,23 +35,44 @@
 //! When `--json` is passed, the UI enters "silent mode" where all
 //! decorative output is suppressed and only structured JSON is emitted.
 
+// ============================================================
+// MODULES
+// ============================================================
+
+/// Reusable terminal UI components (banners, tables, panels).
 pub mod components;
+/// Animated loading indicators for long-running operations.
 pub mod spinner;
+/// Terminal capability detection (color, unicode, interactivity).
 pub mod terminal;
+/// Visual theming configuration (colors, styles, markdown skin).
 pub mod theme;
+
+// ============================================================
+// IMPORTS
+// ============================================================
 
 use terminal::should_enable_rich_ui;
 pub use theme::Theme;
 
+// ============================================================
+// TYPES
+// ============================================================
+
 /// The main entry point for interaction with the CLI UI.
 /// It holds the theme and determines whether to render rich output.
 pub struct UiContext {
+    /// Active theme controlling colors and styling.
     pub theme: Theme,
     /// Whether rich interaction (Spinners, Colors) is allowed.
     pub is_interactive: bool,
     /// If true, we are in "Silent Mode" (e.g. JSON output), suppressing banners/decorations.
     pub silent: bool,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl UiContext {
     /// Create a new UI context.
@@ -129,6 +150,7 @@ impl UiContext {
     }
 }
 
+/// Trait for UI components that can be rendered to a string with theming.
 pub trait Renderable {
     /// Render the component to a string, respecting the provided theme.
     fn render(&self, theme: &Theme) -> String;

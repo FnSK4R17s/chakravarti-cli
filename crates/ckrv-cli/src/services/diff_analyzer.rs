@@ -1,11 +1,19 @@
 //! Git diff analyzer - analyze changes vs base branch.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 use std::process::Command;
 
 use serde::Serialize;
 
-/// Type of file change
+// ============================================================
+// TYPES
+// ============================================================
+
+/// Type of file change.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ChangeType {
@@ -15,7 +23,7 @@ pub enum ChangeType {
     Renamed,
 }
 
-/// A file that changed
+/// A file that changed in the diff.
 #[derive(Debug, Clone, Serialize)]
 pub struct ChangedFile {
     /// Path to the changed file.
@@ -28,7 +36,11 @@ pub struct ChangedFile {
     pub lines_removed: u32,
 }
 
-/// Get the default base branch (usually main or master)
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Get the default base branch (usually main or master).
 pub fn get_base_branch() -> anyhow::Result<String> {
     // Try to get the default branch from remote
     let output = Command::new("git")

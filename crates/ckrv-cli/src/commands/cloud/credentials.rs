@@ -6,6 +6,7 @@ use clap::{Args, Subcommand};
 #[derive(Debug, Args)]
 pub struct CredentialsArgs {
     #[command(subcommand)]
+    /// Credentials subcommand to execute.
     pub command: CredentialsCommand,
 }
 

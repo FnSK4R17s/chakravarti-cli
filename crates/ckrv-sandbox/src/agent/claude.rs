@@ -1,16 +1,24 @@
 //! Claude Code CLI provider implementation.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use super::{AgentConfig, AgentOutput, AgentProvider, AgentType};
 use anyhow::Result;
 use bollard::models::Mount;
 use std::path::Path;
 
-/// Claude Code CLI provider
+// ============================================================
+// CLAUDE PROVIDER
+// ============================================================
+
+/// Claude Code CLI provider.
 #[derive(Debug, Default)]
 pub struct ClaudeProvider;
 
 impl ClaudeProvider {
-    /// Create a new Claude provider
+    /// Create a new Claude provider.
     pub fn new() -> Self {
         Self
     }

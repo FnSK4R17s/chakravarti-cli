@@ -58,7 +58,10 @@ interface ClarifyModalProps {
     clarifications: Clarification[];
     /** Async callback fired when user submits all answers */
     onSubmit: (answers: { topic: string; answer: string }[]) => Promise<void>;
-    /** Whether the submission is in progress */
+    /**
+     * Whether the submission is in progress.
+     * @default false
+     */
     isSubmitting?: boolean;
 }
 

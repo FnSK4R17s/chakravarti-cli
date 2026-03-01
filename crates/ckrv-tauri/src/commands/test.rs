@@ -1,4 +1,8 @@
-//! Test commands for Tauri IPC
+//! Test commands for Tauri IPC.
+
+// ============================================================
+// Imports
+// ============================================================
 
 use crate::SharedState;
 use ckrv_transport::handlers::test::{
@@ -11,118 +15,180 @@ use ckrv_transport::handlers::test::{
 use serde::Serialize;
 use tauri::State;
 
+// ============================================================
+// Types
+// ============================================================
+
 /// Response wrapper for test agent.
 #[derive(Serialize)]
 pub struct TestAgentWrapped {
+    /// Configured test writer agent, if any.
     agent: Option<TestWriterAgentInfo>,
 }
 
 /// Response wrapper for running tests to match frontend expectations.
 #[derive(Serialize)]
 pub struct TestRunWrapped {
+    /// Whether all tests passed.
     success: bool,
+    /// Test result data if execution completed.
     result: Option<TestRunResponseData>,
+    /// Error message if execution failed.
     error: Option<String>,
 }
 
 /// Test result data matching frontend expectations.
 #[derive(Serialize)]
 pub struct TestRunResponseData {
+    /// Total number of tests.
     total: u32,
+    /// Number of passing tests.
     passed: u32,
+    /// Number of failing tests.
     failed: u32,
+    /// Number of skipped tests.
     skipped: u32,
+    /// Total execution time in milliseconds.
     duration_ms: u64,
+    /// Details of each failing test.
     failures: Vec<TestFailureData>,
+    /// Test framework used (e.g., "vitest").
     framework: String,
 }
 
 /// Test failure data.
 #[derive(Serialize)]
 pub struct TestFailureData {
+    /// Test case name.
     name: String,
+    /// File containing the failing test.
     file: String,
+    /// Line number of the failure.
     line: Option<u32>,
+    /// Failure message.
     message: String,
+    /// Captured stdout output.
     stdout: Option<String>,
+    /// Captured stderr output.
     stderr: Option<String>,
 }
 
 /// Response wrapper for test plan to match frontend expectations.
 #[derive(Serialize)]
 pub struct TestPlanWrapped {
+    /// Whether the plan was created successfully.
     success: bool,
+    /// Test plan data if creation succeeded.
     plan: Option<TestPlanData>,
+    /// Error message if creation failed.
     error: Option<String>,
 }
 
 /// Test plan data matching frontend expectations.
 #[derive(Serialize)]
 pub struct TestPlanData {
+    /// Unique identifier for the test plan.
     plan_id: String,
+    /// Base branch used for diff analysis.
     base_branch: String,
+    /// Files that changed relative to base.
     changed_files: Vec<ChangedFileData>,
+    /// Tests proposed by the AI agent.
     proposed_tests: Vec<ProposedTestData>,
 }
 
+/// Information about a file changed relative to the base branch.
 #[derive(Serialize)]
 pub struct ChangedFileData {
+    /// File path relative to project root.
     path: String,
+    /// Type of change (added, modified, deleted).
     change_type: String,
+    /// Number of lines added.
     lines_added: u32,
+    /// Number of lines removed.
     lines_removed: u32,
+    /// Whether the file already has tests.
     has_tests: bool,
 }
 
+/// A test proposed by the AI agent.
 #[derive(Serialize)]
 pub struct ProposedTestData {
+    /// File being tested.
     target_file: String,
+    /// Path for the test file.
     test_file: String,
+    /// Description of what the test covers.
     description: String,
+    /// Priority level (high, medium, low).
     priority: String,
 }
 
 /// Response wrapper for test write to match frontend expectations.
 #[derive(Serialize)]
 pub struct TestWriteWrapped {
+    /// Whether tests were written successfully.
     success: bool,
+    /// Success message with count of tests written.
     message: Option<String>,
+    /// Error message if writing failed.
     error: Option<String>,
 }
 
 /// Response wrapper for coverage to match frontend expectations.
 #[derive(Serialize)]
 pub struct CoverageWrapped {
+    /// Whether coverage data was collected successfully.
     success: bool,
+    /// Coverage data if collection succeeded.
     coverage: Option<CoverageData>,
+    /// Error message if collection failed.
     error: Option<String>,
 }
 
+/// Coverage statistics data.
 #[derive(Serialize)]
 pub struct CoverageData {
+    /// Total number of files analyzed.
     total: u32,
+    /// Number of files with test coverage.
     covered: u32,
+    /// Number of files without test coverage.
     uncovered: u32,
+    /// Overall coverage percentage.
     coverage_percent: f32,
 }
 
 /// Response wrapper for plan status.
 #[derive(Serialize)]
 pub struct PlanStatusWrapped {
+    /// Whether a test plan exists.
     exists: bool,
+    /// Test plan data if it exists.
     plan: Option<TestPlanData>,
 }
 
 /// Response wrapper for write status.
 #[derive(Serialize)]
 pub struct WriteStatusWrapped {
+    /// Whether a test write session exists.
     exists: bool,
+    /// When the write completed.
     completed_at: Option<String>,
+    /// Current write status.
     status: Option<String>,
+    /// Agent that performed the write.
     agent_name: Option<String>,
+    /// Git branch used for the worktree.
     worktree_branch: Option<String>,
+    /// Base branch for comparison.
     base_branch: Option<String>,
 }
+
+// ============================================================
+// Handlers
+// ============================================================
 
 /// Get test writer agent.
 #[tauri::command]

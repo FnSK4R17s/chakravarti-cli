@@ -11,6 +11,10 @@
 
 mod commands;
 
+// ============================================================
+// Imports
+// ============================================================
+
 use ckrv_transport::AppState;
 use commands::terminal::TerminalSessions;
 use std::collections::HashMap;
@@ -19,9 +23,14 @@ use tauri::Manager;
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-/// Shared application state type for Tauri commands
+// ============================================================
+// Application
+// ============================================================
+
+/// Shared application state type for Tauri commands.
 pub type SharedState = Arc<RwLock<AppState>>;
 
+/// Application entry point.
 fn main() {
     // Initialize logging
     tracing_subscriber::registry()

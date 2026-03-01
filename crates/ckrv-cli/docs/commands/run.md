@@ -1,12 +1,15 @@
 ---
 command: run
-generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 508766e
+generated_from: lib.rs
+last_commit: f92f604
+hidden: true
 ---
 
 # ckrv run
 
-Run a job based on a specification
+Run a job based on a specification.
+
+> **Note**: This is a legacy top-level command. Prefer `ckrv code run` for the unified Code workflow.
 
 ## Description
 
@@ -20,17 +23,17 @@ Results are committed to a feature branch for review.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `spec` | No | Path to the specification file. If not provided, will detect from branch name |
+| `<spec>` | No | Path to the specification file (auto-detects from branch if not provided) |
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
-| `--agent` | Agent to use for execution: claude or codex (default: claude) |
+| `--optimize`, `-o` | Optimization strategy: cost, time, or balanced (default: balanced) |
+| `--executor-model`, `-e` | Override the AI model/agent to use |
+| `--agent <AGENT>` | Agent to use: claude, codex, or kilo (default: claude) |
 | `--cloud` | Execute job in Chakravarti Cloud instead of locally |
-| `--credential` | Git credential name to use for cloud execution (for private repos) |
-| `--executor-model`, `-e` | Override the AI model/agent to use for execution |
-| `--optimize`, `-o` | Optimization strategy (default: balanced) |
+| `--credential <NAME>` | Git credential name for cloud execution (private repos) |
 
 ## Examples
 

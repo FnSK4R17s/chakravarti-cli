@@ -1,4 +1,7 @@
 //! Model provider abstraction.
+//!
+//! Defines the [`ModelProvider`] trait and its associated request/response types
+//! that all LLM backends must implement.
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
