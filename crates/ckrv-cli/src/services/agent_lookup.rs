@@ -1,11 +1,19 @@
 //! Agent lookup service - find agents by role.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-/// Agent type enumeration
+// ============================================================
+// TYPES
+// ============================================================
+
+/// Agent type enumeration.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentType {
@@ -105,13 +113,18 @@ fn default_enabled() -> bool {
     true
 }
 
-/// Agents configuration file
+/// Agents configuration file.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AgentsFile {
+    /// List of configured agents.
     pub agents: Vec<AgentConfig>,
 }
 
-/// Get the path to the agents config file
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Get the path to the agents config file.
 pub fn get_agents_path() -> PathBuf {
     dirs::config_dir()
         .map(|d| d.join("chakravarti").join("agents.yaml"))

@@ -1,12 +1,13 @@
 ---
 command: pull
-generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 508766e
+generated_from: lib.rs
+last_commit: f92f604
+hidden: true
 ---
 
 # ckrv pull
 
-Pull results from a completed cloud job
+Pull results from a completed cloud job.
 
 ## Description
 
@@ -20,14 +21,14 @@ Jobs must be in a 'completed' state to pull.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `job_id` | Yes | Job ID to pull results from |
+| `<job_id>` | Yes | Job ID to pull results from |
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
 | `--apply` | Apply diff to current worktree (default: true) |
-| `--output` | Output diff to file instead of applying |
+| `--output <PATH>` | Output diff to file instead of applying |
 
 ## Examples
 
@@ -35,6 +36,6 @@ Jobs must be in a 'completed' state to pull.
 # Pull results to current directory
 ckrv pull <job-id>
 
-# Save diff to file
-ckrv pull <job-id> --output changes.patch
+# Pull and create new branch
+ckrv pull <job-id> --branch feature/new
 ```

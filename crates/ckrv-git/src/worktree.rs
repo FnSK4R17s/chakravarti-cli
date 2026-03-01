@@ -1,10 +1,18 @@
 //! Git worktree management.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::GitError;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// A git worktree for isolated execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,6 +47,10 @@ pub enum WorktreeStatus {
     Deleted,
 }
 
+// ============================================================
+// TRAITS
+// ============================================================
+
 /// Trait for managing git worktrees.
 pub trait WorktreeManager: Send + Sync {
     /// Create a new worktree for a job attempt.
@@ -70,7 +82,11 @@ pub trait WorktreeManager: Send + Sync {
     fn list(&self) -> Result<Vec<Worktree>, GitError>;
 }
 
-/// Default worktree manager using git2.
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Default worktree manager backed by the `git2` library.
 #[derive(Clone)]
 pub struct DefaultWorktreeManager {
     /// Path to the main repository.
@@ -213,6 +229,10 @@ impl WorktreeManager for DefaultWorktreeManager {
         Ok(worktrees)
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

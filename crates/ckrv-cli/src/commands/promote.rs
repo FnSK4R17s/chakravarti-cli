@@ -1,5 +1,9 @@
 //! Promote command - create a pull/merge request for the current branch.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use clap::Args;
@@ -8,6 +12,10 @@ use serde::{Deserialize, Serialize};
 use crate::ui::components::Banner;
 use crate::ui::Renderable;
 use crate::ui::UiContext;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the promote command
 #[derive(Args)]
@@ -37,14 +45,22 @@ pub struct PromoteArgs {
     pub skip_verify: bool,
 }
 
+/// Serializable output for the promote command.
 #[derive(Serialize)]
 pub struct PromoteOutput {
+    /// Whether the promote operation succeeded.
     pub success: bool,
+    /// Source branch being promoted.
     pub branch: String,
+    /// Target base branch for the PR.
     pub base: String,
+    /// Whether the branch was pushed to the remote.
     pub pushed: bool,
+    /// URL of the created (or suggested) pull request.
     pub pr_url: Option<String>,
+    /// Number of the created pull request, if available.
     pub pr_number: Option<u64>,
+    /// Human-readable status message.
     pub message: String,
 }
 
@@ -62,7 +78,11 @@ struct SpecYaml {
     description: Option<String>,
 }
 
-/// Execute the promote command
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Execute the promote command.
 pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 

@@ -24,36 +24,47 @@ static SESSIONS: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| Mutex::new(
 /// Request to start a new session.
 #[derive(Debug, Deserialize)]
 pub struct StartSessionRequest {
+    /// Unique identifier for the session.
     pub session_id: String,
 }
 
 /// Response from starting a session.
 #[derive(Debug, Serialize)]
 pub struct StartSessionResponse {
+    /// Session identifier.
     pub session_id: String,
+    /// Docker container ID if created.
     pub container_id: Option<String>,
 }
 
 /// Request to execute in a session.
 #[derive(Debug, Deserialize)]
 pub struct ExecRequest {
+    /// Session to execute in.
     pub session_id: String,
+    /// Shell command to run.
     pub command: String,
 }
 
 /// Response from exec.
 #[derive(Debug, Serialize)]
 pub struct ExecResponse {
+    /// Whether the command exited with code 0.
     pub success: bool,
+    /// Standard output from the command.
     pub stdout: String,
+    /// Standard error from the command.
     pub stderr: String,
+    /// Process exit code.
     pub exit_code: i32,
+    /// Execution duration in milliseconds.
     pub duration_ms: u64,
 }
 
 /// Request to stop a session.
 #[derive(Debug, Deserialize)]
 pub struct StopSessionRequest {
+    /// Session to stop.
     pub session_id: String,
 }
 

@@ -1,5 +1,9 @@
 //! QA command - code review and bug analysis.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use clap::{Args, Subcommand};
 use serde::Serialize;
 
@@ -10,10 +14,15 @@ use crate::services::{
 use crate::ui::components::Banner;
 use crate::ui::{Renderable, UiContext};
 
+// ============================================================
+// TYPES
+// ============================================================
+
 /// Arguments for the qa command
 #[derive(Args)]
 pub struct QaArgs {
     #[command(subcommand)]
+    /// QA subcommand to execute.
     pub command: QaSubcommand,
 }
 
@@ -21,6 +30,23 @@ pub struct QaArgs {
 #[derive(Subcommand)]
 pub enum QaSubcommand {
     /// Review code quality of changes
+    #[command(
+        long_about = "Review code quality of changes against a base branch.\n\n\
+                      Analyzes modified files for code quality issues including style violations, \
+                      missing documentation, complexity concerns, and best-practice deviations. \
+                      Produces a structured report with severity-ranked findings.\n\n\
+                      Results can be saved to a file with --output or printed to stdout. \
+                      When --json is used, output is a machine-readable QaReviewOutput object.\n\n\
+                      Requires a configured QA agent. If no agent is found, exits with code 4. \
+                      Exits with code 1 if critical issues are detected.",
+        after_help = "Examples:\n\
+                      # Review changes against the default base branch (main)\n\
+                      ckrv qa review\n\n\
+                      # Review changes against a specific branch\n\
+                      ckrv qa review --base develop\n\n\
+                      # Save review report to a file\n\
+                      ckrv qa review --output qa-review.md"
+    )]
     Review {
         /// Branch to compare against (default: main)
         #[arg(long, default_value = "main")]
@@ -32,6 +58,21 @@ pub enum QaSubcommand {
     },
 
     /// Analyze for potential bugs
+    #[command(
+        long_about = "Analyze changed files for potential bugs and error-handling gaps.\n\n\
+                      Scans the diff against the base branch and filters findings to only \
+                      bug-related categories: potential bugs and missing or incorrect error \
+                      handling. Each finding includes a severity level and a suggested fix.\n\n\
+                      Requires a configured QA agent. If no agent is found, exits with code 4. \
+                      Full bug analysis with deeper heuristics requires Docker sandbox integration.",
+        after_help = "Examples:\n\
+                      # Scan for bugs against the default base branch (main)\n\
+                      ckrv qa bugs\n\n\
+                      # Scan for bugs against a specific branch\n\
+                      ckrv qa bugs --base develop\n\n\
+                      # Get machine-readable bug list\n\
+                      ckrv qa bugs --json"
+    )]
     Bugs {
         /// Branch to compare against (default: main)
         #[arg(long, default_value = "main")]
@@ -39,6 +80,22 @@ pub enum QaSubcommand {
     },
 
     /// Generate full QA report
+    #[command(
+        long_about = "Generate a comprehensive QA report covering all analysis categories.\n\n\
+                      Produces a Markdown report that includes a change summary, file-level \
+                      breakdown (when --full is used), and all QA findings ranked by severity. \
+                      The report header contains branch name, base branch, and timestamp.\n\n\
+                      Requires a configured QA agent. If no agent is found, exits with code 4. \
+                      Use --full to include per-file statistics (lines added/removed, change type) \
+                      in the report.",
+        after_help = "Examples:\n\
+                      # Generate a standard report against main\n\
+                      ckrv qa report\n\n\
+                      # Generate a full report with per-file details\n\
+                      ckrv qa report --full\n\n\
+                      # Save the full report to a file against a custom base\n\
+                      ckrv qa report --full --base develop --output qa-report.md"
+    )]
     Report {
         /// Branch to compare against (default: main)
         #[arg(long, default_value = "main")]
@@ -54,17 +111,26 @@ pub enum QaSubcommand {
     },
 }
 
-/// Output for QA review
+/// Serializable output for QA review results.
 #[derive(Serialize)]
 pub struct QaReviewOutput {
+    /// Unique identifier for this review report.
     pub report_id: String,
+    /// Base branch compared against.
     pub base_branch: String,
+    /// Issues discovered during review.
     pub issues: Vec<QAIssue>,
+    /// Aggregated issue counts by severity.
     pub summary: QASummary,
+    /// ID of the agent that performed the review.
     pub agent_id: Option<String>,
 }
 
-/// Execute the qa command
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Execute the qa command.
 pub async fn execute(args: QaArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     match args.command {
         QaSubcommand::Review { base, output } => execute_review(&base, output, json, ui).await,

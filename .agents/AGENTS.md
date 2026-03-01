@@ -108,16 +108,16 @@ just install-quick
 ## CLI Usage
 
 ```bash
-ckrv init                    # Initialize repository
-ckrv spec new "description"  # Create spec
-ckrv spec tasks              # Generate tasks
-ckrv plan                    # Generate execution plan
-ckrv run                     # Execute orchestration
-ckrv diff                    # View changes
-ckrv verify                  # Run tests/lint
-ckrv fix                     # AI-powered fixes
-ckrv promote --push --open   # Create PR
-ckrv ui                      # Launch Web UI
+ckrv init                         # Initialize repository
+ckrv code spec new "description"  # Create spec
+ckrv code tasks                   # Generate tasks
+ckrv code plan                    # Generate execution plan
+ckrv code run                     # Execute orchestration
+ckrv code diff                    # View changes
+ckrv verify                       # Run tests/lint
+ckrv fix                          # AI-powered fixes
+ckrv promote --push --open        # Create PR
+ckrv ui                           # Launch Web UI
 ```
 
 ## Agents

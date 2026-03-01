@@ -1,6 +1,6 @@
 ---
-last_commit: 508766e
-last_updated: 2026-02-15
+last_commit: f92f604
+last_updated: 2026-03-01
 related_files:
   - crates/ckrv-cli/src/lib.rs
   - crates/ckrv-cli/src/commands/mod.rs
@@ -23,7 +23,8 @@ ckrv [OPTIONS] <COMMAND>
 |--------|-------------|
 | `-h, --help` | Print help information |
 | `-V, --version` | Print version |
-| `--verbose` | Enable verbose logging |
+| `-v, --verbose` | Enable verbose logging |
+| `-q, --quiet` | Suppress non-essential output |
 | `--json` | Output in JSON format |
 
 ## Commands
@@ -45,51 +46,47 @@ ckrv init [OPTIONS]
 
 ---
 
-### `spec`
+### `code`
 
-Manage feature specifications.
+Code workflow commands — mirrors the Code page tabs in the Web UI.
 
 ```bash
-ckrv spec <SUBCOMMAND>
+ckrv code <SUBCOMMAND>
 ```
 
 **Subcommands:**
-- `new <description>`: Create new spec from description
-- `clarify`: Resolve clarifications in an existing spec
-- `design`: Generate technical design document
-- `init <name>`: Initialize an empty spec directory with templates
-- `tasks`: Generate implementation tasks
-- `validate`: Validate a specification file
-- `list`: List all specs
+- `spec`: Create and manage feature specifications
+- `tasks`: Generate implementation tasks (alias for `spec tasks`)
+- `plan`: Generate execution plan from tasks (in Docker)
+- `run`: Execute a job based on a specification
+- `diff`: View changes between current branch and base
 
-**Examples:**
+#### `code spec`
+
 ```bash
-ckrv spec new "Add user authentication with OAuth2"
-ckrv spec tasks
-ckrv spec design
+ckrv code spec <SUBCOMMAND>
 ```
 
----
+Subcommands: `new`, `clarify`, `design`, `init`, `tasks`, `validate`, `list`
 
-### `plan`
-
-Generate execution plan from tasks using AI (runs in Docker).
+#### `code tasks`
 
 ```bash
-ckrv plan [OPTIONS] [SPEC]
+ckrv code tasks [SPEC] [--force]
 ```
 
-**Options:**
-- `--force, -f`: Force regeneration even if plan.yaml exists
+Convenience alias for `ckrv code spec tasks`.
 
----
-
-### `run`
-
-Execute the orchestration engine.
+#### `code plan`
 
 ```bash
-ckrv run [OPTIONS] [SPEC]
+ckrv code plan [SPEC] [--force]
+```
+
+#### `code run`
+
+```bash
+ckrv code run [SPEC] [OPTIONS]
 ```
 
 **Options:**
@@ -99,19 +96,10 @@ ckrv run [OPTIONS] [SPEC]
 - `--executor-model, -e`: Override the AI model/agent
 - `--optimize, -o`: Optimization strategy (default: balanced)
 
-**Exit codes:**
-- `0`: All tasks succeeded
-- `1`: One or more tasks failed
-- `2`: User cancelled
-
----
-
-### `diff`
-
-View changes between branches.
+#### `code diff`
 
 ```bash
-ckrv diff [OPTIONS]
+ckrv code diff [OPTIONS]
 ```
 
 **Options:**
@@ -121,29 +109,19 @@ ckrv diff [OPTIONS]
 - `--stat`: Show file statistics only
 - `--summary`: Generate AI summary of changes
 
----
-
-### `verify`
-
-Run code quality checks.
-
+**Examples:**
 ```bash
-ckrv verify [OPTIONS]
+ckrv code spec new "Add user authentication with OAuth2"
+ckrv code tasks
+ckrv code plan
+ckrv code run --agent claude
+ckrv code diff
 ```
 
-> **Note:** This command runs shell commands (e.g., `cargo test`, `cargo clippy`) directly, not via the `ckrv-verify` crate.
-
-**Options:**
-- `--lint`: Run linting only
-- `--test`: Run tests only
-- `--type`: Run type checking only
-- `--fix`: Auto-fix linting issues
-- `--save`: Save results to verification.yaml
-- `--continue-on-failure`: Run all checks even if some fail
-
 **Exit codes:**
-- `0`: All checks passed
-- `1`: One or more checks failed
+- `0`: Success / All tasks succeeded
+- `1`: One or more tasks failed
+- `2`: User cancelled
 
 ---
 
@@ -218,102 +196,52 @@ ckrv qa report --full -o qa.md    # Full report to file
 
 ---
 
-### `fix`
-
-Use AI to fix verification errors.
-
-```bash
-ckrv fix [OPTIONS]
-```
-
-**Options:**
-- `--lint`: Fix lint errors only
-- `--test`: Fix test failures only
-- `--type`: Fix type errors only
-- `--check`: Re-run verification after fix
-- `--error`: Specific error message to fix (from UI)
-
----
-
-### `promote`
-
-Push changes and create Pull Request.
-
-```bash
-ckrv promote [OPTIONS]
-```
-
-**Options:**
-- `--base, -b <branch>`: Target branch (default: main)
-- `--draft`: Create as draft PR
-- `--open`: Open PR URL in browser
-- `--push`: Push to remote first
-- `--remote`: Remote name (default: origin)
-- `--skip-verify`: Skip verification checks
-
----
-
 ### `term`
 
-Spawn an interactive AI agent terminal session.
+Spawn an interactive AI agent terminal session with optional isolation modes.
 
 ```bash
 ckrv term [OPTIONS] [-- ARGS...]
 ```
 
+Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code)
+with the correct environment variables automatically configured.
+
+**Isolation Modes:**
+- **Default**: Agent runs directly in the current working directory
+- **`--worktree`**: Agent runs in an isolated git worktree on a separate branch. After the session, you can view diffs, merge changes, keep for later, or discard.
+- **`--sandbox`**: Agent runs inside a Docker container with credential mounts. Changes are isolated to the container filesystem.
+- **`--sandbox --worktree`**: Maximum isolation -- worktree for code, container for execution.
+
+**Session Management:**
+Use `--name` to create named sessions that can be resumed later with `--resume`.
+Session state is stored in `.chakravarti/sessions/<name>.yaml`.
+
 **Options:**
-- `--agent, -a`: Agent ID to spawn directly (skips selection)
+- `--agent, -a <ID>`: Agent ID to spawn directly (skips interactive selection)
 - `--list, -l`: List available agents and exit
+- `--worktree`: Run agent in an isolated git worktree
+- `--sandbox`: Run agent in a Docker sandbox container
+- `--name <NAME>`: Name for this session (enables resume with `--resume`)
+- `--resume [NAME]`: Resume a session (omit name to select interactively)
+- `--list-sessions`: List all sessions and exit
+- `--cleanup <NAME>`: Clean up a session (removes worktree and state)
+- `--json`: Output in JSON format (for `--list` and `--list-sessions`)
 
 **Examples:**
 ```bash
-ckrv term                              # Interactive selection
-ckrv term --agent my-openrouter-agent  # Direct agent spawn
-ckrv term -- --dangerously-skip-permissions  # Pass args through
-ckrv term --list                       # List agents
+ckrv term                                  # Interactive selection
+ckrv term --agent my-openrouter-agent      # Direct agent spawn
+ckrv term --worktree                       # Isolated worktree mode
+ckrv term --sandbox                        # Docker sandbox mode
+ckrv term --sandbox --worktree             # Maximum isolation
+ckrv term --worktree --name fix-auth       # Named session for resume
+ckrv term --resume fix-auth                # Resume a named session
+ckrv term --list-sessions                  # List all sessions
+ckrv term --cleanup fix-auth               # Remove a session
+ckrv term -- --dangerously-skip-permissions --continue  # Pass args through
+ckrv term --list                           # List agents
 ```
-
----
-
-### `status`
-
-Show current workflow status (hidden command).
-
-```bash
-ckrv status [OPTIONS]
-```
-
-**Options:**
-- `--json`: Output in JSON format
-
----
-
-### `logs`
-
-Stream or view logs from a cloud job.
-
-```bash
-ckrv logs <JOB_ID> [OPTIONS]
-```
-
-**Options:**
-- `--follow, -f`: Stream logs in real-time
-- `--json`: Output as JSON
-- `--tail, -n <N>`: Number of recent lines (default: 100)
-
----
-
-### `pull`
-
-Pull results from a completed cloud job.
-
-```bash
-ckrv pull <JOB_ID> [OPTIONS]
-```
-
-**Options:**
-- `--apply`: Apply diff to current worktree (default: true)
-- `--output`: Output diff to file instead of applying
 
 ---
 
@@ -330,7 +258,109 @@ ckrv ui [OPTIONS]
 
 ---
 
-### `cloud`
+## Hidden Commands
+
+The following commands exist but are hidden from `ckrv --help`. They are still functional.
+
+**Visible commands** (shown in `ckrv --help`): `init`, `code`, `test`, `qa`, `term`, `ui` (6 total).
+
+### Legacy Top-Level Aliases
+
+Prefer `ckrv code <subcommand>` instead:
+
+- `spec`: Legacy top-level form -- use `ckrv code spec` instead
+- `plan`: Legacy top-level form -- use `ckrv code plan` instead
+- `run`: Legacy top-level form -- use `ckrv code run` instead
+- `diff`: Legacy top-level form -- use `ckrv code diff` instead
+
+### `verify` (hidden)
+
+Run tests, lint, and quality checks.
+
+```bash
+ckrv verify [OPTIONS]
+```
+
+> **Note:** This command runs shell commands (e.g., `cargo test`, `cargo clippy`) directly, not via the `ckrv-verify` crate.
+
+**Options:**
+- `--lint`: Run linting only
+- `--test`: Run tests only
+- `--type`: Run type checking only
+- `--fix`: Auto-fix linting issues
+- `--save`: Save results to verification.yaml
+- `--continue-on-failure`: Run all checks even if some fail
+
+**Exit codes:**
+- `0`: All checks passed
+- `1`: One or more checks failed
+
+### `fix` (hidden)
+
+Fix verification errors with AI.
+
+```bash
+ckrv fix [OPTIONS]
+```
+
+**Options:**
+- `--lint`: Fix lint errors only
+- `--test`: Fix test failures only
+- `--type`: Fix type errors only
+- `--check`: Re-run verification after fix
+- `--error`: Specific error message to fix (from UI)
+
+### `promote` (hidden)
+
+Push changes and create Pull Request.
+
+```bash
+ckrv promote [OPTIONS]
+```
+
+**Options:**
+- `--base, -b <branch>`: Target branch (default: main)
+- `--draft`: Create as draft PR
+- `--open`: Open PR URL in browser
+- `--push`: Push to remote first
+- `--remote`: Remote name (default: origin)
+- `--skip-verify`: Skip verification checks
+
+### `task` (hidden)
+
+Execute a workflow-based agent task.
+
+```bash
+ckrv task <TARGET> [OPTIONS]
+```
+
+**Options:**
+- `--workflow, -w <NAME>`: Workflow to use (default: swe)
+- `--dry-run`: Show plan without executing
+- `--continue, -c <ID>`: Continue a previous task by ID
+- `--agent`: Agent tool to use (default: claude)
+- `--no-sandbox`: Skip Docker sandbox and run agent locally
+
+### `status` (hidden)
+
+Check the status of a job.
+
+```bash
+ckrv status <JOB_ID>
+```
+
+### `report` (hidden)
+
+View the metrics report for a job.
+
+```bash
+ckrv report <JOB_ID> [OPTIONS]
+```
+
+**Options:**
+- `--detailed`: Show per-step breakdown
+
+### `cloud` (hidden)
 
 Cloud execution commands.
 
@@ -344,14 +374,30 @@ ckrv cloud <SUBCOMMAND>
 - `whoami`: Display current authenticated user
 - `credentials`: Manage git credentials for private repos
 
----
+### `logs` (hidden)
 
-### Hidden Commands
+Stream or view logs from a cloud job.
 
-The following commands exist but are hidden from `--help`:
-- `task`: Manage individual tasks
-- `status`: Show workflow status
-- `report`: Generate execution report
+```bash
+ckrv logs <JOB_ID> [OPTIONS]
+```
+
+**Options:**
+- `--follow, -f`: Stream logs in real-time
+- `--json`: Output as JSON
+- `--tail, -n <N>`: Number of recent lines (default: 100)
+
+### `pull` (hidden)
+
+Pull results from a completed cloud job.
+
+```bash
+ckrv pull <JOB_ID> [OPTIONS]
+```
+
+**Options:**
+- `--apply`: Apply diff to current worktree (default: true)
+- `--output`: Output diff to file instead of applying
 
 ## Exit Codes
 

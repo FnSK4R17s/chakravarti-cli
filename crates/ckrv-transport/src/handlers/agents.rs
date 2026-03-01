@@ -65,24 +65,33 @@ pub struct AgentFileConfig {
 /// OpenRouter config as stored in file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpenRouterFileConfig {
+    /// OpenRouter API key.
     pub api_key: Option<String>,
+    /// Model ID on OpenRouter.
     pub model: String,
+    /// Custom base URL override.
     pub base_url: Option<String>,
+    /// Maximum output tokens.
     pub max_tokens: Option<u32>,
+    /// Sampling temperature.
     pub temperature: Option<f32>,
 }
 
 /// GLM config as stored in file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlmFileConfig {
+    /// Z.AI API key.
     pub api_key: Option<String>,
+    /// GLM model identifier.
     pub model: String,
+    /// Request timeout in milliseconds.
     pub timeout_ms: Option<u32>,
 }
 
 /// Kilo Code config as stored in file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KiloCodeFileConfig {
+    /// Model ID in provider/model format.
     pub model: String,
 }
 
@@ -103,6 +112,7 @@ fn default_enabled() -> bool {
 /// Agents configuration file.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AgentsFile {
+    /// List of configured agents.
     pub agents: Vec<AgentFileConfig>,
 }
 

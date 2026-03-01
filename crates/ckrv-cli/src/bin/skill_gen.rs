@@ -8,8 +8,16 @@
 //! cargo run -p ckrv-cli --bin skill_gen > .agent/skills/chakravarti-cli/SKILL.md
 //! ```
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use chrono::Utc;
 use ckrv_cli::{extract_command_metadata, CommandMetadata, OptionMetadata};
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 fn main() {
     let metadata = extract_command_metadata();
@@ -17,7 +25,7 @@ fn main() {
     print!("{skill_md}");
 }
 
-/// Generate the complete SKILL.md content from command metadata
+/// Generate the complete SKILL.md content from command metadata.
 fn generate_skill_md(metadata: &CommandMetadata) -> String {
     let mut output = String::new();
 
@@ -54,7 +62,7 @@ fn generate_skill_md(metadata: &CommandMetadata) -> String {
     output
 }
 
-/// Generate YAML frontmatter
+/// Generate YAML frontmatter with name, description, and version metadata.
 fn generate_frontmatter() -> String {
     let now = Utc::now().format("%Y-%m-%dT%H:%M:%SZ");
 
@@ -74,7 +82,7 @@ metadata:
     )
 }
 
-/// Generate global options section
+/// Generate the global options table section.
 fn generate_global_options_section() -> String {
     r#"## Global Options
 
@@ -91,7 +99,7 @@ These options apply to all commands:
     .to_string()
 }
 
-/// Generate a command section with its subcommands
+/// Generate a command section with its subcommands recursively.
 fn generate_command_section(
     cmd: &CommandMetadata,
     parent_path: &str,
@@ -193,7 +201,7 @@ fn generate_command_section(
     output
 }
 
-/// Format an option flag for display
+/// Format an option flag for display in markdown tables.
 fn format_option_flag(opt: &OptionMetadata) -> String {
     let mut flag = String::new();
 

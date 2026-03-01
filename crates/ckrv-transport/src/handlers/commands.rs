@@ -14,52 +14,74 @@ use std::process::Command;
 /// Command execution response.
 #[derive(Debug, Serialize)]
 pub struct CommandResponse {
+    /// Whether the command succeeded.
     pub success: bool,
+    /// Success message.
     pub message: Option<String>,
+    /// Standard output from the command.
     pub output: Option<String>,
+    /// Error output if the command failed.
     pub error: Option<String>,
 }
 
 /// Spec creation request.
 #[derive(Debug, Deserialize)]
 pub struct SpecNewRequest {
+    /// Description of what to build.
     pub description: String,
+    /// Optional name for the spec.
     pub name: Option<String>,
 }
 
 /// Diff command request.
 #[derive(Debug, Deserialize)]
 pub struct DiffRequest {
+    /// Base branch for comparison.
     pub base: Option<String>,
+    /// Show diffstat summary.
     pub stat: Option<bool>,
+    /// Show changed file names only.
     pub files: Option<bool>,
+    /// Show abbreviated summary.
     pub summary: Option<bool>,
 }
 
 /// Verify command request.
 #[derive(Debug, Deserialize)]
 pub struct VerifyRequest {
+    /// Run lint checks.
     pub lint: Option<bool>,
+    /// Run type checking.
     pub typecheck: Option<bool>,
+    /// Run test suite.
     pub test: Option<bool>,
+    /// Auto-fix issues found.
     pub fix: Option<bool>,
 }
 
 /// Promote command request.
 #[derive(Debug, Deserialize)]
 pub struct PromoteRequest {
+    /// Base branch to promote to.
     pub base: Option<String>,
+    /// Create as a draft PR.
     pub draft: Option<bool>,
+    /// Push to remote before creating PR.
     pub push: Option<bool>,
 }
 
 /// Fix command request.
 #[derive(Debug, Deserialize)]
 pub struct FixRequest {
+    /// Fix lint issues.
     pub lint: Option<bool>,
+    /// Fix type errors.
     pub typecheck: Option<bool>,
+    /// Fix failing tests.
     pub test: Option<bool>,
+    /// Run all checks after fixing.
     pub check: Option<bool>,
+    /// Specific error message to fix.
     pub error: Option<String>,
 }
 

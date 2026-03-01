@@ -1,6 +1,6 @@
 ---
-last_commit: 5160ff1
-last_updated: 2026-01-29
+last_commit: f92f604
+last_updated: 2026-03-01
 related_files:
   - src/lib.rs
   - src/executor.rs
@@ -52,8 +52,9 @@ The sandbox automatically mounts agent credentials from the host:
 | Claude Code | GLM Coding Plan | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` env vars |
 | Codex | OpenAI Subscription | `~/.codex/` bind-mounted |
 | GitHub Copilot | GitHub CLI auth | `~/.config/gh/` bind-mounted |
+| Kilo Code | File-based auth | `~/.config/kilo/` bind-mounted (read-write) |
 
-> **Note**: OpenRouter and GLM authentication is handled by `ckrv-cli` and `ckrv-ui`, which set the appropriate environment variables. The sandbox (`ckrv-sandbox`) only provides native Claude and Codex providers.
+> **Note**: OpenRouter and GLM authentication is handled by `ckrv-cli` and `ckrv-ui`, which set the appropriate environment variables. The sandbox (`ckrv-sandbox`) provides native Claude, Codex, and Kilo Code providers.
 
 ## Module Structure
 
@@ -70,6 +71,7 @@ src/
     ├── claude.rs   # Claude Code provider
     ├── codex.rs    # OpenAI Codex provider
     ├── copilot.rs  # GitHub Copilot provider
+    ├── kilo.rs     # Kilo Code provider
     └── tests.rs    # Agent unit tests
 ```
 
@@ -128,6 +130,7 @@ Supported agents in this crate:
 | Claude Code | `ClaudeProvider` | `claude` |
 | OpenAI Codex | `CodexProvider` | `codex` |
 | GitHub Copilot | `GithubCopilotProvider` | `gh copilot` |
+| Kilo Code | `KiloCodeProvider` | `kilo` |
 
 ```rust
 use ckrv_sandbox::{AgentType, create_agent, default_agent};
@@ -135,6 +138,9 @@ use ckrv_sandbox::{AgentType, create_agent, default_agent};
 // Create specific agent
 let agent = create_agent(AgentType::Claude);
 let cmd = agent.build_command(prompt, workdir, &config);
+
+// Create Kilo Code agent
+let kilo = create_agent(AgentType::KiloCode);
 
 // Or use default (Claude)
 let agent = default_agent();

@@ -1,12 +1,15 @@
 ---
 command: plan
-generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 508766e
+generated_from: lib.rs
+last_commit: f92f604
+hidden: true
 ---
 
 # ckrv plan
 
-Generate execution plan from tasks (in Docker)
+Generate execution plan from tasks (in Docker).
+
+> **Note**: This is a legacy top-level command. Prefer `ckrv code plan` for the unified Code workflow.
 
 ## Description
 
@@ -20,7 +23,7 @@ The plan breaks down work into atomic steps that AI agents can execute.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `spec` | No | Path to the specification file. If not provided, will detect from branch name |
+| `<spec>` | No | Path to the specification directory (auto-detects from branch if not provided) |
 
 ## Options
 
