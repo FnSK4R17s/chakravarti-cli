@@ -1,0 +1,65 @@
+name: CI Tauri Build
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'crates/ckrv-tauri/**'
+      - 'crates/ckrv-transport/**'
+      - 'crates/ckrv-ui/frontend/**'
+      - 'crates/ckrv-ui/src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-tauri:
+    name: Tauri Build (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── System dependencies ───────────────────────────────────────────
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libssl-dev
+
+      # ── Toolchains ────────────────────────────────────────────────────
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: tauri-ci
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── Frontend ──────────────────────────────────────────────────────
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: crates/ckrv-ui/frontend
+
+      # ── Tauri Build ───────────────────────────────────────────────────
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli@^2 --locked
+
+      - name: Build Tauri app (debug, deb only)
+        run: cargo tauri build --bundles deb
+        working-directory: crates/ckrv-tauri
