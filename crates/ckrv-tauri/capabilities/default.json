@@ -18,6 +18,7 @@
         "fs:allow-write-text-file",
         "pty:default",
         "process:allow-restart",
-        "process:allow-exit"
+        "process:allow-exit",
+        "updater:default"
     ]
 }
