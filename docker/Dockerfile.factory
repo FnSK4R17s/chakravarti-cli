@@ -11,8 +11,10 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Factory Droid CLI globally
-RUN npm install -g @anthropic-ai/factory-droid || npm install -g factory-droid
+# Install Factory Droid CLI (installs to /root/.local/bin/droid)
+RUN curl -fsSL https://app.factory.ai/cli | sh && \
+    cp /root/.local/bin/droid /usr/local/bin/droid && \
+    cp /root/.factory/bin/rg /usr/local/bin/rg || true
 
 # Create non-root user with home directory
 RUN useradd -m -s /bin/bash -d /home/factory factory && \
@@ -27,7 +29,7 @@ WORKDIR /workspace
 # Set HOME environment variable
 ENV HOME=/home/factory
 
-# Verify Factory Droid is installed (best effort)
+# Verify Factory Droid is installed
 RUN droid --version || true
 
 # Switch to non-root user
