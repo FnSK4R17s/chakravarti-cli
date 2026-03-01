@@ -22,15 +22,34 @@
 //! - Interactive mode: Animated braille spinner with message
 //! - Supports `.success()`, `.error()`, and `.finish()` termination styles
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::ui::theme::Theme;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::time::Duration;
 
+// ============================================================
+// TYPES
+// ============================================================
+
+/// RAII-style spinner guard that displays an animated loading indicator.
+///
+/// The spinner draws to stderr (per FR-005) and respects TTY detection.
+/// In non-interactive mode, the spinner is a no-op.
 pub struct SpinnerGuard {
     inner: Option<ProgressBar>,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 impl SpinnerGuard {
+    /// Create a new spinner with the given message.
+    ///
+    /// If `is_interactive` is false, no spinner is displayed.
     pub fn new(msg: &str, is_interactive: bool, _theme: &Theme) -> Self {
         if !is_interactive {
             return Self { inner: None };
@@ -56,12 +75,14 @@ impl SpinnerGuard {
         Self { inner: Some(pb) }
     }
 
+    /// Update the spinner's display message.
     pub fn set_message(&self, msg: &str) {
         if let Some(pb) = &self.inner {
             pb.set_message(msg.to_string());
         }
     }
 
+    /// Finish the spinner with a green checkmark and success message.
     pub fn success(&self, msg: &str) {
         if let Some(pb) = &self.inner {
             // Replace spinner with Green Check
@@ -82,12 +103,14 @@ impl SpinnerGuard {
         }
     }
 
+    /// Finish the spinner with a red cross and error message.
     pub fn error(&self, msg: &str) {
         if let Some(pb) = &self.inner {
             pb.finish_with_message(format!("{} {}", "✖", msg));
         }
     }
 
+    /// Finish and clear the spinner without any final message.
     pub fn finish(&self) {
         if let Some(pb) = &self.inner {
             pb.finish_and_clear();

@@ -1,6 +1,14 @@
 //! Core error types.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use thiserror::Error;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Errors that can occur in the core domain.
 #[derive(Debug, Error)]
@@ -15,11 +23,19 @@ pub enum CoreError {
 
     /// Invalid state transition attempted.
     #[error("Invalid state transition: {from} -> {to}")]
-    InvalidStateTransition { from: String, to: String },
+    InvalidStateTransition {
+        /// The state being transitioned from.
+        from: String,
+        /// The state being transitioned to.
+        to: String,
+    },
 
     /// Maximum attempts exceeded.
     #[error("Max attempts exceeded: {attempts}")]
-    MaxAttemptsExceeded { attempts: u32 },
+    MaxAttemptsExceeded {
+        /// Number of attempts that were made.
+        attempts: u32,
+    },
 
     /// Job not found.
     #[error("Job not found: {0}")]

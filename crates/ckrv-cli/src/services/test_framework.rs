@@ -1,12 +1,20 @@
 //! Test framework detection and execution.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
 use serde::Serialize;
 
-/// Supported test frameworks
+// ============================================================
+// TYPES
+// ============================================================
+
+/// Supported test frameworks.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TestFramework {
     Cargo,
@@ -31,31 +39,49 @@ impl TestFramework {
     }
 }
 
-/// Test execution result
+/// Test execution result.
 #[derive(Debug, Clone, Serialize)]
 pub struct TestResult {
+    /// Whether all tests passed.
     pub success: bool,
+    /// Name of the framework that ran the tests.
     pub framework: String,
+    /// Total number of tests executed.
     pub total: u32,
+    /// Number of tests that passed.
     pub passed: u32,
+    /// Number of tests that failed.
     pub failed: u32,
+    /// Number of tests that were skipped.
     pub skipped: u32,
+    /// Total execution time in milliseconds.
     pub duration_ms: u64,
+    /// Captured standard output.
     pub stdout: String,
+    /// Captured standard error.
     pub stderr: String,
+    /// Details of individual test failures.
     pub failures: Vec<TestFailure>,
 }
 
-/// Individual test failure
+/// Individual test failure details.
 #[derive(Debug, Clone, Serialize)]
 pub struct TestFailure {
+    /// Name of the failing test.
     pub name: String,
+    /// File containing the failing test, if known.
     pub file: Option<String>,
+    /// Line number of the failure, if known.
     pub line: Option<u32>,
+    /// Error message from the test failure.
     pub message: String,
 }
 
-/// Detect the test framework for a project
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Detect the test framework for a project.
 pub fn detect_framework(cwd: &Path) -> TestFramework {
     // Check for Rust first (Cargo.toml is very specific)
     if cwd.join("Cargo.toml").exists() {

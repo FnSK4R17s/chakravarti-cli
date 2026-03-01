@@ -6,7 +6,7 @@ compatibility: Claude Code, Cursor, any CLI-capable agent
 metadata:
   version: "0.1.0"
   auto-generated: true
-  generated-at: "2026-02-15T14:54:20Z"
+  generated-at: "2026-03-01T14:11:43Z"
 ---
 
 # Chakravarti CLI
@@ -15,113 +15,37 @@ Command-line interface for Chakravarti
 
 ## Commands
 
-### ckrv cloud
+### ckrv code
 
-Cloud execution commands.
+Code workflow commands — mirrors the Code page tabs in the Web UI.
 
-Manage remote job execution via Chakravarti Cloud. Submit jobs, monitor progress, and retrieve results from cloud workers.
+Groups the full development pipeline under a single namespace:
+- spec   — create and manage feature specifications
+- tasks  — generate implementation tasks from a spec
+- plan   — generate an execution plan from tasks
+- run    — execute the plan with AI agents
+- diff   — review changes before promoting
 
-Subcommands: login, submit, status, cancel
+Use `ckrv code <subcommand> --help` for details on each step.
 
 ```bash
-ckrv cloud
+ckrv code
 ```
 
 **Examples**:
 
-# Login to cloud
-ckrv cloud login
+# Create a new spec and generate tasks
+ckrv code spec new "Add user authentication"
+ckrv code tasks
 
-# Submit a job
-ckrv cloud submit my-feature
+# Plan and run
+ckrv code plan
+ckrv code run
 
-# Check job status
-ckrv cloud status <job-id>
+# Review changes
+ckrv code diff
 
-#### ckrv cloud credentials
-
-Manage git credentials for private repositories
-
-```bash
-ckrv cloud credentials
-```
-
-##### ckrv cloud credentials add
-
-Add a new git credential
-
-```bash
-ckrv cloud credentials add [OPTIONS]
-```
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--credential-type` | Credential type (pat, deploy_key) |
-| `--name` | Name for this credential (e.g., "github-work") |
-| `--provider` | Git provider (github, gitlab, bitbucket, generic) |
-
-##### ckrv cloud credentials list
-
-List stored credentials
-
-```bash
-ckrv cloud credentials list
-```
-
-##### ckrv cloud credentials remove
-
-Remove a credential
-
-```bash
-ckrv cloud credentials remove <NAME>
-```
-
-**Arguments**:
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `name` | Yes | Name of the credential to remove |
-
-#### ckrv cloud login
-
-Authenticate with Chakravarti Cloud
-
-```bash
-ckrv cloud login [OPTIONS]
-```
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--no-browser` | Skip opening browser automatically |
-
-#### ckrv cloud logout
-
-Clear stored cloud credentials
-
-```bash
-ckrv cloud logout [OPTIONS]
-```
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--force`, `-f` | Force logout without confirmation |
-
-#### ckrv cloud whoami
-
-Display current authenticated user
-
-```bash
-ckrv cloud whoami
-```
-
-
-### ckrv diff
+#### ckrv code diff
 
 View changes between current branch and base.
 
@@ -130,7 +54,7 @@ Shows a summary of modified, added, and deleted files compared to the base branc
 Output can be formatted as JSON for programmatic use.
 
 ```bash
-ckrv diff [OPTIONS]
+ckrv code diff [OPTIONS]
 ```
 
 **Options**:
@@ -146,47 +70,378 @@ ckrv diff [OPTIONS]
 **Examples**:
 
 # Show diff summary
-ckrv diff
+ckrv code diff
 
 # Show diff against specific branch
-ckrv diff --base main
+ckrv code diff --base main
 
 # Output as JSON
-ckrv diff --json
+ckrv code diff --json
 
+#### ckrv code plan
 
-### ckrv fix
+Generate execution plan from tasks using AI.
 
-Fix verification errors with AI.
+Analyzes the specification and tasks file to create a detailed implementation plan. Runs in a Docker container for isolation.
 
-Analyzes failed tests, lint errors, or build issues and uses AI to automatically generate fixes. Runs in an isolated Docker sandbox.
-
-Best used after `ckrv verify` identifies issues.
+The plan breaks down work into atomic steps that AI agents can execute.
 
 ```bash
-ckrv fix [OPTIONS]
+ckrv code plan [SPEC] [OPTIONS]
 ```
+
+**Arguments**:
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `spec` | No | Path to the specification directory. If not provided, will detect from branch name |
 
 **Options**:
 
 | Flag | Description |
 |------|-------------|
-| `--check` | Re-run verification after fixing |
-| `--error` | Specific error message to fix (from UI) |
-| `--lint` | Fix only lint errors |
-| `--test` | Fix only test failures |
-| `--typecheck` | Fix only type errors |
+| `--force`, `-f` | Force regeneration even if plan.yaml already exists |
 
 **Examples**:
 
-# Fix all errors
-ckrv fix
+# Generate plan for auto-detected spec
+ckrv code plan
 
-# Fix with specific agent
-ckrv fix --agent claude-3.5
+# Generate plan for a specific spec
+ckrv code plan my-feature
 
-# Fix only test failures
-ckrv fix --tests-only
+# Force regeneration
+ckrv code plan --force
+
+#### ckrv code run
+
+Run a job based on a specification.
+
+Executes the implementation plan using AI agents in isolated Docker sandboxes. Each task is executed in sequence with full logging and progress tracking.
+
+Results are committed to a feature branch for review.
+
+```bash
+ckrv code run [SPEC] [OPTIONS]
+```
+
+**Arguments**:
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `spec` | No | Path to the specification file. If not provided, will detect from branch name |
+
+**Options**:
+
+| Flag | Description |
+|------|-------------|
+| `--agent` | Agent to use for execution: claude, codex, or kilo |
+| `--cloud` | Execute job in Chakravarti Cloud instead of locally |
+| `--credential` | Git credential name to use for cloud execution (for private repos) |
+| `--executor-model`, `-e` | Override the AI model/agent to use for execution |
+| `--optimize`, `-o` | Optimization strategy |
+
+**Examples**:
+
+# Run all tasks for auto-detected spec
+ckrv code run
+
+# Run with specific agent
+ckrv code run my-feature --agent claude
+
+# Run with cost optimization
+ckrv code run --optimize cost
+
+#### ckrv code spec
+
+Create or manage feature specifications.
+
+Specifications are the source of truth for AI-driven development. They define what needs to be built, the requirements, and acceptance criteria.
+
+Subcommands: new, list, validate, clarify, design, init, tasks
+
+```bash
+ckrv code spec
+```
+
+**Examples**:
+
+# Create a new specification
+ckrv code spec new "Add user authentication"
+
+# List all specifications
+ckrv code spec list
+
+# Validate a specification
+ckrv code spec validate my-feature
+
+##### ckrv code spec clarify
+
+Resolve open clarifications and ambiguities in an existing specification.
+
+Reviews the spec for unclear requirements, missing details, or
+conflicting constraints, then interactively resolves them using AI.
+Updates the spec file in-place with the resolved clarifications.
+
+If no spec path is provided, auto-detects the spec from the
+current Git branch name.
+
+```bash
+ckrv code spec clarify [SPEC]
+```
+
+**Arguments**:
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `spec` | No | Path to the spec file (optional - auto-detects from current branch if not provided) |
+
+**Examples**:
+
+# Clarify the spec detected from the current branch
+ckrv spec clarify
+
+# Clarify a specific spec file
+ckrv spec clarify specs/auth-oauth2/spec.md
+
+##### ckrv code spec design
+
+Generate a technical design document from an existing specification.
+
+Produces a design.md file alongside the spec containing:
+- Architecture decisions and component diagrams
+- Data models and API contracts
+- Implementation strategy and dependencies
+
+If no spec path is provided, auto-detects the spec from the
+current Git branch name. Use --force to regenerate an existing
+design document.
+
+```bash
+ckrv code spec design [SPEC] [OPTIONS]
+```
+
+**Arguments**:
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `spec` | No | Path to the spec file (optional - auto-detects from current branch if not provided) |
+
+**Options**:
+
+| Flag | Description |
+|------|-------------|
+| `--force`, `-f` | Force regeneration of design even if it exists |
+
+**Examples**:
+
+# Generate design from the current branch spec
+ckrv spec design
+
+# Generate design for a specific spec
+ckrv spec design specs/auth-oauth2/spec.md
+
+# Force regeneration of an existing design
+ckrv spec design --force
+
+##### ckrv code spec init
+
+Initialize a new, empty specification directory with starter templates.
+
+Creates a named directory under specs/ containing a blank spec.md
+template with the standard sections (overview, requirements,
+acceptance criteria) ready to be filled in.
+
+Use this when you want to manually author a spec rather than
+generating one with AI via `ckrv spec new`.
+
+```bash
+ckrv code spec init <NAME>
+```
+
+**Arguments**:
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `name` | Yes | Name for the new spec directory |
+
+**Examples**:
+
+# Initialize a new spec directory
+ckrv spec init my-feature
+
+# Initialize with a hyphenated name
+ckrv spec init user-auth-oauth2
+
+##### ckrv code spec list
+
+List all specifications found in the specs/ directory.
+
+Displays a table of all spec directories with their names,
+statuses, and file paths. Useful for getting an overview of
+all features being tracked.
+
+The repository must be initialized with `ckrv init` before
+listing specs.
+
+```bash
+ckrv code spec list
+```
+
+**Examples**:
+
+# List all specs
+ckrv spec list
+
+# List specs with JSON output
+ckrv spec list --json
+
+##### ckrv code spec new
+
+Create a new feature specification from a natural language description.
+
+Generates a structured spec.md file in the specs/ directory containing:
+- Feature overview and goals
+- Acceptance criteria
+- Technical requirements and constraints
+A short name is auto-generated from the description if not provided.
+
+Requires an active AI provider configuration. The AI may ask
+clarifying questions if the description is ambiguous.
+
+```bash
+ckrv code spec new <DESCRIPTION> [OPTIONS]
+```
+
+**Arguments**:
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `description` | Yes | Natural language description of the feature (e.g., "Add user authentication") |
+
+**Options**:
+
+| Flag | Description |
+|------|-------------|
+| `--name`, `-n` | Optional short name for the spec (auto-generated from description if not provided) |
+
+**Examples**:
+
+# Create a spec from an inline description
+ckrv spec new "Add user authentication with OAuth2"
+
+# Create a spec with an explicit short name
+ckrv spec new "Add user authentication" --name auth-oauth2
+
+# Create a spec with a detailed multi-word description
+ckrv spec new "Implement rate limiting for the public API endpoints"
+
+##### ckrv code spec tasks
+
+Generate implementation tasks from an existing specification.
+
+Analyzes the spec and produces a tasks.md file containing a set
+of discrete, actionable implementation tasks with dependency
+ordering. Each task includes a title, description, and prompt
+suitable for agent execution.
+
+If no spec path is provided, auto-detects the spec from the
+current Git branch name. Use --force to regenerate tasks even
+if a tasks file already exists.
+
+```bash
+ckrv code spec tasks [SPEC] [OPTIONS]
+```
+
+**Arguments**:
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `spec` | No | Path to the spec file (optional - auto-detects from current branch if not provided) |
+
+**Options**:
+
+| Flag | Description |
+|------|-------------|
+| `--force`, `-f` | Force regeneration of tasks even if they exist |
+
+**Examples**:
+
+# Generate tasks from the current branch spec
+ckrv spec tasks
+
+# Generate tasks for a specific spec
+ckrv spec tasks specs/auth-oauth2/spec.md
+
+# Force regeneration of existing tasks
+ckrv spec tasks --force
+
+##### ckrv code spec validate
+
+Validate a specification file for correctness and completeness.
+
+Checks that the spec contains all required sections, validates
+field formats, and reports any errors or warnings. Returns a
+non-zero exit code if validation fails.
+
+If no path is provided, auto-detects the spec from the current
+Git branch name. Supports JSON output for CI integration.
+
+```bash
+ckrv code spec validate [PATH]
+```
+
+**Arguments**:
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `path` | No | Path to the spec file (optional - auto-detects from current branch if not provided) |
+
+**Examples**:
+
+# Validate the spec detected from the current branch
+ckrv spec validate
+
+# Validate a specific spec file
+ckrv spec validate specs/auth-oauth2/spec.md
+
+# Validate with JSON output for CI
+ckrv spec validate --json
+
+#### ckrv code tasks
+
+Generate implementation tasks from a specification.
+
+Analyzes the specification and produces a structured task breakdown that can be used for planning and execution.
+
+This is a convenience alias for `ckrv code spec tasks`.
+
+```bash
+ckrv code tasks [SPEC] [OPTIONS]
+```
+
+**Arguments**:
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `spec` | No | Path to the spec file (optional - auto-detects from current branch if not provided) |
+
+**Options**:
+
+| Flag | Description |
+|------|-------------|
+| `--force`, `-f` | Force regeneration of tasks even if they exist |
+
+**Examples**:
+
+# Generate tasks for auto-detected spec
+ckrv code tasks
+
+# Generate tasks for a specific spec
+ckrv code tasks path/to/spec
+
+# Force regeneration
+ckrv code tasks --force
 
 
 ### ckrv init
@@ -216,148 +471,6 @@ ckrv init
 ckrv init --verbose
 
 
-### ckrv logs
-
-Stream or view logs from a cloud job.
-
-Shows real-time output from running jobs or historical logs from completed jobs. Supports filtering by task or agent.
-
-Use --follow for continuous streaming.
-
-```bash
-ckrv logs <JOB_ID> [OPTIONS]
-```
-
-**Arguments**:
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `job_id` | Yes | Job ID to get logs for |
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--follow`, `-f` | Follow log output (stream in real-time) |
-| `--tail`, `-n` | Number of recent log lines to show (default: 100) |
-
-**Examples**:
-
-# Stream logs from running job
-ckrv logs <job-id> --follow
-
-# View completed job logs
-ckrv logs <job-id>
-
-# Filter by task
-ckrv logs <job-id> --task 3
-
-
-### ckrv plan
-
-Generate execution plan from tasks using AI.
-
-Analyzes the specification and tasks file to create a detailed implementation plan. Runs in a Docker container for isolation.
-
-The plan breaks down work into atomic steps that AI agents can execute.
-
-```bash
-ckrv plan [SPEC] [OPTIONS]
-```
-
-**Arguments**:
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `spec` | No | Path to the specification directory. If not provided, will detect from branch name |
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--force`, `-f` | Force regeneration even if plan.yaml already exists |
-
-**Examples**:
-
-# Generate plan for a specification
-ckrv plan my-feature
-
-# Generate plan with GLM model
-ckrv plan my-feature --model glm-4.7
-
-# Skip confirmation prompt
-ckrv plan my-feature --yes
-
-
-### ckrv promote
-
-Create a pull request for the current branch.
-
-Pushes the feature branch and creates a pull request on GitHub/GitLab. Auto-generates PR title and description from the specification.
-
-Requires remote repository access and appropriate permissions.
-
-```bash
-ckrv promote [OPTIONS]
-```
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--base`, `-b` | Target branch for the PR (default: main or master) |
-| `--draft` | Create as draft PR |
-| `--open` | Open PR URL in browser after creation |
-| `--push` | Push branch to remote before creating PR |
-| `--remote` | Remote name (default: origin) |
-| `--skip-verify` | Skip verification checks |
-
-**Examples**:
-
-# Create PR with auto-generated description
-ckrv promote
-
-# Create as draft PR
-ckrv promote --draft
-
-# Create PR with custom title
-ckrv promote --title "feat: add user auth"
-
-
-### ckrv pull
-
-Pull results from a completed cloud job.
-
-Downloads all changes made during cloud execution and applies them to the local repository. Creates or updates the feature branch.
-
-Jobs must be in a 'completed' state to pull.
-
-```bash
-ckrv pull <JOB_ID> [OPTIONS]
-```
-
-**Arguments**:
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `job_id` | Yes | Job ID to pull results from |
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--apply` | Apply diff to current worktree (default: true) |
-| `--output` | Output diff to file instead of applying |
-
-**Examples**:
-
-# Pull results to current directory
-ckrv pull <job-id>
-
-# Pull and create new branch
-ckrv pull <job-id> --branch feature/new
-
-
 ### ckrv qa
 
 QA code review and bug analysis.
@@ -383,7 +496,11 @@ ckrv qa report
 
 #### ckrv qa bugs
 
-Analyze for potential bugs
+Analyze changed files for potential bugs and error-handling gaps.
+
+Scans the diff against the base branch and filters findings to only bug-related categories: potential bugs and missing or incorrect error handling. Each finding includes a severity level and a suggested fix.
+
+Requires a configured QA agent. If no agent is found, exits with code 4. Full bug analysis with deeper heuristics requires Docker sandbox integration.
 
 ```bash
 ckrv qa bugs [OPTIONS]
@@ -395,9 +512,24 @@ ckrv qa bugs [OPTIONS]
 |------|-------------|
 | `--base` | Branch to compare against (default: main) |
 
+**Examples**:
+
+# Scan for bugs against the default base branch (main)
+ckrv qa bugs
+
+# Scan for bugs against a specific branch
+ckrv qa bugs --base develop
+
+# Get machine-readable bug list
+ckrv qa bugs --json
+
 #### ckrv qa report
 
-Generate full QA report
+Generate a comprehensive QA report covering all analysis categories.
+
+Produces a Markdown report that includes a change summary, file-level breakdown (when --full is used), and all QA findings ranked by severity. The report header contains branch name, base branch, and timestamp.
+
+Requires a configured QA agent. If no agent is found, exits with code 4. Use --full to include per-file statistics (lines added/removed, change type) in the report.
 
 ```bash
 ckrv qa report [OPTIONS]
@@ -411,9 +543,26 @@ ckrv qa report [OPTIONS]
 | `--full` | Include all analysis types |
 | `--output`, `-o` | Output file path |
 
+**Examples**:
+
+# Generate a standard report against main
+ckrv qa report
+
+# Generate a full report with per-file details
+ckrv qa report --full
+
+# Save the full report to a file against a custom base
+ckrv qa report --full --base develop --output qa-report.md
+
 #### ckrv qa review
 
-Review code quality of changes
+Review code quality of changes against a base branch.
+
+Analyzes modified files for code quality issues including style violations, missing documentation, complexity concerns, and best-practice deviations. Produces a structured report with severity-ranked findings.
+
+Results can be saved to a file with --output or printed to stdout. When --json is used, output is a machine-readable QaReviewOutput object.
+
+Requires a configured QA agent. If no agent is found, exits with code 4. Exits with code 1 if critical issues are detected.
 
 ```bash
 ckrv qa review [OPTIONS]
@@ -425,6 +574,7 @@ ckrv qa review [OPTIONS]
 |------|-------------|
 | `--base` | Branch to compare against (default: main) |
 | `--output`, `-o` | Output file path |
+
 
 
 ### ckrv run
@@ -457,148 +607,14 @@ ckrv run [SPEC] [OPTIONS]
 
 **Examples**:
 
-# Run all tasks for a specification
-ckrv run my-feature
+# Review changes against the default base branch (main)
+ckrv qa review
 
-# Run with specific agent
-ckrv run my-feature --agent claude-3.5
+# Review changes against a specific branch
+ckrv qa review --base develop
 
-# Dry run (show what would be done)
-ckrv run my-feature --dry-run
-
-
-### ckrv spec
-
-Create or manage feature specifications.
-
-Specifications are the source of truth for AI-driven development. They define what needs to be built, the requirements, and acceptance criteria.
-
-Subcommands: new, list, validate, edit, show
-
-```bash
-ckrv spec
-```
-
-**Examples**:
-
-# Create a new specification
-ckrv spec new "Add user authentication"
-
-# List all specifications
-ckrv spec list
-
-# Validate a specification
-ckrv spec validate my-feature
-
-#### ckrv spec clarify
-
-Resolve clarifications in an existing spec
-
-```bash
-ckrv spec clarify [SPEC]
-```
-
-**Arguments**:
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `spec` | No | Path to the spec file (optional - auto-detects from current branch if not provided) |
-
-#### ckrv spec design
-
-Generate technical design document from a specification
-
-```bash
-ckrv spec design [SPEC] [OPTIONS]
-```
-
-**Arguments**:
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `spec` | No | Path to the spec file (optional - auto-detects from current branch if not provided) |
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--force`, `-f` | Force regeneration of design even if it exists |
-
-#### ckrv spec init
-
-Initialize an empty spec directory with templates
-
-```bash
-ckrv spec init <NAME>
-```
-
-**Arguments**:
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `name` | Yes | Name for the new spec directory |
-
-#### ckrv spec list
-
-List all specifications
-
-```bash
-ckrv spec list
-```
-
-#### ckrv spec new
-
-Create a new specification using AI from a natural language description
-
-```bash
-ckrv spec new <DESCRIPTION> [OPTIONS]
-```
-
-**Arguments**:
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `description` | Yes | Natural language description of the feature (e.g., "Add user authentication") |
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--name`, `-n` | Optional short name for the spec (auto-generated from description if not provided) |
-
-#### ckrv spec tasks
-
-Generate implementation tasks from a specification
-
-```bash
-ckrv spec tasks [SPEC] [OPTIONS]
-```
-
-**Arguments**:
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `spec` | No | Path to the spec file (optional - auto-detects from current branch if not provided) |
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--force`, `-f` | Force regeneration of tasks even if they exist |
-
-#### ckrv spec validate
-
-Validate a specification file
-
-```bash
-ckrv spec validate [PATH]
-```
-
-**Arguments**:
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `path` | No | Path to the spec file (optional - auto-detects from current branch if not provided) |
+# Save review report to a file
+ckrv qa review --output qa-review.md
 
 
 ### ckrv term
@@ -624,7 +640,13 @@ ckrv term [PASSTHROUGH_ARGS] [OPTIONS]
 | Flag | Description |
 |------|-------------|
 | `--agent`, `-a` | Agent ID to spawn directly (skips interactive agent selection) |
+| `--cleanup` | Clean up a session (removes worktree and state) |
 | `--list`, `-l` | List available agents and exit |
+| `--list-sessions` | List all sessions and exit |
+| `--name` | Name for this session (enables resume with --resume) |
+| `--resume` <STRING> | Resume a session. Optionally pass a session name, or omit to select interactively |
+| `--sandbox` | Run agent in a Docker sandbox container |
+| `--worktree` | Run agent in an isolated git worktree |
 
 **Examples**:
 
@@ -666,7 +688,11 @@ ckrv test write --agent claude-3.5
 
 #### ckrv test coverage
 
-Check test coverage of changed files
+Check test coverage of changed files.
+
+Scans files changed between the current branch and base branch to determine which source files have corresponding tests. Reports a coverage percentage based on file-level test presence.
+
+Warns if coverage drops below 80%. Use `ckrv test plan` to see exactly which files need tests.
 
 ```bash
 ckrv test coverage [OPTIONS]
@@ -678,9 +704,24 @@ ckrv test coverage [OPTIONS]
 |------|-------------|
 | `--base` | Branch to compare against (default: main) |
 
+**Examples**:
+
+# Check coverage against main
+ckrv test coverage
+
+# Check coverage against a specific branch
+ckrv test coverage --base develop
+
+# Check coverage with JSON output
+ckrv test coverage --json
+
 #### ckrv test plan
 
-Analyze changes and generate test plan
+Analyze changes and generate a test plan.
+
+Compares the current branch against the base branch, identifies changed files, and determines which files lack test coverage. Produces a structured plan with proposed tests prioritized by impact.
+
+The plan is saved to `.specs/<branch>/test-plan.yaml` for use by the test writer agent.
 
 ```bash
 ckrv test plan [OPTIONS]
@@ -692,9 +733,24 @@ ckrv test plan [OPTIONS]
 |------|-------------|
 | `--base` | Branch to compare against (default: main) |
 
+**Examples**:
+
+# Generate test plan against main
+ckrv test plan
+
+# Generate test plan against a specific branch
+ckrv test plan --base develop
+
+# Generate test plan with JSON output
+ckrv test plan --json
+
 #### ckrv test run
 
-Run existing tests in sandbox
+Run existing tests in a sandboxed environment.
+
+Detects the project's test framework automatically and executes the full test suite. Results are displayed with pass/fail counts and a summary report.
+
+Exits with code 1 if any test fails. Use --json for machine-readable output.
 
 ```bash
 ckrv test run [OPTIONS]
@@ -706,9 +762,24 @@ ckrv test run [OPTIONS]
 |------|-------------|
 | `--base` | Branch to compare against (default: main) |
 
+**Examples**:
+
+# Run tests comparing against main
+ckrv test run
+
+# Run tests comparing against a specific branch
+ckrv test run --base develop
+
+# Run tests with JSON output
+ckrv test run --json
+
 #### ckrv test write
 
-Write new tests using test writer agent
+Write new tests using the configured test writer agent.
+
+Analyzes changed files against the base branch and invokes an AI agent to generate tests for uncovered code. The agent runs inside a Docker sandbox for isolation.
+
+Requires a test writer agent to be configured. Use --run to automatically execute the generated tests after writing.
 
 ```bash
 ckrv test write [OPTIONS]
@@ -720,6 +791,17 @@ ckrv test write [OPTIONS]
 |------|-------------|
 | `--base` | Branch to compare against (default: main) |
 | `--run` | Run tests after writing |
+
+**Examples**:
+
+# Write tests for changes against main
+ckrv test write
+
+# Write tests and run them immediately
+ckrv test write --run
+
+# Write tests against a specific branch
+ckrv test write --base develop
 
 
 ### ckrv ui
@@ -750,41 +832,6 @@ ckrv ui --port 8080
 
 # Don't open browser automatically
 ckrv ui --no-open
-
-
-### ckrv verify
-
-Run tests, lint, and quality checks.
-
-Validates the current code against project quality standards. Runs the test suite, linters, and any custom verification scripts.
-
-Failed verifications can be fixed with `ckrv fix`.
-
-```bash
-ckrv verify [OPTIONS]
-```
-
-**Options**:
-
-| Flag | Description |
-|------|-------------|
-| `--continue-on-failure` | Continue on failure (run all checks even if some fail) |
-| `--fix` | Auto-fix issues where possible |
-| `--lint` | Run only lint checks |
-| `--save` | Save results to verification.yaml |
-| `--test` | Run only tests |
-| `--typecheck` | Run only type checks |
-
-**Examples**:
-
-# Run all verifications
-ckrv verify
-
-# Run only tests
-ckrv verify --tests-only
-
-# Run in JSON output mode
-ckrv verify --json
 
 
 ## Global Options

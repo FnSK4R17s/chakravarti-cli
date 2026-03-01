@@ -3,9 +3,17 @@
 //! For the new spec format, acceptance is handled via user_stories with acceptance_scenarios.
 //! This module provides a simple pass/fail check based on test verification results.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use ckrv_core::Spec;
 
 use crate::Verdict;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Result of acceptance checking.
 #[derive(Debug, Clone)]
@@ -27,7 +35,14 @@ pub struct CriterionResult {
     pub evidence: String,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 /// Checker for acceptance criteria.
+///
+/// Evaluates a [`Verdict`] against a [`Spec`] to determine whether
+/// acceptance criteria are satisfied.
 pub struct AcceptanceChecker;
 
 impl AcceptanceChecker {
@@ -38,7 +53,14 @@ impl AcceptanceChecker {
     }
 
     /// Check if verification results meet acceptance criteria.
-    /// For new format specs, this checks if all tests pass.
+    ///
+    /// For new format specs, this checks if all tests pass and no errors
+    /// appear in the output logs.
+    ///
+    /// # Arguments
+    ///
+    /// * `spec` - The specification to check against.
+    /// * `verdict` - The verification verdict containing test results.
     #[must_use]
     pub fn check(&self, spec: &Spec, verdict: &Verdict) -> AcceptanceResult {
         let mut criteria = Vec::new();
@@ -86,6 +108,10 @@ impl Default for AcceptanceChecker {
         Self::new()
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

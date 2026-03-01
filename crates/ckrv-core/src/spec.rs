@@ -1,10 +1,18 @@
 //! Specification type.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
 use crate::CoreError;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// A specification defining a desired code change.
 /// Uses the new spec format with overview, user_stories, and requirements.functional.
@@ -54,6 +62,10 @@ pub struct VerifyConfig {
     pub commands: Vec<String>,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 impl Spec {
     /// Get the overview/description.
     pub fn description(&self) -> &str {
@@ -89,6 +101,10 @@ impl Spec {
         Ok(())
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

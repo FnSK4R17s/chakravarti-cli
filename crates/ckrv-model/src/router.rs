@@ -1,5 +1,9 @@
 //! Model routing logic with optimization modes.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::sync::{Arc, Mutex};
 
 use ckrv_core::OptimizeMode;
@@ -10,6 +14,10 @@ use crate::{
     provider::{CompletionRequest, CompletionResponse, ModelProvider},
     ModelError,
 };
+
+// ============================================================
+// ROUTING CONTEXT
+// ============================================================
 
 /// Context for routing decisions.
 #[derive(Debug, Clone)]
@@ -35,6 +43,10 @@ impl Default for RoutingContext {
     }
 }
 
+// ============================================================
+// TASK TYPE
+// ============================================================
+
 /// Type of task for routing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskType {
@@ -45,6 +57,10 @@ pub enum TaskType {
     /// Verification phase - needs analysis.
     Verification,
 }
+
+// ============================================================
+// BUDGET TRACKER
+// ============================================================
 
 /// Budget tracker for cost-optimized routing.
 #[derive(Debug, Clone)]
@@ -104,6 +120,10 @@ impl BudgetTracker {
     }
 }
 
+// ============================================================
+// MODEL SELECTION
+// ============================================================
+
 /// Model selection result.
 #[derive(Debug, Clone)]
 pub struct ModelSelection {
@@ -116,6 +136,10 @@ pub struct ModelSelection {
     /// Reason for selection.
     pub reason: String,
 }
+
+// ============================================================
+// MODEL ROUTER
+// ============================================================
 
 /// Model router for selecting and calling providers.
 pub struct ModelRouter {
@@ -331,6 +355,10 @@ impl ModelRouter {
         self.providers.iter().map(|p| p.name()).collect()
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

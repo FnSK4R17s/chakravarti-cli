@@ -6,14 +6,23 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// Status of an execution run
+// ============================================================
+// Types
+// ============================================================
+
+/// Status of an execution run.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RunStatus {
+    /// Waiting to start.
     Pending,
+    /// Currently executing.
     Running,
+    /// Successfully completed.
     Completed,
+    /// Execution failed.
     Failed,
+    /// Manually aborted by user.
     Aborted,
 }
 
@@ -23,13 +32,17 @@ impl Default for RunStatus {
     }
 }
 
-/// Status of a batch within a run
+/// Status of a batch within a run.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HistoryBatchStatus {
+    /// Waiting to start.
     Pending,
+    /// Currently executing.
     Running,
+    /// Successfully completed.
     Completed,
+    /// Execution failed.
     Failed,
 }
 
@@ -39,32 +52,46 @@ impl Default for HistoryBatchStatus {
     }
 }
 
-/// Summary statistics for a run (for quick display)
+/// Summary statistics for a run (for quick display).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RunSummary {
+    /// Total number of batches in the run.
     pub total_batches: u32,
+    /// Number of successfully completed batches.
     pub completed_batches: u32,
+    /// Number of failed batches.
     pub failed_batches: u32,
+    /// Number of batches still waiting to start.
     pub pending_batches: u32,
+    /// Number of individual tasks completed.
     pub tasks_completed: u32,
+    /// Number of branches merged back to base.
     pub branches_merged: u32,
 }
 
-/// Result of a single batch within a run
+/// Result of a single batch within a run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchResult {
+    /// Unique batch identifier.
     pub id: String,
+    /// Human-readable batch name.
     pub name: String,
+    /// Current batch status.
     #[serde(default)]
     pub status: HistoryBatchStatus,
+    /// When the batch started executing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub started_at: Option<DateTime<Utc>>,
+    /// When the batch finished executing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ended_at: Option<DateTime<Utc>>,
+    /// Git branch created for this batch.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub branch: Option<String>,
+    /// Whether the batch branch has been merged.
     #[serde(default)]
     pub merged: bool,
+    /// Error message if the batch failed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
@@ -110,23 +137,37 @@ impl BatchResult {
     }
 }
 
-/// A single execution run for a specification
+// ============================================================
+// Run
+// ============================================================
+
+/// A single execution run for a specification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Run {
+    /// Unique run identifier (e.g., `run-2025-01-15-a3b4c5`).
     pub id: String,
+    /// Name of the spec that was executed.
     pub spec_name: String,
+    /// When the run started.
     pub started_at: DateTime<Utc>,
+    /// When the run completed (set on finish).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ended_at: Option<DateTime<Utc>>,
+    /// Current run status.
     #[serde(default)]
     pub status: RunStatus,
+    /// Whether this was a dry run (no actual execution).
     #[serde(default)]
     pub dry_run: bool,
+    /// Total elapsed time in seconds.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub elapsed_seconds: Option<u64>,
+    /// Batches in this run.
     pub batches: Vec<BatchResult>,
+    /// Aggregate summary statistics.
     #[serde(default)]
     pub summary: RunSummary,
+    /// Error message if the run failed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
@@ -253,12 +294,19 @@ impl Run {
     }
 }
 
-/// Collection of runs for a specification (root of runs.yaml)
+// ============================================================
+// Run History
+// ============================================================
+
+/// Collection of runs for a specification (root of runs.yaml).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RunHistory {
+    /// Schema version for forward compatibility.
     #[serde(default = "default_version")]
     pub version: String,
+    /// Name of the spec this history belongs to.
     pub spec_name: String,
+    /// List of runs, newest first.
     #[serde(default)]
     pub runs: Vec<Run>,
 }
@@ -304,6 +352,10 @@ impl RunHistory {
         &self.runs[start..end]
     }
 }
+
+// ============================================================
+// Tests
+// ============================================================
 
 #[cfg(test)]
 mod tests {

@@ -69,6 +69,7 @@ pub mod ui;
 // ============================================================
 
 // Re-export command modules for main.rs access
+pub use commands::code;
 pub use commands::diff;
 pub use commands::fix;
 pub use commands::init;
@@ -112,6 +113,7 @@ pub struct Cli {
     pub verbose: bool,
 
     #[command(subcommand)]
+    /// Subcommand to execute (defaults to interactive mode if omitted).
     pub command: Option<Commands>,
 }
 
@@ -134,13 +136,38 @@ pub enum Commands {
     )]
     Init(commands::init::InitArgs),
 
-    /// Create or manage feature specifications
+    /// Code workflow: spec, tasks, plan, run, diff
     #[command(
         display_order = 2,
+        long_about = "Code workflow commands — mirrors the Code page tabs in the Web UI.\n\n\
+                      Groups the full development pipeline under a single namespace:\n\
+                      - spec   — create and manage feature specifications\n\
+                      - tasks  — generate implementation tasks from a spec\n\
+                      - plan   — generate an execution plan from tasks\n\
+                      - run    — execute the plan with AI agents\n\
+                      - diff   — review changes before promoting\n\n\
+                      Use `ckrv code <subcommand> --help` for details on each step.",
+        after_help = "Examples:\n\
+                      # Create a new spec and generate tasks\n\
+                      ckrv code spec new \"Add user authentication\"\n\
+                      ckrv code tasks\n\n\
+                      # Plan and run\n\
+                      ckrv code plan\n\
+                      ckrv code run\n\n\
+                      # Review changes\n\
+                      ckrv code diff"
+    )]
+    Code(commands::code::CodeArgs),
+
+    /// Create or manage feature specifications
+    #[command(
+        hide = true,
+        display_order = 100,
         long_about = "Create or manage feature specifications.\n\n\
                       Specifications are the source of truth for AI-driven development. \
                       They define what needs to be built, the requirements, and acceptance criteria.\n\n\
-                      Subcommands: new, list, validate, edit, show",
+                      Subcommands: new, list, validate, edit, show\n\n\
+                      Note: prefer `ckrv code spec` for the unified Code workflow.",
         after_help = "Examples:\n\
                       # Create a new specification\n\
                       ckrv spec new \"Add user authentication\"\n\n\
@@ -153,11 +180,13 @@ pub enum Commands {
 
     /// Generate execution plan from tasks (in Docker)
     #[command(
-        display_order = 3,
+        hide = true,
+        display_order = 100,
         long_about = "Generate execution plan from tasks using AI.\n\n\
                       Analyzes the specification and tasks file to create a detailed \
                       implementation plan. Runs in a Docker container for isolation.\n\n\
-                      The plan breaks down work into atomic steps that AI agents can execute.",
+                      The plan breaks down work into atomic steps that AI agents can execute.\n\n\
+                      Note: prefer `ckrv code plan` for the unified Code workflow.",
         after_help = "Examples:\n\
                       # Generate plan for a specification\n\
                       ckrv plan my-feature\n\n\
@@ -170,11 +199,13 @@ pub enum Commands {
 
     /// Run a job based on a specification
     #[command(
-        display_order = 4,
+        hide = true,
+        display_order = 100,
         long_about = "Run a job based on a specification.\n\n\
                       Executes the implementation plan using AI agents in isolated Docker sandboxes. \
                       Each task is executed in sequence with full logging and progress tracking.\n\n\
-                      Results are committed to a feature branch for review.",
+                      Results are committed to a feature branch for review.\n\n\
+                      Note: prefer `ckrv code run` for the unified Code workflow.",
         after_help = "Examples:\n\
                       # Run all tasks for a specification\n\
                       ckrv run my-feature\n\n\
@@ -187,11 +218,13 @@ pub enum Commands {
 
     /// View changes between current branch and base
     #[command(
-        display_order = 4,
+        hide = true,
+        display_order = 100,
         long_about = "View changes between current branch and base.\n\n\
                       Shows a summary of modified, added, and deleted files compared to the \
                       base branch. Helps verify what will be included in a pull request.\n\n\
-                      Output can be formatted as JSON for programmatic use.",
+                      Output can be formatted as JSON for programmatic use.\n\n\
+                      Note: prefer `ckrv code diff` for the unified Code workflow.",
         after_help = "Examples:\n\
                       # Show diff summary\n\
                       ckrv diff\n\n\
@@ -204,7 +237,8 @@ pub enum Commands {
 
     /// Run tests, lint, and quality checks
     #[command(
-        display_order = 5,
+        hide = true,
+        display_order = 100,
         long_about = "Run tests, lint, and quality checks.\n\n\
                       Validates the current code against project quality standards. \
                       Runs the test suite, linters, and any custom verification scripts.\n\n\
@@ -221,7 +255,8 @@ pub enum Commands {
 
     /// Create a pull request for the current branch
     #[command(
-        display_order = 6,
+        hide = true,
+        display_order = 100,
         long_about = "Create a pull request for the current branch.\n\n\
                       Pushes the feature branch and creates a pull request on GitHub/GitLab. \
                       Auto-generates PR title and description from the specification.\n\n\
@@ -238,7 +273,8 @@ pub enum Commands {
 
     /// Fix verification errors with AI
     #[command(
-        display_order = 7,
+        hide = true,
+        display_order = 100,
         long_about = "Fix verification errors with AI.\n\n\
                       Analyzes failed tests, lint errors, or build issues and uses AI to \
                       automatically generate fixes. Runs in an isolated Docker sandbox.\n\n\
@@ -254,15 +290,61 @@ pub enum Commands {
     Fix(commands::fix::FixArgs),
 
     /// Execute a workflow-based agent task
-    #[command(hide = true)]
+    #[command(
+        hide = true,
+        display_order = 100,
+        long_about = "Execute a workflow-based agent task.\n\n\
+                      Initiates a multi-step workflow (e.g., Plan -> Implement) using an AI agent \
+                      in a sandboxed environment. Tasks are defined in tasks.yaml and executed \
+                      with configurable agents and isolation levels.\n\n\
+                      Supports Docker sandboxing, git worktrees, and workflow customization.",
+        after_help = "Examples:\n\
+                      # Run a task by description\n\
+                      ckrv task \"Add user authentication\"\n\n\
+                      # Run a specific task by ID\n\
+                      ckrv task T001\n\n\
+                      # Dry run (show steps without executing)\n\
+                      ckrv task T001 --dry-run\n\n\
+                      # Use a custom workflow\n\
+                      ckrv task T001 --workflow custom.yml"
+    )]
     Task(commands::task::TaskArgs),
 
     /// Check the status of a job
-    #[command(hide = true)]
+    #[command(
+        hide = true,
+        display_order = 100,
+        long_about = "Check the status of a job.\n\n\
+                      Displays job state, metrics, and execution details for a given job ID. \
+                      Checks local metrics first, then falls back to cloud job lookup if \
+                      the job is not found locally.\n\n\
+                      Shows duration, token usage, cost estimates, and step breakdowns.",
+        after_help = "Examples:\n\
+                      # Check a local job\n\
+                      ckrv status <job-id>\n\n\
+                      # Check a cloud job\n\
+                      ckrv status <cloud-job-id>\n\n\
+                      # Output as JSON\n\
+                      ckrv status <job-id> --json"
+    )]
     Status(commands::status::StatusArgs),
 
     /// View the metrics report for a job
-    #[command(hide = true)]
+    #[command(
+        hide = true,
+        display_order = 100,
+        long_about = "View the metrics report for a job.\n\n\
+                      Displays detailed timing, token usage, and cost estimates for a completed \
+                      job. Includes per-model breakdowns and step-level metrics.\n\n\
+                      Use --detailed for per-step timing information.",
+        after_help = "Examples:\n\
+                      # View job report\n\
+                      ckrv report <job-id>\n\n\
+                      # Detailed per-step breakdown\n\
+                      ckrv report <job-id> --detailed\n\n\
+                      # Output as JSON\n\
+                      ckrv report <job-id> --json"
+    )]
     Report(commands::report::ReportArgs),
 
     /// Start the Web UI dashboard
@@ -284,7 +366,8 @@ pub enum Commands {
 
     /// Cloud execution commands
     #[command(
-        display_order = 9,
+        hide = true,
+        display_order = 100,
         long_about = "Cloud execution commands.\n\n\
                       Manage remote job execution via Chakravarti Cloud. Submit jobs, \
                       monitor progress, and retrieve results from cloud workers.\n\n\
@@ -301,7 +384,8 @@ pub enum Commands {
 
     /// Stream or view logs from a cloud job
     #[command(
-        display_order = 10,
+        hide = true,
+        display_order = 100,
         long_about = "Stream or view logs from a cloud job.\n\n\
                       Shows real-time output from running jobs or historical logs from \
                       completed jobs. Supports filtering by task or agent.\n\n\
@@ -318,7 +402,8 @@ pub enum Commands {
 
     /// Pull results from a completed cloud job
     #[command(
-        display_order = 11,
+        hide = true,
+        display_order = 100,
         long_about = "Pull results from a completed cloud job.\n\n\
                       Downloads all changes made during cloud execution and applies them \
                       to the local repository. Creates or updates the feature branch.\n\n\
@@ -567,7 +652,6 @@ mod tests {
     fn test_extract_command_metadata_filters_hidden() {
         let metadata = extract_command_metadata();
 
-        // Find the hidden commands in subcommands
         let hidden_names: Vec<&str> = metadata
             .subcommands
             .iter()
@@ -575,17 +659,33 @@ mod tests {
             .map(|cmd| cmd.name.as_str())
             .collect();
 
-        // Task, Status, Report should be hidden
+        // Internal commands are hidden
         assert!(hidden_names.contains(&"task"), "task should be hidden");
         assert!(hidden_names.contains(&"status"), "status should be hidden");
         assert!(hidden_names.contains(&"report"), "report should be hidden");
+
+        // Legacy top-level commands are hidden (moved under `code`)
+        assert!(hidden_names.contains(&"spec"), "spec should be hidden");
+        assert!(hidden_names.contains(&"plan"), "plan should be hidden");
+        assert!(hidden_names.contains(&"run"), "run should be hidden");
+        assert!(hidden_names.contains(&"diff"), "diff should be hidden");
+
+        // Utility commands hidden from help
+        assert!(hidden_names.contains(&"verify"), "verify should be hidden");
+        assert!(hidden_names.contains(&"fix"), "fix should be hidden");
+        assert!(
+            hidden_names.contains(&"promote"),
+            "promote should be hidden"
+        );
+        assert!(hidden_names.contains(&"cloud"), "cloud should be hidden");
+        assert!(hidden_names.contains(&"logs"), "logs should be hidden");
+        assert!(hidden_names.contains(&"pull"), "pull should be hidden");
     }
 
     #[test]
     fn test_extract_command_metadata_includes_visible() {
         let metadata = extract_command_metadata();
 
-        // Find visible commands
         let visible_names: Vec<&str> = metadata
             .subcommands
             .iter()
@@ -593,27 +693,102 @@ mod tests {
             .map(|cmd| cmd.name.as_str())
             .collect();
 
-        // Core commands should be visible
+        // Core visible commands: init, code, test, qa, term, ui
         assert!(visible_names.contains(&"init"), "init should be visible");
-        assert!(visible_names.contains(&"spec"), "spec should be visible");
-        assert!(visible_names.contains(&"plan"), "plan should be visible");
-        assert!(visible_names.contains(&"run"), "run should be visible");
+        assert!(visible_names.contains(&"code"), "code should be visible");
+        assert!(visible_names.contains(&"test"), "test should be visible");
+        assert!(visible_names.contains(&"qa"), "qa should be visible");
+        assert!(visible_names.contains(&"term"), "term should be visible");
+        assert!(visible_names.contains(&"ui"), "ui should be visible");
+
+        // Only 6 visible commands
+        assert_eq!(visible_names.len(), 6, "should have exactly 6 visible commands");
+    }
+
+    #[test]
+    fn test_code_command_has_expected_subcommands() {
+        let metadata = extract_command_metadata();
+
+        let code_cmd = metadata
+            .subcommands
+            .iter()
+            .find(|cmd| cmd.name == "code")
+            .expect("code command should exist");
+
+        assert!(
+            !code_cmd.subcommands.is_empty(),
+            "code should have subcommands"
+        );
+
+        let subcmd_names: Vec<&str> =
+            code_cmd.subcommands.iter().map(|c| c.name.as_str()).collect();
+
+        assert!(subcmd_names.contains(&"spec"), "code should have spec");
+        assert!(subcmd_names.contains(&"tasks"), "code should have tasks");
+        assert!(subcmd_names.contains(&"plan"), "code should have plan");
+        assert!(subcmd_names.contains(&"run"), "code should have run");
+        assert!(subcmd_names.contains(&"diff"), "code should have diff");
+    }
+
+    #[test]
+    fn test_code_spec_has_nested_subcommands() {
+        let metadata = extract_command_metadata();
+
+        let code_cmd = metadata
+            .subcommands
+            .iter()
+            .find(|cmd| cmd.name == "code")
+            .expect("code command should exist");
+
+        let spec_cmd = code_cmd
+            .subcommands
+            .iter()
+            .find(|cmd| cmd.name == "spec")
+            .expect("code spec should exist");
+
+        let subcmd_names: Vec<&str> =
+            spec_cmd.subcommands.iter().map(|c| c.name.as_str()).collect();
+
+        assert!(
+            subcmd_names.contains(&"new"),
+            "code spec should have 'new'"
+        );
+        assert!(
+            subcmd_names.contains(&"list"),
+            "code spec should have 'list'"
+        );
+    }
+
+    #[test]
+    fn test_legacy_commands_still_parse() {
+        // Verify legacy top-level commands still exist in the enum
+        // (hidden but functional)
+        let metadata = extract_command_metadata();
+
+        let all_names: Vec<&str> = metadata
+            .subcommands
+            .iter()
+            .map(|cmd| cmd.name.as_str())
+            .collect();
+
+        assert!(all_names.contains(&"spec"), "legacy spec should exist");
+        assert!(all_names.contains(&"plan"), "legacy plan should exist");
+        assert!(all_names.contains(&"run"), "legacy run should exist");
+        assert!(all_names.contains(&"diff"), "legacy diff should exist");
     }
 
     #[test]
     fn test_spec_subcommands_extracted() {
         let metadata = extract_command_metadata();
 
-        // Find spec command
+        // Find spec command (legacy, still present)
         let spec_cmd = metadata.subcommands.iter().find(|cmd| cmd.name == "spec");
 
         assert!(spec_cmd.is_some(), "spec command should exist");
         let spec = spec_cmd.expect("spec command should exist");
 
-        // Spec should have subcommands
         assert!(!spec.subcommands.is_empty(), "spec should have subcommands");
 
-        // Check for expected subcommands
         let subcmd_names: Vec<&str> = spec.subcommands.iter().map(|c| c.name.as_str()).collect();
         assert!(
             subcmd_names.contains(&"new"),

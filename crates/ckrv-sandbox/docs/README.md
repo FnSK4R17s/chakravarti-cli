@@ -1,6 +1,6 @@
 ---
-last_commit: 5160ff1
-last_updated: 2026-01-29
+last_commit: f92f604
+last_updated: 2026-03-01
 related_files:
   - src/lib.rs
   - src/executor.rs
@@ -51,9 +51,10 @@ The sandbox automatically mounts agent credentials from the host:
 | Claude Code | OpenRouter API | `OPENROUTER_API_KEY`, `ANTHROPIC_BASE_URL` env vars |
 | Claude Code | GLM Coding Plan | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` env vars |
 | Codex | OpenAI Subscription | `~/.codex/` bind-mounted |
+| Kilo Code | File-based auth | `~/.config/kilo/` bind-mounted (read-write) |
 | Opencode | File-based auth | `~/.config/opencode/` bind-mounted |
 
-> **Note**: OpenRouter and GLM authentication is handled by `ckrv-cli` and `ckrv-ui`, which set the appropriate environment variables. The sandbox (`ckrv-sandbox`) only provides native Claude and Codex providers.
+> **Note**: OpenRouter and GLM authentication is handled by `ckrv-cli` and `ckrv-ui`, which set the appropriate environment variables. The sandbox (`ckrv-sandbox`) provides native Claude, Codex, and Kilo Code providers.
 
 ## Module Structure
 
@@ -137,6 +138,9 @@ use ckrv_sandbox::{AgentType, create_agent, default_agent};
 // Create specific agent
 let agent = create_agent(AgentType::Claude);
 let cmd = agent.build_command(prompt, workdir, &config);
+
+// Create Kilo Code agent
+let kilo = create_agent(AgentType::KiloCode);
 
 // Or use default (Claude)
 let agent = default_agent();

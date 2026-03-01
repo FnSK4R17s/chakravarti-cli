@@ -3,9 +3,17 @@
 //! This module provides YAML-based workflow definitions compatible with Rover's
 //! `swe.yml` format, enabling multi-step AI agent workflows.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// A workflow defines a sequence of steps to be executed by an AI agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,6 +114,10 @@ pub enum WorkflowError {
     IoError(#[from] std::io::Error),
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 impl Workflow {
     /// Load a workflow from a YAML file.
     ///
@@ -184,6 +196,10 @@ impl WorkflowStep {
         self.agent.as_deref().or(workflow_default)
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

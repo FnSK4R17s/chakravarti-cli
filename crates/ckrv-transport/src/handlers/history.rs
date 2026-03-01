@@ -19,9 +19,13 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum HistoryBatchStatus {
+    /// Waiting to start.
     Pending,
+    /// Currently executing.
     Running,
+    /// Successfully completed.
     Completed,
+    /// Execution failed.
     Failed,
 }
 
@@ -34,13 +38,20 @@ impl Default for HistoryBatchStatus {
 /// Batch in run history.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryBatch {
+    /// Batch identifier.
     pub id: String,
+    /// Batch display name.
     pub name: String,
+    /// Current batch status.
     #[serde(default)]
     pub status: HistoryBatchStatus,
+    /// When the batch started.
     pub started_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// When the batch completed.
     pub ended_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Git branch created for this batch.
     pub branch: Option<String>,
+    /// Error message if failed.
     pub error: Option<String>,
 }
 
@@ -48,9 +59,13 @@ pub struct HistoryBatch {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum HistoryRunStatus {
+    /// Currently executing.
     Running,
+    /// Successfully completed.
     Completed,
+    /// Execution failed.
     Failed,
+    /// Manually aborted.
     Aborted,
 }
 
@@ -63,10 +78,13 @@ impl Default for HistoryRunStatus {
 /// Run summary.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RunSummaryInternal {
+    /// Total number of batches in the run.
     #[serde(default)]
     pub total_batches: usize,
+    /// Number of successfully completed batches.
     #[serde(default)]
     pub completed_batches: usize,
+    /// Number of failed batches.
     #[serde(default)]
     pub failed_batches: usize,
 }
@@ -74,25 +92,36 @@ pub struct RunSummaryInternal {
 /// Run in history.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Run {
+    /// Unique run identifier.
     pub id: String,
+    /// Spec that was executed.
     pub spec_name: String,
+    /// When the run started.
     pub started_at: chrono::DateTime<chrono::Utc>,
+    /// When the run completed.
     pub ended_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Current run status.
     #[serde(default)]
     pub status: HistoryRunStatus,
+    /// Whether this was a dry run.
     #[serde(default)]
     pub dry_run: bool,
+    /// Total elapsed time in seconds.
     pub elapsed_seconds: Option<u64>,
+    /// Batches in this run.
     #[serde(default)]
     pub batches: Vec<HistoryBatch>,
+    /// Aggregate batch summary.
     #[serde(default)]
     pub summary: RunSummaryInternal,
+    /// Error message if failed.
     pub error: Option<String>,
 }
 
 /// History file structure.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HistoryFile {
+    /// List of execution runs, newest first.
     pub runs: Vec<Run>,
 }
 

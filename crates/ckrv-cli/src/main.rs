@@ -43,6 +43,7 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Some(Commands::Init(args)) => ckrv_cli::init::execute(args, cli.json, &ui).await,
+        Some(Commands::Code(args)) => ckrv_cli::code::execute(args, cli.json, &ui).await,
         Some(Commands::Spec(args)) => ckrv_cli::spec::execute(args, cli.json, &ui).await,
         Some(Commands::Plan(args)) => ckrv_cli::plan::execute(args, cli.json, &ui).await,
         Some(Commands::Run(args)) => ckrv_cli::run::execute(args, cli.json, &ui).await,

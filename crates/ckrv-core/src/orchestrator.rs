@@ -1,5 +1,9 @@
 //! Orchestrator for coordinating the execution lifecycle.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -12,6 +16,10 @@ use crate::{
     planner::{PlanContext, PlanError, Planner},
     Plan, RunState, Spec, Step, StepStatus,
 };
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Orchestrator coordinates the full job lifecycle.
 #[async_trait]
@@ -86,6 +94,10 @@ impl EventHandler for LoggingEventHandler {
         tracing::info!(?event, "Job event");
     }
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 /// Default orchestrator implementation.
 pub struct DefaultOrchestrator<P: Planner> {
@@ -296,6 +308,10 @@ impl<P: Planner + 'static> Orchestrator for DefaultOrchestrator<P> {
         })
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

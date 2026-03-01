@@ -1,7 +1,15 @@
 //! Step execution result for tracking workflow step outcomes.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Result of executing a single workflow step.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,6 +41,10 @@ pub enum StepExecutionStatus {
     /// Step timed out.
     Timeout,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl StepExecutionResult {
     /// Create a successful result.
@@ -88,6 +100,10 @@ impl StepExecutionResult {
         self.status == StepExecutionStatus::Success
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

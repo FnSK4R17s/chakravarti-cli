@@ -1,11 +1,19 @@
 //! Status command - check job status.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use clap::Args;
 use serde::Serialize;
 
 use ckrv_metrics::{FileMetricsStorage, MetricsStorage};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the status command
 #[derive(Args)]
@@ -27,7 +35,11 @@ struct StatusOutput {
 
 use crate::ui::UiContext;
 
-/// Execute the status command
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Execute the status command.
 pub async fn execute(args: StatusArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 

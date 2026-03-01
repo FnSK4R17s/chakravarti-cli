@@ -1,5 +1,9 @@
 //! Diff command - view changes between main branch and current spec branch.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
@@ -8,6 +12,10 @@ use serde::Serialize;
 use crate::ui::components::Banner;
 use crate::ui::Renderable;
 use crate::ui::UiContext;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the diff command
 #[derive(Args)]
@@ -44,27 +52,45 @@ pub enum ColorMode {
     Never,
 }
 
+/// Serializable output for the diff command.
 #[derive(Serialize)]
 pub struct DiffOutput {
+    /// Current branch name.
     pub current_branch: String,
+    /// Base branch being compared against.
     pub base_branch: String,
+    /// Whether any changes were found.
     pub has_changes: bool,
+    /// Total lines added across all files.
     pub lines_added: usize,
+    /// Total lines removed across all files.
     pub lines_removed: usize,
+    /// Number of files changed.
     pub files_changed: usize,
+    /// Per-file change details.
     pub files: Vec<FileChange>,
+    /// Optional AI-generated summary of changes.
     pub summary: Option<String>,
 }
 
+/// A single file change with insertion/deletion counts.
 #[derive(Serialize, Clone)]
 pub struct FileChange {
+    /// Path to the changed file.
     pub file: String,
-    pub status: String, // added, modified, deleted, renamed
+    /// Change status: added, modified, deleted, or renamed.
+    pub status: String,
+    /// Number of lines inserted.
     pub insertions: usize,
+    /// Number of lines deleted.
     pub deletions: usize,
 }
 
-/// Execute the diff command
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Execute the diff command.
 pub async fn execute(args: DiffArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 

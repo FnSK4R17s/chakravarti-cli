@@ -3,16 +3,24 @@
 //! This module provides prompt construction utilities for Claude Code
 //! to generate rich specifications, clarifications, and designs.
 
-/// Embedded spec template
+// ============================================================
+// TYPES
+// ============================================================
+
+/// Embedded spec template.
 pub const SPEC_TEMPLATE: &str = include_str!("templates/spec-template.yaml");
 
-/// Embedded design template  
+/// Embedded design template.
 pub const DESIGN_TEMPLATE: &str = include_str!("templates/design-template.md");
 
-/// Embedded tasks template
+/// Embedded tasks template.
 pub const TASKS_TEMPLATE: &str = include_str!("templates/tasks-template.yaml");
 
-/// Build a prompt for generating a rich spec.yaml from a description
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Build a prompt for generating a rich spec.yaml from a description.
 pub fn build_spec_prompt(description: &str, spec_id: &str) -> String {
     format!(
         r#"Generate a comprehensive YAML specification for this feature.
@@ -153,11 +161,14 @@ pub fn strip_yaml_fences(content: &str) -> String {
     result.join("\n")
 }
 
-/// A clarification item that needs user input
+/// A clarification item that needs user input.
 #[derive(Debug, Clone)]
 pub struct ClarificationItem {
+    /// Topic area the clarification addresses.
     pub topic: String,
+    /// Question to present to the user.
     pub question: String,
+    /// Available answer options for the user to choose from.
     pub options: Vec<String>,
 }
 
