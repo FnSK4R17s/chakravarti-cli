@@ -85,6 +85,7 @@ pub use commands::status;
 pub use commands::task;
 pub use commands::term;
 pub use commands::test;
+pub use commands::usage;
 pub use commands::verify;
 
 // Re-export commands with name conflicts (cloud command vs cloud module, ui command vs ui module)
@@ -288,6 +289,25 @@ pub enum Commands {
                       ckrv fix --tests-only"
     )]
     Fix(commands::fix::FixArgs),
+
+    /// View aggregate usage metrics across all jobs
+    #[command(
+        display_order = 8,
+        long_about = "View aggregate usage metrics across all jobs.\n\n\
+                      Shows total token usage, cost estimates, and timing across all recorded \
+                      job runs. Breaks down usage by model to help monitor resource consumption \
+                      of agents such as Claude, Codex, and OpenRouter models.",
+        after_help = "Examples:\n\
+                      # Show usage summary\n\
+                      ckrv usage\n\n\
+                      # Show per-job breakdown\n\
+                      ckrv usage --detailed\n\n\
+                      # Show per-agent quota/usage summary\n\
+                      ckrv usage --agents\n\n\
+                      # Output as JSON\n\
+                      ckrv usage --json"
+    )]
+    Usage(commands::usage::UsageArgs),
 
     /// Execute a workflow-based agent task
     #[command(
@@ -703,7 +723,11 @@ mod tests {
         assert!(visible_names.contains(&"ui"), "ui should be visible");
 
         // Only 6 visible commands
-        assert_eq!(visible_names.len(), 6, "should have exactly 6 visible commands");
+        assert_eq!(
+            visible_names.len(),
+            6,
+            "should have exactly 6 visible commands"
+        );
     }
 
     #[test]
@@ -721,8 +745,11 @@ mod tests {
             "code should have subcommands"
         );
 
-        let subcmd_names: Vec<&str> =
-            code_cmd.subcommands.iter().map(|c| c.name.as_str()).collect();
+        let subcmd_names: Vec<&str> = code_cmd
+            .subcommands
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
 
         assert!(subcmd_names.contains(&"spec"), "code should have spec");
         assert!(subcmd_names.contains(&"tasks"), "code should have tasks");
@@ -747,13 +774,13 @@ mod tests {
             .find(|cmd| cmd.name == "spec")
             .expect("code spec should exist");
 
-        let subcmd_names: Vec<&str> =
-            spec_cmd.subcommands.iter().map(|c| c.name.as_str()).collect();
+        let subcmd_names: Vec<&str> = spec_cmd
+            .subcommands
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
 
-        assert!(
-            subcmd_names.contains(&"new"),
-            "code spec should have 'new'"
-        );
+        assert!(subcmd_names.contains(&"new"), "code spec should have 'new'");
         assert!(
             subcmd_names.contains(&"list"),
             "code spec should have 'list'"

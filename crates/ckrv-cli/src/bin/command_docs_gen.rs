@@ -173,7 +173,11 @@ last_commit: {}
                 output.push_str(&format!(
                     "| `{}` | {} |\n",
                     subcmd.name,
-                    if subcmd.description.is_empty() { "-" } else { &subcmd.description }
+                    if subcmd.description.is_empty() {
+                        "-"
+                    } else {
+                        &subcmd.description
+                    }
                 ));
             }
             output.push('\n');

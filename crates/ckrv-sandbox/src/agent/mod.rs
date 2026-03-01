@@ -18,9 +18,9 @@ mod gemini;
 mod kilo;
 mod opencode;
 mod qwen;
-mod vibe;
 #[cfg(test)]
 mod tests;
+mod vibe;
 
 pub use amp::AmpProvider;
 pub use claude::ClaudeProvider;

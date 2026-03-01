@@ -40,6 +40,8 @@ pub mod term;
 pub mod test;
 /// UI command - launch the web dashboard.
 pub mod ui;
+/// Usage command - view aggregate metrics.
+pub mod usage;
 /// Verify command - run tests, lint, and quality checks.
 pub mod verify;
 

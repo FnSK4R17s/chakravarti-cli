@@ -5,8 +5,7 @@
 use crate::handlers::agents::{
     delete_agent_handler, get_glm_models_handler, get_kilo_models_handler,
     get_openrouter_models_handler, list_agents_handler, set_default_agent_handler,
-    set_qa_agent_handler, set_test_writer_agent_handler, test_agent_handler,
-    upsert_agent_handler,
+    set_qa_agent_handler, set_test_writer_agent_handler, test_agent_handler, upsert_agent_handler,
 };
 use crate::state::AppState;
 use crate::types::{
