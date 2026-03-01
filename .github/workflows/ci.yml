@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # ── Rust Format ────────────────────────────────────────────────────────
+  rust-fmt:
+    name: Rust Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  # ── Rust Lint ──────────────────────────────────────────────────────────
+  rust-clippy:
+    name: Rust Clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: clippy
+      - run: cargo clippy --workspace -- -D warnings
+
+  # ── Rust Tests ─────────────────────────────────────────────────────────
+  rust-test:
+    name: Rust Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: test
+      - run: cargo test --workspace
+
+  # ── Rust Build ─────────────────────────────────────────────────────────
+  rust-build:
+    name: Rust Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: crates/ckrv-ui/frontend
+      - run: cargo build --release -p ckrv-cli
+
+  # ── Frontend Lint ──────────────────────────────────────────────────────
+  frontend-lint:
+    name: Frontend Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm install
+        working-directory: crates/ckrv-ui/frontend
+      - name: ESLint
+        run: npm run lint
+        working-directory: crates/ckrv-ui/frontend
+
+  # ── Frontend Typecheck ─────────────────────────────────────────────────
+  frontend-typecheck:
+    name: Frontend Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm install
+        working-directory: crates/ckrv-ui/frontend
+      - name: TypeScript check
+        run: npx tsc -b
+        working-directory: crates/ckrv-ui/frontend
+
+  # ── Frontend Build ─────────────────────────────────────────────────────
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm install
+        working-directory: crates/ckrv-ui/frontend
+      - name: Vite production build
+        run: npm run build
+        working-directory: crates/ckrv-ui/frontend
