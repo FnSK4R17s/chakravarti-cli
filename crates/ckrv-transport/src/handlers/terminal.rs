@@ -168,11 +168,11 @@ pub async fn start_terminal_handler(
 
     // Select Docker image based on agent type
     let docker_image = if is_codex {
-        "ckrv-codex:latest".to_string()
+        "ghcr.io/fnsk4r17s/ckrv-codex:latest".to_string()
     } else if is_kilo {
-        "ckrv-kilo:latest".to_string()
+        "ghcr.io/fnsk4r17s/ckrv-kilo:latest".to_string()
     } else {
-        "ckrv-claude:latest".to_string()
+        "ghcr.io/fnsk4r17s/ckrv-claude:latest".to_string()
     };
 
     if is_codex {
