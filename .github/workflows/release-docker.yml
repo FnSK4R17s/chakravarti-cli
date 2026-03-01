@@ -70,6 +70,10 @@ jobs:
             dockerfile: docker/Dockerfile.vibe
             context: docker/
 
+          - name: ckrv-opencode
+            dockerfile: docker/Dockerfile.opencode
+            context: docker/
+
           - name: ckrv-agent
             dockerfile: docker/Dockerfile.agent
             context: docker/
