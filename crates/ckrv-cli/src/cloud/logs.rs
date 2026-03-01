@@ -1,20 +1,36 @@
 //! Log streaming client for SSE-based log streaming.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::cloud::config::CloudConfig;
 use crate::cloud::credentials::{load_tokens, StoredTokens};
 use crate::cloud::error::CloudError;
 use futures::StreamExt;
 
-/// Log entry from the stream
+// ============================================================
+// TYPES
+// ============================================================
+
+/// Log entry from the stream.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct LogEntry {
+    /// ISO 8601 timestamp of the log entry.
     pub timestamp: String,
+    /// Log severity level (e.g., "info", "error", "debug").
     pub level: String,
+    /// Source component that produced the log entry.
     pub source: String,
+    /// Human-readable log message text.
     pub message: String,
 }
 
-/// Get access token, returning error if not authenticated
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Get access token, returning error if not authenticated.
 fn get_access_token() -> Result<String, CloudError> {
     let tokens: StoredTokens = load_tokens()?;
     Ok(tokens.access_token)

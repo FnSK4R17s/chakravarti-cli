@@ -14,6 +14,7 @@ use tauri::State;
 /// Response wrapper for list_history.
 #[derive(Serialize)]
 pub struct ListHistoryWrapped {
+    /// List of run summaries.
     runs: Vec<RunSummary>,
 }
 

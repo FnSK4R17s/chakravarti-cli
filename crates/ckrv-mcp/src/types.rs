@@ -1,11 +1,19 @@
-//! MCP Server Types
+//! MCP Server Types.
 //!
 //! JSON-RPC 2.0 types for the Model Context Protocol server.
+
+// ============================================================
+// IMPORTS
+// ============================================================
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// JSON-RPC 2.0 request from MCP client
+// ============================================================
+// REQUEST / RESPONSE
+// ============================================================
+
+/// JSON-RPC 2.0 request from MCP client.
 #[derive(Debug, Deserialize)]
 pub struct MCPRequest {
     /// JSON-RPC version (must be "2.0")
@@ -23,7 +31,7 @@ pub struct MCPRequest {
     pub params: Value,
 }
 
-/// JSON-RPC 2.0 response to MCP client
+/// JSON-RPC 2.0 response to MCP client.
 #[derive(Debug, Serialize)]
 pub struct MCPResponse {
     /// JSON-RPC version (always "2.0")
@@ -65,7 +73,11 @@ impl MCPResponse {
     }
 }
 
-/// JSON-RPC error object
+// ============================================================
+// ERROR
+// ============================================================
+
+/// JSON-RPC error object.
 #[derive(Debug, Serialize)]
 pub struct MCPError {
     /// Error code (standard JSON-RPC codes or custom)
@@ -141,7 +153,11 @@ impl MCPError {
     }
 }
 
-/// MCP Tool definition
+// ============================================================
+// TOOL TYPES
+// ============================================================
+
+/// MCP Tool definition.
 #[derive(Debug, Clone, Serialize)]
 pub struct MCPTool {
     /// Tool name (e.g., "ckrv_spec_new")
@@ -159,7 +175,7 @@ pub struct MCPTool {
     pub annotations: Option<MCPToolAnnotations>,
 }
 
-/// Tool annotations for client hints
+/// Tool annotations for client hints.
 #[derive(Debug, Clone, Serialize)]
 pub struct MCPToolAnnotations {
     /// Hint that this tool only reads data

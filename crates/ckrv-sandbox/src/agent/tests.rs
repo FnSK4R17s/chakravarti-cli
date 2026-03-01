@@ -1,10 +1,18 @@
-//! Tests for the agent module
+//! Tests for the agent module.
+
+// ============================================================
+// IMPORTS
+// ============================================================
 
 use super::{
     create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
     ClaudeProvider, CodexProvider, FactoryDroidProvider, KiloCodeProvider,
 };
 use std::path::Path;
+
+// ============================================================
+// AGENT TYPE TESTS
+// ============================================================
 
 #[test]
 fn test_agent_type_from_str() {
@@ -66,6 +74,10 @@ fn test_agent_config_builder() {
     assert_eq!(config.model, Some("gpt-4o".to_string()));
     assert!(!config.streaming);
 }
+
+// ============================================================
+// PROVIDER TESTS
+// ============================================================
 
 #[test]
 fn test_create_agent_claude() {
@@ -158,6 +170,10 @@ fn test_claude_parse_output_failure() {
     assert_eq!(result.stderr, "error message");
     assert_eq!(result.exit_code, 1);
 }
+
+// ============================================================
+// KILO CODE TESTS
+// ============================================================
 
 #[test]
 fn test_create_agent_kilo() {

@@ -43,11 +43,11 @@ import { toast } from 'sonner';
 interface SpecWorkflowProps {
     /** Name of the spec being managed */
     specName: string;
-    /** Count of unresolved clarification questions */
+    /** Count of unresolved clarification questions. @default 0 */
     unresolvedClarifications?: number;
-    /** Whether design.md has been generated */
+    /** Whether design.md has been generated. @default false */
     hasDesign?: boolean;
-    /** Whether tasks.yaml has been generated */
+    /** Whether tasks.yaml has been generated. @default false */
     hasTasks?: boolean;
     /** Callback to open clarification resolution dialog */
     onClarifyClick?: () => void;

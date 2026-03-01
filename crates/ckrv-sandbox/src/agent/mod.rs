@@ -4,6 +4,10 @@
 //! between AI agents (Claude Code, OpenAI Codex, etc.) allowing the sandbox
 //! to work with any supported agent interchangeably.
 
+// ============================================================
+// MODULES AND IMPORTS
+// ============================================================
+
 mod claude;
 mod codex;
 mod factory;
@@ -20,6 +24,10 @@ use anyhow::Result;
 use bollard::models::Mount;
 use std::path::Path;
 
+// ============================================================
+// AGENT TYPE
+// ============================================================
+
 /// Supported agent types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AgentType {
@@ -35,7 +43,11 @@ pub enum AgentType {
 }
 
 impl AgentType {
-    /// Parse agent type from string
+    /// Parse agent type from a string identifier.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - String identifier such as "claude", "codex", or "kilo".
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "claude" | "claude-code" => Some(Self::Claude),
@@ -46,7 +58,7 @@ impl AgentType {
         }
     }
 
-    /// Get the display name for this agent
+    /// Get the display name for this agent.
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::Claude => "Claude Code",
@@ -63,7 +75,11 @@ impl std::fmt::Display for AgentType {
     }
 }
 
-/// Configuration for agent execution
+// ============================================================
+// AGENT CONFIG
+// ============================================================
+
+/// Configuration for agent execution.
 #[derive(Debug, Clone)]
 pub struct AgentConfig {
     /// The type of agent to use
@@ -85,7 +101,7 @@ impl Default for AgentConfig {
 }
 
 impl AgentConfig {
-    /// Create a new agent config with specified type
+    /// Create a new agent config with specified type.
     pub fn new(agent_type: AgentType) -> Self {
         Self {
             agent_type,
@@ -93,20 +109,24 @@ impl AgentConfig {
         }
     }
 
-    /// Set the model
+    /// Set the model override.
     pub fn with_model(mut self, model: impl Into<String>) -> Self {
         self.model = Some(model.into());
         self
     }
 
-    /// Set streaming mode
+    /// Set streaming mode.
     pub fn with_streaming(mut self, streaming: bool) -> Self {
         self.streaming = streaming;
         self
     }
 }
 
-/// Normalized output from agent execution
+// ============================================================
+// AGENT OUTPUT
+// ============================================================
+
+/// Normalized output from agent execution.
 #[derive(Debug, Clone, Default)]
 pub struct AgentOutput {
     /// Whether execution succeeded
@@ -118,6 +138,10 @@ pub struct AgentOutput {
     /// Exit code from the agent process
     pub exit_code: i32,
 }
+
+// ============================================================
+// AGENT PROVIDER TRAIT
+// ============================================================
 
 /// Trait defining the interface for AI agent implementations.
 ///
@@ -150,7 +174,11 @@ pub trait AgentProvider: Send + Sync {
     fn parse_output(&self, stdout: &str, stderr: &str, exit_code: i32) -> Result<AgentOutput>;
 }
 
-/// Create an agent provider for the given type
+// ============================================================
+// FACTORY FUNCTIONS
+// ============================================================
+
+/// Create an agent provider for the given type.
 pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
     match agent_type {
         AgentType::Claude => Box::new(ClaudeProvider::new()),
@@ -160,7 +188,7 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
     }
 }
 
-/// Get the default agent provider
+/// Get the default agent provider.
 pub fn default_agent() -> Box<dyn AgentProvider> {
     create_agent(AgentType::default())
 }

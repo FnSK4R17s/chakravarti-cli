@@ -3,13 +3,21 @@
 //! This module discovers CLI commands using clap's introspection API and
 //! executes them by shelling out to the `ckrv` binary.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::schema::build_json_schema;
 use crate::types::{MCPTool, MCPToolAnnotations};
 use ckrv_cli::{extract_command_metadata, CommandMetadata};
 use serde_json::Value;
 use std::process::Command;
 
-/// Discover all available tools from CLI command metadata
+// ============================================================
+// TOOL DISCOVERY
+// ============================================================
+
+/// Discover all available tools from CLI command metadata.
 #[must_use]
 pub fn discover_tools() -> Vec<MCPTool> {
     let metadata = extract_command_metadata();
@@ -92,8 +100,13 @@ fn infer_annotations(name: &str, _cmd: &CommandMetadata) -> Option<MCPToolAnnota
     }
 }
 
-/// Convert tool name back to CLI command parts
-/// e.g., "ckrv_spec_new" -> ["spec", "new"]
+// ============================================================
+// ARGUMENT BUILDING
+// ============================================================
+
+/// Convert tool name back to CLI command parts.
+///
+/// For example, `"ckrv_spec_new"` becomes `["spec", "new"]`.
 #[must_use]
 pub fn parse_tool_name(name: &str) -> Vec<String> {
     name.strip_prefix("ckrv_")
@@ -103,7 +116,12 @@ pub fn parse_tool_name(name: &str) -> Vec<String> {
         .collect()
 }
 
-/// Build CLI arguments from JSON arguments object
+/// Build CLI arguments from a JSON arguments object.
+///
+/// # Arguments
+///
+/// * `arguments` - JSON object with argument names as keys.
+/// * `cmd` - Command metadata describing expected arguments and options.
 #[must_use]
 pub fn build_cli_args(arguments: &Value, cmd: &CommandMetadata) -> Vec<String> {
     let mut args = Vec::new();
@@ -145,10 +163,20 @@ pub fn build_cli_args(arguments: &Value, cmd: &CommandMetadata) -> Vec<String> {
     args
 }
 
-/// Execute a tool by shelling out to ckrv
+// ============================================================
+// TOOL EXECUTION
+// ============================================================
+
+/// Execute a tool by shelling out to ckrv.
+///
+/// # Arguments
+///
+/// * `tool_name` - MCP tool name (e.g., "ckrv_spec_new").
+/// * `arguments` - JSON arguments to pass to the CLI command.
 ///
 /// # Errors
-/// Returns an error if the command fails to execute or produces invalid output
+///
+/// Returns an error if the command fails to execute or produces invalid output.
 pub fn execute_tool(tool_name: &str, arguments: &Value) -> Result<(String, bool), String> {
     // Parse tool name to get command parts
     let parts = parse_tool_name(tool_name);
@@ -207,6 +235,10 @@ fn find_command_metadata<'a>(
     }
     Some(current)
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

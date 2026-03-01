@@ -77,7 +77,10 @@ export interface BatchLogTerminalProps {
     logs: BatchLogEntry[];
     /** Git branch name, shown when batch completes */
     branch?: string;
-    /** Whether to auto-scroll to newest logs; defaults to true */
+    /**
+     * Whether to auto-scroll to newest logs as they arrive.
+     * @default true
+     */
     autoScroll?: boolean;
     /** Model identifier for display (e.g., "claude-sonnet-4-20250514") */
     model?: string;
