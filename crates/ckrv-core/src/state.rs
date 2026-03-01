@@ -1,8 +1,16 @@
 //! Job run state machine.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// The current state of a job in its lifecycle.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -15,20 +23,42 @@ pub enum RunState {
     Planning,
 
     /// Executing plan steps.
-    Executing { attempt: u32, step: String },
+    Executing {
+        /// Current attempt number (1-indexed).
+        attempt: u32,
+        /// ID of the step currently being executed.
+        step: String,
+    },
 
     /// Running verification.
-    Verifying { attempt: u32 },
+    Verifying {
+        /// Current attempt number (1-indexed).
+        attempt: u32,
+    },
 
     /// Job completed successfully.
-    Succeeded { attempt: u32, diff_path: PathBuf },
+    Succeeded {
+        /// The attempt number that succeeded.
+        attempt: u32,
+        /// Path to the generated diff file.
+        diff_path: PathBuf,
+    },
 
     /// Job failed after all retries.
-    Failed { attempts: u32, last_error: String },
+    Failed {
+        /// Total number of attempts made.
+        attempts: u32,
+        /// Error message from the last attempt.
+        last_error: String,
+    },
 
     /// Job was cancelled by user.
     Cancelled,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl RunState {
     /// Check if the job is in a terminal state.
@@ -79,6 +109,10 @@ impl std::fmt::Display for RunState {
         }
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

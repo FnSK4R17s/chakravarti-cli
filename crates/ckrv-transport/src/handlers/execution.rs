@@ -27,26 +27,37 @@ pub struct ExecuteRequest {
 /// Execution status.
 #[derive(Debug, Serialize)]
 pub struct ExecutionStatus {
+    /// Whether execution is currently active.
     pub running: bool,
+    /// Name of the spec being executed.
     pub spec_name: Option<String>,
+    /// Current batch being processed.
     pub batch_id: Option<String>,
+    /// Execution progress (0.0 to 1.0).
     pub progress: f32,
+    /// Currently executing task name.
     pub current_task: Option<String>,
+    /// Descriptive status message.
     pub message: Option<String>,
 }
 
 /// Execute response.
 #[derive(Debug, Serialize)]
 pub struct ExecuteResponse {
+    /// Whether execution was successfully started.
     pub started: bool,
+    /// Unique identifier for this execution run.
     pub run_id: Option<String>,
+    /// Descriptive message about the execution start.
     pub message: Option<String>,
 }
 
 /// Stop execution request.
 #[derive(Debug, Deserialize)]
 pub struct StopRequest {
+    /// Spec to stop execution for.
     pub spec: String,
+    /// Specific run to stop (if multiple).
     pub run_id: Option<String>,
 }
 
@@ -154,24 +165,33 @@ pub async fn resume_execution_handler(
 /// Request to list branches.
 #[derive(Debug, Deserialize)]
 pub struct ListBranchesRequest {
+    /// Optional spec name to filter branches.
     pub spec: Option<String>,
 }
 
 /// Branch info.
 #[derive(Debug, Serialize)]
 pub struct BranchInfo {
+    /// Full branch name.
     pub name: String,
+    /// Batch name extracted from the branch.
     pub batch_name: String,
+    /// Number of commits ahead of HEAD.
     pub ahead_commits: u32,
+    /// Whether the worktree has no uncommitted changes.
     pub is_clean: bool,
 }
 
 /// Response with branches.
 #[derive(Debug, Serialize)]
 pub struct ListBranchesResponse {
+    /// Whether the operation succeeded.
     pub success: bool,
+    /// Current HEAD branch name.
     pub current_branch: String,
+    /// Unmerged worktree branches.
     pub branches: Vec<BranchInfo>,
+    /// Descriptive message.
     pub message: Option<String>,
 }
 
@@ -295,15 +315,20 @@ pub async fn list_branches_handler(
 /// Request to merge all branches.
 #[derive(Debug, Deserialize)]
 pub struct MergeAllRequest {
+    /// Optional spec name to filter branches.
     pub spec: Option<String>,
 }
 
 /// Response from merge all.
 #[derive(Debug, Serialize)]
 pub struct MergeAllResponse {
+    /// Whether all merges succeeded.
     pub success: bool,
+    /// Branch names that were successfully merged.
     pub merged: Vec<String>,
+    /// Branch names that failed to merge.
     pub failed: Vec<String>,
+    /// Summary message.
     pub message: String,
 }
 
@@ -418,14 +443,18 @@ pub async fn merge_all_branches_handler(
 /// Request to merge a single branch.
 #[derive(Debug, Deserialize)]
 pub struct MergeBranchRequest {
+    /// Branch name to merge into HEAD.
     pub branch: String,
 }
 
 /// Response from merge branch.
 #[derive(Debug, Serialize)]
 pub struct MergeBranchResponse {
+    /// Whether the merge succeeded.
     pub success: bool,
+    /// Branch that was merged.
     pub branch: String,
+    /// Descriptive result message.
     pub message: String,
 }
 
@@ -470,40 +499,55 @@ pub async fn merge_branch_handler(
 /// Log entry for execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogEntry {
+    /// ISO 8601 timestamp.
     pub timestamp: String,
+    /// Log level (info, warn, error).
     pub level: String,
+    /// Log message content.
     pub message: String,
 }
 
 /// Log history request params.
 #[derive(Debug, Deserialize)]
 pub struct LogHistoryParams {
+    /// Starting offset for pagination.
     pub offset: Option<usize>,
+    /// Maximum number of entries to return.
     pub limit: Option<usize>,
+    /// Only return logs after this ISO 8601 timestamp.
     pub since: Option<String>,
 }
 
 /// Log history response.
 #[derive(Debug, Serialize)]
 pub struct LogHistoryResponse {
+    /// Execution run identifier.
     pub execution_id: String,
+    /// Log entries for this page.
     pub logs: Vec<LogEntry>,
+    /// Total number of log entries.
     pub total_count: usize,
+    /// Current page offset.
     pub offset: usize,
+    /// Whether more entries exist beyond this page.
     pub has_more: bool,
 }
 
 /// Log tail params.
 #[derive(Debug, Deserialize)]
 pub struct LogTailParams {
+    /// Number of most recent log entries to return.
     pub count: Option<usize>,
 }
 
 /// Log tail response.
 #[derive(Debug, Serialize)]
 pub struct LogTailResponse {
+    /// Execution run identifier.
     pub execution_id: String,
+    /// Most recent log entries.
     pub logs: Vec<LogEntry>,
+    /// Total number of log entries available.
     pub total_count: usize,
 }
 

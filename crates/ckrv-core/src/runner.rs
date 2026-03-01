@@ -3,6 +3,10 @@
 //! The Runner iterates through workflow steps, renders prompts,
 //! invokes the agent, and collects outputs.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::Path;
 use std::time::Instant;
 
@@ -10,6 +14,10 @@ use crate::agent_task::{AgentTask, AgentTaskStatus};
 use crate::prompt::{PromptRenderer, RenderContext};
 use crate::step_result::StepExecutionResult;
 use crate::workflow::{OutputType, Workflow, WorkflowStep};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Configuration for the workflow runner.
 #[derive(Debug, Clone)]
@@ -39,6 +47,10 @@ pub struct RunnerConfig {
     /// GLM timeout in ms (default: 3000000).
     pub glm_timeout_ms: Option<u32>,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl Default for RunnerConfig {
     fn default() -> Self {
@@ -531,6 +543,10 @@ impl Default for WorkflowRunner {
         Self::new(RunnerConfig::default())
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

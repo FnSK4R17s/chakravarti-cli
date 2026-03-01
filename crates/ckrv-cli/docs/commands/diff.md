@@ -1,12 +1,15 @@
 ---
 command: diff
-generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 508766e
+generated_from: lib.rs
+last_commit: f92f604
+hidden: true
 ---
 
 # ckrv diff
 
-View changes between current branch and base
+View changes between current branch and base.
+
+> **Note**: This is a legacy top-level command. Prefer `ckrv code diff` for the unified Code workflow.
 
 ## Description
 
@@ -21,10 +24,10 @@ Output can be formatted as JSON for programmatic use.
 | Flag | Description |
 |------|-------------|
 | `--base`, `-b` | Base branch to compare against (default: main or master) |
-| `--color` | Color mode for diff output (default: auto) |
-| `--files` | Show file list only |
 | `--stat` | Show diff statistics only |
+| `--files` | Show file list only |
 | `--summary` | Generate AI summary of changes |
+| `--color <MODE>` | Color mode: auto, always, or never (default: auto) |
 
 ## Examples
 

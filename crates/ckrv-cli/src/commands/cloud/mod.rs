@@ -17,6 +17,7 @@ pub mod whoami;
 #[derive(Debug, Args)]
 pub struct CloudArgs {
     #[command(subcommand)]
+    /// Cloud subcommand to execute.
     pub command: CloudCommand,
 }
 

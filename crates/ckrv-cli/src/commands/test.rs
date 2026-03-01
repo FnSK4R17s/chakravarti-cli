@@ -16,6 +16,7 @@ use crate::ui::{Renderable, UiContext};
 #[derive(Args)]
 pub struct TestArgs {
     #[command(subcommand)]
+    /// Test subcommand to execute.
     pub command: TestSubcommand,
 }
 
@@ -23,6 +24,20 @@ pub struct TestArgs {
 #[derive(Subcommand)]
 pub enum TestSubcommand {
     /// Run existing tests in sandbox
+    #[command(
+        long_about = "Run existing tests in a sandboxed environment.\n\n\
+                      Detects the project's test framework automatically and executes \
+                      the full test suite. Results are displayed with pass/fail counts \
+                      and a summary report.\n\n\
+                      Exits with code 1 if any test fails. Use --json for machine-readable output.",
+        after_help = "Examples:\n\
+                      # Run tests comparing against main\n\
+                      ckrv test run\n\n\
+                      # Run tests comparing against a specific branch\n\
+                      ckrv test run --base develop\n\n\
+                      # Run tests with JSON output\n\
+                      ckrv test run --json"
+    )]
     Run {
         /// Branch to compare against (default: main)
         #[arg(long, default_value = "main")]
@@ -30,6 +45,21 @@ pub enum TestSubcommand {
     },
 
     /// Analyze changes and generate test plan
+    #[command(
+        long_about = "Analyze changes and generate a test plan.\n\n\
+                      Compares the current branch against the base branch, identifies \
+                      changed files, and determines which files lack test coverage. \
+                      Produces a structured plan with proposed tests prioritized by impact.\n\n\
+                      The plan is saved to `.specs/<branch>/test-plan.yaml` for use by \
+                      the test writer agent.",
+        after_help = "Examples:\n\
+                      # Generate test plan against main\n\
+                      ckrv test plan\n\n\
+                      # Generate test plan against a specific branch\n\
+                      ckrv test plan --base develop\n\n\
+                      # Generate test plan with JSON output\n\
+                      ckrv test plan --json"
+    )]
     Plan {
         /// Branch to compare against (default: main)
         #[arg(long, default_value = "main")]
@@ -37,6 +67,21 @@ pub enum TestSubcommand {
     },
 
     /// Write new tests using test writer agent
+    #[command(
+        long_about = "Write new tests using the configured test writer agent.\n\n\
+                      Analyzes changed files against the base branch and invokes an AI agent \
+                      to generate tests for uncovered code. The agent runs inside a Docker \
+                      sandbox for isolation.\n\n\
+                      Requires a test writer agent to be configured. Use --run to automatically \
+                      execute the generated tests after writing.",
+        after_help = "Examples:\n\
+                      # Write tests for changes against main\n\
+                      ckrv test write\n\n\
+                      # Write tests and run them immediately\n\
+                      ckrv test write --run\n\n\
+                      # Write tests against a specific branch\n\
+                      ckrv test write --base develop"
+    )]
     Write {
         /// Branch to compare against (default: main)
         #[arg(long, default_value = "main")]
@@ -48,6 +93,21 @@ pub enum TestSubcommand {
     },
 
     /// Check test coverage of changed files
+    #[command(
+        long_about = "Check test coverage of changed files.\n\n\
+                      Scans files changed between the current branch and base branch to \
+                      determine which source files have corresponding tests. Reports a \
+                      coverage percentage based on file-level test presence.\n\n\
+                      Warns if coverage drops below 80%. Use `ckrv test plan` to see \
+                      exactly which files need tests.",
+        after_help = "Examples:\n\
+                      # Check coverage against main\n\
+                      ckrv test coverage\n\n\
+                      # Check coverage against a specific branch\n\
+                      ckrv test coverage --base develop\n\n\
+                      # Check coverage with JSON output\n\
+                      ckrv test coverage --json"
+    )]
     Coverage {
         /// Branch to compare against (default: main)
         #[arg(long, default_value = "main")]
@@ -55,36 +115,53 @@ pub enum TestSubcommand {
     },
 }
 
-/// Output for test run command
+/// Output for the test run command.
 #[derive(Serialize)]
 pub struct TestRunOutput {
+    /// Whether all tests passed.
     pub success: bool,
+    /// Detailed test execution results.
     pub result: TestResult,
 }
 
-/// Output for test plan command
+/// Output for the test plan command.
 #[derive(Serialize, Deserialize)]
 pub struct TestPlanOutput {
+    /// Unique identifier for this test plan.
     pub plan_id: String,
+    /// Base branch being compared against.
     pub base_branch: String,
+    /// Information about each changed file.
     pub changed_files: Vec<ChangedFileInfo>,
+    /// Tests proposed for uncovered files.
     pub proposed_tests: Vec<ProposedTest>,
 }
 
+/// Summary of a changed file for test planning.
 #[derive(Serialize, Deserialize)]
 pub struct ChangedFileInfo {
+    /// Path to the changed file.
     pub path: String,
+    /// Type of change (added, modified, deleted).
     pub change_type: String,
+    /// Number of lines added.
     pub lines_added: u32,
+    /// Number of lines removed.
     pub lines_removed: u32,
+    /// Whether this file already has tests.
     pub has_tests: bool,
 }
 
+/// A proposed test to be written by the test writer agent.
 #[derive(Serialize, Deserialize)]
 pub struct ProposedTest {
+    /// Source file that needs tests.
     pub target_file: String,
+    /// Suggested path for the test file.
     pub test_file: String,
+    /// Description of what tests should cover.
     pub description: String,
+    /// Priority level (high, medium, low).
     pub priority: String,
 }
 

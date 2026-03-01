@@ -1,4 +1,8 @@
-//! Agent commands for Tauri IPC
+//! Agent commands for Tauri IPC.
+
+// ============================================================
+// Imports
+// ============================================================
 
 use crate::SharedState;
 use ckrv_transport::handlers::agents::{
@@ -15,21 +19,28 @@ use ckrv_transport::types::{
 use serde::Serialize;
 use tauri::State;
 
+// ============================================================
+// Types
+// ============================================================
+
 /// Response wrapper for list_agents to match frontend expectations.
 #[derive(Serialize)]
 pub struct ListAgentsWrapped {
+    /// List of configured agents.
     agents: Vec<AgentConfig>,
 }
 
 /// Response wrapper for get_openrouter_models to match frontend expectations.
 #[derive(Serialize)]
 pub struct ModelsWrapped {
+    /// Available OpenRouter models.
     models: Vec<OpenRouterModel>,
 }
 
 /// Response wrapper for get_kilo_models to match frontend expectations.
 #[derive(Serialize)]
 pub struct KiloModelsWrapped {
+    /// Available Kilo Code models.
     models: Vec<KiloCodeModel>,
 }
 
@@ -38,6 +49,10 @@ pub struct KiloModelsWrapped {
 pub struct GlmModelsWrapped {
     models: Vec<GlmModel>,
 }
+
+// ============================================================
+// Handlers
+// ============================================================
 
 /// List all configured agents.
 #[tauri::command]

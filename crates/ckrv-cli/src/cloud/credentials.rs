@@ -1,22 +1,37 @@
 //! Credential storage for cloud authentication tokens.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::cloud::error::CloudError;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+// ============================================================
+// TYPES
+// ============================================================
+
 const SERVICE_NAME: &str = "chakravarti-cloud";
 const USERNAME: &str = "default";
 
-/// Stored authentication tokens
+/// Stored authentication tokens.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredTokens {
+    /// OAuth2 access token for API requests.
     pub access_token: String,
+    /// Optional refresh token for obtaining new access tokens.
     pub refresh_token: Option<String>,
+    /// Unix timestamp when the access token expires.
     pub expires_at: Option<i64>,
 }
 
-/// Store tokens securely using system keychain or fallback to file
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Store tokens securely using system keychain or fallback to file.
 pub fn store_tokens(tokens: &StoredTokens) -> Result<(), CloudError> {
     // WSL/Linux often doesn't have a working keyring, so always use file storage
     // to ensure tokens are persisted reliably

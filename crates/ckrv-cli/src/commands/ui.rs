@@ -19,6 +19,7 @@ use crate::ui::UiContext;
 use ckrv_ui::start_server;
 use clap::Args;
 
+/// Arguments for the UI command.
 #[derive(Args, Debug)]
 pub struct UiArgs {
     /// Port to listen on (default: 3000)
@@ -26,6 +27,7 @@ pub struct UiArgs {
     port: u16,
 }
 
+/// Execute the UI command, starting the web dashboard server.
 pub async fn execute(args: UiArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     if !json {
         ui.success("Web UI", &format!("Starting on port {}...", args.port));

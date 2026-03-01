@@ -2,11 +2,19 @@
 //!
 //! A Task represents a single user request flowing through a workflow.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// A task instance representing a workflow execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +70,10 @@ pub enum TaskError {
     #[error("Serialization error: {0}")]
     SerializationError(String),
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl AgentTask {
     /// Create a new task.
@@ -172,6 +184,10 @@ impl Default for AgentTaskStatus {
         Self::Pending
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

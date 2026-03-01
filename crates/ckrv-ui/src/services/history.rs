@@ -2,12 +2,20 @@
 //!
 //! Handles reading and writing run history to YAML files in the spec directory.
 
+// ============================================================
+// Imports
+// ============================================================
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 
 use crate::models::history::{BatchResult, HistoryBatchStatus, Run, RunHistory};
+
+// ============================================================
+// HistoryService
+// ============================================================
 
 /// Service for managing run history persistence.
 pub struct HistoryService {

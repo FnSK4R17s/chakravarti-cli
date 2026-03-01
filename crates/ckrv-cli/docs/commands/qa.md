@@ -1,20 +1,18 @@
 ---
 command: qa
-generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 508766e
+generated_from: lib.rs
+last_commit: f92f604
 ---
 
 # ckrv qa
 
-QA code review and bug analysis
+QA code review and bug analysis.
 
 ## Description
 
 QA code review and bug analysis.
 
 AI-powered code review and quality assurance. Analyzes changes for potential bugs, security issues, and code quality improvements.
-
-Subcommands: review, bugs, report
 
 ## Subcommands
 

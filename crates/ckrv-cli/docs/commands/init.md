@@ -1,12 +1,12 @@
 ---
 command: init
-generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 508766e
+generated_from: lib.rs
+last_commit: f92f604
 ---
 
 # ckrv init
 
-Initialize Chakravarti in the current repository
+Initialize Chakravarti in the current repository.
 
 ## Description
 

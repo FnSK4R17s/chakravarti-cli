@@ -1,16 +1,19 @@
 ---
-last_commit: 508766e
-last_updated: 2026-02-15
+last_commit: f92f604
+last_updated: 2026-03-01
 related_files:
   - src/main.rs
   - src/lib.rs
   - src/bin/skill_gen.rs
   - src/bin/command_docs_gen.rs
   - src/commands/mod.rs
+  - src/commands/code.rs
+  - src/commands/term.rs
   - src/commands/test.rs
   - src/commands/qa.rs
   - src/commands/task.rs
   - src/services/mod.rs
+  - src/ui/mod.rs
 ---
 
 # ckrv-cli
@@ -35,11 +38,11 @@ This crate provides the main `ckrv` binary and all CLI command implementations. 
 
 ### Other Exports
 
-- **Commands**: Individual command handlers (`init`, `run`, `spec`, `plan`, `test`, `qa`, `cloud`, etc.)
+- **Commands**: Individual command handlers (`init`, `code`, `run`, `spec`, `plan`, `term`, `test`, `qa`, `cloud`, etc.)
 - **Services**: Shared functionality for commands (agent lookup, diff analysis, test framework detection)
 - **Prompts**: Embedded prompts for AI agents (QA reviewer, test writer)
 - **Cloud**: Cloud execution client for remote job management
-- **UI utilities**: Terminal styling, spinners, and theme support
+- **UI utilities**: Terminal styling, spinners, theme support, and `UiContext` output methods (`success`, `info`, `warn`, `error`, `spinner`)
 
 ## Module Structure
 
@@ -52,6 +55,7 @@ src/
 ├── prompts.rs           # User confirmation prompts
 ├── commands/            # Command implementations
 │   ├── init.rs          # ckrv init
+│   ├── code.rs          # ckrv code (namespace: spec/tasks/plan/run/diff)
 │   ├── run.rs           # ckrv run (orchestration)
 │   ├── spec.rs          # ckrv spec (spec management)
 │   ├── spec_structs.rs  # Spec data structures
@@ -68,7 +72,7 @@ src/
 │   ├── report.rs        # ckrv report
 │   ├── pull.rs          # ckrv pull
 │   ├── ui.rs            # ckrv ui
-│   ├── term.rs          # ckrv term
+│   ├── term.rs          # ckrv term (session management, isolation)
 │   └── cloud/           # ckrv cloud subcommands
 ├── services/            # Shared services
 │   ├── agent_lookup.rs  # Agent configuration loading
@@ -163,6 +167,7 @@ This creates structured documentation files with frontmatter, descriptions, argu
 | Command | File | Description |
 |---------|------|-------------|
 | `ckrv init` | `init.rs` | Initialize Chakravarti in repository |
+| `ckrv code` | `code.rs` | Unified Code workflow namespace (spec, tasks, plan, run, diff) |
 | `ckrv spec` | `spec.rs` | Manage specifications |
 | `ckrv plan` | `plan.rs` | Generate execution plans |
 | `ckrv run` | `run.rs` | Execute orchestration |
@@ -178,8 +183,56 @@ This creates structured documentation files with frontmatter, descriptions, argu
 | `ckrv task` | `task.rs` | Manage individual tasks |
 | `ckrv pull` | `pull.rs` | Pull remote changes |
 | `ckrv ui` | `ui.rs` | Launch web dashboard |
-| `ckrv term` | `term.rs` | Spawn interactive AI agent terminal |
+| `ckrv term` | `term.rs` | Interactive AI agent terminal with session management, worktree/sandbox isolation |
 | `ckrv cloud` | `cloud/` | Cloud execution commands |
+
+### `ckrv code` - Code Workflow Namespace
+
+Groups the core development workflow commands under a single `ckrv code` namespace that mirrors the Code page tabs in the Web UI. This is a thin delegation layer -- each subcommand routes to the existing handler.
+
+| Subcommand | Delegates to | Description |
+|------------|-------------|-------------|
+| `ckrv code spec` | `spec.rs` | Create or manage feature specifications |
+| `ckrv code tasks` | `spec.rs` (tasks) | Generate implementation tasks from a spec |
+| `ckrv code plan` | `plan.rs` | Generate execution plan from tasks (in Docker) |
+| `ckrv code run` | `run.rs` | Run a job based on a specification |
+| `ckrv code diff` | `diff.rs` | View changes between current branch and base |
+
+### `ckrv term` - Interactive Agent Terminal
+
+Spawns an interactive AI agent terminal session with session management and optional isolation modes.
+
+**Isolation modes:**
+
+| Mode | Flags | Description |
+|------|-------|-------------|
+| Default | *(none)* | Agent runs directly in the current working directory |
+| Worktree | `--worktree` | Agent runs in an isolated git worktree on a separate branch; post-session you can view diffs, merge, keep, or discard |
+| Sandbox | `--sandbox` | Agent runs inside a Docker container with credential mounts |
+| Combined | `--sandbox --worktree` | Maximum isolation -- worktree for code, container for execution |
+
+**Session management:**
+
+- Sessions are always persisted to `.chakravarti/sessions/<name>.yaml`
+- Auto-generated names when `--name` is not provided
+- `--resume [name]` resumes a stopped session (interactive selection if name omitted)
+- `--list-sessions` lists all sessions with status, agent, and creation time
+- `--cleanup <name>` removes a session and its worktree
+- Post-exit details show session name, worktree path, and branch for later resume
+
+## UiContext Public Methods
+
+The `UiContext` struct (in `ui/mod.rs`) provides themed terminal output:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `success` | `fn success(&self, title: &str, msg: &str)` | Display a success panel |
+| `info` | `fn info(&self, title: &str, msg: &str)` | Display an informational panel |
+| `warn` | `fn warn(&self, title: &str, msg: &str)` | Display a warning panel |
+| `error` | `fn error(&self, title: &str, msg: &str)` | Display an error panel |
+| `spinner` | `fn spinner(&self, msg: impl Into<String>) -> SpinnerGuard` | Start an animated spinner |
+
+All output methods are suppressed in silent/JSON mode.
 
 ## Services Module
 

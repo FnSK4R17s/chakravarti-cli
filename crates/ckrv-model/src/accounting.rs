@@ -1,6 +1,14 @@
 //! Token usage accounting.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use serde::{Deserialize, Serialize};
+
+// ============================================================
+// TOKEN USAGE
+// ============================================================
 
 /// Token usage for a model request.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -31,6 +39,10 @@ impl TokenUsage {
         self.total_tokens += other.total_tokens;
     }
 }
+
+// ============================================================
+// USAGE ACCUMULATOR
+// ============================================================
 
 /// Accumulated usage across multiple requests.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -77,6 +89,10 @@ impl UsageAccumulator {
         input_cost + output_cost
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

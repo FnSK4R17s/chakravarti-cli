@@ -1,7 +1,15 @@
 //! Logs command - Stream or view cloud job logs.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use chrono::{DateTime, Utc};
 use clap::Args;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the logs command
 #[derive(Debug, Args)]
@@ -22,7 +30,11 @@ pub struct LogsArgs {
     pub tail: usize,
 }
 
-/// Execute the logs command
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Execute the logs command.
 pub async fn execute(args: LogsArgs, ui: &crate::ui::UiContext) -> anyhow::Result<()> {
     use crate::cloud::client::CloudClient;
     use crate::cloud::logs::{fetch_logs, stream_logs, LogEntry};
