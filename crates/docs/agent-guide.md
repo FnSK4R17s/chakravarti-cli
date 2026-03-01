@@ -1,6 +1,6 @@
 ---
-last_commit: 1b27ca2
-last_updated: 2026-02-27
+last_commit: f92f604
+last_updated: 2026-03-01
 related_files:
   - crates/ckrv-sandbox/src/agent/mod.rs
   - crates/ckrv-sandbox/src/agent/claude.rs
@@ -243,7 +243,7 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
 
 ### Step 4: Add to Docker Image
 
-If your agent requires a CLI, create a Dockerfile in `docker/`:
+If your agent requires a CLI, create a Dockerfile in `docker/`. Use the GHCR naming convention `ghcr.io/fnsk4r17s/ckrv-<agent>:latest` (e.g., `ckrv-claude`, `ckrv-codex`, `ckrv-kilo`). The `docker.rs` module defines `GHCR_PREFIX` (`ghcr.io/fnsk4r17s`) and a `DEFAULT_IMAGE` (`ghcr.io/fnsk4r17s/ckrv-agent:latest`). Use `DockerClient::set_image()` to override the image per agent type.
 
 ```dockerfile
 FROM node:22-slim

@@ -1,5 +1,9 @@
 //! Test runner.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
@@ -7,6 +11,10 @@ use std::time::Instant;
 use ckrv_core::Spec;
 
 use crate::{TestResult, TestStatus, Verdict, VerifyError};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Configuration for verification.
 #[derive(Debug, Clone)]
@@ -23,6 +31,11 @@ pub struct VerifyConfig {
 
 impl VerifyConfig {
     /// Create a new verify config.
+    ///
+    /// # Arguments
+    ///
+    /// * `worktree_path` - Path to the worktree to verify.
+    /// * `spec` - The specification to verify against.
     #[must_use]
     pub fn new(worktree_path: impl Into<String>, spec: Spec) -> Self {
         Self {
@@ -34,19 +47,31 @@ impl VerifyConfig {
     }
 
     /// Add a test command.
+    ///
+    /// # Arguments
+    ///
+    /// * `cmd` - Shell command to execute during verification.
     #[must_use]
     pub fn with_command(mut self, cmd: impl Into<String>) -> Self {
         self.test_commands.push(cmd.into());
         self
     }
 
-    /// Set timeout.
+    /// Set timeout in seconds.
+    ///
+    /// # Arguments
+    ///
+    /// * `secs` - Maximum seconds before verification times out.
     #[must_use]
     pub fn with_timeout(mut self, secs: u64) -> Self {
         self.timeout_secs = secs;
         self
     }
 }
+
+// ============================================================
+// TRAITS
+// ============================================================
 
 /// Trait for verification.
 pub trait Verifier: Send + Sync {
@@ -57,6 +82,10 @@ pub trait Verifier: Send + Sync {
     /// Returns an error if verification fails to run.
     fn verify(&self, config: &VerifyConfig) -> Result<Verdict, VerifyError>;
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 /// Default verifier that runs tests via shell commands.
 pub struct DefaultVerifier;
@@ -143,6 +172,10 @@ impl Verifier for DefaultVerifier {
         })
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

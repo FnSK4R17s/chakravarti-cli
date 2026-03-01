@@ -1,12 +1,24 @@
-//! JSON Schema generation from clap command metadata
+//! JSON Schema generation from clap command metadata.
 //!
 //! This module converts clap argument definitions into JSON Schema format
 //! for MCP tool input validation.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use ckrv_cli::{ArgumentMetadata, CommandMetadata, OptionMetadata};
 use serde_json::{json, Value};
 
-/// Build a JSON Schema from command metadata
+// ============================================================
+// SCHEMA BUILDING
+// ============================================================
+
+/// Build a JSON Schema from command metadata.
+///
+/// # Arguments
+///
+/// * `cmd` - Command metadata containing arguments and options to convert.
 #[must_use]
 pub fn build_json_schema(cmd: &CommandMetadata) -> Value {
     let mut properties = serde_json::Map::new();
@@ -85,6 +97,10 @@ fn type_hint_to_json_type(type_hint: &str) -> String {
         _ => "string".to_string(),
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

@@ -4,10 +4,18 @@
 //! supporting variable substitution like `{{inputs.description}}` and
 //! `{{steps.plan.outputs.plan_file}}`.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use handlebars::Handlebars;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Prompt renderer using Handlebars templates.
 pub struct PromptRenderer<'a> {
@@ -41,6 +49,10 @@ pub enum RenderError {
     #[error("Missing required variable: {0}")]
     MissingVariable(String),
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl<'a> PromptRenderer<'a> {
     /// Create a new prompt renderer.
@@ -150,6 +162,10 @@ impl Default for StepOutputs {
         Self::new()
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

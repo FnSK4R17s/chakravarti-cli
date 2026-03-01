@@ -1,6 +1,6 @@
 ---
-last_commit: 5160ff1
-last_updated: 2026-01-29
+last_commit: f92f604
+last_updated: 2026-03-01
 related_files:
   - src/lib.rs
   - src/loader.rs

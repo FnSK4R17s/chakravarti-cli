@@ -3,6 +3,10 @@
 //! This command analyzes tasks.yaml and creates plan.yaml
 //! using Claude Code running inside a Docker container.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -13,6 +17,10 @@ use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox};
 use crate::ui::components::Banner;
 use crate::ui::Renderable;
 use crate::ui::UiContext;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the plan command.
 #[derive(Args)]
@@ -25,6 +33,10 @@ pub struct PlanArgs {
     #[arg(long, short)]
     pub force: bool,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 /// Execute the plan command.
 pub async fn execute(args: PlanArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {

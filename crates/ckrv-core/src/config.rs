@@ -1,10 +1,18 @@
 //! Configuration types for Chakravarti CLI.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
 use crate::CoreError;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Default configuration for a Chakravarti project.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +40,10 @@ pub struct Config {
 fn default_max_attempts() -> u32 {
     3
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl Default for Config {
     fn default() -> Self {
@@ -70,6 +82,10 @@ impl Config {
             .map_err(|e| CoreError::InvalidSpec(format!("Failed to write config: {e}")))
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

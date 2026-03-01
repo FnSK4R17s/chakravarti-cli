@@ -1,18 +1,30 @@
-//! stdio Transport for MCP JSON-RPC
+//! stdio Transport for MCP JSON-RPC.
 //!
 //! This module implements the stdio transport layer for the MCP server,
 //! handling JSON-RPC 2.0 request/response over stdin/stdout.
+
+// ============================================================
+// IMPORTS
+// ============================================================
 
 use crate::tools::{discover_tools, execute_tool};
 use crate::types::{MCPError, MCPRequest, MCPResponse};
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 
-/// MCP Server version
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+/// MCP Server version.
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// MCP Protocol version
+/// MCP Protocol version.
 const PROTOCOL_VERSION: &str = "2024-11-05";
+
+// ============================================================
+// TRANSPORT LOOP
+// ============================================================
 
 /// Run the stdio transport loop
 ///
@@ -47,7 +59,11 @@ pub fn run_stdio_transport() {
     }
 }
 
-/// Handle a single request line
+// ============================================================
+// REQUEST HANDLERS
+// ============================================================
+
+/// Handle a single request line.
 fn handle_request_line(line: &str) -> Option<MCPResponse> {
     // Parse JSON
     let request: MCPRequest = match serde_json::from_str(line) {
@@ -128,6 +144,10 @@ fn handle_tools_call(id: Value, params: &Value) -> MCPResponse {
         Err(e) => MCPResponse::error(id, MCPError::tool_execution_failed(&e)),
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

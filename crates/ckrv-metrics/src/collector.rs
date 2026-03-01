@@ -1,10 +1,18 @@
 //! Metrics collection.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::cost::CostEstimate;
 use crate::report::{Metrics, StepMetrics, TokenUsageEntry};
+
+// ============================================================
+// METRICS COLLECTOR TRAIT
+// ============================================================
 
 /// Trait for collecting metrics.
 pub trait MetricsCollector: Send + Sync {
@@ -23,6 +31,10 @@ pub trait MetricsCollector: Send + Sync {
     /// Get current metrics snapshot.
     fn snapshot(&self) -> Metrics;
 }
+
+// ============================================================
+// DEFAULT COLLECTOR
+// ============================================================
 
 /// Default metrics collector implementation.
 #[derive(Debug)]
@@ -121,6 +133,10 @@ impl MetricsCollector for DefaultMetricsCollector {
     }
 }
 
+// ============================================================
+// STEP TIMER
+// ============================================================
+
 /// Timer for measuring step duration.
 pub struct StepTimer<'a, C: MetricsCollector> {
     collector: &'a C,
@@ -144,6 +160,10 @@ impl<'a, C: MetricsCollector> StepTimer<'a, C> {
             .record_timing(&self.step_id, self.start.elapsed());
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

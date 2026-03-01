@@ -1,10 +1,18 @@
 //! Planner for generating execution plans from specs.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::Path;
 
 use async_trait::async_trait;
 
 use crate::{Plan, Spec, Step, StepType};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Context for planning, including repository information.
 #[derive(Debug, Clone)]
@@ -20,6 +28,10 @@ pub struct PlanContext {
     /// Test command if known.
     pub test_command: Option<String>,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl PlanContext {
     /// Create context by analyzing a repository.
@@ -150,6 +162,10 @@ impl Planner for DefaultPlanner {
         Ok(plan)
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {
