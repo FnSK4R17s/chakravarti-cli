@@ -5,10 +5,9 @@
 // ============================================================
 
 use super::{
-    create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
-    AmpProvider, ClaudeProvider, CodexProvider, CursorProvider, FactoryDroidProvider,
-    GeminiProvider, GithubCopilotProvider, KiloCodeProvider, MistralVibeProvider,
-    OpencodeProvider, QwenProvider,
+    create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType, AmpProvider,
+    ClaudeProvider, CodexProvider, CursorProvider, FactoryDroidProvider, GeminiProvider,
+    GithubCopilotProvider, KiloCodeProvider, MistralVibeProvider, OpencodeProvider, QwenProvider,
 };
 use std::path::Path;
 
@@ -41,14 +40,38 @@ fn test_agent_type_from_str() {
     assert_eq!(AgentType::from_str("qwencode"), Some(AgentType::Qwen));
     assert_eq!(AgentType::from_str("opencode"), Some(AgentType::Opencode));
     assert_eq!(AgentType::from_str("open-code"), Some(AgentType::Opencode));
-    assert_eq!(AgentType::from_str("factory"), Some(AgentType::FactoryDroid));
-    assert_eq!(AgentType::from_str("factory-droid"), Some(AgentType::FactoryDroid));
-    assert_eq!(AgentType::from_str("factory_droid"), Some(AgentType::FactoryDroid));
-    assert_eq!(AgentType::from_str("github-copilot"), Some(AgentType::GithubCopilot));
-    assert_eq!(AgentType::from_str("copilot"), Some(AgentType::GithubCopilot));
-    assert_eq!(AgentType::from_str("gh-copilot"), Some(AgentType::GithubCopilot));
-    assert_eq!(AgentType::from_str("mistral-vibe"), Some(AgentType::MistralVibe));
-    assert_eq!(AgentType::from_str("mistral_vibe"), Some(AgentType::MistralVibe));
+    assert_eq!(
+        AgentType::from_str("factory"),
+        Some(AgentType::FactoryDroid)
+    );
+    assert_eq!(
+        AgentType::from_str("factory-droid"),
+        Some(AgentType::FactoryDroid)
+    );
+    assert_eq!(
+        AgentType::from_str("factory_droid"),
+        Some(AgentType::FactoryDroid)
+    );
+    assert_eq!(
+        AgentType::from_str("github-copilot"),
+        Some(AgentType::GithubCopilot)
+    );
+    assert_eq!(
+        AgentType::from_str("copilot"),
+        Some(AgentType::GithubCopilot)
+    );
+    assert_eq!(
+        AgentType::from_str("gh-copilot"),
+        Some(AgentType::GithubCopilot)
+    );
+    assert_eq!(
+        AgentType::from_str("mistral-vibe"),
+        Some(AgentType::MistralVibe)
+    );
+    assert_eq!(
+        AgentType::from_str("mistral_vibe"),
+        Some(AgentType::MistralVibe)
+    );
     assert_eq!(AgentType::from_str("vibe"), Some(AgentType::MistralVibe));
     assert_eq!(AgentType::from_str("unknown"), None);
 }

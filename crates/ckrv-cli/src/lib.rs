@@ -723,7 +723,11 @@ mod tests {
         assert!(visible_names.contains(&"ui"), "ui should be visible");
 
         // Only 6 visible commands
-        assert_eq!(visible_names.len(), 6, "should have exactly 6 visible commands");
+        assert_eq!(
+            visible_names.len(),
+            6,
+            "should have exactly 6 visible commands"
+        );
     }
 
     #[test]
@@ -741,8 +745,11 @@ mod tests {
             "code should have subcommands"
         );
 
-        let subcmd_names: Vec<&str> =
-            code_cmd.subcommands.iter().map(|c| c.name.as_str()).collect();
+        let subcmd_names: Vec<&str> = code_cmd
+            .subcommands
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
 
         assert!(subcmd_names.contains(&"spec"), "code should have spec");
         assert!(subcmd_names.contains(&"tasks"), "code should have tasks");
@@ -767,13 +774,13 @@ mod tests {
             .find(|cmd| cmd.name == "spec")
             .expect("code spec should exist");
 
-        let subcmd_names: Vec<&str> =
-            spec_cmd.subcommands.iter().map(|c| c.name.as_str()).collect();
+        let subcmd_names: Vec<&str> = spec_cmd
+            .subcommands
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
 
-        assert!(
-            subcmd_names.contains(&"new"),
-            "code spec should have 'new'"
-        );
+        assert!(subcmd_names.contains(&"new"), "code spec should have 'new'");
         assert!(
             subcmd_names.contains(&"list"),
             "code spec should have 'list'"

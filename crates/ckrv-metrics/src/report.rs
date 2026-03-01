@@ -248,8 +248,8 @@ impl MetricsStorage for FileMetricsStorage {
         if !runs_dir.exists() {
             return Ok(Vec::new());
         }
-        let entries = std::fs::read_dir(&runs_dir)
-            .map_err(|e| MetricsError::StorageError(e.to_string()))?;
+        let entries =
+            std::fs::read_dir(&runs_dir).map_err(|e| MetricsError::StorageError(e.to_string()))?;
         let mut all = Vec::new();
         for entry in entries {
             let entry = entry.map_err(|e| MetricsError::StorageError(e.to_string()))?;
