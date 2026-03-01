@@ -1,27 +1,44 @@
 //! OAuth2 device flow authentication.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::cloud::config::CloudConfig;
 use crate::cloud::credentials::StoredTokens;
 use crate::cloud::error::CloudError;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-/// Device code response from the authorization server
+// ============================================================
+// TYPES
+// ============================================================
+
+/// Device code response from the authorization server.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceCodeResponse {
+    /// Device code used to poll for authorization.
     pub device_code: String,
+    /// Code the user enters on the verification page.
     pub user_code: String,
+    /// URL the user should visit to authorize.
     pub verification_uri: String,
+    /// Seconds until the device code expires.
     pub expires_in: u64,
+    /// Minimum polling interval in seconds.
     pub interval: u64,
 }
 
-/// Token response from the authorization server
+/// Token response from the authorization server.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenResponse {
+    /// OAuth2 access token.
     pub access_token: String,
+    /// Optional refresh token for obtaining new access tokens.
     pub refresh_token: Option<String>,
+    /// Token type (typically "Bearer").
     pub token_type: String,
+    /// Seconds until the access token expires.
     pub expires_in: u64,
 }
 
@@ -32,7 +49,11 @@ pub struct TokenErrorResponse {
     pub error_description: Option<String>,
 }
 
-/// OAuth2 Device Authorization Flow
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// OAuth2 Device Authorization Flow.
 pub struct DeviceAuthFlow {
     config: CloudConfig,
     client: reqwest::Client,

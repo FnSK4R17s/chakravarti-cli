@@ -1,11 +1,19 @@
 //! Sandboxed command execution.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::{docker::DockerClient, AllowList, SandboxError};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// A bind mount for additional container mounts (e.g., agent credentials).
 ///
@@ -133,6 +141,10 @@ impl ExecuteResult {
     }
 }
 
+// ============================================================
+// SANDBOX TRAIT
+// ============================================================
+
 /// Trait for sandboxed execution.
 #[async_trait]
 pub trait Sandbox: Send + Sync {
@@ -150,6 +162,10 @@ pub trait Sandbox: Send + Sync {
     /// Returns an error if runtime is not available.
     async fn health_check(&self) -> Result<(), SandboxError>;
 }
+
+// ============================================================
+// DOCKER SANDBOX
+// ============================================================
 
 /// Docker-backed sandbox implementation.
 pub struct DockerSandbox {
@@ -272,6 +288,10 @@ impl Sandbox for DockerSandbox {
     }
 }
 
+// ============================================================
+// LOCAL SANDBOX
+// ============================================================
+
 /// Local (non-sandboxed) execution for development.
 pub struct LocalSandbox;
 
@@ -332,6 +352,10 @@ impl Sandbox for LocalSandbox {
         Ok(())
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

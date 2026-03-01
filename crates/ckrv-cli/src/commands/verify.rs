@@ -1,5 +1,9 @@
 //! Verify command - run tests, lint, and quality checks.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -9,6 +13,10 @@ use serde::Serialize;
 use crate::ui::components::Banner;
 use crate::ui::Renderable;
 use crate::ui::UiContext;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the verify command
 #[derive(Args)]
@@ -38,27 +46,42 @@ pub struct VerifyArgs {
     pub save: bool,
 }
 
+/// Verify output structure for JSON serialization.
 #[derive(Serialize, Clone)]
 pub struct VerifyOutput {
+    /// Whether all checks passed.
     pub success: bool,
+    /// Results for each individual check.
     pub checks: Vec<CheckResult>,
+    /// Total duration of all checks in milliseconds.
     pub total_duration_ms: u64,
+    /// Aggregated pass/fail/skip counts.
     pub summary: VerifySummary,
 }
 
+/// Individual check result from a verification step.
 #[derive(Serialize, Clone)]
 pub struct CheckResult {
+    /// Name of the check (e.g., "Lint", "Tests").
     pub name: String,
+    /// Whether this check passed.
     pub passed: bool,
+    /// Execution duration in milliseconds.
     pub duration_ms: u64,
+    /// Captured stdout if available.
     pub output: Option<String>,
+    /// Captured stderr if the check failed.
     pub error: Option<String>,
 }
 
+/// Summary of verification check counts.
 #[derive(Serialize, Clone)]
 pub struct VerifySummary {
+    /// Number of checks that passed.
     pub passed: usize,
+    /// Number of checks that failed.
     pub failed: usize,
+    /// Number of checks that were skipped.
     pub skipped: usize,
 }
 
@@ -73,7 +96,11 @@ enum ProjectType {
     Unknown,
 }
 
-/// Execute the verify command
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Execute the verify command.
 pub async fn execute(args: VerifyArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let start_time = Instant::now();

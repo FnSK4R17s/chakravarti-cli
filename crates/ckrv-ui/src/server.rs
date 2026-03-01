@@ -33,6 +33,10 @@
 //!
 //! - `CKRV_PROJECT_ROOT` - Override project root (used in tests)
 
+// ============================================================
+// Imports
+// ============================================================
+
 use axum::{
     body::Body,
     http::{header, StatusCode, Uri},
@@ -48,6 +52,10 @@ use tokio::sync::RwLock;
 
 // Re-export AppState from transport for backward compatibility
 pub use ckrv_transport::{AppState, SystemMode, SystemStatus};
+
+// ============================================================
+// Static Assets
+// ============================================================
 
 #[derive(RustEmbed)]
 #[folder = "frontend/dist"]
@@ -81,6 +89,22 @@ async fn static_handler(uri: Uri) -> impl IntoResponse {
     (StatusCode::NOT_FOUND, "404 Not Found").into_response()
 }
 
+// ============================================================
+// Server
+// ============================================================
+
+/// Start the web dashboard server on the given port.
+///
+/// Configures the Axum router with API routes from `ckrv-transport`,
+/// a health check endpoint, and a static file fallback for the SPA frontend.
+///
+/// # Arguments
+///
+/// * `port` - TCP port to bind the HTTP listener to.
+///
+/// # Errors
+///
+/// Returns an error if the TCP listener fails to bind or the server exits unexpectedly.
 pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // T006: Support CKRV_PROJECT_ROOT env var for test isolation (TR-007)
     // E2E tests set this to a temporary directory to prevent modifying working code

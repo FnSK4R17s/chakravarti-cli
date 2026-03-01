@@ -1,9 +1,17 @@
 //! Report command - view job metrics.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use clap::Args;
 use serde::Serialize;
 
 use ckrv_metrics::{format_ms, FileMetricsStorage, MetricsStorage};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the report command
 #[derive(Args)]
@@ -59,7 +67,11 @@ struct StepReport {
     duration_ms: u64,
 }
 
-/// Execute the report command
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Execute the report command.
 pub async fn execute(args: ReportArgs, json: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 

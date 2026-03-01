@@ -61,19 +61,19 @@ just install
 ckrv init
 
 # Create a spec from description
-ckrv spec new "Add user authentication with OAuth2"
+ckrv code spec new "Add user authentication with OAuth2"
 
 # Generate implementation tasks
-ckrv spec tasks
+ckrv code tasks
 
 # Generate execution plan
-ckrv plan
+ckrv code plan
 
 # Execute orchestration
-ckrv run
+ckrv code run
 
 # Review and promote
-ckrv diff
+ckrv code diff
 ckrv verify
 ckrv promote --push --open
 ```
@@ -87,10 +87,7 @@ ckrv promote --push --open
 | Command | Description |
 |---------|-------------|
 | `ckrv init` | Initialize Chakravarti in the current repository |
-| `ckrv spec` | Manage specifications (new, clarify, design, tasks, validate, list) |
-| `ckrv plan` | Generate execution plan from tasks (in Docker) |
-| `ckrv run` | Execute orchestration (Plan → Execute → Merge) |
-| `ckrv diff` | View changes between branches |
+| `ckrv code` | Code workflow: spec, tasks, plan, run, diff |
 | `ckrv verify` | Run tests, linting, and type checking |
 | `ckrv test` | Run, plan, and write tests using AI agents |
 | `ckrv qa` | QA code review and bug analysis |

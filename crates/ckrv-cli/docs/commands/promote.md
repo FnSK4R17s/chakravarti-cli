@@ -1,12 +1,13 @@
 ---
 command: promote
-generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 508766e
+generated_from: lib.rs
+last_commit: f92f604
+hidden: true
 ---
 
 # ckrv promote
 
-Create a pull request for the current branch
+Create a pull request for the current branch.
 
 ## Description
 
@@ -22,9 +23,9 @@ Requires remote repository access and appropriate permissions.
 |------|-------------|
 | `--base`, `-b` | Target branch for the PR (default: main or master) |
 | `--draft` | Create as draft PR |
-| `--open` | Open PR URL in browser after creation |
 | `--push` | Push branch to remote before creating PR |
-| `--remote` | Remote name (default: origin) |
+| `--remote <REMOTE>` | Remote name (default: origin) |
+| `--open` | Open PR URL in browser after creation |
 | `--skip-verify` | Skip verification checks |
 
 ## Examples
@@ -36,6 +37,6 @@ ckrv promote
 # Create as draft PR
 ckrv promote --draft
 
-# Push and create PR
-ckrv promote --push
+# Create PR with custom title
+ckrv promote --title "feat: add user auth"
 ```

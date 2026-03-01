@@ -1,4 +1,8 @@
-//! CLI commands for Tauri IPC
+//! CLI commands for Tauri IPC.
+
+// ============================================================
+// Imports
+// ============================================================
 
 use crate::SharedState;
 use ckrv_transport::handlers::commands::{
@@ -8,6 +12,10 @@ use ckrv_transport::handlers::commands::{
     VerifyRequest,
 };
 use tauri::State;
+
+// ============================================================
+// Handlers
+// ============================================================
 
 /// Run ckrv init command.
 #[tauri::command]

@@ -5,12 +5,12 @@ use anyhow::Result;
 use bollard::models::Mount;
 use std::path::Path;
 
-/// OpenAI Codex CLI provider
+/// OpenAI Codex CLI provider.
 #[derive(Debug, Default)]
 pub struct CodexProvider;
 
 impl CodexProvider {
-    /// Create a new Codex provider
+    /// Create a new Codex provider.
     pub fn new() -> Self {
         Self
     }

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "mcp__chrome-devtools__click",
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(just --list:*)"
     ]
   }
 }

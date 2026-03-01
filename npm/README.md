@@ -1,37 +1,23 @@
 ---
-last_commit: 1b27ca2
-last_updated: 2026-02-10
+last_commit: f92f604
+last_updated: 2026-03-01
 ---
 
-# Chakravarti CLI
+# @ckrv/cli
 
 **Cross-Platform Orchestration Engine for AI Coding Agents**
 
 *Use all your AI coding subscriptions together.*
 
+You write specifications. `ckrv` coordinates multiple AI agents—Claude Code, Codex, Kilo Code, and others—to implement them in parallel.
+
 ## Installation
 
-### Via just (Recommended)
-
 ```bash
-# Clone the repository
-git clone https://github.com/FnSK4R17s/chakravarti-cli.git
-cd chakravarti-cli
-
-# Build and install (includes Docker images)
-just install
-
-# Or skip Docker for faster setup
-just install-quick
+npm install -g @ckrv/cli
 ```
 
-> **Note**: If you don't have `just` installed, see [just installation](https://github.com/casey/just#installation). The Makefile provides a compatibility shim.
-
-### Via npm (after building)
-
-```bash
-cd npm && npm link
-```
+Or download a binary from the [latest release](https://github.com/FnSK4R17s/chakravarti-cli/releases/latest).
 
 ## Quick Start
 
@@ -40,19 +26,19 @@ cd npm && npm link
 ckrv init
 
 # Create a spec from description
-ckrv spec new "Add user authentication with OAuth2"
+ckrv code spec new "Add user authentication with OAuth2"
 
 # Generate implementation tasks
-ckrv spec tasks
+ckrv code tasks
 
 # Generate execution plan
-ckrv plan
+ckrv code plan
 
 # Execute orchestration
-ckrv run
+ckrv code run
 
 # Review and promote
-ckrv diff
+ckrv code diff
 ckrv verify
 ckrv promote --push --open
 ```
@@ -62,10 +48,7 @@ ckrv promote --push --open
 | Command | Description |
 |---------|-------------|
 | `ckrv init` | Initialize Chakravarti in the current repository |
-| `ckrv spec` | Manage specifications (new, clarify, design, tasks, validate, list) |
-| `ckrv plan` | Generate execution plan from tasks (in Docker) |
-| `ckrv run` | Execute orchestration (Plan → Execute → Merge) |
-| `ckrv diff` | View changes between branches |
+| `ckrv code` | Code workflow: spec, tasks, plan, run, diff |
 | `ckrv verify` | Run tests, linting, and type checking |
 | `ckrv test` | Run, plan, and write tests using AI agents |
 | `ckrv qa` | QA code review and bug analysis |
@@ -79,24 +62,25 @@ ckrv promote --push --open
 
 ## Agents
 
-Chakravarti uses Claude Code CLI as the execution interface:
+Chakravarti orchestrates multiple AI coding agents in isolated Docker sandboxes:
 
 | Agent | Authentication | Description |
 |-------|----------------|-------------|
-| Claude Code | Claude Subscription | Default - uses Anthropic's Claude directly |
+| Claude Code | Claude Subscription | Default — uses Anthropic's Claude directly |
 | Claude Code | OpenRouter API | 12+ models (Gemini, DeepSeek, Qwen, Kimi K2, etc.) |
 | Claude Code | GLM Coding Plan | Z.AI's GLM-4.7 and GLM-4.5-Air |
 | Codex | OpenAI Subscription | Native Codex CLI integration |
+| Kilo Code | File-based auth | 30+ AI providers (Gemini, DeepSeek, Mistral, Qwen, etc.) |
 
 ## Features
 
-- 🤖 **Multi-Agent Support** - Claude, Codex, OpenRouter, GLM models
-- 🔒 **Isolated Execution** - Git worktree isolation
-- 🐳 **Docker Sandboxing** - Safe containerized execution
-- 📊 **Metrics Tracking** - Token usage & cost
-- 🌐 **Web UI Dashboard** - Visual workflow management
-- 🧪 **AI Test Writing** - Auto-generate tests with AI agents
-- 🔍 **AI QA Review** - Code review and bug analysis
+- **Multi-Agent Support** — Claude, Codex, Kilo Code, OpenRouter, GLM models
+- **Isolated Execution** — Git worktree isolation per task
+- **Docker Sandboxing** — Safe containerized execution
+- **Metrics Tracking** — Token usage and cost accounting
+- **Web UI Dashboard** — Visual workflow management
+- **AI Test Writing** — Auto-generate tests with AI agents
+- **AI QA Review** — Code review and bug analysis
 
 ## Documentation
 
@@ -109,7 +93,6 @@ For full documentation, see the [GitHub repository](https://github.com/FnSK4R17s
 
 ## Requirements
 
-- **Rust** 1.75+
 - **Docker** (for sandboxed execution)
 - **Git** 2.20+
 

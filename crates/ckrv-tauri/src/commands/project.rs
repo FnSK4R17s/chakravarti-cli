@@ -1,13 +1,21 @@
-//! Project commands for Tauri IPC
+//! Project commands for Tauri IPC.
 //!
 //! Provides commands for managing project selection in Tauri.
 //! The project root is stored in a config file and persists across app restarts.
+
+// ============================================================
+// Imports
+// ============================================================
 
 use crate::SharedState;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
+
+// ============================================================
+// Types
+// ============================================================
 
 /// Configuration file path for Tauri settings.
 fn config_path() -> PathBuf {
@@ -69,8 +77,11 @@ impl TauriConfig {
 /// Project info for display.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectInfo {
+    /// Absolute filesystem path to the project.
     pub path: PathBuf,
+    /// Project directory name.
     pub name: String,
+    /// Whether the path still exists on disk.
     pub exists: bool,
 }
 
@@ -85,6 +96,10 @@ impl From<PathBuf> for ProjectInfo {
         Self { path, name, exists }
     }
 }
+
+// ============================================================
+// Handlers
+// ============================================================
 
 /// Get the current project root from saved config.
 ///

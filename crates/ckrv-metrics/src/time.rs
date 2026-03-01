@@ -1,6 +1,14 @@
 //! Timing utilities.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::time::{Duration, Instant};
+
+// ============================================================
+// STOPWATCH
+// ============================================================
 
 /// A stopwatch for measuring elapsed time.
 #[derive(Debug)]
@@ -55,6 +63,10 @@ impl Stopwatch {
     }
 }
 
+// ============================================================
+// FORMATTING
+// ============================================================
+
 /// Format a duration for human display.
 #[must_use]
 pub fn format_duration(duration: Duration) -> String {
@@ -77,6 +89,10 @@ pub fn format_duration(duration: Duration) -> String {
 pub fn format_ms(ms: u64) -> String {
     format_duration(Duration::from_millis(ms))
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

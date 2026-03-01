@@ -25,7 +25,8 @@
 
 // === IMPORTS ===
 import React from 'react';
-import { FileText, ListTodo, Workflow, Rocket, CheckCircle2 } from 'lucide-react';
+import { FileText, ListTodo, Workflow, Rocket, CheckCircle2, Code } from 'lucide-react';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SpecEditor } from './SpecEditor';
 import { TaskEditor } from './TaskEditor';
@@ -47,7 +48,10 @@ const ICON_MAP = {
  * Props for the CodePage component.
  */
 interface CodePageProps {
-    /** Initial tab to display; defaults to 'spec' */
+    /**
+     * Initial tab to display when the component mounts.
+     * @default 'spec'
+     */
     initialTab?: CodeTabType;
     /** Spec name to track workflow progress for; enables completion indicators */
     selectedSpec?: string;
@@ -70,7 +74,20 @@ const CodePage: React.FC<CodePageProps> = ({
     };
 
     return (
-        <div className="h-full flex flex-col overflow-hidden">
+        <div className="h-full flex flex-col overflow-hidden bg-background text-foreground">
+            {/* Header */}
+            <Card className="shrink-0 rounded-none border-x-0 border-t-0">
+                <CardHeader className="pb-4">
+                    <div>
+                        <CardTitle className="text-xl flex items-center gap-3">
+                            <Code className="text-primary" size={24} />
+                            Code
+                        </CardTitle>
+                        <p className="text-muted-foreground text-sm mt-1">Create specs, generate tasks, plan execution, and run AI agents</p>
+                    </div>
+                </CardHeader>
+            </Card>
+
             {/* Tab Navigation */}
             <Tabs
                 value={activeTab}
