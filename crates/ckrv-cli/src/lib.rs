@@ -454,7 +454,8 @@ pub enum Commands {
     #[command(
         display_order = 14,
         long_about = "Spawn an interactive AI agent terminal session.\n\n\
-                      Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code, Gemini CLI) \
+                      Quickly launch any configured agent (Claude, OpenRouter, Z.AI, Codex, Kilo Code, Gemini CLI, \
+                      Cursor, Amp, Qwen Code, Opencode, Factory Droid, GitHub Copilot, Mistral Vibe) \
                       with the correct environment variables automatically configured.\n\n\
                       Without arguments, presents an interactive selection menu with options \
                       for common flags. Use -- to pass arguments directly for scripting.",

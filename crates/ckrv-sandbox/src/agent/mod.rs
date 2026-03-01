@@ -8,17 +8,31 @@
 // MODULES AND IMPORTS
 // ============================================================
 
+mod amp;
 mod claude;
 mod codex;
+mod copilot;
+mod cursor;
+mod factory;
 mod gemini;
 mod kilo;
+mod opencode;
+mod qwen;
+mod vibe;
 #[cfg(test)]
 mod tests;
 
+pub use amp::AmpProvider;
 pub use claude::ClaudeProvider;
 pub use codex::CodexProvider;
+pub use copilot::GithubCopilotProvider;
+pub use cursor::CursorProvider;
+pub use factory::FactoryDroidProvider;
 pub use gemini::GeminiProvider;
 pub use kilo::KiloCodeProvider;
+pub use opencode::OpencodeProvider;
+pub use qwen::QwenProvider;
+pub use vibe::MistralVibeProvider;
 
 use anyhow::Result;
 use bollard::models::Mount;
@@ -40,6 +54,20 @@ pub enum AgentType {
     KiloCode,
     /// Google Gemini CLI
     Gemini,
+    /// Cursor CLI
+    Cursor,
+    /// Amp CLI
+    Amp,
+    /// Qwen Code CLI
+    Qwen,
+    /// Opencode CLI
+    Opencode,
+    /// Factory Droid CLI
+    FactoryDroid,
+    /// GitHub Copilot CLI
+    GithubCopilot,
+    /// Mistral Vibe CLI
+    MistralVibe,
 }
 
 impl AgentType {
@@ -54,6 +82,13 @@ impl AgentType {
             "codex" | "openai" | "openai-codex" => Some(Self::Codex),
             "kilo" | "kilo-code" | "kilocode" => Some(Self::KiloCode),
             "gemini" | "gemini-cli" => Some(Self::Gemini),
+            "cursor" | "cursor-cli" => Some(Self::Cursor),
+            "amp" | "ampcode" => Some(Self::Amp),
+            "qwen" | "qwen-code" | "qwencode" => Some(Self::Qwen),
+            "opencode" | "open-code" => Some(Self::Opencode),
+            "factory" | "factory-droid" | "factory_droid" => Some(Self::FactoryDroid),
+            "github-copilot" | "copilot" | "gh-copilot" => Some(Self::GithubCopilot),
+            "mistral-vibe" | "mistral_vibe" | "vibe" => Some(Self::MistralVibe),
             _ => None,
         }
     }
@@ -65,6 +100,13 @@ impl AgentType {
             Self::Codex => "OpenAI Codex",
             Self::KiloCode => "Kilo Code",
             Self::Gemini => "Gemini CLI",
+            Self::Cursor => "Cursor",
+            Self::Amp => "Amp",
+            Self::Qwen => "Qwen Code",
+            Self::Opencode => "Opencode",
+            Self::FactoryDroid => "Factory Droid",
+            Self::GithubCopilot => "GitHub Copilot",
+            Self::MistralVibe => "Mistral Vibe",
         }
     }
 }
@@ -185,6 +227,13 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
         AgentType::Codex => Box::new(CodexProvider::new()),
         AgentType::KiloCode => Box::new(KiloCodeProvider::new()),
         AgentType::Gemini => Box::new(GeminiProvider::new()),
+        AgentType::Cursor => Box::new(CursorProvider::new()),
+        AgentType::Amp => Box::new(AmpProvider::new()),
+        AgentType::Qwen => Box::new(QwenProvider::new()),
+        AgentType::Opencode => Box::new(OpencodeProvider::new()),
+        AgentType::FactoryDroid => Box::new(FactoryDroidProvider::new()),
+        AgentType::GithubCopilot => Box::new(GithubCopilotProvider::new()),
+        AgentType::MistralVibe => Box::new(MistralVibeProvider::new()),
     }
 }
 

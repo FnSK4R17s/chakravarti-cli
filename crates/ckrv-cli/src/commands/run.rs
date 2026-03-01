@@ -47,7 +47,7 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub executor_model: Option<String>,
 
-    /// Agent to use for execution: claude, codex, kilo, or gemini.
+    /// Agent to use for execution: claude, codex, kilo, gemini, cursor, amp, qwen, opencode, factory, copilot, or vibe.
     #[arg(long, default_value = "claude")]
     pub agent: String,
 

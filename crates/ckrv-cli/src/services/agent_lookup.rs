@@ -23,6 +23,13 @@ pub enum AgentType {
     Codex,
     KiloCode,
     Gemini,
+    Cursor,
+    Amp,
+    Qwen,
+    Opencode,
+    FactoryDroid,
+    GithubCopilot,
+    MistralVibe,
 }
 
 impl Default for AgentType {

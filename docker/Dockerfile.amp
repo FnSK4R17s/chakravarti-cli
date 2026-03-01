@@ -1,0 +1,38 @@
+# Chakravarti Amp Agent Container
+# Contains Amp CLI for sandboxed agent execution
+# Supports multiple modes: deep, rush, smart, free
+
+FROM node:22-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Amp CLI
+RUN curl -fsSL https://ampcode.com/install.sh | bash
+
+# Create non-root user with home directory
+RUN useradd -m -s /bin/bash -d /home/amp amp && \
+    mkdir -p /home/amp/.config/amp && \
+    mkdir -p /home/amp/.cache/amp && \
+    chown -R amp:amp /home/amp
+
+# Create workspace directory
+RUN mkdir -p /workspace && chown amp:amp /workspace
+
+WORKDIR /workspace
+
+# Set HOME environment variable
+ENV HOME=/home/amp
+
+# Verify Amp is installed (must run before USER switch)
+RUN amp --version || true
+
+# Switch to non-root user
+USER amp
+
+# Default command
+CMD ["/bin/bash"]

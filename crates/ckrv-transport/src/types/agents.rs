@@ -25,6 +25,20 @@ pub enum AgentType {
     KiloCode,
     /// Google Gemini CLI
     Gemini,
+    /// Cursor CLI
+    Cursor,
+    /// Amp CLI
+    Amp,
+    /// Qwen Code CLI
+    Qwen,
+    /// Opencode CLI
+    Opencode,
+    /// Factory Droid CLI
+    FactoryDroid,
+    /// GitHub Copilot CLI
+    GithubCopilot,
+    /// Mistral Vibe CLI
+    MistralVibe,
 }
 
 impl Default for AgentType {

@@ -149,6 +149,48 @@ pub async fn start_terminal_handler(
         .map(|a| matches!(a.agent_type, AgentType::Gemini))
         .unwrap_or(false);
 
+    let is_cursor = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Cursor))
+        .unwrap_or(false);
+
+    let is_amp = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Amp))
+        .unwrap_or(false);
+
+    let is_qwen = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Qwen))
+        .unwrap_or(false);
+
+    let is_opencode = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Opencode))
+        .unwrap_or(false);
+
+    let is_factory_droid = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::FactoryDroid))
+        .unwrap_or(false);
+
+    let is_github_copilot = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::GithubCopilot))
+        .unwrap_or(false);
+
+    let is_mistral_vibe = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::MistralVibe))
+        .unwrap_or(false);
+
     // Set container home based on agent type
     let container_home = if is_codex {
         "/home/codex"
@@ -156,6 +198,20 @@ pub async fn start_terminal_handler(
         "/home/kilo"
     } else if is_gemini {
         "/home/gemini"
+    } else if is_cursor {
+        "/home/cursor"
+    } else if is_amp {
+        "/home/amp"
+    } else if is_qwen {
+        "/home/qwen"
+    } else if is_opencode {
+        "/home/opencode"
+    } else if is_factory_droid {
+        "/home/factory"
+    } else if is_github_copilot {
+        "/home/copilot"
+    } else if is_mistral_vibe {
+        "/home/vibe"
     } else {
         "/home/claude"
     };
@@ -181,6 +237,20 @@ pub async fn start_terminal_handler(
         "ghcr.io/fnsk4r17s/ckrv-kilo:latest".to_string()
     } else if is_gemini {
         "ghcr.io/fnsk4r17s/ckrv-gemini:latest".to_string()
+    } else if is_cursor {
+        "ghcr.io/fnsk4r17s/ckrv-cursor:latest".to_string()
+    } else if is_amp {
+        "ghcr.io/fnsk4r17s/ckrv-amp:latest".to_string()
+    } else if is_qwen {
+        "ghcr.io/fnsk4r17s/ckrv-qwen:latest".to_string()
+    } else if is_opencode {
+        "ghcr.io/fnsk4r17s/ckrv-opencode:latest".to_string()
+    } else if is_factory_droid {
+        "ghcr.io/fnsk4r17s/ckrv-factory:latest".to_string()
+    } else if is_github_copilot {
+        "ghcr.io/fnsk4r17s/ckrv-copilot:latest".to_string()
+    } else if is_mistral_vibe {
+        "ghcr.io/fnsk4r17s/ckrv-vibe:latest".to_string()
     } else {
         "ghcr.io/fnsk4r17s/ckrv-claude:latest".to_string()
     };
@@ -312,6 +382,77 @@ pub async fn start_terminal_handler(
         }
 
         tracing::info!("Terminal session using Gemini with mounted config");
+    } else if is_cursor {
+        // Cursor configuration - mount Cursor credentials/config
+        let cursor_dir = format!("{}/.cursor", host_home);
+        if std::path::Path::new(&cursor_dir).exists() {
+            binds.push(format!("{cursor_dir}:/home/cursor/.cursor"));
+        }
+        let cursor_config = format!("{}/.config/cursor", host_home);
+        if std::path::Path::new(&cursor_config).exists() {
+            binds.push(format!("{cursor_config}:/home/cursor/.config/cursor"));
+        }
+
+        tracing::info!("Terminal session using Cursor with mounted config");
+    } else if is_amp {
+        // Amp configuration - mount Amp config directory
+        let amp_config = format!("{}/.config/amp", host_home);
+        if std::path::Path::new(&amp_config).exists() {
+            binds.push(format!("{amp_config}:/home/amp/.config/amp"));
+        }
+
+        tracing::info!("Terminal session using Amp with mounted config");
+    } else if is_qwen {
+        // Qwen Code configuration - pass through API keys
+        if let Ok(key) = std::env::var("OPENAI_API_KEY") {
+            env_vars.push(format!("OPENAI_API_KEY={key}"));
+        }
+        if let Ok(key) = std::env::var("QWEN_AUTH_TOKEN") {
+            env_vars.push(format!("QWEN_AUTH_TOKEN={key}"));
+        }
+        if let Ok(url) = std::env::var("OPENAI_BASE_URL") {
+            env_vars.push(format!("OPENAI_BASE_URL={url}"));
+        }
+
+        tracing::info!("Terminal session using Qwen Code");
+    } else if is_opencode {
+        // Opencode configuration - mount config directory
+        let opencode_config = format!("{}/.config/opencode", host_home);
+        if std::path::Path::new(&opencode_config).exists() {
+            binds.push(format!("{opencode_config}:/home/opencode/.config/opencode"));
+        }
+
+        tracing::info!("Terminal session using Opencode with mounted config");
+    } else if is_factory_droid {
+        // Factory Droid configuration - mount credentials and pass API key
+        let factory_dir = format!("{}/.factory", host_home);
+        if std::path::Path::new(&factory_dir).exists() {
+            binds.push(format!("{factory_dir}:/home/factory/.factory"));
+        }
+        if let Ok(key) = std::env::var("FACTORY_API_KEY") {
+            env_vars.push(format!("FACTORY_API_KEY={key}"));
+        }
+
+        tracing::info!("Terminal session using Factory Droid with mounted config");
+    } else if is_github_copilot {
+        // GitHub Copilot configuration - mount gh CLI config
+        let gh_config = format!("{}/.config/gh", host_home);
+        if std::path::Path::new(&gh_config).exists() {
+            binds.push(format!("{gh_config}:/home/copilot/.config/gh"));
+        }
+
+        tracing::info!("Terminal session using GitHub Copilot with mounted config");
+    } else if is_mistral_vibe {
+        // Mistral Vibe configuration - pass API key
+        if let Ok(key) = std::env::var("MISTRAL_API_KEY") {
+            env_vars.push(format!("MISTRAL_API_KEY={key}"));
+        }
+        let vibe_config = format!("{}/.config/vibe", host_home);
+        if std::path::Path::new(&vibe_config).exists() {
+            binds.push(format!("{vibe_config}:/home/vibe/.config/vibe"));
+        }
+
+        tracing::info!("Terminal session using Mistral Vibe");
     } else {
         // For native Claude, mount credentials if they exist
         let claude_config = format!("{host_home}/.claude.json");
