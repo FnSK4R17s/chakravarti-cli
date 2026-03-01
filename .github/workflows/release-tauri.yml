@@ -107,6 +107,9 @@ jobs:
         run: |
           mkdir -p dist
           find target/${{ matrix.target }}/release/bundle -name "*.dmg" -exec cp {} dist/ \;
+          find target/${{ matrix.target }}/release/bundle -name "*.sig" -exec cp {} dist/ \;
+          find target/${{ matrix.target }}/release/bundle -name "latest*.json" -exec cp {} dist/ \;
+          find target/${{ matrix.target }}/release/bundle -name "*.tar.gz" -exec cp {} dist/ \;
           ls -lh dist/
 
       - name: Collect Linux artifacts
@@ -115,6 +118,9 @@ jobs:
           mkdir -p dist
           find target/${{ matrix.target }}/release/bundle -name "*.deb" -exec cp {} dist/ \;
           find target/${{ matrix.target }}/release/bundle -name "*.AppImage" -exec cp {} dist/ \;
+          find target/${{ matrix.target }}/release/bundle -name "*.sig" -exec cp {} dist/ \;
+          find target/${{ matrix.target }}/release/bundle -name "latest*.json" -exec cp {} dist/ \;
+          find target/${{ matrix.target }}/release/bundle -name "*.tar.gz" -exec cp {} dist/ \;
           ls -lh dist/
 
       - name: Collect Windows artifacts
@@ -123,6 +129,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Get-ChildItem -Recurse "target/${{ matrix.target }}/release/bundle" -Include *.msi,*.exe | Copy-Item -Destination dist/
+          Get-ChildItem -Recurse "target/${{ matrix.target }}/release/bundle" -Include *.sig,latest*.json,*.zip | Copy-Item -Destination dist/
           Get-ChildItem dist/
 
       - name: Upload artifacts
