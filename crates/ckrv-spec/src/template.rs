@@ -12,6 +12,11 @@ acceptance:
 "#;
 
 /// Generate a spec file content from ID and optional goal.
+///
+/// # Arguments
+///
+/// * `id` - The spec identifier to embed in the template.
+/// * `goal` - Optional goal text; falls back to a placeholder if `None`.
 #[must_use]
 pub fn generate_spec_content(id: &str, goal: Option<&str>) -> String {
     SPEC_TEMPLATE

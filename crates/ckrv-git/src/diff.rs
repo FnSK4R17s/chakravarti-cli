@@ -1,10 +1,18 @@
 //! Git diff generation.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
 use crate::{GitError, Worktree};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// A git diff.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,6 +45,10 @@ pub struct DiffStat {
     pub deletions: usize,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 impl Diff {
     /// Get statistics from this diff.
     #[must_use]
@@ -66,7 +78,7 @@ pub trait DiffGenerator: Send + Sync {
     fn diffstat(&self, worktree: &Worktree) -> Result<DiffStat, GitError>;
 }
 
-/// Default diff generator using git2.
+/// Default diff generator backed by the `git2` library.
 pub struct DefaultDiffGenerator;
 
 impl DefaultDiffGenerator {
@@ -158,6 +170,10 @@ impl DiffGenerator for DefaultDiffGenerator {
         Ok(diff.stat())
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

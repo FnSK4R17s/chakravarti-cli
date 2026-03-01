@@ -18,7 +18,7 @@ use std::path::Path;
 pub struct KiloCodeProvider;
 
 impl KiloCodeProvider {
-    /// Create a new Kilo Code provider
+    /// Create a new Kilo Code provider.
     pub fn new() -> Self {
         Self
     }

@@ -77,13 +77,17 @@ use crate::models::log::{LogEntry, LogLevel};
 use crate::services::history::HistoryService;
 use crate::services::log_store::LogStore;
 
-/// Status of a batch in the execution plan
+/// Status of a batch in the execution plan.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BatchStatus {
+    /// Waiting to start.
     Pending,
+    /// Currently executing.
     Running,
+    /// Successfully completed.
     Completed,
+    /// Execution failed.
     Failed,
 }
 
@@ -111,32 +115,46 @@ impl Default for BatchStatus {
     }
 }
 
-/// Execution plan structure (plan.yaml)
+/// Execution plan structure (plan.yaml).
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExecutionPlan {
+    /// Optional spec identifier this plan belongs to.
     #[serde(default)]
     pub spec_id: Option<String>,
+    /// Ordered list of batches to execute.
     pub batches: Vec<Batch>,
 }
 
+/// A group of tasks to execute together in a single worktree.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Batch {
+    /// Unique batch identifier.
     pub id: String,
+    /// Human-readable batch name.
     pub name: String,
+    /// IDs of tasks included in this batch.
     pub task_ids: Vec<String>,
+    /// IDs of batches that must complete before this one.
     #[serde(default)]
     pub depends_on: Vec<String>,
+    /// Current batch status.
     #[serde(default)]
     pub status: BatchStatus,
+    /// Git branch created for this batch.
     #[serde(default)]
     pub branch: Option<String>,
+    /// Reasoning behind the batch grouping.
     pub reasoning: String,
+    /// Model assignment configuration for this batch.
     pub model_assignment: ModelAssignment,
 }
 
+/// Model assignment configuration for a batch.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ModelAssignment {
+    /// Default model to use for tasks.
     pub default: Option<String>,
+    /// Per-task model overrides (task_id -> model_name).
     #[serde(default)]
     pub overrides: HashMap<String, String>,
 }
@@ -157,29 +175,38 @@ struct SpecTask {
     pub complexity: u8,
 }
 
-/// Log message structure for streaming updates
+/// Log message structure for streaming updates.
 #[derive(Debug, Clone, Serialize)]
 pub struct LogMessage {
+    /// Message type (e.g., "info", "success", "error", "batch_status").
     #[serde(rename = "type")]
-    pub type_: String, // "info", "success", "error", "start", "batch_start", "status", "batch_status", etc.
+    pub type_: String,
+    /// Human-readable log message content.
     pub message: String,
+    /// Output stream origin (`stdout` or `stderr`).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stream: Option<String>, // stdout/stderr
+    pub stream: Option<String>,
+    /// ISO 8601 timestamp of when the message was generated.
     pub timestamp: String,
-    // T004: New fields for explicit status messages
+    /// Execution or batch status for state-transition messages.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<String>, // "running", "completed", "failed", "aborted"
+    pub status: Option<String>,
+    /// Batch identifier for batch-attributed messages.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_id: Option<String>,
+    /// Batch name for batch-attributed messages.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_name: Option<String>,
+    /// Branch name associated with the message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub branch: Option<String>,
+    /// Error message if applicable.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
 impl LogMessage {
+    /// Create a new log message with the given type and content.
     pub fn new(type_: &str, message: &str) -> Self {
         Self {
             type_: type_.to_string(),
@@ -246,6 +273,10 @@ impl LogMessage {
     }
 }
 
+/// Core orchestration engine for running AI agent tasks.
+///
+/// Loads execution plans, schedules batches with dependency resolution,
+/// creates isolated Git worktrees, and streams logs to connected clients.
 pub struct ExecutionEngine {
     project_root: PathBuf,
     sender: mpsc::Sender<LogMessage>,
@@ -256,6 +287,7 @@ pub struct ExecutionEngine {
 }
 
 impl ExecutionEngine {
+    /// Create a new execution engine rooted at the given project path.
     pub fn new(project_root: PathBuf, sender: mpsc::Sender<LogMessage>) -> Self {
         Self {
             log_store: LogStore::new(&project_root),
@@ -338,13 +370,19 @@ impl ExecutionEngine {
         Ok(())
     }
 
+    /// Execute a specification's plan by scheduling and running all batches.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the spec or plan files cannot be loaded,
+    /// or if a batch execution fails and is not recoverable.
     pub async fn run_spec(
         &self,
         spec_name: String,
         dry_run: bool,
         executor_model: Option<String>,
-        agent: String,                   // Agent to use: "claude" or "codex"
-        existing_run_id: Option<String>, // T032: Resume existing run
+        agent: String,
+        existing_run_id: Option<String>,
     ) -> Result<()> {
         let spec_path = self
             .project_root

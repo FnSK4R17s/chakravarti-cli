@@ -3,10 +3,18 @@
 //! These models define the structure for log entries that are persisted
 //! to disk and streamed to the UI via WebSocket.
 
+// ============================================================
+// Imports
+// ============================================================
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use uuid::Uuid;
+
+// ============================================================
+// Types
+// ============================================================
 
 /// A single log entry persisted to disk
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,6 +171,10 @@ pub struct ExecutionLogFile {
     pub size_bytes: u64,
 }
 
+// ============================================================
+// Request/Response Types
+// ============================================================
+
 /// Request to fetch historical logs (T005)
 #[derive(Debug, Deserialize)]
 pub struct LogHistoryRequest {
@@ -227,6 +239,10 @@ pub struct LogDeleteResponse {
     /// Number of lines deleted
     pub deleted_lines: usize,
 }
+
+// ============================================================
+// Tests
+// ============================================================
 
 #[cfg(test)]
 mod tests {

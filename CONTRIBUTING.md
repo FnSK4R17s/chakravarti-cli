@@ -35,6 +35,7 @@ cargo run -p ckrv-cli -- --help
 
 - **Claude Code**: [claude.ai/code](https://claude.ai/code) (requires Claude subscription)
 - **Codex**: [OpenAI Codex CLI](https://github.com/openai/codex-cli) (requires OpenAI subscription)
+- **Kilo Code**: File-based auth supporting 30+ AI providers (Gemini, DeepSeek, Mistral, Qwen, etc.)
 
 Configure agents in `~/.config/chakravarti/agents.yaml`:
 
@@ -45,6 +46,8 @@ agents:
     is_default: true
   - name: codex
     agent_type: codex
+  - name: kilo
+    agent_type: kilo
 ```
 
 ## Project Structure

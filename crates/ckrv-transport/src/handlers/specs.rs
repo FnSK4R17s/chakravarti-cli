@@ -344,15 +344,20 @@ pub async fn delete_spec_handler(state: &AppState, name: String) -> Result<(), T
 /// Validate a spec response.
 #[derive(Debug, Serialize)]
 pub struct ValidateSpecResponse {
+    /// Whether the spec is valid.
     pub valid: bool,
+    /// Validation errors found.
     pub errors: Vec<ValidationError>,
+    /// Non-blocking warnings.
     pub warnings: Vec<String>,
 }
 
 /// Validation error.
 #[derive(Debug, Serialize)]
 pub struct ValidationError {
+    /// YAML field path where the error occurred.
     pub field: String,
+    /// Description of the validation failure.
     pub message: String,
 }
 
@@ -421,7 +426,9 @@ pub async fn validate_spec_handler(
 /// Generate design response.
 #[derive(Debug, Serialize)]
 pub struct DesignResponse {
+    /// Path to the generated design document.
     pub design_path: Option<String>,
+    /// Path to the generated research document.
     pub research_path: Option<String>,
 }
 
@@ -466,7 +473,9 @@ pub async fn generate_design_handler(
 /// Generate tasks response.
 #[derive(Debug, Serialize)]
 pub struct GenerateTasksResponse {
+    /// Path to the generated tasks YAML file.
     pub tasks_path: Option<String>,
+    /// Number of tasks generated.
     pub task_count: usize,
 }
 

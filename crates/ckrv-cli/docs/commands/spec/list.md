@@ -1,9 +1,27 @@
 ---
 command: spec list
-generated_from: crates/ckrv-cli/src/commands/spec.rs
-last_commit: 508766e
+generated_from: commands/spec.rs
+last_commit: f92f604
 ---
 
 # ckrv spec list
 
-List all specifications
+List all specifications.
+
+## Description
+
+List all specifications found in the specs/ directory.
+
+Displays a table of all spec directories with their names, statuses, and file paths. Useful for getting an overview of all features being tracked.
+
+The repository must be initialized with `ckrv init` before listing specs.
+
+## Examples
+
+```bash
+# List all specs
+ckrv spec list
+
+# List specs with JSON output
+ckrv spec list --json
+```

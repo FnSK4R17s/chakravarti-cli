@@ -1,49 +1,83 @@
 //! HTTP client for Chakravarti Cloud API.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::cloud::config::CloudConfig;
 use crate::cloud::credentials::{self, StoredTokens};
 use crate::cloud::error::CloudError;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-/// User information from the API
+// ============================================================
+// TYPES
+// ============================================================
+
+/// User information from the API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
+    /// Unique user identifier.
     pub id: String,
+    /// User email address.
     pub email: String,
+    /// Display name, if set.
     pub name: Option<String>,
+    /// Subscription tier (e.g., "free", "pro").
     pub subscription_tier: String,
+    /// Number of jobs remaining in the current billing cycle.
     pub job_quota_remaining: i32,
+    /// When the billing cycle ends.
     pub billing_cycle_end: Option<String>,
 }
 
-/// Credential summary (no secret values)
+/// Credential summary (no secret values).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CredentialSummary {
+    /// Display name for the credential.
     pub name: String,
+    /// Git provider (github, gitlab, etc.).
     pub provider: String,
+    /// Type of credential (pat, deploy_key).
     pub credential_type: String,
+    /// When the credential was created.
     pub created_at: String,
+    /// When the credential was last used.
     pub last_used_at: Option<String>,
 }
 
-/// Cloud job information
+/// Cloud job information.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudJob {
+    /// Unique job identifier.
     pub id: String,
+    /// Current job status (pending, running, succeeded, failed, timeout).
     pub status: String,
+    /// Git repository URL for the job.
     pub git_repo_url: String,
+    /// Base branch the job is built from.
     pub git_base_branch: String,
+    /// Feature branch created by the job.
     pub feature_branch_name: Option<String>,
+    /// When the job was created.
     pub created_at: String,
+    /// When execution started.
     pub started_at: Option<String>,
+    /// When execution completed.
     pub completed_at: Option<String>,
+    /// Result status after completion.
     pub result_status: Option<String>,
+    /// Summary of the job results.
     pub result_summary: Option<String>,
+    /// Error message if the job failed.
     pub error_message: Option<String>,
 }
 
-/// HTTP client for Cloud API
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// HTTP client for Cloud API.
 pub struct CloudClient {
     config: CloudConfig,
     client: reqwest::Client,

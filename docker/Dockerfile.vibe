@@ -1,0 +1,29 @@
+# Chakravarti Mistral Vibe Agent Container
+# Contains the Mistral Vibe CLI for sandboxed agent execution
+
+FROM python:3.12-slim
+
+# Install uv and mistral-vibe CLI
+RUN pip install --no-cache-dir uv && \
+    uv tool install mistral-vibe
+
+# Ensure vibe binary is on PATH
+ENV PATH="/root/.local/bin:$PATH"
+
+# Create non-root user with home directory
+RUN useradd -m -s /bin/bash -d /home/vibe vibe && \
+    mkdir -p /workspace && \
+    chown -R vibe:vibe /home/vibe /workspace
+
+WORKDIR /workspace
+
+# Set HOME for runtime CLIs
+ENV HOME=/home/vibe
+
+# Verify install (best-effort)
+RUN vibe --version || true
+
+# Switch to non-root user
+USER vibe
+
+CMD ["/bin/bash"]
