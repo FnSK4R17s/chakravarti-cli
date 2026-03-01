@@ -6,6 +6,14 @@ related_files:
   - crates/ckrv-sandbox/src/agent/claude.rs
   - crates/ckrv-sandbox/src/agent/codex.rs
   - crates/ckrv-sandbox/src/agent/kilo.rs
+  - crates/ckrv-sandbox/src/agent/gemini.rs
+  - crates/ckrv-sandbox/src/agent/cursor.rs
+  - crates/ckrv-sandbox/src/agent/amp.rs
+  - crates/ckrv-sandbox/src/agent/qwen.rs
+  - crates/ckrv-sandbox/src/agent/opencode.rs
+  - crates/ckrv-sandbox/src/agent/factory.rs
+  - crates/ckrv-sandbox/src/agent/copilot.rs
+  - crates/ckrv-sandbox/src/agent/vibe.rs
   - crates/ckrv-core/src/runner.rs
 ---
 
@@ -27,6 +35,13 @@ These are the underlying CLI tools that execute code generation:
 | **Codex** | OpenAI | OpenAI's coding assistant CLI |
 | **Kilo Code** | Multi-provider | Open-source CLI supporting 30+ AI providers |
 | **Gemini CLI** | Google | Google's first-party Gemini coding assistant CLI |
+| **Cursor** | Cursor | Cursor's AI coding assistant CLI |
+| **Amp** | Ampcode | Ampcode AI coding agent |
+| **Qwen Code** | Alibaba | Alibaba's Qwen coding models CLI |
+| **Opencode** | Open source | Open source coding CLI |
+| **Factory Droid** | Factory | Factory's autonomous developer CLI |
+| **GitHub Copilot** | GitHub | GitHub Copilot CLI integration |
+| **Mistral Vibe** | Mistral AI | Mistral AI's coding assistant CLI |
 
 ## Authentication Methods
 
@@ -40,6 +55,13 @@ Each tool can be authenticated in different ways:
 | Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
 | Kilo Code | File-based auth | `~/.config/kilo/config.json` (configured via `kilo auth`) |
 | Gemini CLI | API key + file auth | `GEMINI_API_KEY`, optionally `~/.gemini/` |
+| Cursor | Cursor Subscription | `~/.cursor/`, Cursor auth config |
+| Amp | Amp authentication | `~/.amp/`, Amp auth config |
+| Qwen Code | API key | `QWEN_API_KEY`, `~/.qwen/` |
+| Opencode | File-based auth | `~/.config/opencode/` |
+| Factory Droid | Factory authentication | `~/.factory/`, Factory auth config |
+| GitHub Copilot | GitHub Copilot Subscription | `~/.config/github-copilot/`, GitHub auth |
+| Mistral Vibe | API key | `MISTRAL_API_KEY`, `~/.mistral/` |
 
 > **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
 
@@ -47,7 +69,7 @@ Each tool can be authenticated in different ways:
 
 | Crate | Responsibility |
 |-------|----------------|
-| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo/Gemini providers, Docker execution |
+| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo/Gemini/Cursor/Amp/Qwen/Opencode/Factory/Copilot/Vibe providers, Docker execution |
 | `ckrv-core` | `RunnerConfig` with OpenRouter and GLM fields |
 | `ckrv-cli` | Agent config loading, CLI flags |
 | `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
@@ -63,17 +85,41 @@ graph TD
     Provider --> Claude[ClaudeProvider]
     Provider --> Codex[CodexProvider]
     Provider --> Kilo[KiloCodeProvider]
-    
+    Provider --> Gemini[GeminiProvider]
+    Provider --> Cursor[CursorProvider]
+    Provider --> Amp[AmpProvider]
+    Provider --> Qwen[QwenProvider]
+    Provider --> Opencode[OpencodeProvider]
+    Provider --> Factory[FactoryProvider]
+    Provider --> Copilot[CopilotProvider]
+    Provider --> Vibe[VibeProvider]
+
     Claude --> Docker[Docker Container]
     Codex --> Docker
     Kilo --> Docker
-    
+    Gemini --> Docker
+    Cursor --> Docker
+    Amp --> Docker
+    Qwen --> Docker
+    Opencode --> Docker
+    Factory --> Docker
+    Copilot --> Docker
+    Vibe --> Docker
+
     subgraph "Authentication Layer"
         Claude --> ClaudeSub[Claude Subscription]
         Claude --> OpenRouter[OpenRouter API]
         Claude --> GLM[GLM Coding Plan]
         Codex --> OpenAISub[OpenAI Subscription]
         Kilo --> KiloAuth[File-based auth via kilo auth]
+        Gemini --> GeminiAuth[GEMINI_API_KEY + file auth]
+        Cursor --> CursorAuth[Cursor Subscription]
+        Amp --> AmpAuth[Amp authentication]
+        Qwen --> QwenAuth[QWEN_API_KEY]
+        Opencode --> OpencodeAuth[File-based auth]
+        Factory --> FactoryAuth[Factory authentication]
+        Copilot --> CopilotAuth[GitHub Copilot Subscription]
+        Vibe --> VibeAuth[MISTRAL_API_KEY]
     end
 ```
 

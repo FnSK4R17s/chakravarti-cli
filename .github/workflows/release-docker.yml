@@ -42,6 +42,38 @@ jobs:
             dockerfile: docker/Dockerfile.kilo
             context: docker/
 
+          - name: ckrv-gemini
+            dockerfile: docker/Dockerfile.gemini
+            context: docker/
+
+          - name: ckrv-cursor
+            dockerfile: docker/Dockerfile.cursor
+            context: docker/
+
+          - name: ckrv-amp
+            dockerfile: docker/Dockerfile.amp
+            context: docker/
+
+          - name: ckrv-qwen
+            dockerfile: docker/Dockerfile.qwen
+            context: docker/
+
+          - name: ckrv-factory
+            dockerfile: docker/Dockerfile.factory
+            context: docker/
+
+          - name: ckrv-copilot
+            dockerfile: docker/Dockerfile.copilot
+            context: docker/
+
+          - name: ckrv-vibe
+            dockerfile: docker/Dockerfile.vibe
+            context: docker/
+
+          - name: ckrv-opencode
+            dockerfile: docker/Dockerfile.opencode
+            context: docker/
+
           - name: ckrv-agent
             dockerfile: docker/Dockerfile.agent
             context: docker/

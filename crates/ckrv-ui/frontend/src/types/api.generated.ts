@@ -34,7 +34,7 @@ export type SuccessResponse = {
 
 // === Agent Types ===
 
-export type AgentType = "claude" | "claude_open_router" | "claude_glm" | "codex" | "kilo_code" | "gemini";
+export type AgentType = "claude" | "claude_open_router" | "claude_glm" | "codex" | "kilo_code" | "gemini" | "cursor" | "amp" | "qwen" | "opencode" | "factory_droid" | "github_copilot" | "mistral_vibe";
 
 export type AgentConfig = {
     /**

@@ -522,6 +522,104 @@ pub async fn test_agent_handler(
                 Err(e) => Err(format!("Gemini CLI not found: {}", e)),
             }
         }
+        AgentType::Cursor => {
+            let binary = "cursor";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Cursor CLI available: {}", version.trim()))
+                    } else {
+                        Err("Cursor CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Cursor CLI not found: {}", e)),
+            }
+        }
+        AgentType::Amp => {
+            let binary = "amp";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Amp CLI available: {}", version.trim()))
+                    } else {
+                        Err("Amp CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Amp CLI not found: {}", e)),
+            }
+        }
+        AgentType::Qwen => {
+            let binary = "qwen";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Qwen Code CLI available: {}", version.trim()))
+                    } else {
+                        Err("Qwen Code CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Qwen Code CLI not found: {}", e)),
+            }
+        }
+        AgentType::Opencode => {
+            let binary = "opencode";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Opencode CLI available: {}", version.trim()))
+                    } else {
+                        Err("Opencode CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Opencode CLI not found: {}", e)),
+            }
+        }
+        AgentType::FactoryDroid => {
+            let binary = "droid";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Factory Droid CLI available: {}", version.trim()))
+                    } else {
+                        Err("Factory Droid CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Factory Droid CLI not found: {}", e)),
+            }
+        }
+        AgentType::GithubCopilot => {
+            let binary = "gh";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("GitHub Copilot CLI available: {}", version.trim()))
+                    } else {
+                        Err("GitHub Copilot CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("GitHub Copilot CLI not found: {}", e)),
+            }
+        }
+        AgentType::MistralVibe => {
+            let binary = "vibe";
+            match std::process::Command::new(binary).arg("--version").output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let version = String::from_utf8_lossy(&output.stdout);
+                        Ok(format!("Mistral Vibe CLI available: {}", version.trim()))
+                    } else {
+                        Err("Mistral Vibe CLI not responding correctly".to_string())
+                    }
+                }
+                Err(e) => Err(format!("Mistral Vibe CLI not found: {}", e)),
+            }
+        }
     };
 
     match result {

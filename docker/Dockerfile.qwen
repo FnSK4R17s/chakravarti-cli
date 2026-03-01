@@ -1,0 +1,32 @@
+# Qwen Code agent container
+
+FROM node:22-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Qwen Code CLI globally
+RUN npm install -g @qwen-code/qwen-code || npm install -g qwen-code
+
+# Create non-root user
+RUN useradd -m -s /bin/bash -d /home/qwen qwen && \
+    mkdir -p /home/qwen/.qwen && \
+    chown -R qwen:qwen /home/qwen
+
+# Create workspace directory
+RUN mkdir -p /workspace && chown qwen:qwen /workspace
+
+WORKDIR /workspace
+
+# Verify Qwen is installed (best effort)
+RUN qwen --version || true
+
+# Switch to non-root user
+USER qwen
+
+# Default command
+CMD ["/bin/bash"]

@@ -134,6 +134,39 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
                 env.insert("GEMINI_API_KEY".to_string(), key);
             }
         }
+        AgentType::Cursor => {
+            // Cursor uses session-based auth - no env vars needed
+        }
+        AgentType::Amp => {
+            // Amp uses file-based auth - no env vars needed
+        }
+        AgentType::Qwen => {
+            if let Ok(key) = std::env::var("OPENAI_API_KEY") {
+                env.insert("OPENAI_API_KEY".to_string(), key);
+            }
+            if let Ok(key) = std::env::var("QWEN_AUTH_TOKEN") {
+                env.insert("QWEN_AUTH_TOKEN".to_string(), key);
+            }
+            if let Ok(url) = std::env::var("OPENAI_BASE_URL") {
+                env.insert("OPENAI_BASE_URL".to_string(), url);
+            }
+        }
+        AgentType::Opencode => {
+            // Opencode uses file-based auth - no env vars needed
+        }
+        AgentType::FactoryDroid => {
+            if let Ok(key) = std::env::var("FACTORY_API_KEY") {
+                env.insert("FACTORY_API_KEY".to_string(), key);
+            }
+        }
+        AgentType::GithubCopilot => {
+            // GitHub Copilot uses gh CLI auth - no env vars needed
+        }
+        AgentType::MistralVibe => {
+            if let Ok(key) = std::env::var("MISTRAL_API_KEY") {
+                env.insert("MISTRAL_API_KEY".to_string(), key);
+            }
+        }
     }
 
     // Set container home
@@ -143,6 +176,20 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
         "/home/kilo"
     } else if matches!(agent.agent_type, AgentType::Gemini) {
         "/home/gemini"
+    } else if matches!(agent.agent_type, AgentType::Cursor) {
+        "/home/cursor"
+    } else if matches!(agent.agent_type, AgentType::Amp) {
+        "/home/amp"
+    } else if matches!(agent.agent_type, AgentType::Qwen) {
+        "/home/qwen"
+    } else if matches!(agent.agent_type, AgentType::Opencode) {
+        "/home/opencode"
+    } else if matches!(agent.agent_type, AgentType::FactoryDroid) {
+        "/home/factory"
+    } else if matches!(agent.agent_type, AgentType::GithubCopilot) {
+        "/home/copilot"
+    } else if matches!(agent.agent_type, AgentType::MistralVibe) {
+        "/home/vibe"
     } else {
         "/home/claude"
     };
@@ -221,12 +268,61 @@ pub async fn terminal_start(
         .map(|a| matches!(a.agent_type, AgentType::Gemini))
         .unwrap_or(false);
 
+    let is_cursor = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Cursor))
+        .unwrap_or(false);
+
+    let is_amp = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Amp))
+        .unwrap_or(false);
+
+    let is_qwen = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Qwen))
+        .unwrap_or(false);
+
+    let is_opencode = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Opencode))
+        .unwrap_or(false);
+
+    let is_factory_droid = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::FactoryDroid))
+        .unwrap_or(false);
+
+    let is_github_copilot = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::GithubCopilot))
+        .unwrap_or(false);
+
+    let is_mistral_vibe = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::MistralVibe))
+        .unwrap_or(false);
+
     let image = if is_codex {
         "ghcr.io/fnsk4r17s/ckrv-codex:latest"
     } else if is_kilo {
         "ghcr.io/fnsk4r17s/ckrv-kilo:latest"
     } else if is_gemini {
         "ghcr.io/fnsk4r17s/ckrv-gemini:latest"
+    } else if is_cursor {
+        "ghcr.io/fnsk4r17s/ckrv-cursor:latest"
+    } else if is_amp {
+        "ghcr.io/fnsk4r17s/ckrv-amp:latest"
+    } else if is_qwen {
+        "ghcr.io/fnsk4r17s/ckrv-qwen:latest"
+    } else if is_opencode {
+        "ghcr.io/fnsk4r17s/ckrv-opencode:latest"
+    } else if is_factory_droid {
+        "ghcr.io/fnsk4r17s/ckrv-factory:latest"
+    } else if is_github_copilot {
+        "ghcr.io/fnsk4r17s/ckrv-copilot:latest"
+    } else if is_mistral_vibe {
+        "ghcr.io/fnsk4r17s/ckrv-vibe:latest"
     } else {
         "ghcr.io/fnsk4r17s/ckrv-claude:latest"
     };

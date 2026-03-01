@@ -6,7 +6,9 @@
 
 use super::{
     create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
-    ClaudeProvider, CodexProvider, GeminiProvider, KiloCodeProvider,
+    AmpProvider, ClaudeProvider, CodexProvider, CursorProvider, FactoryDroidProvider,
+    GeminiProvider, GithubCopilotProvider, KiloCodeProvider, MistralVibeProvider,
+    OpencodeProvider, QwenProvider,
 };
 use std::path::Path;
 
@@ -30,6 +32,24 @@ fn test_agent_type_from_str() {
     assert_eq!(AgentType::from_str("gemini"), Some(AgentType::Gemini));
     assert_eq!(AgentType::from_str("Gemini"), Some(AgentType::Gemini));
     assert_eq!(AgentType::from_str("gemini-cli"), Some(AgentType::Gemini));
+    assert_eq!(AgentType::from_str("cursor"), Some(AgentType::Cursor));
+    assert_eq!(AgentType::from_str("cursor-cli"), Some(AgentType::Cursor));
+    assert_eq!(AgentType::from_str("amp"), Some(AgentType::Amp));
+    assert_eq!(AgentType::from_str("ampcode"), Some(AgentType::Amp));
+    assert_eq!(AgentType::from_str("qwen"), Some(AgentType::Qwen));
+    assert_eq!(AgentType::from_str("qwen-code"), Some(AgentType::Qwen));
+    assert_eq!(AgentType::from_str("qwencode"), Some(AgentType::Qwen));
+    assert_eq!(AgentType::from_str("opencode"), Some(AgentType::Opencode));
+    assert_eq!(AgentType::from_str("open-code"), Some(AgentType::Opencode));
+    assert_eq!(AgentType::from_str("factory"), Some(AgentType::FactoryDroid));
+    assert_eq!(AgentType::from_str("factory-droid"), Some(AgentType::FactoryDroid));
+    assert_eq!(AgentType::from_str("factory_droid"), Some(AgentType::FactoryDroid));
+    assert_eq!(AgentType::from_str("github-copilot"), Some(AgentType::GithubCopilot));
+    assert_eq!(AgentType::from_str("copilot"), Some(AgentType::GithubCopilot));
+    assert_eq!(AgentType::from_str("gh-copilot"), Some(AgentType::GithubCopilot));
+    assert_eq!(AgentType::from_str("mistral-vibe"), Some(AgentType::MistralVibe));
+    assert_eq!(AgentType::from_str("mistral_vibe"), Some(AgentType::MistralVibe));
+    assert_eq!(AgentType::from_str("vibe"), Some(AgentType::MistralVibe));
     assert_eq!(AgentType::from_str("unknown"), None);
 }
 
@@ -45,6 +65,13 @@ fn test_agent_type_display_name() {
     assert_eq!(AgentType::Codex.display_name(), "OpenAI Codex");
     assert_eq!(AgentType::KiloCode.display_name(), "Kilo Code");
     assert_eq!(AgentType::Gemini.display_name(), "Gemini CLI");
+    assert_eq!(AgentType::Cursor.display_name(), "Cursor");
+    assert_eq!(AgentType::Amp.display_name(), "Amp");
+    assert_eq!(AgentType::Qwen.display_name(), "Qwen Code");
+    assert_eq!(AgentType::Opencode.display_name(), "Opencode");
+    assert_eq!(AgentType::FactoryDroid.display_name(), "Factory Droid");
+    assert_eq!(AgentType::GithubCopilot.display_name(), "GitHub Copilot");
+    assert_eq!(AgentType::MistralVibe.display_name(), "Mistral Vibe");
 }
 
 #[test]
@@ -287,6 +314,315 @@ fn test_gemini_parse_output_success() {
 #[test]
 fn test_gemini_parse_output_failure() {
     let provider = GeminiProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+// ============================================================
+// CURSOR TESTS
+// ============================================================
+
+#[test]
+fn test_create_agent_cursor() {
+    let agent = create_agent(AgentType::Cursor);
+    assert_eq!(agent.name(), "Cursor");
+    assert_eq!(agent.agent_type(), AgentType::Cursor);
+    assert!(agent.required_env_vars().is_empty());
+}
+
+#[test]
+fn test_cursor_provider_build_command() {
+    let provider = CursorProvider::new();
+    let config = AgentConfig::new(AgentType::Cursor);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"cursor".to_string()));
+    assert!(cmd.contains(&"--print".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+}
+
+#[test]
+fn test_cursor_parse_output_success() {
+    let provider = CursorProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_cursor_parse_output_failure() {
+    let provider = CursorProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+// ============================================================
+// AMP TESTS
+// ============================================================
+
+#[test]
+fn test_create_agent_amp() {
+    let agent = create_agent(AgentType::Amp);
+    assert_eq!(agent.name(), "Amp");
+    assert_eq!(agent.agent_type(), AgentType::Amp);
+    assert!(agent.required_env_vars().is_empty());
+}
+
+#[test]
+fn test_amp_provider_build_command() {
+    let provider = AmpProvider::new();
+    let config = AgentConfig::new(AgentType::Amp);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"amp".to_string()));
+    assert!(cmd.contains(&"--execute".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+}
+
+#[test]
+fn test_amp_parse_output_success() {
+    let provider = AmpProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_amp_parse_output_failure() {
+    let provider = AmpProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+// ============================================================
+// QWEN TESTS
+// ============================================================
+
+#[test]
+fn test_create_agent_qwen() {
+    let agent = create_agent(AgentType::Qwen);
+    assert_eq!(agent.name(), "qwen-code");
+    assert_eq!(agent.agent_type(), AgentType::Qwen);
+}
+
+#[test]
+fn test_qwen_provider_build_command() {
+    let provider = QwenProvider::new();
+    let config = AgentConfig::new(AgentType::Qwen);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"qwen".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+}
+
+#[test]
+fn test_qwen_parse_output_success() {
+    let provider = QwenProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_qwen_parse_output_failure() {
+    let provider = QwenProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+// ============================================================
+// OPENCODE TESTS
+// ============================================================
+
+#[test]
+fn test_create_agent_opencode() {
+    let agent = create_agent(AgentType::Opencode);
+    assert_eq!(agent.name(), "Opencode");
+    assert_eq!(agent.agent_type(), AgentType::Opencode);
+    assert!(agent.required_env_vars().is_empty());
+}
+
+#[test]
+fn test_opencode_provider_build_command() {
+    let provider = OpencodeProvider::new();
+    let config = AgentConfig::new(AgentType::Opencode);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"opencode".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+}
+
+#[test]
+fn test_opencode_parse_output_success() {
+    let provider = OpencodeProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_opencode_parse_output_failure() {
+    let provider = OpencodeProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+// ============================================================
+// FACTORY DROID TESTS
+// ============================================================
+
+#[test]
+fn test_create_agent_factory_droid() {
+    let agent = create_agent(AgentType::FactoryDroid);
+    assert_eq!(agent.name(), "Factory Droid");
+    assert_eq!(agent.agent_type(), AgentType::FactoryDroid);
+    assert!(agent.required_env_vars().contains(&"FACTORY_API_KEY"));
+}
+
+#[test]
+fn test_factory_droid_provider_build_command() {
+    let provider = FactoryDroidProvider::new();
+    let config = AgentConfig::new(AgentType::FactoryDroid);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"droid".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+}
+
+#[test]
+fn test_factory_droid_parse_output_success() {
+    let provider = FactoryDroidProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_factory_droid_parse_output_failure() {
+    let provider = FactoryDroidProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+// ============================================================
+// GITHUB COPILOT TESTS
+// ============================================================
+
+#[test]
+fn test_create_agent_github_copilot() {
+    let agent = create_agent(AgentType::GithubCopilot);
+    assert_eq!(agent.name(), "GitHub Copilot");
+    assert_eq!(agent.agent_type(), AgentType::GithubCopilot);
+    assert!(agent.required_env_vars().is_empty());
+}
+
+#[test]
+fn test_github_copilot_provider_build_command() {
+    let provider = GithubCopilotProvider::new();
+    let config = AgentConfig::new(AgentType::GithubCopilot);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"gh".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+}
+
+#[test]
+fn test_github_copilot_parse_output_success() {
+    let provider = GithubCopilotProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_github_copilot_parse_output_failure() {
+    let provider = GithubCopilotProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+// ============================================================
+// MISTRAL VIBE TESTS
+// ============================================================
+
+#[test]
+fn test_create_agent_mistral_vibe() {
+    let agent = create_agent(AgentType::MistralVibe);
+    assert_eq!(agent.name(), "Mistral Vibe");
+    assert_eq!(agent.agent_type(), AgentType::MistralVibe);
+    assert!(agent.required_env_vars().contains(&"MISTRAL_API_KEY"));
+}
+
+#[test]
+fn test_mistral_vibe_provider_build_command() {
+    let provider = MistralVibeProvider::new();
+    let config = AgentConfig::new(AgentType::MistralVibe);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"vibe".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+}
+
+#[test]
+fn test_mistral_vibe_parse_output_success() {
+    let provider = MistralVibeProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_mistral_vibe_parse_output_failure() {
+    let provider = MistralVibeProvider::new();
     let result = provider.parse_output("", "error message", 1).unwrap();
 
     assert!(!result.success);

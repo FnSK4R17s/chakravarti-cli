@@ -1,0 +1,45 @@
+# Chakravarti GitHub Copilot Agent Container
+# Contains GitHub CLI with Copilot extension for sandboxed execution
+
+FROM node:22-slim
+
+# Install dependencies and GitHub CLI
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | dd of=/etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update && apt-get install -y gh \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install/upgrade gh copilot extension (best-effort; bundled in some gh versions)
+RUN gh extension install github/gh-copilot || gh extension upgrade github/gh-copilot || true
+
+# Create non-root user with home directory
+RUN useradd -m -s /bin/bash -d /home/copilot copilot && \
+    mkdir -p /home/copilot/.config/gh && \
+    chown -R copilot:copilot /home/copilot
+
+# Create workspace directory
+RUN mkdir -p /workspace && chown copilot:copilot /workspace
+
+WORKDIR /workspace
+
+# Set HOME environment variable
+ENV HOME=/home/copilot
+
+# Verify CLI is installed (must run before USER switch)
+RUN gh --version || true
+RUN gh copilot --help || true
+
+# Switch to non-root user
+USER copilot
+
+# Default command
+CMD ["/bin/bash"]
