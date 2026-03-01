@@ -64,6 +64,13 @@ struct AgentQuotaUsage {
     usd_limit: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     usd_remaining: Option<f64>,
+    /// How this usage figure was derived.
+    usage_method: String,
+    /// Structured status: "ok" when attributable usage exists, "fallback" otherwise.
+    usage_status: String,
+    /// Clear non-crashing reason when usage cannot be fetched/attributed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fallback_reason: Option<String>,
 }
 
 /// Per-job summary entry.
@@ -292,6 +299,13 @@ fn build_agent_usage(all_metrics: &[Metrics]) -> Vec<AgentQuotaUsage> {
             token_remaining,
             usd_limit,
             usd_remaining,
+            usage_method: usage_method_for_agent_type(&agent.agent_type).to_string(),
+            usage_status: if total_tokens > 0 || total_cost_usd > 0.0 {
+                "ok".to_string()
+            } else {
+                "fallback".to_string()
+            },
+            fallback_reason: fallback_reason_for_agent(&agent, total_tokens, total_cost_usd),
         });
     }
 
@@ -345,6 +359,14 @@ fn model_belongs_to_agent_type(model: &str, agent_type: &AgentType) -> bool {
         AgentType::ClaudeGlm => m.contains("glm") || m.contains("zhipu"),
         AgentType::Codex => m.contains("codex") || m.contains("gpt-"),
         AgentType::KiloCode => m.contains("kilocode") || m.contains("kilo"),
+        AgentType::Gemini => m.contains("gemini"),
+        AgentType::Cursor => m.contains("cursor"),
+        AgentType::Amp => m.contains("amp"),
+        AgentType::Qwen => m.contains("qwen"),
+        AgentType::Opencode => m.contains("opencode") || m.contains("open-code"),
+        AgentType::FactoryDroid => m.contains("factory"),
+        AgentType::GithubCopilot => m.contains("copilot"),
+        AgentType::MistralVibe => m.contains("vibe") || m.contains("mistral"),
     }
 }
 
@@ -355,7 +377,72 @@ fn agent_type_name(agent_type: &AgentType) -> &'static str {
         AgentType::ClaudeGlm => "claude_glm",
         AgentType::Codex => "codex",
         AgentType::KiloCode => "kilocode",
+        AgentType::Gemini => "gemini",
+        AgentType::Cursor => "cursor",
+        AgentType::Amp => "amp",
+        AgentType::Qwen => "qwen",
+        AgentType::Opencode => "opencode",
+        AgentType::FactoryDroid => "factory_droid",
+        AgentType::GithubCopilot => "github_copilot",
+        AgentType::MistralVibe => "mistral_vibe",
     }
+}
+
+fn usage_method_for_agent_type(agent_type: &AgentType) -> &'static str {
+    match agent_type {
+        AgentType::Claude => {
+            "local_metrics:model_attribution(claude*), optional ~/.claude projects/logs"
+        }
+        AgentType::ClaudeOpenRouter => {
+            "local_metrics:model_attribution(openrouter/anthropic), optional OpenRouter API usage"
+        }
+        AgentType::ClaudeGlm => {
+            "local_metrics:model_attribution(glm/zhipu), optional GLM API dashboard"
+        }
+        AgentType::Codex => {
+            "local_metrics:model_attribution(codex/gpt-*), optional ~/.codex/session logs"
+        }
+        AgentType::KiloCode => {
+            "local_metrics:model_attribution(kilo*), optional ~/.kilocode state files"
+        }
+        AgentType::Gemini => {
+            "local_metrics:model_attribution(gemini*), optional Gemini CLI/API usage endpoints"
+        }
+        AgentType::Cursor => {
+            "local_metrics:model_attribution(cursor*), optional Cursor local app/session logs"
+        }
+        AgentType::Amp => {
+            "local_metrics:model_attribution(amp*), optional ~/.config/amp + ~/.cache/amp logs"
+        }
+        AgentType::Qwen => "local_metrics:model_attribution(qwen*), optional ~/.qwen logs/state",
+        AgentType::Opencode => {
+            "local_metrics:model_attribution(opencode*), optional ~/.opencode logs"
+        }
+        AgentType::FactoryDroid => {
+            "local_metrics:model_attribution(factory*), optional Factory API/dashboard usage"
+        }
+        AgentType::GithubCopilot => {
+            "local_metrics:model_attribution(copilot*), optional gh/copilot session output"
+        }
+        AgentType::MistralVibe => {
+            "local_metrics:model_attribution(vibe/mistral*), optional Mistral API usage dashboard"
+        }
+    }
+}
+
+fn fallback_reason_for_agent(
+    agent: &AgentConfig,
+    total_tokens: u64,
+    total_cost_usd: f64,
+) -> Option<String> {
+    if total_tokens > 0 || total_cost_usd > 0.0 {
+        return None;
+    }
+
+    Some(format!(
+        "No attributable usage found for configured agent type '{}' in local job metrics. This is a safe fallback (no crash).",
+        agent_type_name(&agent.agent_type)
+    ))
 }
 
 #[cfg(test)]
@@ -380,10 +467,76 @@ mod tests {
             "gpt-5-codex",
             &AgentType::Codex
         ));
+        assert!(model_belongs_to_agent_type(
+            "gemini-2.0-pro",
+            &AgentType::Gemini
+        ));
+        assert!(model_belongs_to_agent_type(
+            "cursor-fast",
+            &AgentType::Cursor
+        ));
+        assert!(model_belongs_to_agent_type("amp-sonnet", &AgentType::Amp));
+        assert!(model_belongs_to_agent_type(
+            "qwen-coder-plus",
+            &AgentType::Qwen
+        ));
+        assert!(model_belongs_to_agent_type(
+            "opencode-default",
+            &AgentType::Opencode
+        ));
+        assert!(model_belongs_to_agent_type(
+            "factory-droid-default",
+            &AgentType::FactoryDroid
+        ));
+        assert!(model_belongs_to_agent_type(
+            "github-copilot-chat",
+            &AgentType::GithubCopilot
+        ));
+        assert!(model_belongs_to_agent_type(
+            "mistral-vibe-medium",
+            &AgentType::MistralVibe
+        ));
         assert!(!model_belongs_to_agent_type(
             "claude-3-opus",
             &AgentType::Codex
         ));
+    }
+
+    #[test]
+    fn test_agent_type_name_includes_new_agents() {
+        assert_eq!(agent_type_name(&AgentType::Gemini), "gemini");
+        assert_eq!(agent_type_name(&AgentType::Cursor), "cursor");
+        assert_eq!(agent_type_name(&AgentType::Amp), "amp");
+        assert_eq!(agent_type_name(&AgentType::Qwen), "qwen");
+        assert_eq!(agent_type_name(&AgentType::Opencode), "opencode");
+        assert_eq!(agent_type_name(&AgentType::FactoryDroid), "factory_droid");
+        assert_eq!(agent_type_name(&AgentType::GithubCopilot), "github_copilot");
+        assert_eq!(agent_type_name(&AgentType::MistralVibe), "mistral_vibe");
+    }
+
+    #[test]
+    fn test_fallback_reason_when_no_usage() {
+        let agent = AgentConfig {
+            id: "a1".to_string(),
+            name: "Gemini".to_string(),
+            agent_type: AgentType::Gemini,
+            level: 3,
+            is_default: false,
+            is_qa_agent: false,
+            is_test_writer: false,
+            enabled: true,
+            description: None,
+            openrouter: None,
+            glm: None,
+            binary_path: None,
+            extra_args: None,
+            env_vars: None,
+        };
+
+        let reason = fallback_reason_for_agent(&agent, 0, 0.0);
+        assert!(reason.is_some());
+        assert!(reason.unwrap().contains("No attributable usage found"));
+        assert!(fallback_reason_for_agent(&agent, 10, 0.0).is_none());
     }
 
     #[test]
