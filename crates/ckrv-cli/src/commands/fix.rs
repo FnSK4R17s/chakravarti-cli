@@ -1,5 +1,9 @@
 //! Fix command - use AI to fix verification errors.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use clap::Args;
@@ -8,6 +12,10 @@ use serde::{Deserialize, Serialize};
 use crate::ui::components::Banner;
 use crate::ui::Renderable;
 use crate::ui::UiContext;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the fix command
 #[derive(Args)]
@@ -33,11 +41,16 @@ pub struct FixArgs {
     pub error: Option<String>,
 }
 
+/// Serializable output for the fix command.
 #[derive(Serialize)]
 pub struct FixOutput {
+    /// Whether all fixes were applied successfully.
     pub success: bool,
+    /// Number of fixes that were applied.
     pub fixes_applied: usize,
+    /// Number of errors still remaining after fixing.
     pub errors_remaining: usize,
+    /// Human-readable status message.
     pub message: String,
 }
 
@@ -55,7 +68,11 @@ struct CheckResult {
     output: Option<String>,
 }
 
-/// Execute the fix command
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Execute the fix command.
 pub async fn execute(args: FixArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 

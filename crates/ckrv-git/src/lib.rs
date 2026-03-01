@@ -3,17 +3,33 @@
 //! This crate provides git functionality including worktree creation,
 //! diff generation, and branch management.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::Path;
 
+// ============================================================
+// MODULES & RE-EXPORTS
+// ============================================================
+
+/// Branch creation, pushing, and deletion.
 pub mod branch;
+/// Diff generation and statistics.
 pub mod diff;
+/// Git error types.
 pub mod error;
+/// Worktree lifecycle management.
 pub mod worktree;
 
 pub use branch::{BranchManager, GitBranchManager, PromoteResult};
 pub use diff::{DefaultDiffGenerator, Diff, DiffGenerator, DiffStat, FileDiff};
 pub use error::GitError;
 pub use worktree::{DefaultWorktreeManager, Worktree, WorktreeManager, WorktreeStatus};
+
+// ============================================================
+// PUBLIC API
+// ============================================================
 
 /// Check if a path is inside a git repository.
 ///
@@ -31,6 +47,10 @@ pub fn is_git_repo(path: &Path) -> Result<bool, GitError> {
 /// Check if Chakravarti has been initialized in the repository.
 ///
 /// Returns true if both `.specs/` and `.chakravarti/` directories exist.
+///
+/// # Arguments
+///
+/// * `repo_root` - Path to the repository root directory.
 #[must_use]
 pub fn is_initialized(repo_root: &Path) -> bool {
     repo_root.join(".specs").exists() && repo_root.join(".chakravarti").exists()
@@ -47,6 +67,10 @@ pub fn repo_root(path: &Path) -> Result<std::path::PathBuf, GitError> {
         .map(|p| p.to_path_buf())
         .ok_or_else(|| GitError::NotARepo("Bare repository".to_string()))
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

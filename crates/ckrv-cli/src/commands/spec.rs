@@ -9,13 +9,31 @@ use serde::Serialize;
 #[derive(Args)]
 pub struct SpecArgs {
     #[command(subcommand)]
+    /// Spec subcommand to execute.
     pub command: SpecCommand,
 }
 
 /// Spec subcommands
 #[derive(Subcommand)]
 pub enum SpecCommand {
-    /// Create a new specification using AI from a natural language description
+    /// Create a new specification using AI from a natural language description.
+    #[command(
+        long_about = "Create a new feature specification from a natural language description.\n\n\
+                      Generates a structured spec.md file in the specs/ directory containing:\n\
+                      - Feature overview and goals\n\
+                      - Acceptance criteria\n\
+                      - Technical requirements and constraints\n\
+                      A short name is auto-generated from the description if not provided.\n\n\
+                      Requires an active AI provider configuration. The AI may ask\n\
+                      clarifying questions if the description is ambiguous.",
+        after_help = "Examples:\n\
+                      # Create a spec from an inline description\n\
+                      ckrv spec new \"Add user authentication with OAuth2\"\n\n\
+                      # Create a spec with an explicit short name\n\
+                      ckrv spec new \"Add user authentication\" --name auth-oauth2\n\n\
+                      # Create a spec with a detailed multi-word description\n\
+                      ckrv spec new \"Implement rate limiting for the public API endpoints\""
+    )]
     New {
         /// Natural language description of the feature (e.g., "Add user authentication")
         description: String,
@@ -24,12 +42,42 @@ pub enum SpecCommand {
         #[arg(short, long)]
         name: Option<String>,
     },
-    /// Resolve clarifications in an existing spec
+    /// Resolve clarifications in an existing spec.
+    #[command(
+        long_about = "Resolve open clarifications and ambiguities in an existing specification.\n\n\
+                      Reviews the spec for unclear requirements, missing details, or\n\
+                      conflicting constraints, then interactively resolves them using AI.\n\
+                      Updates the spec file in-place with the resolved clarifications.\n\n\
+                      If no spec path is provided, auto-detects the spec from the\n\
+                      current Git branch name.",
+        after_help = "Examples:\n\
+                      # Clarify the spec detected from the current branch\n\
+                      ckrv spec clarify\n\n\
+                      # Clarify a specific spec file\n\
+                      ckrv spec clarify specs/auth-oauth2/spec.md"
+    )]
     Clarify {
         /// Path to the spec file (optional - auto-detects from current branch if not provided)
         spec: Option<PathBuf>,
     },
-    /// Generate technical design document from a specification
+    /// Generate technical design document from a specification.
+    #[command(
+        long_about = "Generate a technical design document from an existing specification.\n\n\
+                      Produces a design.md file alongside the spec containing:\n\
+                      - Architecture decisions and component diagrams\n\
+                      - Data models and API contracts\n\
+                      - Implementation strategy and dependencies\n\n\
+                      If no spec path is provided, auto-detects the spec from the\n\
+                      current Git branch name. Use --force to regenerate an existing\n\
+                      design document.",
+        after_help = "Examples:\n\
+                      # Generate design from the current branch spec\n\
+                      ckrv spec design\n\n\
+                      # Generate design for a specific spec\n\
+                      ckrv spec design specs/auth-oauth2/spec.md\n\n\
+                      # Force regeneration of an existing design\n\
+                      ckrv spec design --force"
+    )]
     Design {
         /// Path to the spec file (optional - auto-detects from current branch if not provided)
         spec: Option<PathBuf>,
@@ -38,12 +86,42 @@ pub enum SpecCommand {
         #[arg(short, long)]
         force: bool,
     },
-    /// Initialize an empty spec directory with templates
+    /// Initialize an empty spec directory with templates.
+    #[command(
+        long_about = "Initialize a new, empty specification directory with starter templates.\n\n\
+                      Creates a named directory under specs/ containing a blank spec.md\n\
+                      template with the standard sections (overview, requirements,\n\
+                      acceptance criteria) ready to be filled in.\n\n\
+                      Use this when you want to manually author a spec rather than\n\
+                      generating one with AI via `ckrv spec new`.",
+        after_help = "Examples:\n\
+                      # Initialize a new spec directory\n\
+                      ckrv spec init my-feature\n\n\
+                      # Initialize with a hyphenated name\n\
+                      ckrv spec init user-auth-oauth2"
+    )]
     Init {
         /// Name for the new spec directory
         name: String,
     },
-    /// Generate implementation tasks from a specification
+    /// Generate implementation tasks from a specification.
+    #[command(
+        long_about = "Generate implementation tasks from an existing specification.\n\n\
+                      Analyzes the spec and produces a tasks.md file containing a set\n\
+                      of discrete, actionable implementation tasks with dependency\n\
+                      ordering. Each task includes a title, description, and prompt\n\
+                      suitable for agent execution.\n\n\
+                      If no spec path is provided, auto-detects the spec from the\n\
+                      current Git branch name. Use --force to regenerate tasks even\n\
+                      if a tasks file already exists.",
+        after_help = "Examples:\n\
+                      # Generate tasks from the current branch spec\n\
+                      ckrv spec tasks\n\n\
+                      # Generate tasks for a specific spec\n\
+                      ckrv spec tasks specs/auth-oauth2/spec.md\n\n\
+                      # Force regeneration of existing tasks\n\
+                      ckrv spec tasks --force"
+    )]
     Tasks {
         /// Path to the spec file (optional - auto-detects from current branch if not provided)
         spec: Option<PathBuf>,
@@ -52,12 +130,40 @@ pub enum SpecCommand {
         #[arg(short, long)]
         force: bool,
     },
-    /// Validate a specification file
+    /// Validate a specification file.
+    #[command(
+        long_about = "Validate a specification file for correctness and completeness.\n\n\
+                      Checks that the spec contains all required sections, validates\n\
+                      field formats, and reports any errors or warnings. Returns a\n\
+                      non-zero exit code if validation fails.\n\n\
+                      If no path is provided, auto-detects the spec from the current\n\
+                      Git branch name. Supports JSON output for CI integration.",
+        after_help = "Examples:\n\
+                      # Validate the spec detected from the current branch\n\
+                      ckrv spec validate\n\n\
+                      # Validate a specific spec file\n\
+                      ckrv spec validate specs/auth-oauth2/spec.md\n\n\
+                      # Validate with JSON output for CI\n\
+                      ckrv spec validate --json"
+    )]
     Validate {
         /// Path to the spec file (optional - auto-detects from current branch if not provided)
         path: Option<PathBuf>,
     },
-    /// List all specifications
+    /// List all specifications.
+    #[command(
+        long_about = "List all specifications found in the specs/ directory.\n\n\
+                      Displays a table of all spec directories with their names,\n\
+                      statuses, and file paths. Useful for getting an overview of\n\
+                      all features being tracked.\n\n\
+                      The repository must be initialized with `ckrv init` before\n\
+                      listing specs.",
+        after_help = "Examples:\n\
+                      # List all specs\n\
+                      ckrv spec list\n\n\
+                      # List specs with JSON output\n\
+                      ckrv spec list --json"
+    )]
     List,
 }
 

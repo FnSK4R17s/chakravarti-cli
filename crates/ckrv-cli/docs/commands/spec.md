@@ -1,12 +1,15 @@
 ---
 command: spec
-generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 508766e
+generated_from: lib.rs
+last_commit: f92f604
+hidden: true
 ---
 
 # ckrv spec
 
-Create or manage feature specifications
+Create or manage feature specifications.
+
+> **Note**: This is a legacy top-level command. Prefer `ckrv code spec` for the unified Code workflow.
 
 ## Description
 
@@ -14,17 +17,15 @@ Create or manage feature specifications.
 
 Specifications are the source of truth for AI-driven development. They define what needs to be built, the requirements, and acceptance criteria.
 
-Subcommands: new, list, validate, edit, show
-
 ## Subcommands
 
 | Subcommand | Description |
 |------------|-------------|
-| `new` | Create a new specification using AI from a natural language description |
+| `new` | Create a new specification using AI |
 | `clarify` | Resolve clarifications in an existing spec |
-| `design` | Generate technical design document from a specification |
+| `design` | Generate technical design document |
 | `init` | Initialize an empty spec directory with templates |
-| `tasks` | Generate implementation tasks from a specification |
+| `tasks` | Generate implementation tasks |
 | `validate` | Validate a specification file |
 | `list` | List all specifications |
 

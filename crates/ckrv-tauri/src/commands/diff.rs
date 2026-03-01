@@ -11,6 +11,7 @@ use tauri::State;
 /// Response wrapper for default branch.
 #[derive(Serialize)]
 pub struct DefaultBranchResponse {
+    /// Name of the default branch (e.g., "main" or "master").
     branch: String,
 }
 

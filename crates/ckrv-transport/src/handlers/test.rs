@@ -29,11 +29,17 @@ pub struct RunTestsRequest {
 /// Test result.
 #[derive(Debug, Serialize)]
 pub struct TestResult {
+    /// Test case name.
     pub name: String,
+    /// Pass/fail/skip status.
     pub status: TestStatus,
+    /// Execution duration in milliseconds.
     pub duration_ms: Option<u64>,
+    /// Error message if the test failed.
     pub error: Option<String>,
+    /// Source file containing the test.
     pub file: Option<String>,
+    /// Line number of the test definition.
     pub line: Option<u32>,
 }
 
@@ -41,35 +47,50 @@ pub struct TestResult {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TestStatus {
+    /// Test passed successfully.
     Passed,
+    /// Test failed.
     Failed,
+    /// Test was skipped.
     Skipped,
+    /// Test is pending execution.
     Pending,
 }
 
 /// Test run summary.
 #[derive(Debug, Serialize)]
 pub struct TestRunSummary {
+    /// Total number of tests.
     pub total: u32,
+    /// Number of passing tests.
     pub passed: u32,
+    /// Number of failing tests.
     pub failed: u32,
+    /// Number of skipped tests.
     pub skipped: u32,
+    /// Total execution duration in milliseconds.
     pub duration_ms: u64,
 }
 
 /// Test run response.
 #[derive(Debug, Serialize)]
 pub struct TestRunResponse {
+    /// Individual test case results.
     pub results: Vec<TestResult>,
+    /// Aggregate summary of the test run.
     pub summary: TestRunSummary,
+    /// Raw console output from the test runner.
     pub raw_output: Option<String>,
 }
 
 /// Test writer agent info.
 #[derive(Debug, Serialize)]
 pub struct TestWriterAgentInfo {
+    /// Agent identifier.
     pub id: String,
+    /// Display name of the agent.
     pub name: String,
+    /// Model used by the agent.
     pub model: String,
 }
 
@@ -85,7 +106,9 @@ pub struct GenerateTestsRequest {
 /// Generate tests response.
 #[derive(Debug, Serialize)]
 pub struct GenerateTestsResponse {
+    /// Path to the generated test file.
     pub test_file: String,
+    /// Number of tests generated.
     pub tests_generated: u32,
 }
 
@@ -99,36 +122,52 @@ pub struct TestPlanRequest {
 /// Changed file info for test planning.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChangedFileInfo {
+    /// File path relative to project root.
     pub path: String,
+    /// Type of change (added, modified, deleted).
     pub change_type: String,
+    /// Number of lines added.
     pub lines_added: u32,
+    /// Number of lines removed.
     pub lines_removed: u32,
+    /// Whether the file already has associated tests.
     pub has_tests: bool,
 }
 
 /// Proposed test.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProposedTest {
+    /// Source file the test targets.
     pub target_file: String,
+    /// Path for the proposed test file.
     pub test_file: String,
+    /// Description of what the test covers.
     pub description: String,
+    /// Priority level (high, normal, low).
     pub priority: String,
 }
 
 /// Test plan output.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestPlanOutput {
+    /// Unique plan identifier.
     pub plan_id: String,
+    /// Base branch used for comparison.
     pub base_branch: String,
+    /// Files that changed relative to base.
     pub changed_files: Vec<ChangedFileInfo>,
+    /// Tests proposed for the changed files.
     pub proposed_tests: Vec<ProposedTest>,
 }
 
 /// Test plan response.
 #[derive(Debug, Serialize)]
 pub struct TestPlanResponse {
+    /// Whether plan generation succeeded.
     pub success: bool,
+    /// The generated test plan, if successful.
     pub plan: Option<TestPlanOutput>,
+    /// Error message if plan generation failed.
     pub error: Option<String>,
 }
 
@@ -145,28 +184,41 @@ pub struct TestWriteRequest {
 /// Test write response.
 #[derive(Debug, Serialize)]
 pub struct TestWriteResponse {
+    /// Whether test writing succeeded.
     pub success: bool,
+    /// Number of test files written.
     pub tests_written: u32,
+    /// Number of tests passing (if run after write).
     pub tests_passed: Option<u32>,
+    /// Number of tests failing (if run after write).
     pub tests_failed: Option<u32>,
+    /// Error message if writing failed.
     pub error: Option<String>,
 }
 
 /// Coverage info.
 #[derive(Debug, Serialize)]
 pub struct CoverageInfo {
+    /// Overall coverage percentage.
     pub total: f32,
+    /// Line coverage percentage.
     pub lines: f32,
+    /// Function coverage percentage.
     pub functions: f32,
+    /// Branch coverage percentage.
     pub branches: f32,
+    /// Per-file coverage breakdown.
     pub files: Vec<FileCoverage>,
 }
 
 /// File coverage.
 #[derive(Debug, Serialize)]
 pub struct FileCoverage {
+    /// File path relative to project root.
     pub path: String,
+    /// Coverage percentage for this file.
     pub coverage: f32,
+    /// Line numbers that lack coverage.
     pub uncovered_lines: Vec<u32>,
 }
 
@@ -182,17 +234,24 @@ pub struct TestFixRequest {
 /// Test fix response.
 #[derive(Debug, Serialize)]
 pub struct TestFixResponse {
+    /// Whether the fix operation succeeded.
     pub success: bool,
+    /// Number of files that were fixed.
     pub files_fixed: u32,
+    /// Number of tests now passing.
     pub tests_passing: u32,
+    /// Error message if fix failed.
     pub error: Option<String>,
 }
 
 /// Status response for async operations.
 #[derive(Debug, Serialize)]
 pub struct AsyncStatusResponse {
+    /// Current status (idle, running, completed, failed).
     pub status: String,
+    /// Progress percentage (0.0 to 1.0).
     pub progress: f32,
+    /// Descriptive status message.
     pub message: Option<String>,
 }
 

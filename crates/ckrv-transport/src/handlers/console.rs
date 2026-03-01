@@ -33,10 +33,15 @@ pub struct ExecuteCommandRequest {
 /// Command execution response.
 #[derive(Debug, Serialize)]
 pub struct ExecuteCommandResponse {
+    /// Whether the command exited with code 0.
     pub success: bool,
+    /// Standard output from the command.
     pub stdout: String,
+    /// Standard error from the command.
     pub stderr: String,
+    /// Process exit code.
     pub exit_code: i32,
+    /// Additional status message.
     pub message: Option<String>,
 }
 

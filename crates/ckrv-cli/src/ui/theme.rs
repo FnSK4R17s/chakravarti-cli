@@ -24,29 +24,56 @@
 //! // Use theme.primary_color, theme.success_style, etc.
 //! ```
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use console::{Color, Style};
 use termimad::{MadSkin, StyledChar};
 
+// ============================================================
+// TYPES
+// ============================================================
+
+/// Visual theme holding all colors, styles, and rendering configuration.
 #[derive(Debug, Clone)]
 pub struct Theme {
+    /// Primary brand color (Royal Gold, 256-color code 220).
     pub primary_color: Color,
+    /// Secondary accent color (Cyan).
     pub secondary_color: Color,
+    /// Style for success messages (green + bold).
     pub success_style: Style,
+    /// Style for error messages (red + bold).
     pub error_style: Style,
+    /// Style for warning messages (yellow).
     pub warning_style: Style,
+    /// Unicode box-drawing characters for panel borders.
     pub box_chars: BoxChars,
+    /// Styled markdown rendering skin for terminal output.
     pub markdown_skin: MadSkin,
 }
 
+/// Unicode box-drawing characters for rendering bordered panels.
 #[derive(Debug, Clone)]
 pub struct BoxChars {
+    /// Top-left corner character.
     pub top_left: char,
+    /// Top-right corner character.
     pub top_right: char,
+    /// Bottom-left corner character.
     pub bottom_left: char,
+    /// Bottom-right corner character.
     pub bottom_right: char,
+    /// Horizontal line character.
     pub horizontal: char,
+    /// Vertical line character.
     pub vertical: char,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl Default for Theme {
     fn default() -> Self {

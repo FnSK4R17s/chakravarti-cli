@@ -1,6 +1,14 @@
 //! Spec validation.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use ckrv_core::Spec;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Result of spec validation.
 #[derive(Debug, Clone)]
@@ -22,7 +30,18 @@ pub struct ValidationError {
     pub message: String,
 }
 
-/// Validate a specification (new format with overview).
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Validate a specification against required field rules.
+///
+/// Checks that the spec has a non-empty `id` (alphanumeric, hyphens, underscores)
+/// and a non-empty `overview`.
+///
+/// # Arguments
+///
+/// * `spec` - The specification to validate.
 #[must_use]
 pub fn validate(spec: &Spec) -> ValidationResult {
     let mut errors = Vec::new();
@@ -59,6 +78,10 @@ pub fn validate(spec: &Spec) -> ValidationResult {
         warnings,
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {
