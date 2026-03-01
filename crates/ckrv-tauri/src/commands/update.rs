@@ -4,8 +4,7 @@
 //! The updater plugin also runs a background check on app startup (see main.rs).
 
 use serde::Serialize;
-use tauri::AppHandle;
-use tauri_plugin_process::ProcessExt;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_updater::UpdaterExt;
 
 /// Information about an available update returned to the frontend.
