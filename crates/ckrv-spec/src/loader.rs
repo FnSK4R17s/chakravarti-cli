@@ -1,10 +1,18 @@
 //! Spec file loading.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::Path;
 
 use ckrv_core::Spec;
 
 use crate::SpecError;
+
+// ============================================================
+// TRAITS
+// ============================================================
 
 /// Trait for loading specification files.
 pub trait SpecLoader: Send + Sync {
@@ -23,7 +31,13 @@ pub trait SpecLoader: Send + Sync {
     fn list(&self, dir: &Path) -> Result<Vec<std::path::PathBuf>, SpecError>;
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 /// Default YAML spec loader.
+///
+/// Reads `.yaml` and `.yml` files and deserializes them into [`Spec`] instances.
 pub struct YamlSpecLoader;
 
 impl SpecLoader for YamlSpecLoader {
@@ -56,6 +70,10 @@ impl SpecLoader for YamlSpecLoader {
         Ok(specs)
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

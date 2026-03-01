@@ -190,6 +190,22 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                         if (agent.kilo?.model) {
                             term.writeln(`\x1b[34m# Model: ${agent.kilo.model}\x1b[0m`);
                         }
+                    } else if (agent.agent_type === 'gemini') {
+                        term.writeln(`\x1b[35m# Mode: Gemini CLI\x1b[0m`);
+                    } else if (agent.agent_type === 'cursor') {
+                        term.writeln(`\x1b[35m# Mode: Cursor\x1b[0m`);
+                    } else if (agent.agent_type === 'amp') {
+                        term.writeln(`\x1b[35m# Mode: Amp\x1b[0m`);
+                    } else if (agent.agent_type === 'qwen') {
+                        term.writeln(`\x1b[33m# Mode: Qwen Code\x1b[0m`);
+                    } else if (agent.agent_type === 'opencode') {
+                        term.writeln(`\x1b[35m# Mode: Opencode\x1b[0m`);
+                    } else if (agent.agent_type === 'factory_droid') {
+                        term.writeln(`\x1b[33m# Mode: Factory Droid\x1b[0m`);
+                    } else if (agent.agent_type === 'github_copilot') {
+                        term.writeln(`\x1b[35m# Mode: GitHub Copilot\x1b[0m`);
+                    } else if (agent.agent_type === 'mistral_vibe') {
+                        term.writeln(`\x1b[35m# Mode: Mistral Vibe\x1b[0m`);
                     } else {
                         term.writeln(`\x1b[36m# Mode: Native Claude\x1b[0m`);
                     }

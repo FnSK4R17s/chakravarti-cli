@@ -11,17 +11,27 @@
 
 mod commands;
 
+// ============================================================
+// Imports
+// ============================================================
+
 use ckrv_transport::AppState;
 use commands::terminal::TerminalSessions;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+use tauri_plugin_updater::UpdaterExt;
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-/// Shared application state type for Tauri commands
+// ============================================================
+// Application
+// ============================================================
+
+/// Shared application state type for Tauri commands.
 pub type SharedState = Arc<RwLock<AppState>>;
 
+/// Application entry point.
 fn main() {
     // Initialize logging
     tracing_subscriber::registry()
@@ -40,6 +50,7 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_pty::init()) // PTY for interactive terminals
         .plugin(tauri_plugin_process::init()) // Process for app restart
+        .plugin(tauri_plugin_updater::Builder::new().build()) // Auto-update from GitHub Releases
         .setup(|app| {
             // Initialize app state - load project root from saved config or use cwd as fallback
             let project_root = commands::project::TauriConfig::load()
@@ -70,6 +81,37 @@ fn main() {
                 }
             }
 
+            // Background update check on startup
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                // Delay to let the app finish initializing
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+                match handle.updater() {
+                    Ok(updater) => match updater.check().await {
+                        Ok(Some(update)) => {
+                            tracing::info!("Update available: v{}", update.version);
+                            let _ = handle.emit(
+                                "update-available",
+                                serde_json::json!({
+                                    "version": update.version,
+                                    "body": update.body,
+                                }),
+                            );
+                        }
+                        Ok(None) => {
+                            tracing::debug!("App is up to date");
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to check for updates: {}", e);
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("Updater not available: {}", e);
+                    }
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -87,6 +129,7 @@ fn main() {
             commands::agents::set_test_writer_agent,
             commands::agents::test_agent,
             commands::agents::get_kilo_models,
+            commands::agents::get_glm_models,
             // Spec commands
             commands::specs::list_specs,
             commands::specs::get_spec,
@@ -155,6 +198,9 @@ fn main() {
             commands::project::set_project_root,
             commands::project::get_recent_projects,
             commands::project::open_project_dialog,
+            // Update commands
+            commands::update::check_for_updates,
+            commands::update::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -72,6 +72,14 @@ install *args:
         docker pull {{ ghcr_prefix }}/ckrv-claude:latest
         docker pull {{ ghcr_prefix }}/ckrv-codex:latest
         docker pull {{ ghcr_prefix }}/ckrv-kilo:latest
+        docker pull {{ ghcr_prefix }}/ckrv-gemini:latest
+        docker pull {{ ghcr_prefix }}/ckrv-cursor:latest
+        docker pull {{ ghcr_prefix }}/ckrv-amp:latest
+        docker pull {{ ghcr_prefix }}/ckrv-qwen:latest
+        docker pull {{ ghcr_prefix }}/ckrv-factory:latest
+        docker pull {{ ghcr_prefix }}/ckrv-copilot:latest
+        docker pull {{ ghcr_prefix }}/ckrv-vibe:latest
+        docker pull {{ ghcr_prefix }}/ckrv-opencode:latest
     fi
     
     # Install CLI binary to ~/.cargo/bin in a path-agnostic way.
@@ -207,6 +215,14 @@ docker-pull:
     docker pull {{ ghcr_prefix }}/ckrv-claude:latest
     docker pull {{ ghcr_prefix }}/ckrv-codex:latest
     docker pull {{ ghcr_prefix }}/ckrv-kilo:latest
+    docker pull {{ ghcr_prefix }}/ckrv-gemini:latest
+    docker pull {{ ghcr_prefix }}/ckrv-cursor:latest
+    docker pull {{ ghcr_prefix }}/ckrv-amp:latest
+    docker pull {{ ghcr_prefix }}/ckrv-qwen:latest
+    docker pull {{ ghcr_prefix }}/ckrv-factory:latest
+    docker pull {{ ghcr_prefix }}/ckrv-copilot:latest
+    docker pull {{ ghcr_prefix }}/ckrv-vibe:latest
+    docker pull {{ ghcr_prefix }}/ckrv-opencode:latest
     @echo "✓ Docker images pulled"
 
 # Build all Docker agent images locally (for debugging)
@@ -215,6 +231,14 @@ docker-build:
     docker build -t {{ ghcr_prefix }}/ckrv-claude:latest -f docker/Dockerfile.claude docker/
     docker build -t {{ ghcr_prefix }}/ckrv-codex:latest -f docker/Dockerfile.codex docker/
     docker build -t {{ ghcr_prefix }}/ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-gemini:latest -f docker/Dockerfile.gemini docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-cursor:latest -f docker/Dockerfile.cursor docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-amp:latest -f docker/Dockerfile.amp docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-qwen:latest -f docker/Dockerfile.qwen docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-factory:latest -f docker/Dockerfile.factory docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-copilot:latest -f docker/Dockerfile.copilot docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-vibe:latest -f docker/Dockerfile.vibe docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-opencode:latest -f docker/Dockerfile.opencode docker/
     @echo "✓ Docker images built"
 
 # Stop all ckrv containers

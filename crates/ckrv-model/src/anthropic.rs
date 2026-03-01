@@ -1,5 +1,9 @@
 //! Anthropic Claude model provider implementation.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -7,6 +11,10 @@ use crate::{
     provider::{CompletionRequest, CompletionResponse, ModelProvider},
     ModelError, TokenUsage,
 };
+
+// ============================================================
+// ANTHROPIC PROVIDER
+// ============================================================
 
 /// Anthropic API provider.
 pub struct AnthropicProvider {
@@ -42,6 +50,10 @@ impl AnthropicProvider {
         }
     }
 }
+
+// ============================================================
+// API TYPES
+// ============================================================
 
 #[derive(Serialize)]
 struct AnthropicRequest {
@@ -90,6 +102,10 @@ struct AnthropicError {
 struct AnthropicErrorDetail {
     message: String,
 }
+
+// ============================================================
+// MODEL PROVIDER IMPL
+// ============================================================
 
 #[async_trait]
 impl ModelProvider for AnthropicProvider {
@@ -179,6 +195,10 @@ impl ModelProvider for AnthropicProvider {
         })
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

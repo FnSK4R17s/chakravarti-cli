@@ -1,11 +1,19 @@
 ---
-last_commit: 1b27ca2
-last_updated: 2026-02-10
+last_commit: f92f604
+last_updated: 2026-03-01
 related_files:
   - crates/ckrv-sandbox/src/agent/mod.rs
   - crates/ckrv-sandbox/src/agent/claude.rs
   - crates/ckrv-sandbox/src/agent/codex.rs
   - crates/ckrv-sandbox/src/agent/kilo.rs
+  - crates/ckrv-sandbox/src/agent/gemini.rs
+  - crates/ckrv-sandbox/src/agent/cursor.rs
+  - crates/ckrv-sandbox/src/agent/amp.rs
+  - crates/ckrv-sandbox/src/agent/qwen.rs
+  - crates/ckrv-sandbox/src/agent/opencode.rs
+  - crates/ckrv-sandbox/src/agent/factory.rs
+  - crates/ckrv-sandbox/src/agent/copilot.rs
+  - crates/ckrv-sandbox/src/agent/vibe.rs
   - crates/ckrv-core/src/runner.rs
 ---
 
@@ -26,6 +34,14 @@ These are the underlying CLI tools that execute code generation:
 | **Claude Code** | Anthropic | Native agentic coding CLI |
 | **Codex** | OpenAI | OpenAI's coding assistant CLI |
 | **Kilo Code** | Multi-provider | Open-source CLI supporting 30+ AI providers |
+| **Gemini CLI** | Google | Google's first-party Gemini coding assistant CLI |
+| **Cursor** | Cursor | Cursor's AI coding assistant CLI |
+| **Amp** | Ampcode | Ampcode AI coding agent |
+| **Qwen Code** | Alibaba | Alibaba's Qwen coding models CLI |
+| **Opencode** | Open source | Open source coding CLI |
+| **Factory Droid** | Factory | Factory's autonomous developer CLI |
+| **GitHub Copilot** | GitHub | GitHub Copilot CLI integration |
+| **Mistral Vibe** | Mistral AI | Mistral AI's coding assistant CLI |
 
 ## Authentication Methods
 
@@ -38,6 +54,14 @@ Each tool can be authenticated in different ways:
 | Claude Code | GLM Coding Plan (Z.AI) | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` |
 | Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
 | Kilo Code | File-based auth | `~/.config/kilo/config.json` (configured via `kilo auth`) |
+| Gemini CLI | API key + file auth | `GEMINI_API_KEY`, optionally `~/.gemini/` |
+| Cursor | Cursor Subscription | `~/.cursor/`, Cursor auth config |
+| Amp | Amp authentication | `~/.amp/`, Amp auth config |
+| Qwen Code | API key | `QWEN_API_KEY`, `~/.qwen/` |
+| Opencode | File-based auth | `~/.config/opencode/` |
+| Factory Droid | Factory authentication | `~/.factory/`, Factory auth config |
+| GitHub Copilot | GitHub Copilot Subscription | `~/.config/github-copilot/`, GitHub auth |
+| Mistral Vibe | API key | `MISTRAL_API_KEY`, `~/.mistral/` |
 
 > **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
 
@@ -45,7 +69,7 @@ Each tool can be authenticated in different ways:
 
 | Crate | Responsibility |
 |-------|----------------|
-| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo providers, Docker execution |
+| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo/Gemini/Cursor/Amp/Qwen/Opencode/Factory/Copilot/Vibe providers, Docker execution |
 | `ckrv-core` | `RunnerConfig` with OpenRouter and GLM fields |
 | `ckrv-cli` | Agent config loading, CLI flags |
 | `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
@@ -61,17 +85,41 @@ graph TD
     Provider --> Claude[ClaudeProvider]
     Provider --> Codex[CodexProvider]
     Provider --> Kilo[KiloCodeProvider]
-    
+    Provider --> Gemini[GeminiProvider]
+    Provider --> Cursor[CursorProvider]
+    Provider --> Amp[AmpProvider]
+    Provider --> Qwen[QwenProvider]
+    Provider --> Opencode[OpencodeProvider]
+    Provider --> Factory[FactoryProvider]
+    Provider --> Copilot[CopilotProvider]
+    Provider --> Vibe[VibeProvider]
+
     Claude --> Docker[Docker Container]
     Codex --> Docker
     Kilo --> Docker
-    
+    Gemini --> Docker
+    Cursor --> Docker
+    Amp --> Docker
+    Qwen --> Docker
+    Opencode --> Docker
+    Factory --> Docker
+    Copilot --> Docker
+    Vibe --> Docker
+
     subgraph "Authentication Layer"
         Claude --> ClaudeSub[Claude Subscription]
         Claude --> OpenRouter[OpenRouter API]
         Claude --> GLM[GLM Coding Plan]
         Codex --> OpenAISub[OpenAI Subscription]
         Kilo --> KiloAuth[File-based auth via kilo auth]
+        Gemini --> GeminiAuth[GEMINI_API_KEY + file auth]
+        Cursor --> CursorAuth[Cursor Subscription]
+        Amp --> AmpAuth[Amp authentication]
+        Qwen --> QwenAuth[QWEN_API_KEY]
+        Opencode --> OpencodeAuth[File-based auth]
+        Factory --> FactoryAuth[Factory authentication]
+        Copilot --> CopilotAuth[GitHub Copilot Subscription]
+        Vibe --> VibeAuth[MISTRAL_API_KEY]
     end
 ```
 
@@ -237,7 +285,7 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
 
 ### Step 4: Add to Docker Image
 
-If your agent requires a CLI, create a Dockerfile in `docker/`:
+If your agent requires a CLI, create a Dockerfile in `docker/`. Use the GHCR naming convention `ghcr.io/fnsk4r17s/ckrv-<agent>:latest` (e.g., `ckrv-claude`, `ckrv-codex`, `ckrv-kilo`). The `docker.rs` module defines `GHCR_PREFIX` (`ghcr.io/fnsk4r17s`) and a `DEFAULT_IMAGE` (`ghcr.io/fnsk4r17s/ckrv-agent:latest`). Use `DockerClient::set_image()` to override the image per agent type.
 
 ```dockerfile
 FROM node:22-slim
@@ -411,6 +459,33 @@ JSON events include types: `step_start`, `tool_use`, `text`, `step_finish`.
 | Execution | `--print` | `--auto` |
 | Model selection | Env vars / `--model` | `--model provider/model` |
 | Streaming | `--output-format stream-json` | `--format json` (NDJSON) |
+
+## Gemini CLI Integration
+
+Gemini CLI can run through Chakravarti as a first-class agent provider.
+
+**Configuration:**
+
+```yaml
+agents:
+  - id: gemini-agent
+    name: Gemini CLI
+    agent_type: gemini
+    enabled: true
+    description: Google Gemini coding assistant
+```
+
+**Usage via CLI:**
+
+```bash
+ckrv task run --agent gemini-agent -p "Create hello.txt"
+ckrv term --agent gemini-agent
+```
+
+**Auth + Mounts:**
+- `GEMINI_API_KEY` is passed into the container when available
+- `~/.gemini/` is mounted into `/home/gemini/.gemini`
+- `~/.config/google/` is mounted into `/home/gemini/.config/google`
 
 ## Best Practices
 

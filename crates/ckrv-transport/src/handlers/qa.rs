@@ -14,68 +14,96 @@ use serde::{Deserialize, Serialize};
 /// QA review request.
 #[derive(Debug, Deserialize)]
 pub struct QAReviewRequest {
+    /// Base branch for comparison.
     pub base: String,
 }
 
 /// QA issue.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QAIssue {
+    /// Unique issue identifier.
     pub id: String,
+    /// File where the issue was found.
     pub file: String,
+    /// Line number of the issue.
     pub line: Option<u32>,
+    /// Severity level (critical, major, minor, info).
     pub severity: String,
+    /// Issue category (code_quality, security, performance).
     pub category: String,
+    /// Description of the issue.
     pub message: String,
+    /// Suggested fix for the issue.
     pub suggestion: Option<String>,
 }
 
 /// QA summary.
 #[derive(Debug, Serialize)]
 pub struct QASummary {
+    /// Total number of issues found.
     pub total_issues: u32,
+    /// Number of critical severity issues.
     pub critical: u32,
+    /// Number of major severity issues.
     pub major: u32,
+    /// Number of minor severity issues.
     pub minor: u32,
+    /// Number of informational findings.
     pub info: u32,
+    /// Number of files reviewed.
     pub files_reviewed: u32,
+    /// Overall verdict (approve, review, reject).
     pub verdict: String,
 }
 
 /// QA review output.
 #[derive(Debug, Serialize)]
 pub struct QAReviewOutput {
+    /// Unique report identifier.
     pub report_id: String,
+    /// Base branch used for comparison.
     pub base_branch: String,
+    /// Issues found during review.
     pub issues: Vec<QAIssue>,
+    /// Aggregate summary of findings.
     pub summary: QASummary,
+    /// Agent that performed the review.
     pub agent_id: Option<String>,
 }
 
 /// QA bugs request.
 #[derive(Debug, Deserialize)]
 pub struct QABugsRequest {
+    /// Base branch for comparison.
     pub base: String,
 }
 
 /// QA report request.
 #[derive(Debug, Deserialize)]
 pub struct QAReportRequest {
+    /// Base branch for comparison.
     pub base: String,
+    /// Whether to generate a full detailed report.
     pub full: bool,
 }
 
 /// QA report response.
 #[derive(Debug, Serialize)]
 pub struct QAReportResponse {
+    /// Review results with issues and summary.
     pub review: QAReviewOutput,
+    /// Full report text (if requested).
     pub report: Option<String>,
 }
 
 /// Agent info for QA.
 #[derive(Debug, Serialize)]
 pub struct QAAgentInfo {
+    /// Agent identifier.
     pub id: String,
+    /// Display name of the agent.
     pub name: String,
+    /// Model used by the agent.
     pub model: String,
 }
 

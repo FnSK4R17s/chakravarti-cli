@@ -1,12 +1,12 @@
 ---
 command: ui
-generated_from: crates/ckrv-cli/src/lib.rs
-last_commit: 508766e
+generated_from: lib.rs
+last_commit: f92f604
 ---
 
 # ckrv ui
 
-Start the Web UI dashboard
+Start the Web UI dashboard.
 
 ## Description
 
@@ -20,7 +20,7 @@ Opens automatically in your default browser.
 
 | Flag | Description |
 |------|-------------|
-| `--port` | Port to listen on (default: 3000) |
+| `--port <PORT>` | Port to listen on (default: 3000) |
 
 ## Examples
 

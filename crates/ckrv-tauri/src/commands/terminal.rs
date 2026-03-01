@@ -1,7 +1,11 @@
-//! Terminal commands for Tauri IPC
+//! Terminal commands for Tauri IPC.
 //!
 //! This module provides terminal/shell capabilities using Docker containers for
 //! sandboxed agent execution. Uses ckrv-sandbox for container management.
+
+// ============================================================
+// Imports
+// ============================================================
 
 use crate::SharedState;
 use ckrv_sandbox::DockerClient;
@@ -11,6 +15,10 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::State;
+
+// ============================================================
+// Types
+// ============================================================
 
 /// Session state for managing active terminal sessions.
 pub type TerminalSessions = Arc<Mutex<HashMap<String, TerminalSession>>>;
@@ -26,20 +34,26 @@ pub struct TerminalSession {
 /// Response for terminal start.
 #[derive(Debug, Serialize)]
 pub struct TerminalStartResponse {
+    /// Session identifier.
     pub session_id: String,
+    /// Whether the session was created successfully.
     pub success: bool,
+    /// Status message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+    /// Docker container ID if created.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_id: Option<String>,
-    /// Mode indicator for frontend (tauri = use IPC, web = use WebSocket)  
+    /// Mode indicator for frontend (tauri = use IPC, web = use WebSocket).
     pub mode: String,
 }
 
 /// Response for terminal stop.
 #[derive(Debug, Serialize)]
 pub struct TerminalStopResponse {
+    /// Whether the session was stopped successfully.
     pub success: bool,
+    /// Status message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
 }
@@ -47,10 +61,17 @@ pub struct TerminalStopResponse {
 /// Terminal output event.
 #[derive(Debug, Clone, Serialize)]
 pub struct TerminalOutput {
+    /// Session this output belongs to.
     pub session_id: String,
+    /// Output content.
     pub data: String,
+    /// Whether this is error output.
     pub is_error: bool,
 }
+
+// ============================================================
+// Helpers
+// ============================================================
 
 /// Convert transport AgentConfig to sandbox AgentConfig for container setup.
 fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
@@ -108,6 +129,44 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
         AgentType::KiloCode => {
             // Kilo Code uses file-based auth (~/.config/kilo/) - no env vars needed
         }
+        AgentType::Gemini => {
+            if let Ok(key) = std::env::var("GEMINI_API_KEY") {
+                env.insert("GEMINI_API_KEY".to_string(), key);
+            }
+        }
+        AgentType::Cursor => {
+            // Cursor uses session-based auth - no env vars needed
+        }
+        AgentType::Amp => {
+            // Amp uses file-based auth - no env vars needed
+        }
+        AgentType::Qwen => {
+            if let Ok(key) = std::env::var("OPENAI_API_KEY") {
+                env.insert("OPENAI_API_KEY".to_string(), key);
+            }
+            if let Ok(key) = std::env::var("QWEN_AUTH_TOKEN") {
+                env.insert("QWEN_AUTH_TOKEN".to_string(), key);
+            }
+            if let Ok(url) = std::env::var("OPENAI_BASE_URL") {
+                env.insert("OPENAI_BASE_URL".to_string(), url);
+            }
+        }
+        AgentType::Opencode => {
+            // Opencode uses file-based auth - no env vars needed
+        }
+        AgentType::FactoryDroid => {
+            if let Ok(key) = std::env::var("FACTORY_API_KEY") {
+                env.insert("FACTORY_API_KEY".to_string(), key);
+            }
+        }
+        AgentType::GithubCopilot => {
+            // GitHub Copilot uses gh CLI auth - no env vars needed
+        }
+        AgentType::MistralVibe => {
+            if let Ok(key) = std::env::var("MISTRAL_API_KEY") {
+                env.insert("MISTRAL_API_KEY".to_string(), key);
+            }
+        }
     }
 
     // Set container home
@@ -115,6 +174,22 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
         "/home/codex"
     } else if matches!(agent.agent_type, AgentType::KiloCode) {
         "/home/kilo"
+    } else if matches!(agent.agent_type, AgentType::Gemini) {
+        "/home/gemini"
+    } else if matches!(agent.agent_type, AgentType::Cursor) {
+        "/home/cursor"
+    } else if matches!(agent.agent_type, AgentType::Amp) {
+        "/home/amp"
+    } else if matches!(agent.agent_type, AgentType::Qwen) {
+        "/home/qwen"
+    } else if matches!(agent.agent_type, AgentType::Opencode) {
+        "/home/opencode"
+    } else if matches!(agent.agent_type, AgentType::FactoryDroid) {
+        "/home/factory"
+    } else if matches!(agent.agent_type, AgentType::GithubCopilot) {
+        "/home/copilot"
+    } else if matches!(agent.agent_type, AgentType::MistralVibe) {
+        "/home/vibe"
     } else {
         "/home/claude"
     };
@@ -127,6 +202,10 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
 
     env
 }
+
+// ============================================================
+// Handlers
+// ============================================================
 
 /// Start a terminal session with Docker container.
 #[tauri::command(rename_all = "snake_case")]
@@ -184,10 +263,66 @@ pub async fn terminal_start(
         .map(|a| matches!(a.agent_type, AgentType::KiloCode))
         .unwrap_or(false);
 
+    let is_gemini = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Gemini))
+        .unwrap_or(false);
+
+    let is_cursor = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Cursor))
+        .unwrap_or(false);
+
+    let is_amp = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Amp))
+        .unwrap_or(false);
+
+    let is_qwen = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Qwen))
+        .unwrap_or(false);
+
+    let is_opencode = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Opencode))
+        .unwrap_or(false);
+
+    let is_factory_droid = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::FactoryDroid))
+        .unwrap_or(false);
+
+    let is_github_copilot = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::GithubCopilot))
+        .unwrap_or(false);
+
+    let is_mistral_vibe = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::MistralVibe))
+        .unwrap_or(false);
+
     let image = if is_codex {
         "ghcr.io/fnsk4r17s/ckrv-codex:latest"
     } else if is_kilo {
         "ghcr.io/fnsk4r17s/ckrv-kilo:latest"
+    } else if is_gemini {
+        "ghcr.io/fnsk4r17s/ckrv-gemini:latest"
+    } else if is_cursor {
+        "ghcr.io/fnsk4r17s/ckrv-cursor:latest"
+    } else if is_amp {
+        "ghcr.io/fnsk4r17s/ckrv-amp:latest"
+    } else if is_qwen {
+        "ghcr.io/fnsk4r17s/ckrv-qwen:latest"
+    } else if is_opencode {
+        "ghcr.io/fnsk4r17s/ckrv-opencode:latest"
+    } else if is_factory_droid {
+        "ghcr.io/fnsk4r17s/ckrv-factory:latest"
+    } else if is_github_copilot {
+        "ghcr.io/fnsk4r17s/ckrv-copilot:latest"
+    } else if is_mistral_vibe {
+        "ghcr.io/fnsk4r17s/ckrv-vibe:latest"
     } else {
         "ghcr.io/fnsk4r17s/ckrv-claude:latest"
     };

@@ -1,0 +1,39 @@
+# Chakravarti Factory Droid Agent Container
+# Contains Factory Droid CLI for sandboxed agent execution
+# Factory's autonomous software engineering agent
+
+FROM node:22-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Factory Droid CLI (installs to /root/.local/bin/droid)
+RUN curl -fsSL https://app.factory.ai/cli | sh && \
+    cp /root/.local/bin/droid /usr/local/bin/droid && \
+    cp /root/.factory/bin/rg /usr/local/bin/rg || true
+
+# Create non-root user with home directory
+RUN useradd -m -s /bin/bash -d /home/factory factory && \
+    mkdir -p /home/factory/.factory && \
+    chown -R factory:factory /home/factory
+
+# Create workspace directory
+RUN mkdir -p /workspace && chown factory:factory /workspace
+
+WORKDIR /workspace
+
+# Set HOME environment variable
+ENV HOME=/home/factory
+
+# Verify Factory Droid is installed
+RUN droid --version || true
+
+# Switch to non-root user
+USER factory
+
+# Default command
+CMD ["/bin/bash"]

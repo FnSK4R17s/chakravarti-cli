@@ -1,6 +1,14 @@
 //! Verification verdict types.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use serde::{Deserialize, Serialize};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Result of verification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,8 +25,17 @@ pub struct Verdict {
     pub duration_ms: u64,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 impl Verdict {
     /// Create a passing verdict.
+    ///
+    /// # Arguments
+    ///
+    /// * `test_results` - The individual test results.
+    /// * `duration_ms` - Total duration in milliseconds.
     #[must_use]
     pub fn pass(test_results: Vec<TestResult>, duration_ms: u64) -> Self {
         Self {
@@ -31,6 +48,12 @@ impl Verdict {
     }
 
     /// Create a failing verdict.
+    ///
+    /// # Arguments
+    ///
+    /// * `test_results` - The individual test results.
+    /// * `logs` - Captured failure logs.
+    /// * `duration_ms` - Total duration in milliseconds.
     #[must_use]
     pub fn fail(test_results: Vec<TestResult>, logs: Vec<String>, duration_ms: u64) -> Self {
         Self {
@@ -73,7 +96,7 @@ impl Verdict {
     }
 }
 
-/// Result of a single test.
+/// Outcome of a single test execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestResult {
     /// Test name.
@@ -88,6 +111,11 @@ pub struct TestResult {
 
 impl TestResult {
     /// Create a passed test result.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The test name or identifier.
+    /// * `duration_ms` - How long the test took in milliseconds.
     #[must_use]
     pub fn passed(name: impl Into<String>, duration_ms: u64) -> Self {
         Self {
@@ -99,6 +127,12 @@ impl TestResult {
     }
 
     /// Create a failed test result.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The test name or identifier.
+    /// * `duration_ms` - How long the test took in milliseconds.
+    /// * `output` - Optional failure output or error message.
     #[must_use]
     pub fn failed(name: impl Into<String>, duration_ms: u64, output: Option<String>) -> Self {
         Self {
@@ -123,6 +157,10 @@ pub enum TestStatus {
     /// Test errored.
     Error,
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

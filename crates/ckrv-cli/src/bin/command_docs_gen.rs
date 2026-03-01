@@ -7,11 +7,19 @@
 //! cargo run -p ckrv-cli --bin command_docs_gen
 //! ```
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::fs;
 use std::path::Path;
 
 use chrono::Utc;
 use ckrv_cli::{extract_command_metadata, CommandMetadata, OptionMetadata};
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 fn main() {
     let metadata = extract_command_metadata();
@@ -69,6 +77,7 @@ fn main() {
     println!("1. Review generated files in `crates/ckrv-cli/docs/commands/`");
 }
 
+/// Get the short git commit hash of the current HEAD.
 fn get_commit_hash() -> String {
     use std::process::Command;
     let output = Command::new("git")
@@ -78,6 +87,7 @@ fn get_commit_hash() -> String {
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
+/// Generate and write a markdown documentation file for a single command.
 fn generate_command_doc(cmd: &CommandMetadata, output_dir: &Path, commit_hash: &str) {
     let filename = format!("{}.md", cmd.name);
     let filepath = output_dir.join(&filename);
@@ -86,6 +96,7 @@ fn generate_command_doc(cmd: &CommandMetadata, output_dir: &Path, commit_hash: &
     fs::write(&filepath, content).expect(&format!("Failed to write {}", filepath.display()));
 }
 
+/// Generate the full markdown content for a command documentation page.
 fn generate_markdown(cmd: &CommandMetadata, _output_dir: &Path, commit_hash: &str) -> String {
     let mut output = String::new();
 
@@ -182,6 +193,7 @@ last_commit: {}
     output
 }
 
+/// Format an option flag for display in markdown tables.
 fn format_option_flag(opt: &OptionMetadata) -> String {
     let mut flag = String::new();
 

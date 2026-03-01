@@ -235,6 +235,7 @@ impl std::fmt::Display for SessionStatus {
                   # Pass flags directly (scripting)\n\
                   ckrv term -- --dangerously-skip-permissions --continue"
 )]
+/// Arguments for the interactive agent terminal session command.
 pub struct TermArgs {
     /// Agent ID to spawn directly (skips interactive agent selection)
     #[arg(short, long)]
@@ -514,6 +515,14 @@ fn list_agents(_args: &TermArgs, json: bool) -> anyhow::Result<()> {
                 AgentType::ClaudeGlm => "glm",
                 AgentType::Codex => "codex",
                 AgentType::KiloCode => "kilo",
+                AgentType::Gemini => "gemini",
+                AgentType::Cursor => "cursor",
+                AgentType::Amp => "amp",
+                AgentType::Qwen => "qwen",
+                AgentType::Opencode => "opencode",
+                AgentType::FactoryDroid => "factory-droid",
+                AgentType::GithubCopilot => "copilot",
+                AgentType::MistralVibe => "vibe",
             };
             let default_marker = if agent.is_default { " ★" } else { "" };
             println!(
@@ -804,6 +813,14 @@ fn select_agent_interactively(enabled_agents: &[&AgentConfig]) -> anyhow::Result
                 AgentType::ClaudeGlm => "glm",
                 AgentType::Codex => "codex",
                 AgentType::KiloCode => "kilo",
+                AgentType::Gemini => "gemini",
+                AgentType::Cursor => "cursor",
+                AgentType::Amp => "amp",
+                AgentType::Qwen => "qwen",
+                AgentType::Opencode => "opencode",
+                AgentType::FactoryDroid => "factory-droid",
+                AgentType::GithubCopilot => "copilot",
+                AgentType::MistralVibe => "vibe",
             };
             let default_marker = if a.is_default { " ★" } else { "" };
             format!("{} ({}) [{}]{}", a.name, a.id, type_badge, default_marker)
@@ -1040,6 +1057,14 @@ fn to_sandbox_agent_type(cli_type: &AgentType) -> ckrv_sandbox::AgentType {
         }
         AgentType::Codex => ckrv_sandbox::AgentType::Codex,
         AgentType::KiloCode => ckrv_sandbox::AgentType::KiloCode,
+        AgentType::Gemini => ckrv_sandbox::AgentType::Gemini,
+        AgentType::Cursor => ckrv_sandbox::AgentType::Cursor,
+        AgentType::Amp => ckrv_sandbox::AgentType::Amp,
+        AgentType::Qwen => ckrv_sandbox::AgentType::Qwen,
+        AgentType::Opencode => ckrv_sandbox::AgentType::Opencode,
+        AgentType::FactoryDroid => ckrv_sandbox::AgentType::FactoryDroid,
+        AgentType::GithubCopilot => ckrv_sandbox::AgentType::GithubCopilot,
+        AgentType::MistralVibe => ckrv_sandbox::AgentType::MistralVibe,
     }
 }
 
@@ -1078,6 +1103,14 @@ async fn execute_in_sandbox(
     let image = match &agent.agent_type {
         AgentType::Codex => "ghcr.io/fnsk4r17s/ckrv-codex:latest",
         AgentType::KiloCode => "ghcr.io/fnsk4r17s/ckrv-kilo:latest",
+        AgentType::Gemini => "ghcr.io/fnsk4r17s/ckrv-gemini:latest",
+        AgentType::Cursor => "ghcr.io/fnsk4r17s/ckrv-cursor:latest",
+        AgentType::Amp => "ghcr.io/fnsk4r17s/ckrv-amp:latest",
+        AgentType::Qwen => "ghcr.io/fnsk4r17s/ckrv-qwen:latest",
+        AgentType::Opencode => "ghcr.io/fnsk4r17s/ckrv-opencode:latest",
+        AgentType::FactoryDroid => "ghcr.io/fnsk4r17s/ckrv-factory:latest",
+        AgentType::GithubCopilot => "ghcr.io/fnsk4r17s/ckrv-copilot:latest",
+        AgentType::MistralVibe => "ghcr.io/fnsk4r17s/ckrv-vibe:latest",
         _ => "ghcr.io/fnsk4r17s/ckrv-claude:latest",
     };
     docker.set_image(image);
@@ -1091,6 +1124,14 @@ async fn execute_in_sandbox(
     let container_home = match &agent.agent_type {
         AgentType::Codex => "/home/codex",
         AgentType::KiloCode => "/home/kilo",
+        AgentType::Gemini => "/home/gemini",
+        AgentType::Cursor => "/home/cursor",
+        AgentType::Amp => "/home/amp",
+        AgentType::Qwen => "/home/qwen",
+        AgentType::Opencode => "/home/opencode",
+        AgentType::FactoryDroid => "/home/factory",
+        AgentType::GithubCopilot => "/home/copilot",
+        AgentType::MistralVibe => "/home/vibe",
         _ => "/home/claude",
     };
     let mounts = agent_provider.config_mounts(&host_home, &container_home);
@@ -1622,6 +1663,14 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
             }
             AgentType::Codex => "codex".to_string(),
             AgentType::KiloCode => "kilo".to_string(),
+            AgentType::Gemini => "gemini".to_string(),
+            AgentType::Cursor => "cursor".to_string(),
+            AgentType::Amp => "amp".to_string(),
+            AgentType::Qwen => "qwen".to_string(),
+            AgentType::Opencode => "opencode".to_string(),
+            AgentType::FactoryDroid => "droid".to_string(),
+            AgentType::GithubCopilot => "gh".to_string(),
+            AgentType::MistralVibe => "vibe".to_string(),
         });
 
     let mut env_vars: Vec<(String, String)> = Vec::new();
@@ -1703,6 +1752,48 @@ fn build_agent_command(agent: &AgentConfig) -> anyhow::Result<(String, Vec<(Stri
         }
         AgentType::KiloCode => {
             // Kilo Code uses file-based auth (~/.config/kilo/) - no extra env vars needed
+        }
+        AgentType::Gemini => {
+            // Gemini CLI uses GEMINI_API_KEY - pass through from environment
+            if let Ok(key) = std::env::var("GEMINI_API_KEY") {
+                env_vars.push(("GEMINI_API_KEY".to_string(), key));
+            }
+        }
+        AgentType::Cursor => {
+            // Cursor uses session-based auth - no extra env vars needed
+        }
+        AgentType::Amp => {
+            // Amp uses file-based auth (~/.config/amp/) - no extra env vars needed
+        }
+        AgentType::Qwen => {
+            // Qwen Code uses OPENAI-compatible env vars
+            if let Ok(key) = std::env::var("OPENAI_API_KEY") {
+                env_vars.push(("OPENAI_API_KEY".to_string(), key));
+            }
+            if let Ok(key) = std::env::var("QWEN_AUTH_TOKEN") {
+                env_vars.push(("QWEN_AUTH_TOKEN".to_string(), key));
+            }
+            if let Ok(url) = std::env::var("OPENAI_BASE_URL") {
+                env_vars.push(("OPENAI_BASE_URL".to_string(), url));
+            }
+        }
+        AgentType::Opencode => {
+            // Opencode uses project-local/file-based auth - no extra env vars needed
+        }
+        AgentType::FactoryDroid => {
+            // Factory Droid uses FACTORY_API_KEY
+            if let Ok(key) = std::env::var("FACTORY_API_KEY") {
+                env_vars.push(("FACTORY_API_KEY".to_string(), key));
+            }
+        }
+        AgentType::GithubCopilot => {
+            // GitHub Copilot uses gh CLI auth - no extra env vars needed
+        }
+        AgentType::MistralVibe => {
+            // Mistral Vibe uses MISTRAL_API_KEY
+            if let Ok(key) = std::env::var("MISTRAL_API_KEY") {
+                env_vars.push(("MISTRAL_API_KEY".to_string(), key));
+            }
         }
     }
 

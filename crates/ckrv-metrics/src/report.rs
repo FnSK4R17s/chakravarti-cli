@@ -1,10 +1,18 @@
 //! Metrics reporting and storage.
 
-use std::path::PathBuf;
+// ============================================================
+// IMPORTS
+// ============================================================
+
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{CostEstimate, MetricsError};
+
+// ============================================================
+// METRICS
+// ============================================================
 
 /// Aggregated metrics for a job.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -82,6 +90,10 @@ impl Metrics {
     }
 }
 
+// ============================================================
+// METRICS SUMMARY
+// ============================================================
+
 /// Summary of metrics for display.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricsSummary {
@@ -102,6 +114,10 @@ pub struct MetricsSummary {
     /// Whether job succeeded.
     pub success: bool,
 }
+
+// ============================================================
+// TOKEN USAGE ENTRY
+// ============================================================
 
 /// Token usage entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -135,6 +151,10 @@ pub struct StepMetrics {
     pub tokens: Option<TokenUsageEntry>,
 }
 
+// ============================================================
+// STORAGE TRAIT
+// ============================================================
+
 /// Trait for metrics storage.
 pub trait MetricsStorage: Send + Sync {
     /// Save metrics for a job.
@@ -161,6 +181,10 @@ pub trait MetricsStorage: Send + Sync {
     /// Returns an error if reading the storage directory fails.
     fn list_all(&self) -> Result<Vec<Metrics>, MetricsError>;
 }
+
+// ============================================================
+// FILE STORAGE
+// ============================================================
 
 /// File-based metrics storage.
 pub struct FileMetricsStorage {
@@ -239,6 +263,10 @@ impl MetricsStorage for FileMetricsStorage {
         Ok(all)
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

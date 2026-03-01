@@ -1,6 +1,14 @@
 //! Environment variable injection.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::collections::HashMap;
+
+// ============================================================
+// ENV CONFIG
+// ============================================================
 
 /// Environment configuration for sandbox execution.
 #[derive(Debug, Clone, Default)]
@@ -75,7 +83,15 @@ impl EnvConfig {
     }
 }
 
+// ============================================================
+// DETECTION
+// ============================================================
+
 /// Detect appropriate env config from project files.
+///
+/// # Arguments
+///
+/// * `project_path` - Path to the project root to inspect for language markers.
 #[must_use]
 pub fn detect_env(project_path: &std::path::Path) -> EnvConfig {
     if project_path.join("Cargo.toml").exists() {
@@ -90,6 +106,10 @@ pub fn detect_env(project_path: &std::path::Path) -> EnvConfig {
         EnvConfig::new()
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

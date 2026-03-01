@@ -14,3 +14,4 @@ pub mod specs;
 pub mod status;
 pub mod terminal;
 pub mod test;
+pub mod update;

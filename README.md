@@ -61,19 +61,19 @@ just install
 ckrv init
 
 # Create a spec from description
-ckrv spec new "Add user authentication with OAuth2"
+ckrv code spec new "Add user authentication with OAuth2"
 
 # Generate implementation tasks
-ckrv spec tasks
+ckrv code tasks
 
 # Generate execution plan
-ckrv plan
+ckrv code plan
 
 # Execute orchestration
-ckrv run
+ckrv code run
 
 # Review and promote
-ckrv diff
+ckrv code diff
 ckrv verify
 ckrv promote --push --open
 ```
@@ -87,10 +87,7 @@ ckrv promote --push --open
 | Command | Description |
 |---------|-------------|
 | `ckrv init` | Initialize Chakravarti in the current repository |
-| `ckrv spec` | Manage specifications (new, clarify, design, tasks, validate, list) |
-| `ckrv plan` | Generate execution plan from tasks (in Docker) |
-| `ckrv run` | Execute orchestration (Plan → Execute → Merge) |
-| `ckrv diff` | View changes between branches |
+| `ckrv code` | Code workflow: spec, tasks, plan, run, diff |
 | `ckrv verify` | Run tests, linting, and type checking |
 | `ckrv test` | Run, plan, and write tests using AI agents |
 | `ckrv qa` | QA code review and bug analysis |
@@ -150,19 +147,14 @@ Chakravarti orchestrates multiple AI coding agents, each running in isolated Doc
 | Claude Code | GLM Coding Plan | CLI + UI | Z.AI's GLM-4.7 and GLM-4.5-Air |
 | Codex | OpenAI Subscription | CLI + UI | Native Codex CLI integration |
 | Kilo Code | File-based auth | CLI + UI | 30+ AI providers (Gemini, DeepSeek, Mistral, Qwen, etc.) |
-
-### Future Integrations
-
-The following agents are planned for future releases:
-
-- **Gemini CLI** - Google's Gemini models ([#31](https://github.com/FnSK4R17s/chakravarti-cli/issues/31))
-- **Cursor CLI** - Cursor's AI coding assistant ([#32](https://github.com/FnSK4R17s/chakravarti-cli/issues/32))
-- **Amp** - Ampcode AI coding agent ([#33](https://github.com/FnSK4R17s/chakravarti-cli/issues/33))
-- **Qwen Code** - Alibaba's Qwen coding models ([#34](https://github.com/FnSK4R17s/chakravarti-cli/issues/34))
-- **Opencode** - Open source coding CLI ([#35](https://github.com/FnSK4R17s/chakravarti-cli/issues/35))
-- **Factory Droid** - Factory's autonomous developer ([#36](https://github.com/FnSK4R17s/chakravarti-cli/issues/36))
-- **GitHub Copilot** - GitHub Copilot via CLI ([#37](https://github.com/FnSK4R17s/chakravarti-cli/issues/37))
-- **Mistral Vibe** - Mistral AI's coding assistant ([#29](https://github.com/FnSK4R17s/chakravarti-cli/issues/29))
+| Gemini CLI | GEMINI_API_KEY + file auth | CLI + UI | Google Gemini coding assistant CLI integration |
+| Cursor | Cursor Subscription | CLI + UI | Cursor's AI coding assistant CLI integration |
+| Amp | Amp authentication | CLI + UI | Ampcode AI coding agent integration |
+| Qwen Code | QWEN_API_KEY | CLI + UI | Alibaba's Qwen coding models CLI integration |
+| Opencode | File-based auth | CLI + UI | Open source coding CLI integration |
+| Factory Droid | Factory authentication | CLI + UI | Factory's autonomous developer CLI integration |
+| GitHub Copilot | GitHub Copilot Subscription | CLI + UI | GitHub Copilot CLI integration |
+| Mistral Vibe | MISTRAL_API_KEY | CLI + UI | Mistral AI's coding assistant CLI integration |
 
 See [Agent Guide](crates/docs/agent-guide.md) for adding new agents.
 

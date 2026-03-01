@@ -1,9 +1,17 @@
 //! Init command - initialize Chakravarti in a repository.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use clap::Args;
 use serde::Serialize;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the init command
 #[derive(Args)]
@@ -96,7 +104,11 @@ steps:
 
 use crate::ui::UiContext;
 
-/// Execute the init command
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
+/// Execute the init command.
 pub async fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 

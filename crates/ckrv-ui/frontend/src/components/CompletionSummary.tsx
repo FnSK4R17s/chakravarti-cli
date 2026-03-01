@@ -49,11 +49,20 @@ interface CompletionSummaryProps {
     summary: RunSummary;
     /** Total elapsed time in seconds, or null if not available */
     elapsedSeconds: number | null;
-    /** Whether this was a dry run without actual changes */
+    /**
+     * Whether this was a dry run without actual changes.
+     * @default false
+     */
     dryRun?: boolean;
-    /** List of branch names that were merged during execution */
+    /**
+     * List of branch names that were merged during execution.
+     * @default []
+     */
     mergedBranches?: string[];
-    /** Error message if execution failed */
+    /**
+     * Error message if execution failed.
+     * @default null
+     */
     error?: string | null;
     /** Callback to close the summary panel */
     onClose?: () => void;
