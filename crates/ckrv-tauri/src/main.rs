@@ -96,6 +96,7 @@ fn main() {
             commands::agents::set_test_writer_agent,
             commands::agents::test_agent,
             commands::agents::get_kilo_models,
+            commands::agents::get_glm_models,
             // Spec commands
             commands::specs::list_specs,
             commands::specs::get_spec,

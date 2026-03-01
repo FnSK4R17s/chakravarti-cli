@@ -6,7 +6,7 @@
 
 use super::{
     create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
-    ClaudeProvider, CodexProvider, KiloCodeProvider,
+    ClaudeProvider, CodexProvider, GeminiProvider, KiloCodeProvider,
 };
 use std::path::Path;
 
@@ -27,6 +27,9 @@ fn test_agent_type_from_str() {
     assert_eq!(AgentType::from_str("Kilo"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilo-code"), Some(AgentType::KiloCode));
     assert_eq!(AgentType::from_str("kilocode"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::from_str("gemini"), Some(AgentType::Gemini));
+    assert_eq!(AgentType::from_str("Gemini"), Some(AgentType::Gemini));
+    assert_eq!(AgentType::from_str("gemini-cli"), Some(AgentType::Gemini));
     assert_eq!(AgentType::from_str("unknown"), None);
 }
 
@@ -41,6 +44,7 @@ fn test_agent_type_display_name() {
     assert_eq!(AgentType::Claude.display_name(), "Claude Code");
     assert_eq!(AgentType::Codex.display_name(), "OpenAI Codex");
     assert_eq!(AgentType::KiloCode.display_name(), "Kilo Code");
+    assert_eq!(AgentType::Gemini.display_name(), "Gemini CLI");
 }
 
 #[test]
@@ -171,6 +175,14 @@ fn test_create_agent_kilo() {
 }
 
 #[test]
+fn test_create_agent_gemini() {
+    let agent = create_agent(AgentType::Gemini);
+    assert_eq!(agent.name(), "Gemini CLI");
+    assert_eq!(agent.agent_type(), AgentType::Gemini);
+    assert!(agent.required_env_vars().contains(&"GEMINI_API_KEY"));
+}
+
+#[test]
 fn test_kilo_provider_build_command() {
     let provider = KiloCodeProvider::new();
     let config = AgentConfig::new(AgentType::KiloCode);
@@ -228,6 +240,53 @@ fn test_kilo_parse_output_success() {
 #[test]
 fn test_kilo_parse_output_failure() {
     let provider = KiloCodeProvider::new();
+    let result = provider.parse_output("", "error message", 1).unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.stderr, "error message");
+    assert_eq!(result.exit_code, 1);
+}
+
+#[test]
+fn test_gemini_provider_build_command() {
+    let provider = GeminiProvider::new();
+    let config = AgentConfig::new(AgentType::Gemini);
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"gemini".to_string()));
+    assert!(cmd.contains(&"--prompt".to_string()));
+    assert!(cmd.contains(&"--yolo".to_string()));
+    assert!(cmd.contains(&"test prompt".to_string()));
+}
+
+#[test]
+fn test_gemini_provider_with_model() {
+    let provider = GeminiProvider::new();
+    let config = AgentConfig::new(AgentType::Gemini).with_model("gemini-2.5-pro");
+    let workdir = Path::new("/workspace");
+
+    let cmd = provider.build_command("test prompt", workdir, &config);
+
+    assert!(cmd.contains(&"gemini".to_string()));
+    assert!(cmd.contains(&"--model".to_string()));
+    assert!(cmd.contains(&"gemini-2.5-pro".to_string()));
+}
+
+#[test]
+fn test_gemini_parse_output_success() {
+    let provider = GeminiProvider::new();
+    let result = provider.parse_output("success output", "", 0).unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.stdout, "success output");
+    assert_eq!(result.exit_code, 0);
+}
+
+#[test]
+fn test_gemini_parse_output_failure() {
+    let provider = GeminiProvider::new();
     let result = provider.parse_output("", "error message", 1).unwrap();
 
     assert!(!result.success);

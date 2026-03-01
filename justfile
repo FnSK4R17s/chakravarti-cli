@@ -72,6 +72,7 @@ install *args:
         docker pull {{ ghcr_prefix }}/ckrv-claude:latest
         docker pull {{ ghcr_prefix }}/ckrv-codex:latest
         docker pull {{ ghcr_prefix }}/ckrv-kilo:latest
+        docker pull {{ ghcr_prefix }}/ckrv-gemini:latest
     fi
     
     # Install CLI binary to ~/.cargo/bin in a path-agnostic way.
@@ -215,6 +216,7 @@ docker-build:
     docker build -t {{ ghcr_prefix }}/ckrv-claude:latest -f docker/Dockerfile.claude docker/
     docker build -t {{ ghcr_prefix }}/ckrv-codex:latest -f docker/Dockerfile.codex docker/
     docker build -t {{ ghcr_prefix }}/ckrv-kilo:latest -f docker/Dockerfile.kilo docker/
+    docker build -t {{ ghcr_prefix }}/ckrv-gemini:latest -f docker/Dockerfile.gemini docker/
     @echo "✓ Docker images built"
 
 # Stop all ckrv containers

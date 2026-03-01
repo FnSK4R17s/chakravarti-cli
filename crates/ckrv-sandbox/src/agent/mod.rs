@@ -10,12 +10,14 @@
 
 mod claude;
 mod codex;
+mod gemini;
 mod kilo;
 #[cfg(test)]
 mod tests;
 
 pub use claude::ClaudeProvider;
 pub use codex::CodexProvider;
+pub use gemini::GeminiProvider;
 pub use kilo::KiloCodeProvider;
 
 use anyhow::Result;
@@ -36,6 +38,8 @@ pub enum AgentType {
     Codex,
     /// Kilo Code CLI (multi-provider)
     KiloCode,
+    /// Google Gemini CLI
+    Gemini,
 }
 
 impl AgentType {
@@ -49,6 +53,7 @@ impl AgentType {
             "claude" | "claude-code" => Some(Self::Claude),
             "codex" | "openai" | "openai-codex" => Some(Self::Codex),
             "kilo" | "kilo-code" | "kilocode" => Some(Self::KiloCode),
+            "gemini" | "gemini-cli" => Some(Self::Gemini),
             _ => None,
         }
     }
@@ -59,6 +64,7 @@ impl AgentType {
             Self::Claude => "Claude Code",
             Self::Codex => "OpenAI Codex",
             Self::KiloCode => "Kilo Code",
+            Self::Gemini => "Gemini CLI",
         }
     }
 }
@@ -178,6 +184,7 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
         AgentType::Claude => Box::new(ClaudeProvider::new()),
         AgentType::Codex => Box::new(CodexProvider::new()),
         AgentType::KiloCode => Box::new(KiloCodeProvider::new()),
+        AgentType::Gemini => Box::new(GeminiProvider::new()),
     }
 }
 

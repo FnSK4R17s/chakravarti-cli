@@ -34,7 +34,7 @@ export type SuccessResponse = {
 
 // === Agent Types ===
 
-export type AgentType = "claude" | "claude_open_router" | "claude_glm" | "codex" | "kilo_code";
+export type AgentType = "claude" | "claude_open_router" | "claude_glm" | "codex" | "kilo_code" | "gemini";
 
 export type AgentConfig = {
     /**
@@ -85,6 +85,13 @@ export type GlmConfig = {
      * Optional custom endpoint
      */
     endpoint: string | null,
+};
+
+export type GeminiConfig = {
+    /**
+     * Optional model override (e.g., "gemini-2.5-pro")
+     */
+    model: string | null,
 };
 
 export type OpenRouterModel = {

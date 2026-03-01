@@ -26,6 +26,7 @@ These are the underlying CLI tools that execute code generation:
 | **Claude Code** | Anthropic | Native agentic coding CLI |
 | **Codex** | OpenAI | OpenAI's coding assistant CLI |
 | **Kilo Code** | Multi-provider | Open-source CLI supporting 30+ AI providers |
+| **Gemini CLI** | Google | Google's first-party Gemini coding assistant CLI |
 
 ## Authentication Methods
 
@@ -38,6 +39,7 @@ Each tool can be authenticated in different ways:
 | Claude Code | GLM Coding Plan (Z.AI) | `ZAI_API_KEY`, `ANTHROPIC_BASE_URL` |
 | Codex | OpenAI Subscription | `~/.codex/`, `OPENAI_API_KEY` |
 | Kilo Code | File-based auth | `~/.config/kilo/config.json` (configured via `kilo auth`) |
+| Gemini CLI | API key + file auth | `GEMINI_API_KEY`, optionally `~/.gemini/` |
 
 > **Note**: OpenRouter and GLM Coding Plan use Claude Code as the execution interface, allowing you to access various models (Gemini, DeepSeek, Qwen, GLM, etc.) through their respective APIs.
 
@@ -45,7 +47,7 @@ Each tool can be authenticated in different ways:
 
 | Crate | Responsibility |
 |-------|----------------|
-| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo providers, Docker execution |
+| `ckrv-sandbox` | `AgentProvider` trait, Claude/Codex/Kilo/Gemini providers, Docker execution |
 | `ckrv-core` | `RunnerConfig` with OpenRouter and GLM fields |
 | `ckrv-cli` | Agent config loading, CLI flags |
 | `ckrv-ui` | Full agent management UI, GLM/OpenRouter config |
@@ -411,6 +413,33 @@ JSON events include types: `step_start`, `tool_use`, `text`, `step_finish`.
 | Execution | `--print` | `--auto` |
 | Model selection | Env vars / `--model` | `--model provider/model` |
 | Streaming | `--output-format stream-json` | `--format json` (NDJSON) |
+
+## Gemini CLI Integration
+
+Gemini CLI can run through Chakravarti as a first-class agent provider.
+
+**Configuration:**
+
+```yaml
+agents:
+  - id: gemini-agent
+    name: Gemini CLI
+    agent_type: gemini
+    enabled: true
+    description: Google Gemini coding assistant
+```
+
+**Usage via CLI:**
+
+```bash
+ckrv task run --agent gemini-agent -p "Create hello.txt"
+ckrv term --agent gemini-agent
+```
+
+**Auth + Mounts:**
+- `GEMINI_API_KEY` is passed into the container when available
+- `~/.gemini/` is mounted into `/home/gemini/.gemini`
+- `~/.config/google/` is mounted into `/home/gemini/.config/google`
 
 ## Best Practices
 

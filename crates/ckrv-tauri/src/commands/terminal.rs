@@ -129,6 +129,11 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
         AgentType::KiloCode => {
             // Kilo Code uses file-based auth (~/.config/kilo/) - no env vars needed
         }
+        AgentType::Gemini => {
+            if let Ok(key) = std::env::var("GEMINI_API_KEY") {
+                env.insert("GEMINI_API_KEY".to_string(), key);
+            }
+        }
     }
 
     // Set container home
@@ -136,6 +141,8 @@ fn agent_to_sandbox_config(agent: &AgentConfig) -> HashMap<String, String> {
         "/home/codex"
     } else if matches!(agent.agent_type, AgentType::KiloCode) {
         "/home/kilo"
+    } else if matches!(agent.agent_type, AgentType::Gemini) {
+        "/home/gemini"
     } else {
         "/home/claude"
     };
@@ -209,10 +216,17 @@ pub async fn terminal_start(
         .map(|a| matches!(a.agent_type, AgentType::KiloCode))
         .unwrap_or(false);
 
+    let is_gemini = agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Gemini))
+        .unwrap_or(false);
+
     let image = if is_codex {
         "ghcr.io/fnsk4r17s/ckrv-codex:latest"
     } else if is_kilo {
         "ghcr.io/fnsk4r17s/ckrv-kilo:latest"
+    } else if is_gemini {
+        "ghcr.io/fnsk4r17s/ckrv-gemini:latest"
     } else {
         "ghcr.io/fnsk4r17s/ckrv-claude:latest"
     };

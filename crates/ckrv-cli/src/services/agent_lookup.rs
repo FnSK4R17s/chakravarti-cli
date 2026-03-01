@@ -22,6 +22,7 @@ pub enum AgentType {
     ClaudeGlm,
     Codex,
     KiloCode,
+    Gemini,
 }
 
 impl Default for AgentType {

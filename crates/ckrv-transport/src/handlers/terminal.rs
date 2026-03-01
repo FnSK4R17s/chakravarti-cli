@@ -143,11 +143,19 @@ pub async fn start_terminal_handler(
         .map(|a| matches!(a.agent_type, AgentType::KiloCode))
         .unwrap_or(false);
 
+    let is_gemini = request
+        .agent
+        .as_ref()
+        .map(|a| matches!(a.agent_type, AgentType::Gemini))
+        .unwrap_or(false);
+
     // Set container home based on agent type
     let container_home = if is_codex {
         "/home/codex"
     } else if is_kilo {
         "/home/kilo"
+    } else if is_gemini {
+        "/home/gemini"
     } else {
         "/home/claude"
     };
@@ -171,6 +179,8 @@ pub async fn start_terminal_handler(
         "ghcr.io/fnsk4r17s/ckrv-codex:latest".to_string()
     } else if is_kilo {
         "ghcr.io/fnsk4r17s/ckrv-kilo:latest".to_string()
+    } else if is_gemini {
+        "ghcr.io/fnsk4r17s/ckrv-gemini:latest".to_string()
     } else {
         "ghcr.io/fnsk4r17s/ckrv-claude:latest".to_string()
     };
@@ -287,6 +297,21 @@ pub async fn start_terminal_handler(
         }
 
         tracing::info!("Terminal session using Kilo Code with mounted config");
+    } else if is_gemini {
+        // Gemini configuration - mount Gemini credentials/config directories
+        let gemini_dir = format!("{}/.gemini", host_home);
+        if std::path::Path::new(&gemini_dir).exists() {
+            binds.push(format!("{gemini_dir}:/home/gemini/.gemini"));
+        }
+        let google_config = format!("{}/.config/google", host_home);
+        if std::path::Path::new(&google_config).exists() {
+            binds.push(format!("{google_config}:/home/gemini/.config/google"));
+        }
+        if let Ok(key) = std::env::var("GEMINI_API_KEY") {
+            env_vars.push(format!("GEMINI_API_KEY={key}"));
+        }
+
+        tracing::info!("Terminal session using Gemini with mounted config");
     } else {
         // For native Claude, mount credentials if they exist
         let claude_config = format!("{host_home}/.claude.json");
