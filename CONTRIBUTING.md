@@ -170,16 +170,19 @@ just build
 
 ### Commit Messages
 
-Use conventional commits:
+We use [Conventional Commits](https://www.conventionalcommits.org/) to drive automated releases via [Release Please](https://github.com/googleapis/release-please). Your commit prefix determines the version bump:
 
-- `feat:` New feature
-- `fix:` Bug fix
-- `docs:` Documentation
-- `test:` Tests
-- `refactor:` Code refactoring
-- `chore:` Maintenance
+| Prefix | Bump | Example |
+|--------|------|---------|
+| `feat:` | Minor (`0.1.6` → `0.2.0`) | `feat(sandbox): add Gemini CLI support` |
+| `fix:` | Patch (`0.1.6` → `0.1.7`) | `fix(git): handle detached HEAD state` |
+| `feat!:` or `BREAKING CHANGE:` | Major (`0.1.6` → `1.0.0`) | `feat!: redesign spec format` |
+| `docs:` | No release | `docs: update agent guide` |
+| `test:` | No release | `test: add orchestrator tests` |
+| `refactor:` | No release | `refactor(core): simplify job lifecycle` |
+| `chore:` | No release | `chore: update dependencies` |
 
-Example: `feat(sandbox): add Gemini CLI support`
+When commits land on `main`, Release Please automatically opens a "Release PR" that bumps the version across all 5 tracked files (`Cargo.toml`, `crates/ckrv-cli/Cargo.toml`, `npm/package.json`, `crates/ckrv-ui/frontend/package.json`, `crates/ckrv-tauri/tauri.conf.json`) and updates the CHANGELOG. Merging that PR creates a GitHub Release with a `v*` tag, which triggers the existing CI release workflows.
 
 ## Adding a New Agent
 

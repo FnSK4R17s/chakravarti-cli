@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "rust",
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "npm/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "crates/ckrv-ui/frontend/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "crates/ckrv-tauri/tauri.conf.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "generic",
+          "path": "crates/ckrv-cli/Cargo.toml"
+        }
+      ]
+    }
+  }
+}
