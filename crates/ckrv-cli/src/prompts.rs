@@ -14,6 +14,7 @@ pub const SPEC_TEMPLATE: &str = include_str!("templates/spec-template.yaml");
 pub const DESIGN_TEMPLATE: &str = include_str!("templates/design-template.md");
 
 /// Embedded tasks template.
+#[allow(dead_code)]
 pub const TASKS_TEMPLATE: &str = include_str!("templates/tasks-template.yaml");
 
 // ============================================================
@@ -23,7 +24,7 @@ pub const TASKS_TEMPLATE: &str = include_str!("templates/tasks-template.yaml");
 /// Build a prompt for generating a rich spec.yaml from a description.
 pub fn build_spec_prompt(description: &str, spec_id: &str) -> String {
     format!(
-        r#"Generate a comprehensive YAML specification for this feature.
+        r"Generate a comprehensive YAML specification for this feature.
 
 FEATURE DESCRIPTION:
 {description}
@@ -53,7 +54,7 @@ QUALITY CHECKS:
 - Every success criterion must be measurable
 - Edge cases should inspire defensive implementation
 
-Output the complete YAML now:"#,
+Output the complete YAML now:",
         description = description,
         spec_id = spec_id,
         template = SPEC_TEMPLATE
@@ -61,6 +62,7 @@ Output the complete YAML now:"#,
 }
 
 /// Build a prompt for resolving clarifications in a spec
+#[allow(dead_code)]
 pub fn build_clarify_prompt(spec_yaml: &str, clarifications: &[ClarificationItem]) -> String {
     let clarification_list: String = clarifications
         .iter()
@@ -78,7 +80,7 @@ pub fn build_clarify_prompt(spec_yaml: &str, clarifications: &[ClarificationItem
         .join("\n\n");
 
     format!(
-        r#"Review this specification and help resolve the clarifications.
+        r"Review this specification and help resolve the clarifications.
 
 CURRENT SPEC:
 {spec_yaml}
@@ -100,7 +102,7 @@ CLARIFICATION 2:
   Recommended: [Option letter]
   Reasoning: [Why this is the best choice]
 
-[Continue for all clarifications]"#,
+[Continue for all clarifications]",
         spec_yaml = spec_yaml,
         clarification_list = clarification_list
     )
@@ -109,7 +111,7 @@ CLARIFICATION 2:
 /// Build a prompt for generating a technical design document
 pub fn build_design_prompt(spec_yaml: &str, spec_id: &str) -> String {
     format!(
-        r#"Generate a technical design document for this feature specification.
+        r"Generate a technical design document for this feature specification.
 
 SPECIFICATION:
 {spec_yaml}
@@ -128,7 +130,7 @@ INSTRUCTIONS:
 5. Identify risks and mitigations
 6. Keep the design practical and implementable
 
-Output the complete markdown document now:"#,
+Output the complete markdown document now:",
         spec_yaml = spec_yaml,
         spec_id = spec_id,
         template = DESIGN_TEMPLATE
@@ -163,6 +165,7 @@ pub fn strip_yaml_fences(content: &str) -> String {
 
 /// A clarification item that needs user input.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ClarificationItem {
     /// Topic area the clarification addresses.
     pub topic: String,

@@ -22,7 +22,7 @@ async fn example(
     State(state): State<AppState>,
     Json(request): Json<ExampleRequest>,
 ) -> impl IntoResponse {
-    match example_handler(&state, request).await {
+    match example_handler(&state, request) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -32,7 +32,7 @@ async fn example(
 ///
 /// This shows a handler that takes no request body.
 async fn get_example_info(State(state): State<AppState>) -> impl IntoResponse {
-    match get_example_info_handler(&state).await {
+    match get_example_info_handler(&state) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }

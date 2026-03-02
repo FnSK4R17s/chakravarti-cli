@@ -41,9 +41,7 @@ pub async fn start_execution(
         dry_run: false,
     };
 
-    let result = start_execution_handler(&app_state, request)
-        .await
-        .map_err(|e| e.to_string())?;
+    let result = start_execution_handler(&app_state, request).map_err(|e| e.to_string())?;
 
     drop(app_state);
 
@@ -99,9 +97,7 @@ pub async fn stop_execution(
 ) -> Result<(), String> {
     let app_state = state.read().await;
     let request = StopRequest { spec, run_id };
-    stop_execution_handler(&app_state, request)
-        .await
-        .map_err(|e| e.to_string())
+    stop_execution_handler(&app_state, request).map_err(|e| e.to_string())
 }
 
 // ============================================================
@@ -127,9 +123,7 @@ pub async fn get_execution_status(
     state: State<'_, SharedState>,
 ) -> Result<ExecutionStatusResponse, String> {
     let app_state = state.read().await;
-    let status = get_execution_status_handler(&app_state)
-        .await
-        .map_err(|e| e.to_string())?;
+    let status = get_execution_status_handler(&app_state).map_err(|e| e.to_string())?;
 
     Ok(ExecutionStatusResponse {
         is_running: status.running,
@@ -152,9 +146,7 @@ pub async fn get_execution_logs(
         limit: None,
         since,
     };
-    let response = get_logs_handler(&app_state, run_id, params)
-        .await
-        .map_err(|e| e.to_string())?;
+    let response = get_logs_handler(&app_state, run_id, params).map_err(|e| e.to_string())?;
 
     // Convert LogEntry vec to serde_json::Value vec
     let entries: Vec<serde_json::Value> = response
@@ -174,9 +166,7 @@ pub async fn list_execution_branches(
 ) -> Result<serde_json::Value, String> {
     let app_state = state.read().await;
     let request = ListBranchesRequest { spec };
-    let response = list_branches_handler(&app_state, request)
-        .await
-        .map_err(|e| e.to_string())?;
+    let response = list_branches_handler(&app_state, request).map_err(|e| e.to_string())?;
 
     serde_json::to_value(response).map_err(|e| e.to_string())
 }

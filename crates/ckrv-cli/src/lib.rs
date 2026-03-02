@@ -472,9 +472,9 @@ pub enum Commands {
     Term(commands::term::TermArgs),
 }
 
-// ============================================================================
+// ============================================================
 // Command Metadata Types for SKILL.md and MCP generation
-// ============================================================================
+// ============================================================
 
 /// Metadata extracted from a clap Command for documentation/MCP generation
 #[derive(Debug, Clone, Serialize)]
@@ -504,7 +504,7 @@ pub struct CommandMetadata {
     pub hidden: bool,
 
     /// Nested subcommands (empty for leaf commands)
-    pub subcommands: Vec<CommandMetadata>,
+    pub subcommands: Vec<Self>,
 }
 
 /// Metadata for a positional argument
@@ -568,7 +568,10 @@ fn extract_metadata_recursive(cmd: &clap::Command, parent_path: Vec<String>) -> 
         .get_positionals()
         .map(|arg| ArgumentMetadata {
             id: arg.get_id().to_string(),
-            help: arg.get_help().map(|h| h.to_string()).unwrap_or_default(),
+            help: arg
+                .get_help()
+                .map(std::string::ToString::to_string)
+                .unwrap_or_default(),
             required: arg.is_required_set(),
             type_hint: infer_type_hint(arg),
         })
@@ -584,9 +587,12 @@ fn extract_metadata_recursive(cmd: &clap::Command, parent_path: Vec<String>) -> 
         })
         .map(|arg| OptionMetadata {
             id: arg.get_id().to_string(),
-            long: arg.get_long().map(|s| s.to_string()),
+            long: arg.get_long().map(std::string::ToString::to_string),
             short: arg.get_short(),
-            help: arg.get_help().map(|h| h.to_string()).unwrap_or_default(),
+            help: arg
+                .get_help()
+                .map(std::string::ToString::to_string)
+                .unwrap_or_default(),
             takes_value: arg
                 .get_num_args()
                 .map(|n| n.max_values() > 0)
@@ -608,9 +614,12 @@ fn extract_metadata_recursive(cmd: &clap::Command, parent_path: Vec<String>) -> 
     CommandMetadata {
         path,
         name: cmd.get_name().to_string(),
-        description: cmd.get_about().map(|s| s.to_string()).unwrap_or_default(),
-        long_description: cmd.get_long_about().map(|s| s.to_string()),
-        after_help: cmd.get_after_help().map(|s| s.to_string()),
+        description: cmd
+            .get_about()
+            .map(std::string::ToString::to_string)
+            .unwrap_or_default(),
+        long_description: cmd.get_long_about().map(std::string::ToString::to_string),
+        after_help: cmd.get_after_help().map(std::string::ToString::to_string),
         arguments,
         options,
         hidden: cmd.is_hide_set(),
@@ -703,7 +712,11 @@ mod tests {
         assert!(visible_names.contains(&"ui"), "ui should be visible");
 
         // Only 6 visible commands
-        assert_eq!(visible_names.len(), 6, "should have exactly 6 visible commands");
+        assert_eq!(
+            visible_names.len(),
+            6,
+            "should have exactly 6 visible commands"
+        );
     }
 
     #[test]
@@ -721,8 +734,11 @@ mod tests {
             "code should have subcommands"
         );
 
-        let subcmd_names: Vec<&str> =
-            code_cmd.subcommands.iter().map(|c| c.name.as_str()).collect();
+        let subcmd_names: Vec<&str> = code_cmd
+            .subcommands
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
 
         assert!(subcmd_names.contains(&"spec"), "code should have spec");
         assert!(subcmd_names.contains(&"tasks"), "code should have tasks");
@@ -747,13 +763,13 @@ mod tests {
             .find(|cmd| cmd.name == "spec")
             .expect("code spec should exist");
 
-        let subcmd_names: Vec<&str> =
-            spec_cmd.subcommands.iter().map(|c| c.name.as_str()).collect();
+        let subcmd_names: Vec<&str> = spec_cmd
+            .subcommands
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
 
-        assert!(
-            subcmd_names.contains(&"new"),
-            "code spec should have 'new'"
-        );
+        assert!(subcmd_names.contains(&"new"), "code spec should have 'new'");
         assert!(
             subcmd_names.contains(&"list"),
             "code spec should have 'list'"

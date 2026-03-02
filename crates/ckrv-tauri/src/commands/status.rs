@@ -25,7 +25,7 @@ pub async fn get_status(state: State<'_, SharedState>) -> Result<SystemStatus, S
 /// Returns whether Docker is available and running.
 #[tauri::command]
 pub async fn check_docker() -> Result<DockerStatus, String> {
-    check_docker_handler().await.map_err(|e| e.to_string())
+    check_docker_handler().map_err(|e| e.to_string())
 }
 
 /// Get cloud service status.
@@ -33,5 +33,5 @@ pub async fn check_docker() -> Result<DockerStatus, String> {
 /// Returns cloud authentication state.
 #[tauri::command]
 pub async fn get_cloud_status() -> Result<CloudStatus, String> {
-    get_cloud_status_handler().await.map_err(|e| e.to_string())
+    get_cloud_status_handler().map_err(|e| e.to_string())
 }

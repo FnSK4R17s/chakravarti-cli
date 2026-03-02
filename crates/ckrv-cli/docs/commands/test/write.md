@@ -1,7 +1,7 @@
 ---
 command: test write
 generated_from: commands/test.rs
-last_commit: f92f604
+last_commit: 2a2da7f
 ---
 
 # ckrv test write

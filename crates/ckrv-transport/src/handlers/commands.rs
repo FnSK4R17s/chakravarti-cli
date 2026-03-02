@@ -7,9 +7,9 @@ use crate::state::AppState;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 
-// ============================================================================
+// ============================================================
 // Request/Response Types
-// ============================================================================
+// ============================================================
 
 /// Command execution response.
 #[derive(Debug, Serialize)]
@@ -85,17 +85,17 @@ pub struct FixRequest {
     pub error: Option<String>,
 }
 
-// ============================================================================
+// ============================================================
 // Handlers
-// ============================================================================
+// ============================================================
 
 /// Run ckrv init command.
-pub async fn run_init_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
+pub fn run_init_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
     run_ckrv_command(state, &["init"])
 }
 
 /// Run git init command.
-pub async fn run_git_init_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
+pub fn run_git_init_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
     let output = Command::new("git")
         .args(["init"])
         .current_dir(&state.project_root)
@@ -115,7 +115,7 @@ pub async fn run_git_init_handler(state: &AppState) -> Result<CommandResponse, T
 }
 
 /// Run ckrv spec new command.
-pub async fn run_spec_new_handler(
+pub fn run_spec_new_handler(
     state: &AppState,
     request: SpecNewRequest,
 ) -> Result<CommandResponse, TransportError> {
@@ -131,22 +131,22 @@ pub async fn run_spec_new_handler(
 }
 
 /// Run ckrv spec tasks command.
-pub async fn run_spec_tasks_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
+pub fn run_spec_tasks_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
     run_ckrv_command(state, &["spec", "tasks"])
 }
 
 /// Run ckrv plan command.
-pub async fn run_plan_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
+pub fn run_plan_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
     run_ckrv_command(state, &["plan"])
 }
 
 /// Run ckrv execute command.
-pub async fn run_execute_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
+pub fn run_execute_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
     run_ckrv_command(state, &["execute"])
 }
 
 /// Run ckrv diff command.
-pub async fn run_diff_handler(
+pub fn run_diff_handler(
     state: &AppState,
     request: DiffRequest,
 ) -> Result<CommandResponse, TransportError> {
@@ -172,7 +172,7 @@ pub async fn run_diff_handler(
 }
 
 /// Run ckrv verify command.
-pub async fn run_verify_handler(
+pub fn run_verify_handler(
     state: &AppState,
     request: VerifyRequest,
 ) -> Result<CommandResponse, TransportError> {
@@ -195,7 +195,7 @@ pub async fn run_verify_handler(
 }
 
 /// Run ckrv promote command.
-pub async fn run_promote_handler(
+pub fn run_promote_handler(
     state: &AppState,
     request: PromoteRequest,
 ) -> Result<CommandResponse, TransportError> {
@@ -218,7 +218,7 @@ pub async fn run_promote_handler(
 }
 
 /// Run ckrv fix command.
-pub async fn run_fix_handler(
+pub fn run_fix_handler(
     state: &AppState,
     request: FixRequest,
 ) -> Result<CommandResponse, TransportError> {
@@ -241,9 +241,9 @@ pub async fn run_fix_handler(
     run_ckrv_command(state, &args)
 }
 
-// ============================================================================
+// ============================================================
 // Helpers
-// ============================================================================
+// ============================================================
 
 /// Run a ckrv command and return the result.
 fn run_ckrv_command(state: &AppState, args: &[&str]) -> Result<CommandResponse, TransportError> {
@@ -272,14 +272,13 @@ fn run_ckrv_command(state: &AppState, args: &[&str]) -> Result<CommandResponse, 
     })
 }
 
-// ============================================================================
+// ============================================================
 // Tests
-// ============================================================================
+// ============================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     #[test]
     fn test_command_response_default() {

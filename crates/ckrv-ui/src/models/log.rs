@@ -135,16 +135,16 @@ pub enum LogLevel {
 impl std::fmt::Display for LogLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LogLevel::Info => write!(f, "info"),
-            LogLevel::Warning => write!(f, "warning"),
-            LogLevel::Error => write!(f, "error"),
-            LogLevel::Log => write!(f, "log"),
-            LogLevel::Start => write!(f, "start"),
-            LogLevel::BatchStart => write!(f, "batch_start"),
-            LogLevel::BatchComplete => write!(f, "batch_complete"),
-            LogLevel::BatchError => write!(f, "batch_error"),
-            LogLevel::Success => write!(f, "success"),
-            LogLevel::Status => write!(f, "status"),
+            Self::Info => write!(f, "info"),
+            Self::Warning => write!(f, "warning"),
+            Self::Error => write!(f, "error"),
+            Self::Log => write!(f, "log"),
+            Self::Start => write!(f, "start"),
+            Self::BatchStart => write!(f, "batch_start"),
+            Self::BatchComplete => write!(f, "batch_complete"),
+            Self::BatchError => write!(f, "batch_error"),
+            Self::Success => write!(f, "success"),
+            Self::Status => write!(f, "status"),
         }
     }
 }

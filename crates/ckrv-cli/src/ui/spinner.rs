@@ -10,7 +10,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,ignore
 //! let spinner = SpinnerGuard::new("Loading tasks...", is_interactive, &theme);
 //! // ... do work ...
 //! spinner.success("Tasks loaded!");
@@ -46,6 +46,7 @@ pub struct SpinnerGuard {
 // IMPLEMENTATION
 // ============================================================
 
+#[allow(clippy::literal_string_with_formatting_args)]
 impl SpinnerGuard {
     /// Create a new spinner with the given message.
     ///

@@ -2,11 +2,14 @@
 //!
 //! Axum route wrappers for agent handlers.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::handlers::agents::{
     delete_agent_handler, get_glm_models_handler, get_kilo_models_handler,
     get_openrouter_models_handler, list_agents_handler, set_default_agent_handler,
-    set_qa_agent_handler, set_test_writer_agent_handler, test_agent_handler,
-    upsert_agent_handler,
+    set_qa_agent_handler, set_test_writer_agent_handler, test_agent_handler, upsert_agent_handler,
 };
 use crate::state::AppState;
 use crate::types::{
@@ -19,9 +22,13 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 
+// ============================================================
+// HANDLERS
+// ============================================================
+
 /// List all agents.
 async fn list_agents(State(state): State<AppState>) -> impl IntoResponse {
-    match list_agents_handler(&state).await {
+    match list_agents_handler(&state) {
         Ok(agents) => Json(serde_json::json!({ "agents": agents })).into_response(),
         Err(e) => e.into_response(),
     }
@@ -32,7 +39,7 @@ async fn upsert_agent(
     State(state): State<AppState>,
     Json(request): Json<UpsertAgentRequest>,
 ) -> impl IntoResponse {
-    match upsert_agent_handler(&state, request).await {
+    match upsert_agent_handler(&state, request) {
         Ok(agent) => Json(agent).into_response(),
         Err(e) => e.into_response(),
     }
@@ -50,7 +57,7 @@ async fn delete_agent(
     Json(body): Json<DeleteAgentBody>,
 ) -> impl IntoResponse {
     let request = DeleteAgentRequest { name: body.name };
-    match delete_agent_handler(&state, request).await {
+    match delete_agent_handler(&state, request) {
         Ok(()) => axum::http::StatusCode::NO_CONTENT.into_response(),
         Err(e) => e.into_response(),
     }
@@ -68,7 +75,7 @@ async fn set_default_agent(
     Json(body): Json<SetDefaultBody>,
 ) -> impl IntoResponse {
     let request = SetDefaultAgentRequest { name: body.name };
-    match set_default_agent_handler(&state, request).await {
+    match set_default_agent_handler(&state, request) {
         Ok(agent) => Json(agent).into_response(),
         Err(e) => e.into_response(),
     }
@@ -86,7 +93,7 @@ async fn set_qa_agent(
     Json(body): Json<SetQaBody>,
 ) -> impl IntoResponse {
     let request = SetQaAgentRequest { name: body.name };
-    match set_qa_agent_handler(&state, request).await {
+    match set_qa_agent_handler(&state, request) {
         Ok(agent) => Json(serde_json::json!({ "success": true, "agent": agent })).into_response(),
         Err(e) => e.into_response(),
     }
@@ -104,7 +111,7 @@ async fn set_test_writer_agent(
     Json(body): Json<SetTestWriterBody>,
 ) -> impl IntoResponse {
     let request = SetTestWriterAgentRequest { name: body.name };
-    match set_test_writer_agent_handler(&state, request).await {
+    match set_test_writer_agent_handler(&state, request) {
         Ok(agent) => Json(serde_json::json!({ "success": true, "agent": agent })).into_response(),
         Err(e) => e.into_response(),
     }
@@ -115,7 +122,7 @@ async fn test_agent(
     State(_state): State<AppState>,
     Json(request): Json<TestAgentRequest>,
 ) -> impl IntoResponse {
-    match test_agent_handler(request).await {
+    match test_agent_handler(request) {
         Ok(response) => Json(response).into_response(),
         Err(e) => e.into_response(),
     }
@@ -144,6 +151,10 @@ async fn get_glm_models() -> impl IntoResponse {
         Err(e) => e.into_response(),
     }
 }
+
+// ============================================================
+// ROUTES
+// ============================================================
 
 /// Create agent routes.
 pub fn routes() -> Router<AppState> {

@@ -29,15 +29,15 @@ pub struct UiArgs {
 
 /// Execute the UI command, starting the web dashboard server.
 pub async fn execute(args: UiArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
-    if !json {
+    if json {
+        println!(r#"{{"status": "starting", "port": {}}}"#, args.port);
+    } else {
         ui.success("Web UI", &format!("Starting on port {}...", args.port));
         ui.markdown("**Press Ctrl+C to stop**");
         ui.markdown(&format!(
             "Visit **http://localhost:{}** in your browser",
             args.port
         ));
-    } else {
-        println!(r#"{{"status": "starting", "port": {}}}"#, args.port);
     }
 
     // This will block until the server stops

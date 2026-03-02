@@ -19,9 +19,7 @@ pub struct DefaultBranchResponse {
 #[tauri::command]
 pub async fn get_branches(state: State<'_, SharedState>) -> Result<BranchesResponse, String> {
     let app_state = state.read().await;
-    get_branches_handler(&app_state)
-        .await
-        .map_err(|e| e.to_string())
+    get_branches_handler(&app_state).map_err(|e| e.to_string())
 }
 
 /// Get default git branch (main or master).
@@ -31,7 +29,6 @@ pub async fn get_default_branch(
 ) -> Result<DefaultBranchResponse, String> {
     let app_state = state.read().await;
     get_default_branch_handler(&app_state)
-        .await
         .map(|branch| DefaultBranchResponse { branch })
         .map_err(|e| e.to_string())
 }
@@ -45,7 +42,5 @@ pub async fn get_diff(
     path: Option<String>,
 ) -> Result<DiffResponse, String> {
     let app_state = state.read().await;
-    get_diff_handler(&app_state, DiffQuery { base, target, path })
-        .await
-        .map_err(|e| e.to_string())
+    get_diff_handler(&app_state, DiffQuery { base, target, path }).map_err(|e| e.to_string())
 }

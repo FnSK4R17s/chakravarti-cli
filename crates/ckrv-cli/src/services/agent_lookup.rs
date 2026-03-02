@@ -14,9 +14,11 @@ use std::path::PathBuf;
 // ============================================================
 
 /// Agent type enumeration.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum AgentType {
+    #[default]
     Claude,
     ClaudeOpenRouter,
     ClaudeGlm,
@@ -30,12 +32,6 @@ pub enum AgentType {
     FactoryDroid,
     GithubCopilot,
     MistralVibe,
-}
-
-impl Default for AgentType {
-    fn default() -> Self {
-        Self::Claude
-    }
 }
 
 /// OpenRouter configuration
@@ -159,6 +155,7 @@ pub fn find_qa_agent() -> Option<AgentConfig> {
 }
 
 /// Find the default agent
+#[allow(dead_code)]
 pub fn find_default_agent() -> Option<AgentConfig> {
     load_agents_config()
         .ok()?
@@ -169,8 +166,7 @@ pub fn find_default_agent() -> Option<AgentConfig> {
 
 /// Error message for missing test writer agent
 pub fn test_writer_missing_message() -> String {
-    format!(
-        r#"No test writer agent configured.
+    r#"No test writer agent configured.
 
 To configure a test writer agent:
 1. Open the Agent Manager in `ckrv ui`
@@ -184,13 +180,12 @@ To configure a test writer agent:
        is_test_writer: true
        enabled: true
 "#
-    )
+    .to_string()
 }
 
 /// Error message for missing QA agent
 pub fn qa_agent_missing_message() -> String {
-    format!(
-        r#"No QA agent configured.
+    r#"No QA agent configured.
 
 To configure a QA agent:
 1. Open the Agent Manager in `ckrv ui`
@@ -204,5 +199,5 @@ To configure a QA agent:
        is_qa_agent: true
        enabled: true
 "#
-    )
+    .to_string()
 }

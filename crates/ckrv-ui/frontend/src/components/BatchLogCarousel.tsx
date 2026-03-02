@@ -55,13 +55,17 @@ export interface BatchData {
 
 /**
  * Props for the BatchLogCarousel component.
+ * Controls a navigable carousel of batch log terminals with dot indicators.
  */
 export interface BatchLogCarouselProps {
     /** Array of batch data to display in the carousel */
     batches: BatchData[];
-    /** ID of the currently active batch; carousel auto-navigates to it */
+    /**
+     * ID of the currently active batch; carousel auto-navigates to it when changed.
+     * @default null
+     */
     activeBatchId?: string | null;
-    /** Callback fired when user navigates to a different batch */
+    /** Callback fired when user navigates to a different batch, receives the batch ID */
     onBatchChange?: (batchId: string) => void;
 }
 
@@ -91,6 +95,7 @@ export const BatchLogCarousel: React.FC<BatchLogCarouselProps> = ({
             return;
         }
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCount(api.scrollSnapList().length);
         setCurrent(api.selectedScrollSnap() + 1);
 

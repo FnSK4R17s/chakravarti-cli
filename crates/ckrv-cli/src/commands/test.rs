@@ -1,4 +1,12 @@
 //! Test command - run tests, plan and write new tests.
+#![allow(clippy::option_if_let_else)]
+#![allow(clippy::manual_let_else)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::match_same_arms)]
+
+// ============================================================
+// IMPORTS
+// ============================================================
 
 use std::path::PathBuf;
 
@@ -11,6 +19,10 @@ use crate::services::{
 };
 use crate::ui::components::Banner;
 use crate::ui::{Renderable, UiContext};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the test command
 #[derive(Args)]
@@ -165,6 +177,10 @@ pub struct ProposedTest {
     pub priority: String,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 /// Execute the test command
 pub async fn execute(args: TestArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     match args.command {
@@ -219,6 +235,7 @@ async fn execute_run(base: &str, json: bool, ui: &UiContext) -> anyhow::Result<(
 }
 
 /// Execute test plan
+#[allow(clippy::unused_async)]
 async fn execute_plan(base: &str, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
@@ -360,16 +377,15 @@ async fn execute_write(
     }
 
     // Check for test writer agent
-    let agent = match agent_lookup::find_test_writer_agent() {
-        Some(a) => a,
-        None => {
-            if json {
-                println!(r#"{{"error": "No test writer agent configured", "exit_code": 4}}"#);
-            } else {
-                println!("{}", agent_lookup::test_writer_missing_message());
-            }
-            std::process::exit(4);
+    let agent = if let Some(a) = agent_lookup::find_test_writer_agent() {
+        a
+    } else {
+        if json {
+            println!(r#"{{"error": "No test writer agent configured", "exit_code": 4}}"#);
+        } else {
+            println!("{}", agent_lookup::test_writer_missing_message());
         }
+        std::process::exit(4);
     };
 
     if !json {
@@ -415,6 +431,7 @@ async fn execute_write(
 }
 
 /// Execute test coverage
+#[allow(clippy::unused_async)]
 async fn execute_coverage(base: &str, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     if !json {
         println!(

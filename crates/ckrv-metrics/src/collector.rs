@@ -107,25 +107,26 @@ impl MetricsCollector for DefaultMetricsCollector {
     }
 
     fn finish_job(&self, success: bool) -> Metrics {
-        if let Ok(state) = self.inner.lock() {
-            let total_time_ms = state
-                .start_time
-                .map(|t| t.elapsed().as_millis() as u64)
-                .unwrap_or(0);
+        self.inner.lock().map_or_else(
+            |_| Metrics::default(),
+            |state| {
+                let total_time_ms = state
+                    .start_time
+                    .map(|t| t.elapsed().as_millis() as u64)
+                    .unwrap_or(0);
 
-            Metrics {
-                job_id: state.job_id.clone(),
-                spec_id: state.spec_id.clone(),
-                total_time_ms,
-                token_usage: state.token_usage.clone(),
-                cost: state.cost.clone(),
-                step_metrics: state.step_metrics.clone(),
-                retry_count: 0,
-                success,
-            }
-        } else {
-            Metrics::default()
-        }
+                Metrics {
+                    job_id: state.job_id.clone(),
+                    spec_id: state.spec_id.clone(),
+                    total_time_ms,
+                    token_usage: state.token_usage.clone(),
+                    cost: state.cost.clone(),
+                    step_metrics: state.step_metrics.clone(),
+                    retry_count: 0,
+                    success,
+                }
+            },
+        )
     }
 
     fn snapshot(&self) -> Metrics {

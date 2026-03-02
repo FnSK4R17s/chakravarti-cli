@@ -64,8 +64,8 @@ pub fn is_initialized(repo_root: &Path) -> bool {
 pub fn repo_root(path: &Path) -> Result<std::path::PathBuf, GitError> {
     let repo = git2::Repository::discover(path)?;
     repo.workdir()
-        .map(|p| p.to_path_buf())
-        .ok_or_else(|| GitError::NotARepo("Bare repository".to_string()))
+        .map(Path::to_path_buf)
+        .ok_or_else(|| GitError::NotARepo("Bare repository".into()))
 }
 
 // ============================================================
@@ -83,9 +83,9 @@ mod tests {
         dir
     }
 
-    // =========================================================================
+    // ============================================================
     // T033: Unit tests for git repo detection
-    // =========================================================================
+    // ============================================================
 
     #[test]
     fn test_is_git_repo_true_for_git_directory() {
@@ -107,9 +107,9 @@ mod tests {
         assert!(is_git_repo(&subdir).unwrap());
     }
 
-    // =========================================================================
+    // ============================================================
     // T034-T035: Unit tests for is_initialized
-    // =========================================================================
+    // ============================================================
 
     #[test]
     fn test_is_initialized_false_when_nothing_exists() {
@@ -139,9 +139,9 @@ mod tests {
         assert!(is_initialized(repo.path()));
     }
 
-    // =========================================================================
+    // ============================================================
     // Unit tests for repo_root
-    // =========================================================================
+    // ============================================================
 
     #[test]
     fn test_repo_root_returns_root_path() {

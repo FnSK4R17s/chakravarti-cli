@@ -1,7 +1,7 @@
 ---
 command: spec new
 generated_from: commands/spec.rs
-last_commit: f92f604
+last_commit: 2a2da7f
 ---
 
 # ckrv spec new

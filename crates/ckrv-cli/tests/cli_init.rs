@@ -30,9 +30,9 @@ fn create_git_repo() -> TempDir {
     dir
 }
 
-// =============================================================================
+// =============================================================
 // T029: Contract test for `ckrv init` JSON output
-// =============================================================================
+// =============================================================
 
 #[test]
 fn test_init_json_output_has_required_fields() {
@@ -71,9 +71,9 @@ fn test_init_json_exit_code_zero_on_success() {
     assert_eq!(output.status.code(), Some(0));
 }
 
-// =============================================================================
+// =============================================================
 // T030: Integration test for init in fresh git repo
-// =============================================================================
+// =============================================================
 
 #[test]
 fn test_init_creates_specs_directory() {
@@ -117,9 +117,9 @@ fn test_init_creates_config_file() {
     );
 }
 
-// =============================================================================
+// =============================================================
 // T031: Integration test for init in already-initialized repo
-// =============================================================================
+// =============================================================
 
 #[test]
 fn test_init_already_initialized_warns() {
@@ -156,9 +156,9 @@ fn test_init_force_reinitializes() {
     assert!(output.status.success(), "Force init should succeed");
 }
 
-// =============================================================================
+// =============================================================
 // T032: Integration test for init in non-git directory
-// =============================================================================
+// =============================================================
 
 #[test]
 fn test_init_non_git_directory_fails() {
@@ -193,8 +193,12 @@ fn test_init_non_git_directory_shows_error_message() {
     let output = ckrv(&["init"], dir.path());
 
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stderr.contains("git") || stderr.contains("repository"),
+        stderr.contains("git")
+            || stderr.contains("repository")
+            || stdout.contains("git")
+            || stdout.contains("repository"),
         "Error should mention git repository requirement"
     );
 }

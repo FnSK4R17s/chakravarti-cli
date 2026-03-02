@@ -1,4 +1,9 @@
 //! Promote command - create a pull/merge request for the current branch.
+#![allow(clippy::format_push_string)]
+#![allow(clippy::option_if_let_else)]
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::ref_option)]
+#![allow(clippy::ptr_arg)]
 
 // ============================================================
 // IMPORTS
@@ -65,6 +70,7 @@ pub struct PromoteOutput {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct ImplementationSummary {
     status: String,
     branch: String,
@@ -242,8 +248,8 @@ pub async fn execute(args: PromoteArgs, json: bool, ui: &UiContext) -> anyhow::R
         pushed,
         pr_url: final_pr_url.clone(),
         pr_number,
-        message: if pr_number.is_some() {
-            format!("PR #{} created successfully", pr_number.unwrap())
+        message: if let Some(num) = pr_number {
+            format!("PR #{num} created successfully")
         } else {
             "Ready to create PR".to_string()
         },
@@ -364,6 +370,7 @@ fn generate_pr_url_github(remote_url: &str, branch: &str, base: &str) -> Option<
     ))
 }
 
+#[allow(clippy::unused_async)]
 async fn create_github_pr(
     cwd: &PathBuf,
     branch: &str,
@@ -420,7 +427,7 @@ async fn create_github_pr(
         Ok(out) if out.status.success() => {
             let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
             // Extract PR number from URL
-            let pr_number = url.split('/').last().and_then(|s| s.parse().ok());
+            let pr_number = url.split('/').next_back().and_then(|s| s.parse().ok());
             (Some(url), pr_number)
         }
         Ok(out) => {

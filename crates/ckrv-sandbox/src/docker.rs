@@ -1,5 +1,9 @@
 //! Docker/Podman client wrapper.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -15,11 +19,19 @@ use futures_util::StreamExt;
 
 use crate::SandboxError;
 
+// ============================================================
+// CONSTANTS
+// ============================================================
+
 /// GHCR registry prefix for pre-built agent images.
 pub const GHCR_PREFIX: &str = "ghcr.io/fnsk4r17s";
 
 /// Default Docker image for execution (contains Claude Code CLI).
 pub const DEFAULT_IMAGE: &str = "ghcr.io/fnsk4r17s/ckrv-agent:latest";
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Docker client wrapper.
 pub struct DockerClient {
@@ -107,7 +119,7 @@ impl DockerClient {
         let mut env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
 
         // Mount Claude credentials if they exist
-        let host_home = std::env::var("HOME").unwrap_or_default();
+        let _host_home = std::env::var("HOME").unwrap_or_default();
 
         // Use /home/claude as the container home directory (writable by any user)
         let container_home = "/home/claude".to_string();
@@ -157,7 +169,7 @@ impl DockerClient {
         let user_spec = format!("{}:{}", uid_gid, gid);
 
         let config = Config {
-            image: Some(image.to_string()),
+            image: Some(image.clone()),
             cmd: Some(command),
             working_dir: Some(workdir.to_string()),
             user: Some(user_spec),
@@ -251,7 +263,7 @@ impl DockerClient {
         };
 
         // Run log collection with timeout
-        if let Err(_) = tokio::time::timeout(timeout, log_collection).await {
+        if tokio::time::timeout(timeout, log_collection).await.is_err() {
             // Timeout occurred
             let _ = self
                 .client
@@ -261,17 +273,17 @@ impl DockerClient {
 
         // Now wait for the exit code (it should be ready or close to ready)
         // We wrap this in a short timeout just in case
-        let exit_code = match tokio::time::timeout(Duration::from_secs(5), wait_handle).await {
-            Ok(Ok(code)) => code,
-            _ => {
+        let exit_code =
+            if let Ok(Ok(code)) = tokio::time::timeout(Duration::from_secs(5), wait_handle).await {
+                code
+            } else {
                 // Force kill if still running after log stream ended/timeout
                 let _ = self
                     .client
                     .kill_container::<String>(&container.id, None)
                     .await;
                 -1
-            }
-        };
+            };
 
         let duration = start_time.elapsed();
 
@@ -336,12 +348,12 @@ impl DockerClient {
         let mut env_vec: Vec<String> = env.iter().map(|(k, v)| format!("{k}={v}")).collect();
 
         // Mount credentials if they exist
-        let host_home = std::env::var("HOME").unwrap_or_default();
+        let _host_home = std::env::var("HOME").unwrap_or_default();
 
         // Use HOME from passed env, or default to /home/claude
         let container_home = env
             .get("HOME")
-            .map(|s| s.to_string())
+            .cloned()
             .unwrap_or_else(|| "/home/claude".to_string());
 
         // Only add HOME if not already in env
@@ -388,7 +400,7 @@ impl DockerClient {
         let user_spec = format!("{}:{}", uid_gid, gid);
 
         let config = Config {
-            image: Some(image.to_string()),
+            image: Some(image.clone()),
             cmd: Some(command),
             working_dir: Some(workdir.to_string()),
             user: Some(user_spec),
@@ -476,16 +488,16 @@ impl DockerClient {
                 .await;
         }
 
-        let exit_code = match tokio::time::timeout(Duration::from_secs(5), wait_handle).await {
-            Ok(Ok(code)) => code,
-            _ => {
+        let exit_code =
+            if let Ok(Ok(code)) = tokio::time::timeout(Duration::from_secs(5), wait_handle).await {
+                code
+            } else {
                 let _ = self
                     .client
                     .kill_container::<String>(&container.id, None)
                     .await;
                 -1
-            }
-        };
+            };
 
         let duration = start_time.elapsed();
 
@@ -569,7 +581,7 @@ impl DockerClient {
         let user_spec = format!("{}:{}", uid_gid, gid);
 
         let config = Config {
-            image: Some(image.to_string()),
+            image: Some(image.clone()),
             cmd: Some(vec![
                 "tail".to_string(),
                 "-f".to_string(),
@@ -641,16 +653,12 @@ impl DockerClient {
         if let StartExecResults::Attached { mut output, .. } = stream {
             while let Some(Ok(msg)) = output.next().await {
                 match msg {
-                    LogOutput::StdOut { message } => {
-                        stdout.push_str(&String::from_utf8_lossy(&message))
+                    LogOutput::StdOut { message }
+                    | LogOutput::StdErr { message }
+                    | LogOutput::Console { message } => {
+                        stdout.push_str(&String::from_utf8_lossy(&message));
                     }
-                    LogOutput::StdErr { message } => {
-                        stdout.push_str(&String::from_utf8_lossy(&message))
-                    }
-                    LogOutput::Console { message } => {
-                        stdout.push_str(&String::from_utf8_lossy(&message))
-                    }
-                    _ => {}
+                    LogOutput::StdIn { .. } => {}
                 }
             }
         }
@@ -688,6 +696,10 @@ impl DockerClient {
     }
 }
 
+// ============================================================
+// OUTPUT TYPES
+// ============================================================
+
 /// Output from container execution.
 #[derive(Debug, Clone)]
 pub struct ExecutionOutput {
@@ -700,6 +712,10 @@ pub struct ExecutionOutput {
     /// Duration in milliseconds.
     pub duration_ms: u64,
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

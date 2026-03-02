@@ -33,7 +33,7 @@ impl TokenUsage {
     }
 
     /// Merge with another usage.
-    pub fn add(&mut self, other: &TokenUsage) {
+    pub fn add(&mut self, other: &Self) {
         self.prompt_tokens += other.prompt_tokens;
         self.completion_tokens += other.completion_tokens;
         self.total_tokens += other.total_tokens;

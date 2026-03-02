@@ -11,10 +11,11 @@ use serde::{Deserialize, Serialize};
 // ============================================================
 
 /// Status of an execution run.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RunStatus {
     /// Waiting to start.
+    #[default]
     Pending,
     /// Currently executing.
     Running,
@@ -26,17 +27,12 @@ pub enum RunStatus {
     Aborted,
 }
 
-impl Default for RunStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
-}
-
 /// Status of a batch within a run.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HistoryBatchStatus {
     /// Waiting to start.
+    #[default]
     Pending,
     /// Currently executing.
     Running,
@@ -44,12 +40,6 @@ pub enum HistoryBatchStatus {
     Completed,
     /// Execution failed.
     Failed,
-}
-
-impl Default for HistoryBatchStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
 }
 
 /// Summary statistics for a run (for quick display).
@@ -121,7 +111,7 @@ impl BatchResult {
     pub fn complete(&mut self, branch: Option<&str>) {
         self.status = HistoryBatchStatus::Completed;
         self.ended_at = Some(Utc::now());
-        self.branch = branch.map(|s| s.to_string());
+        self.branch = branch.map(std::string::ToString::to_string);
     }
 
     /// Mark batch as failed

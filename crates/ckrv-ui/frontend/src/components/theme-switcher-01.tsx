@@ -35,12 +35,14 @@ export default function ThemeSwitcher() {
     // Check localStorage first (source of truth)
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsDark(savedTheme === "dark");
     } else {
       // Fall back to document class or system preference
       const root = document.documentElement;
       const isDarkMode = root.classList.contains("dark") ||
         (!root.classList.contains("light") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+       
       setIsDark(isDarkMode);
     }
   }, []);

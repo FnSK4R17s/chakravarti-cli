@@ -8,9 +8,9 @@ use crate::state::AppState;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 
-// ============================================================================
+// ============================================================
 // Request/Response Types
-// ============================================================================
+// ============================================================
 
 /// Test run request.
 #[derive(Debug, Deserialize)]
@@ -255,17 +255,15 @@ pub struct AsyncStatusResponse {
     pub message: Option<String>,
 }
 
-// ============================================================================
+// ============================================================
 // Handlers
-// ============================================================================
+// ============================================================
 
 /// Run tests.
-pub async fn run_tests_handler(
+pub fn run_tests_handler(
     state: &AppState,
-    request: RunTestsRequest,
+    _request: RunTestsRequest,
 ) -> Result<TestRunResponse, TransportError> {
-    let mut args = vec!["verify", "--test"];
-
     // Detect test runner based on project type
     // For now, try npm test as a default
     let output = Command::new("npm")
@@ -295,7 +293,7 @@ pub async fn run_tests_handler(
 }
 
 /// Get test writer agent.
-pub async fn get_test_writer_agent_handler(
+pub fn get_test_writer_agent_handler(
     state: &AppState,
 ) -> Result<Option<TestWriterAgentInfo>, TransportError> {
     let agents = load_agents(state);
@@ -528,7 +526,7 @@ pub async fn write_tests_handler(
 /// Get test coverage.
 pub async fn get_coverage_handler(state: &AppState) -> Result<CoverageInfo, TransportError> {
     // Try to run coverage command
-    let output = tokio::process::Command::new("npm")
+    let _output = tokio::process::Command::new("npm")
         .args(["run", "coverage", "--", "--json"])
         .current_dir(&state.project_root)
         .output()
@@ -607,9 +605,7 @@ pub async fn fix_tests_handler(
 }
 
 /// Get test plan status (async operation status).
-pub async fn get_plan_status_handler(
-    _state: &AppState,
-) -> Result<AsyncStatusResponse, TransportError> {
+pub fn get_plan_status_handler(_state: &AppState) -> Result<AsyncStatusResponse, TransportError> {
     // Would check for running plan operation
     Ok(AsyncStatusResponse {
         status: "idle".to_string(),
@@ -619,9 +615,7 @@ pub async fn get_plan_status_handler(
 }
 
 /// Get test write status (async operation status).
-pub async fn get_write_status_handler(
-    _state: &AppState,
-) -> Result<AsyncStatusResponse, TransportError> {
+pub fn get_write_status_handler(_state: &AppState) -> Result<AsyncStatusResponse, TransportError> {
     // Would check for running write operation
     Ok(AsyncStatusResponse {
         status: "idle".to_string(),
@@ -630,9 +624,9 @@ pub async fn get_write_status_handler(
     })
 }
 
-// ============================================================================
+// ============================================================
 // Tests
-// ============================================================================
+// ============================================================
 
 #[cfg(test)]
 mod tests {
@@ -642,7 +636,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_test_writer_agent_handler() {
         let state = AppState::new(PathBuf::from("/tmp/test-tests"));
-        let result = get_test_writer_agent_handler(&state).await;
+        let result = get_test_writer_agent_handler(&state);
         assert!(result.is_ok());
     }
 }

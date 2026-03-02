@@ -2,10 +2,18 @@
 //!
 //! Handler for system status endpoint.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::error::TransportError;
 use crate::state::{AppState, SystemStatus};
 use std::path::Path;
 use std::process::Command;
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 /// Detect the current git branch for a given project root.
 fn detect_git_branch(project_root: &Path) -> Option<String> {
@@ -87,6 +95,10 @@ pub async fn get_status_handler(state: &AppState) -> Result<SystemStatus, Transp
 
     Ok(status)
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

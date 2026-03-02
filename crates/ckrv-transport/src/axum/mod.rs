@@ -21,6 +21,10 @@
 //! axum::serve(listener, router).await?;
 //! ```
 
+// ============================================================
+// MODULES
+// ============================================================
+
 pub mod agents;
 pub mod cloud;
 pub mod commands;
@@ -40,8 +44,16 @@ pub mod tasks;
 pub mod terminal;
 pub mod test;
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::state::AppState;
 use axum::Router;
+
+// ============================================================
+// FUNCTIONS
+// ============================================================
 
 /// Create the API router with all routes configured.
 ///
@@ -59,7 +71,6 @@ use axum::Router;
 ///     .nest("/api", create_router(state.clone()))
 ///     .with_state(state);
 /// ```
-#[must_use]
 pub fn create_router(state: AppState) -> Router<AppState> {
     Router::new()
         // Status routes
@@ -105,7 +116,6 @@ pub fn create_router(state: AppState) -> Router<AppState> {
 ///
 /// This is a convenience function that wraps `create_router` with
 /// permissive CORS settings for development.
-#[must_use]
 pub fn create_router_with_cors(state: AppState) -> Router<AppState> {
     use tower_http::cors::{Any, CorsLayer};
 

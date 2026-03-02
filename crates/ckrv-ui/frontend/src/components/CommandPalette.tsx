@@ -53,11 +53,13 @@ interface CommandResultContextType {
     setLastResult: (result: { command: string; result: { success: boolean; message?: string } } | null) => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const CommandResultContext = createContext<CommandResultContextType>({
     lastResult: null,
     setLastResult: () => { },
 });
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useCommandResult = () => useContext(CommandResultContext);
 
 // ============================================================

@@ -776,6 +776,7 @@ export default function PlanEditor() {
         }
     }, [planData]);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const batches = editableBatches.length > 0 ? editableBatches : (planData?.batches || []);
     const models = useMemo(() => modelsData?.models || [], [modelsData]);
 

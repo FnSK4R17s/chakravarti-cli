@@ -1,4 +1,8 @@
 //! Fix command - use AI to fix verification errors.
+#![allow(clippy::format_push_string)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::unwrap_used)]
 
 // ============================================================
 // IMPORTS
@@ -55,12 +59,14 @@ pub struct FixOutput {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct VerifyOutput {
     success: bool,
     checks: Vec<CheckResult>,
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct CheckResult {
     name: String,
     passed: bool,
@@ -253,6 +259,7 @@ fn gather_verification_errors(cwd: &PathBuf, args: &FixArgs) -> anyhow::Result<V
     Ok(errors)
 }
 
+#[allow(clippy::unnecessary_wraps, clippy::ptr_arg)]
 fn build_fix_prompt(cwd: &PathBuf, errors: &[String]) -> anyhow::Result<String> {
     let mut prompt = String::new();
 
@@ -287,19 +294,21 @@ fn build_fix_prompt(cwd: &PathBuf, errors: &[String]) -> anyhow::Result<String> 
     Ok(prompt)
 }
 
+#[allow(dead_code)]
 struct FixResult {
     success: bool,
     fixes_applied: usize,
     message: String,
 }
 
+#[allow(clippy::unused_async, clippy::ptr_arg)]
 async fn run_claude_fix(cwd: &PathBuf, prompt: &str, json: bool) -> anyhow::Result<FixResult> {
     // Check if claude CLI is available
     let claude_check = std::process::Command::new("claude")
         .arg("--version")
         .output();
 
-    if claude_check.is_err() || !claude_check.unwrap().status.success() {
+    if !claude_check.as_ref().is_ok_and(|o| o.status.success()) {
         return Ok(FixResult {
             success: false,
             fixes_applied: 0,

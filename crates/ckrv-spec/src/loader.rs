@@ -61,7 +61,7 @@ impl SpecLoader for YamlSpecLoader {
             let path = entry.path();
             if path
                 .extension()
-                .map_or(false, |ext| ext == "yaml" || ext == "yml")
+                .is_some_and(|ext| ext == "yaml" || ext == "yml")
             {
                 specs.push(path);
             }
@@ -90,13 +90,10 @@ mod tests {
     fn test_load_valid_yaml_spec() {
         let dir = TempDir::new().expect("temp dir");
         let content = r#"id: test_spec
-goal: Test goal
+overview: Test goal
 
 constraints:
   - Constraint 1
-
-acceptance:
-  - Criterion 1
 "#;
         let path = create_spec_file(dir.path(), "test.yaml", content);
 
@@ -104,18 +101,15 @@ acceptance:
         let spec = loader.load(&path).expect("load spec");
 
         assert_eq!(spec.id, "test_spec");
-        assert_eq!(spec.goal, "Test goal");
+        assert_eq!(spec.overview, Some("Test goal".to_string()));
         assert_eq!(spec.constraints.len(), 1);
-        assert_eq!(spec.acceptance.len(), 1);
     }
 
     #[test]
     fn test_load_sets_source_path() {
         let dir = TempDir::new().expect("temp dir");
         let content = r#"id: test
-goal: Goal
-acceptance:
-  - Accepts
+overview: Goal
 "#;
         let path = create_spec_file(dir.path(), "spec.yaml", content);
 
@@ -150,16 +144,8 @@ acceptance:
     #[test]
     fn test_list_finds_yaml_files() {
         let dir = TempDir::new().expect("temp dir");
-        create_spec_file(
-            dir.path(),
-            "one.yaml",
-            "id: one\ngoal: G\nacceptance:\n  - A",
-        );
-        create_spec_file(
-            dir.path(),
-            "two.yml",
-            "id: two\ngoal: G\nacceptance:\n  - A",
-        );
+        create_spec_file(dir.path(), "one.yaml", "id: one\noverview: G");
+        create_spec_file(dir.path(), "two.yml", "id: two\noverview: G");
         create_spec_file(dir.path(), "not_a_spec.txt", "text file");
 
         let loader = YamlSpecLoader;

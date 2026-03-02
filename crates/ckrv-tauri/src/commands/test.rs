@@ -8,9 +8,9 @@ use crate::SharedState;
 use ckrv_transport::handlers::test::{
     create_test_plan_handler, fix_tests_handler, generate_tests_handler, get_coverage_handler,
     get_plan_status_handler, get_test_writer_agent_handler, get_write_status_handler,
-    run_tests_handler, write_tests_handler, AsyncStatusResponse, CoverageInfo,
-    GenerateTestsRequest, GenerateTestsResponse, RunTestsRequest, TestFixRequest, TestFixResponse,
-    TestPlanRequest, TestRunResponse, TestWriteRequest, TestWriterAgentInfo,
+    run_tests_handler, write_tests_handler, GenerateTestsRequest, GenerateTestsResponse,
+    RunTestsRequest, TestFixRequest, TestFixResponse, TestPlanRequest, TestWriteRequest,
+    TestWriterAgentInfo,
 };
 use serde::Serialize;
 use tauri::State;
@@ -195,7 +195,6 @@ pub struct WriteStatusWrapped {
 pub async fn get_test_agent(state: State<'_, SharedState>) -> Result<TestAgentWrapped, String> {
     let app_state = state.read().await;
     get_test_writer_agent_handler(&app_state)
-        .await
         .map(|agent| TestAgentWrapped { agent })
         .map_err(|e| e.to_string())
 }
@@ -218,9 +217,7 @@ pub async fn run_tests(
             framework,
             watch: watch.unwrap_or(false),
         },
-    )
-    .await
-    {
+    ) {
         Ok(response) => {
             let result = TestRunResponseData {
                 total: response.summary.total,
@@ -406,7 +403,7 @@ pub async fn fix_tests(
 #[tauri::command]
 pub async fn get_plan_status(state: State<'_, SharedState>) -> Result<PlanStatusWrapped, String> {
     let app_state = state.read().await;
-    match get_plan_status_handler(&app_state).await {
+    match get_plan_status_handler(&app_state) {
         Ok(status) => {
             // Check if status indicates a plan exists
             let exists = status.status != "idle";
@@ -423,7 +420,7 @@ pub async fn get_plan_status(state: State<'_, SharedState>) -> Result<PlanStatus
 #[tauri::command]
 pub async fn get_write_status(state: State<'_, SharedState>) -> Result<WriteStatusWrapped, String> {
     let app_state = state.read().await;
-    match get_write_status_handler(&app_state).await {
+    match get_write_status_handler(&app_state) {
         Ok(status) => {
             let exists = status.status != "idle";
             Ok(WriteStatusWrapped {

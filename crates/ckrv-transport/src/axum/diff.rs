@@ -18,7 +18,7 @@ async fn get_diff(
     State(state): State<AppState>,
     Query(query): Query<DiffQuery>,
 ) -> impl IntoResponse {
-    match get_diff_handler(&state, query).await {
+    match get_diff_handler(&state, query) {
         Ok(diff) => Json(diff).into_response(),
         Err(e) => e.into_response(),
     }
@@ -26,7 +26,7 @@ async fn get_diff(
 
 /// Get branches for diff.
 async fn get_branches(State(state): State<AppState>) -> impl IntoResponse {
-    match get_branches_handler(&state).await {
+    match get_branches_handler(&state) {
         Ok(branches) => Json(branches).into_response(),
         Err(e) => e.into_response(),
     }

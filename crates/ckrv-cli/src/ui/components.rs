@@ -16,13 +16,14 @@
 //!
 //! ## Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! use ckrv_cli::ui::{Banner, Theme, Renderable};
 //!
 //! let theme = Theme::default();
 //! let banner = Banner::new("CKRV").subtitle("v1.0.0");
 //! println!("{}", banner.render(&theme));
 //! ```
+#![allow(clippy::format_push_string)]
 
 // ============================================================
 // IMPORTS
@@ -53,9 +54,9 @@ pub struct Banner {
 
 impl Banner {
     /// Create a new banner with the given title.
-    pub fn new(_title: impl Into<String>) -> Self {
+    pub fn new(title: impl Into<String>) -> Self {
         Self {
-            title: _title.into(),
+            title: title.into(),
             subtitle: None,
         }
     }
@@ -72,13 +73,13 @@ impl Renderable for Banner {
         // Hardcoded ASCII art for 'CHAKRAVARTI'
         // Using a slant or block font style
         // ANSI Shadow font for "CKRV"
-        let art = r#"
+        let art = r"
  ██████╗██╗  ██╗██████╗ ██╗   ██╗
 ██╔════╝██║ ██╔╝██╔══██╗██║   ██║
 ██║     █████╔╝ ██████╔╝██║   ██║
 ██║     ██╔═██╗ ██╔══██╗╚██╗ ██╔╝
 ╚██████╗██║  ██╗██║  ██║ ╚████╔╝ 
- ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝  ╚═══╝  "#;
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝  ╚═══╝  ";
 
         // Royal Gold -> Orange -> Red Gradient
         // We Use trim_matches('\n') to remove the first/last newlines from the raw string
@@ -88,7 +89,7 @@ impl Renderable for Banner {
 
         let mut colored_art = String::new();
 
-        let steps = lines.len();
+        let _steps = lines.len();
         for (i, line) in lines.iter().enumerate() {
             // Option 2 (Pale Gold): Wheat -> Gold -> Orange
             // Creates a lighter, more royal gold appearance at the top

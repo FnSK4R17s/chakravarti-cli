@@ -72,6 +72,7 @@ struct StepReport {
 // ============================================================
 
 /// Execute the report command.
+#[allow(clippy::unused_async)]
 pub async fn execute(args: ReportArgs, json: bool) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
@@ -207,19 +208,17 @@ pub async fn execute(args: ReportArgs, json: bool) -> anyhow::Result<()> {
                 std::process::exit(1);
             }
         }
+    } else if json {
+        let output = serde_json::json!({
+            "job_id": args.job_id,
+            "error": "Metrics not found"
+        });
+        println!("{}", serde_json::to_string_pretty(&output)?);
     } else {
-        if json {
-            let output = serde_json::json!({
-                "job_id": args.job_id,
-                "error": "Metrics not found"
-            });
-            println!("{}", serde_json::to_string_pretty(&output)?);
-        } else {
-            println!("Report for job: {}", args.job_id);
-            println!();
-            println!("No metrics found for this job.");
-            println!("Run `ckrv status {}` to check the job status.", args.job_id);
-        }
+        println!("Report for job: {}", args.job_id);
+        println!();
+        println!("No metrics found for this job.");
+        println!("Run `ckrv status {}` to check the job status.", args.job_id);
     }
 
     Ok(())

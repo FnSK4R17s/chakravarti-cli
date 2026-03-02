@@ -79,6 +79,7 @@ export function useAutoSelectedSpec(): {
     });
 
     const activeBranch = status?.active_branch ?? null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const specs = specsData?.specs ?? [];
 
     // Auto-select spec based on branch name

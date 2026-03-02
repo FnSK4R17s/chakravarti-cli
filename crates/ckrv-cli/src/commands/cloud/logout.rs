@@ -11,6 +11,7 @@ pub struct LogoutArgs {
 }
 
 /// Execute the logout command
+#[allow(clippy::unused_async)]
 pub async fn execute(args: LogoutArgs, ui: &crate::ui::UiContext) -> anyhow::Result<()> {
     if !args.force {
         println!("This will clear your stored cloud credentials.");

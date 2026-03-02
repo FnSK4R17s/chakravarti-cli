@@ -1,6 +1,6 @@
 ---
-last_commit: 8683b85
-last_updated: 2026-02-27
+last_commit: 2a2da7f
+last_updated: 2026-03-02
 related_files:
   - crates/ckrv-transport/src/types/agents.rs
   - crates/ckrv-transport/src/handlers/agents.rs

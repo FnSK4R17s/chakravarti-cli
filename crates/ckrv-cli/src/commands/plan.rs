@@ -1,4 +1,6 @@
 //! Plan command - generate execution plan using Claude Code in Docker.
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::similar_names)]
 //!
 //! This command analyzes tasks.yaml and creates plan.yaml
 //! using Claude Code running inside a Docker container.
@@ -240,7 +242,7 @@ async fn execute_planning_docker(
     }
 
     // Escape the prompt for shell
-    let escaped_prompt = prompt.replace("'", "'\\''");
+    let escaped_prompt = prompt.replace('\'', "'\\''");
 
     // Build Claude command - use --print for non-interactive mode
     // --dangerously-skip-permissions allows file writes without prompting

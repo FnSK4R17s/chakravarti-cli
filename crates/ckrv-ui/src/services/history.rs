@@ -45,7 +45,7 @@ impl HistoryService {
         }
 
         let content = fs::read_to_string(&path)
-            .with_context(|| format!("Failed to read history file: {:?}", path))?;
+            .with_context(|| format!("Failed to read history file: {}", path.display()))?;
 
         // Graceful degradation: return empty history on parse error
         match serde_yaml::from_str::<RunHistory>(&content) {
@@ -63,11 +63,16 @@ impl HistoryService {
     /// Save run history with atomic write (temp file + rename).
     pub fn save_history(&self, history: &RunHistory) -> Result<()> {
         let path = self.runs_file_path(&history.spec_name);
-        let spec_dir = path.parent().unwrap();
+        let spec_dir = path
+            .parent()
+            .ok_or_else(|| anyhow!("History file path has no parent directory"))?;
 
         // Ensure directory exists
         if !spec_dir.exists() {
-            return Err(anyhow!("Spec directory does not exist: {:?}", spec_dir));
+            return Err(anyhow!(
+                "Spec directory does not exist: {}",
+                spec_dir.display()
+            ));
         }
 
         // Serialize to YAML

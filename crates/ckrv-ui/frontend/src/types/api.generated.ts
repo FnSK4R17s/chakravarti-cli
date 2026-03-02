@@ -5,7 +5,6 @@
 // Generated at: 2026-02-04T14:04:03.243620449+00:00
 // =============================================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
 // === Common Types ===

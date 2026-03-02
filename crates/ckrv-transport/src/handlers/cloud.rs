@@ -2,10 +2,18 @@
 //!
 //! Handler for cloud service status.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::error::TransportError;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Cloud service status.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,10 +48,14 @@ struct StoredTokens {
     expires_at: Option<i64>,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 /// Get cloud service status.
 ///
 /// Returns the current status of cloud services (if configured).
-pub async fn get_cloud_status_handler() -> Result<CloudStatus, TransportError> {
+pub fn get_cloud_status_handler() -> Result<CloudStatus, TransportError> {
     Ok(check_cloud_auth())
 }
 
@@ -56,15 +68,12 @@ fn get_token_file_path() -> Option<PathBuf> {
 /// Check cloud authentication status.
 fn check_cloud_auth() -> CloudStatus {
     // Check if token file exists
-    let token_path = match get_token_file_path() {
-        Some(path) => path,
-        None => {
-            return CloudStatus {
-                authenticated: false,
-                email: None,
-                message: "Could not find config directory".to_string(),
-            };
-        }
+    let Some(token_path) = get_token_file_path() else {
+        return CloudStatus {
+            authenticated: false,
+            email: None,
+            message: "Could not find config directory".to_string(),
+        };
     };
 
     if !token_path.exists() {
@@ -72,8 +81,13 @@ fn check_cloud_auth() -> CloudStatus {
     }
 
     // Try to read and parse the tokens
-    match fs::read_to_string(&token_path) {
-        Ok(json) => match serde_json::from_str::<StoredTokens>(&json) {
+    fs::read_to_string(&token_path).map_or_else(
+        |_| CloudStatus {
+            authenticated: false,
+            email: None,
+            message: "Could not read token file".to_string(),
+        },
+        |json| match serde_json::from_str::<StoredTokens>(&json) {
             Ok(tokens) => {
                 // Try to extract email from JWT payload
                 let email = extract_email_from_jwt(&tokens.access_token);
@@ -90,12 +104,7 @@ fn check_cloud_auth() -> CloudStatus {
                 message: "Invalid token format".to_string(),
             },
         },
-        Err(_) => CloudStatus {
-            authenticated: false,
-            email: None,
-            message: "Could not read token file".to_string(),
-        },
-    }
+    )
 }
 
 /// Extract email from JWT access token (without verification - just for display).
@@ -114,7 +123,7 @@ fn extract_email_from_jwt(token: &str) -> Option<String> {
     let json: serde_json::Value = serde_json::from_slice(&decoded).ok()?;
     json.get("email")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 /// Decode base64url encoded string.
@@ -134,13 +143,17 @@ fn base64_url_decode(input: &str) -> Option<Vec<u8>> {
     BASE64_STANDARD.decode(&standard).ok()
 }
 
+// ============================================================
+// TESTS
+// ============================================================
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
     async fn test_get_cloud_status_handler() {
-        let result = get_cloud_status_handler().await;
+        let result = get_cloud_status_handler();
         assert!(result.is_ok());
     }
 

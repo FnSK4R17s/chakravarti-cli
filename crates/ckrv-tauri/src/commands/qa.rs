@@ -7,7 +7,7 @@
 use crate::SharedState;
 use ckrv_transport::handlers::qa::{
     get_qa_agent_handler, run_bugs_handler, run_report_handler, run_review_handler, QAAgentInfo,
-    QABugsRequest, QAIssue, QAReportRequest, QAReportResponse, QAReviewOutput, QAReviewRequest,
+    QABugsRequest, QAIssue, QAReportRequest, QAReviewOutput, QAReviewRequest,
 };
 use serde::Serialize;
 use tauri::State;
@@ -67,7 +67,6 @@ pub struct QAReportWrapped {
 pub async fn get_qa_agent(state: State<'_, SharedState>) -> Result<QAAgentWrapped, String> {
     let app_state = state.read().await;
     get_qa_agent_handler(&app_state)
-        .await
         .map(|agent| QAAgentWrapped { agent })
         .map_err(|e| e.to_string())
 }

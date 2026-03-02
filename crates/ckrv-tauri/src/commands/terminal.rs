@@ -28,6 +28,7 @@ pub struct TerminalSession {
     /// Container ID running the session
     pub container_id: String,
     /// Session ID
+    #[allow(dead_code)]
     pub session_id: String,
 }
 
@@ -331,7 +332,7 @@ pub async fn terminal_start(
     // Build environment from agent config
     let env = agent
         .as_ref()
-        .map(|a| agent_to_sandbox_config(a))
+        .map(agent_to_sandbox_config)
         .unwrap_or_default();
 
     // Create session container

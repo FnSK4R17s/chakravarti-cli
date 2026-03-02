@@ -77,6 +77,8 @@ pub struct BoxChars {
 
 impl Default for Theme {
     fn default() -> Self {
+        use termimad::crossterm::style::{Attribute, Color as CColor};
+
         // Option A: Hardcoded Premium Theme
         // We use a distinct palette inspired by modern CLIs
 
@@ -102,7 +104,6 @@ impl Default for Theme {
 
         let mut skin = MadSkin::default();
         // Map to crossterm colors for Termimad
-        use termimad::crossterm::style::{Attribute, Color as CColor};
         let p_cc = CColor::Magenta;
         let s_cc = CColor::Cyan;
 

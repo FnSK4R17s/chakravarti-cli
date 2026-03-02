@@ -94,7 +94,13 @@ where
 }
 
 /// Fetch historical logs (non-streaming)
+#[allow(dead_code)]
 pub async fn fetch_logs(job_id: &str) -> Result<Vec<LogEntry>, CloudError> {
+    #[derive(serde::Deserialize)]
+    struct LogsResponse {
+        logs: Vec<LogEntry>,
+    }
+
     let config = CloudConfig::load();
     let token = get_access_token()?;
 
@@ -114,11 +120,6 @@ pub async fn fetch_logs(job_id: &str) -> Result<Vec<LogEntry>, CloudError> {
             "HTTP {}: {}",
             status, message
         )));
-    }
-
-    #[derive(serde::Deserialize)]
-    struct LogsResponse {
-        logs: Vec<LogEntry>,
     }
 
     let logs_response: LogsResponse = response

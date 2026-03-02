@@ -18,9 +18,9 @@ mod gemini;
 mod kilo;
 mod opencode;
 mod qwen;
-mod vibe;
 #[cfg(test)]
 mod tests;
+mod vibe;
 
 pub use amp::AmpProvider;
 pub use claude::ClaudeProvider;
@@ -76,7 +76,7 @@ impl AgentType {
     /// # Arguments
     ///
     /// * `s` - String identifier such as "claude", "codex", or "kilo".
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "claude" | "claude-code" => Some(Self::Claude),
             "codex" | "openai" | "openai-codex" => Some(Self::Codex),

@@ -2,6 +2,13 @@
 //!
 //! This command initiates a multi-step workflow (like Plan -> Implement)
 //! using an AI agent in a sandboxed environment.
+#![allow(clippy::option_if_let_else)]
+#![allow(clippy::manual_let_else)]
+#![allow(clippy::items_after_statements)]
+
+// ============================================================
+// IMPORTS
+// ============================================================
 
 use std::path::PathBuf;
 
@@ -14,6 +21,10 @@ use ckrv_core::{
 };
 
 use crate::ui::UiContext;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the task command.
 #[derive(Args)]
@@ -54,6 +65,7 @@ pub struct TaskArgs {
 /// JSON output events for task execution.
 #[derive(Serialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
+#[allow(dead_code)]
 enum TaskEvent {
     Started {
         task_id: String,
@@ -85,6 +97,10 @@ enum TaskEvent {
         message: String,
     },
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 fn emit_event(event: &TaskEvent, json: bool) {
     if json {
@@ -210,32 +226,18 @@ pub async fn execute(args: TaskArgs, json: bool, ui: &UiContext) -> anyhow::Resu
     } else if args.dry_run {
         // Skip worktree creation on dry run
         cwd.clone()
-    } else {
-        match DefaultWorktreeManager::new(&cwd) {
-            Ok(manager) => {
-                // Create worktree for this task
-                match manager.create(&task_id, "1") {
-                    Ok(worktree) => {
-                        if !json {
-                            eprintln!("Created git worktree at {}", worktree.path.display());
-                        }
-                        worktree.path
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = %e, "Could not create worktree, using simple directory");
-                        // Fall back to simple directory
-                        let path = cwd
-                            .join(".ckrv")
-                            .join("tasks")
-                            .join(&task_id)
-                            .join("workspace");
-                        std::fs::create_dir_all(&path)?;
-                        path
-                    }
+    } else if let Ok(manager) = DefaultWorktreeManager::new(&cwd) {
+        // Create worktree for this task
+        match manager.create(&task_id, "1") {
+            Ok(worktree) => {
+                if !json {
+                    eprintln!("Created git worktree at {}", worktree.path.display());
                 }
+                worktree.path
             }
-            Err(_) => {
-                // Not a git repo, use simple directory
+            Err(e) => {
+                tracing::warn!(error = %e, "Could not create worktree, using simple directory");
+                // Fall back to simple directory
                 let path = cwd
                     .join(".ckrv")
                     .join("tasks")
@@ -245,6 +247,15 @@ pub async fn execute(args: TaskArgs, json: bool, ui: &UiContext) -> anyhow::Resu
                 path
             }
         }
+    } else {
+        // Not a git repo, use simple directory
+        let path = cwd
+            .join(".ckrv")
+            .join("tasks")
+            .join(&task_id)
+            .join("workspace");
+        std::fs::create_dir_all(&path)?;
+        path
     };
 
     let mut task = AgentTask::new(&task_id, &description, &workflow.name, worktree_path);

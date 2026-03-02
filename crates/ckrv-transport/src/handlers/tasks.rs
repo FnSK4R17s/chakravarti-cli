@@ -10,9 +10,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-// ============================================================================
+// ============================================================
 // Internal Types (matching tasks.yaml structure)
-// ============================================================================
+// ============================================================
 
 /// Full task structure from tasks.yaml.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -68,9 +68,9 @@ struct TasksOutput {
     tasks: Vec<TaskFile>,
 }
 
-// ============================================================================
+// ============================================================
 // Path Utilities
-// ============================================================================
+// ============================================================
 
 /// Get the specs directory path for a project.
 fn get_specs_dir(project_root: &Path) -> PathBuf {
@@ -101,12 +101,12 @@ fn get_current_branch(project_root: &Path) -> String {
         .unwrap_or_default()
 }
 
-// ============================================================================
+// ============================================================
 // Handlers
-// ============================================================================
+// ============================================================
 
 /// List tasks for a spec.
-pub async fn list_tasks_handler(
+pub fn list_tasks_handler(
     state: &AppState,
     spec_name: Option<String>,
 ) -> Result<ListTasksResponse, TransportError> {
@@ -154,7 +154,7 @@ pub async fn list_tasks_handler(
 }
 
 /// Get a single task.
-pub async fn get_task_handler(
+pub fn get_task_handler(
     state: &AppState,
     spec_name: String,
     task_id: String,
@@ -218,7 +218,7 @@ pub async fn get_task_handler(
 }
 
 /// Update a task.
-pub async fn update_task_handler(
+pub fn update_task_handler(
     state: &AppState,
     spec_name: String,
     task_id: String,
@@ -258,7 +258,10 @@ pub async fn update_task_handler(
         .map_err(|e| TransportError::Internal(format!("Failed to write tasks: {e}")))?;
 
     // Return updated task
-    let task = tasks.into_iter().find(|t| t.id == task_id).unwrap();
+    let task = tasks
+        .into_iter()
+        .find(|t| t.id == task_id)
+        .ok_or_else(|| TransportError::NotFound(format!("Task not found: {task_id}")))?;
 
     Ok(TaskDetail {
         id: task.id,
@@ -300,9 +303,9 @@ pub async fn update_task_handler(
     })
 }
 
-// ============================================================================
+// ============================================================
 // Helpers
-// ============================================================================
+// ============================================================
 
 /// Parse tasks from YAML content.
 fn parse_tasks_yaml(content: &str) -> Vec<TaskFile> {
@@ -315,11 +318,11 @@ fn parse_tasks_yaml(content: &str) -> Vec<TaskFile> {
 /// Parse status string to enum.
 fn parse_status(status: &str) -> TaskStatus {
     match status.to_lowercase().as_str() {
-        "pending" => TaskStatus::Pending,
         "running" | "in_progress" => TaskStatus::InProgress,
         "completed" | "done" => TaskStatus::Completed,
         "failed" => TaskStatus::Failed,
         "skipped" => TaskStatus::Skipped,
+        // "pending" and any unrecognized status
         _ => TaskStatus::Pending,
     }
 }
@@ -329,17 +332,16 @@ fn status_to_string(status: &TaskStatus) -> String {
     match status {
         TaskStatus::Pending => "pending".to_string(),
         TaskStatus::Queued => "queued".to_string(),
-        TaskStatus::Running => "running".to_string(),
-        TaskStatus::InProgress => "running".to_string(),
+        TaskStatus::Running | TaskStatus::InProgress => "running".to_string(),
         TaskStatus::Completed => "completed".to_string(),
         TaskStatus::Failed => "failed".to_string(),
         TaskStatus::Skipped => "skipped".to_string(),
     }
 }
 
-// ============================================================================
+// ============================================================
 // Tests
-// ============================================================================
+// ============================================================
 
 #[cfg(test)]
 mod tests {

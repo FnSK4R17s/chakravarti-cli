@@ -10,7 +10,7 @@ use axum::{Json, Router};
 
 /// Check Docker status.
 async fn check_docker() -> impl IntoResponse {
-    match check_docker_handler().await {
+    match check_docker_handler() {
         Ok(status) => Json(status).into_response(),
         Err(e) => e.into_response(),
     }

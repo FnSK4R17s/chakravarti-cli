@@ -268,10 +268,10 @@ mod tests {
             "ckrv_report should be hidden"
         );
 
-        // But ckrv_spec_tasks should be visible
+        // But ckrv_code_spec_tasks should be visible (spec is nested under code)
         assert!(
-            names.contains(&"ckrv_spec_tasks"),
-            "ckrv_spec_tasks should be visible"
+            names.contains(&"ckrv_code_spec_tasks"),
+            "ckrv_code_spec_tasks should be visible"
         );
     }
 
@@ -290,6 +290,8 @@ mod tests {
             path: vec![],
             name: "list".to_string(),
             description: "List items".to_string(),
+            long_description: None,
+            after_help: None,
             arguments: vec![],
             options: vec![],
             hidden: false,
@@ -307,6 +309,8 @@ mod tests {
             path: vec![],
             name: "new".to_string(),
             description: "Create new".to_string(),
+            long_description: None,
+            after_help: None,
             arguments: vec![],
             options: vec![],
             hidden: false,

@@ -17,9 +17,9 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "typescript")]
 use ts_rs::TS;
 
-// ============================================================================
+// ============================================================
 // Types
-// ============================================================================
+// ============================================================
 
 /// Example request type.
 #[derive(Debug, Clone, Deserialize)]
@@ -45,9 +45,9 @@ pub struct ExampleResponse {
     pub timestamp: String,
 }
 
-// ============================================================================
+// ============================================================
 // Handler
-// ============================================================================
+// ============================================================
 
 /// Handle example request.
 ///
@@ -68,7 +68,7 @@ pub struct ExampleResponse {
 /// # Errors
 ///
 /// Returns `TransportError::BadRequest` if name is empty.
-pub async fn example_handler(
+pub fn example_handler(
     state: &AppState,
     request: ExampleRequest,
 ) -> Result<ExampleResponse, TransportError> {
@@ -98,7 +98,7 @@ pub async fn example_handler(
 /// Get example info (no request body).
 ///
 /// This shows a handler that takes no request body.
-pub async fn get_example_info_handler(state: &AppState) -> Result<ExampleResponse, TransportError> {
+pub fn get_example_info_handler(state: &AppState) -> Result<ExampleResponse, TransportError> {
     Ok(ExampleResponse {
         greeting: "Welcome to the example endpoint!".to_string(),
         project_root: state.project_root.display().to_string(),
@@ -106,9 +106,9 @@ pub async fn get_example_info_handler(state: &AppState) -> Result<ExampleRespons
     })
 }
 
-// ============================================================================
+// ============================================================
 // Tests
-// ============================================================================
+// ============================================================
 
 #[cfg(test)]
 mod tests {
@@ -127,7 +127,7 @@ mod tests {
             message: None,
         };
 
-        let result = example_handler(&state, request).await;
+        let result = example_handler(&state, request);
         assert!(result.is_ok());
 
         let response = result.unwrap();
@@ -143,7 +143,7 @@ mod tests {
             message: Some("How are you?".to_string()),
         };
 
-        let result = example_handler(&state, request).await;
+        let result = example_handler(&state, request);
         assert!(result.is_ok());
 
         let response = result.unwrap();
@@ -159,7 +159,7 @@ mod tests {
             message: None,
         };
 
-        let result = example_handler(&state, request).await;
+        let result = example_handler(&state, request);
         assert!(result.is_err());
 
         match result {
@@ -173,7 +173,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_example_info() {
         let state = test_state();
-        let result = get_example_info_handler(&state).await;
+        let result = get_example_info_handler(&state);
         assert!(result.is_ok());
     }
 }

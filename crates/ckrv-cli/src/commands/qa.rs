@@ -1,4 +1,7 @@
 //! QA command - code review and bug analysis.
+#![allow(clippy::format_push_string)]
+#![allow(clippy::option_if_let_else)]
+#![allow(clippy::manual_let_else)]
 
 // ============================================================
 // IMPORTS
@@ -142,6 +145,7 @@ pub async fn execute(args: QaArgs, json: bool, ui: &UiContext) -> anyhow::Result
 }
 
 /// Execute QA review
+#[allow(clippy::unused_async)]
 async fn execute_review(
     base: &str,
     output: Option<String>,
@@ -158,16 +162,15 @@ async fn execute_review(
     }
 
     // Check for QA agent
-    let agent = match agent_lookup::find_qa_agent() {
-        Some(a) => a,
-        None => {
-            if json {
-                println!(r#"{{"error": "No QA agent configured", "exit_code": 4}}"#);
-            } else {
-                println!("{}", agent_lookup::qa_agent_missing_message());
-            }
-            std::process::exit(4);
+    let agent = if let Some(a) = agent_lookup::find_qa_agent() {
+        a
+    } else {
+        if json {
+            println!(r#"{{"error": "No QA agent configured", "exit_code": 4}}"#);
+        } else {
+            println!("{}", agent_lookup::qa_agent_missing_message());
         }
+        std::process::exit(4);
     };
 
     if !json {
@@ -240,6 +243,7 @@ async fn execute_review(
 }
 
 /// Execute bugs analysis
+#[allow(clippy::unused_async)]
 async fn execute_bugs(base: &str, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     if !json {
         println!(
@@ -251,16 +255,15 @@ async fn execute_bugs(base: &str, json: bool, ui: &UiContext) -> anyhow::Result<
     }
 
     // Check for QA agent
-    let agent = match agent_lookup::find_qa_agent() {
-        Some(a) => a,
-        None => {
-            if json {
-                println!(r#"{{"error": "No QA agent configured", "exit_code": 4}}"#);
-            } else {
-                println!("{}", agent_lookup::qa_agent_missing_message());
-            }
-            std::process::exit(4);
+    let agent = if let Some(a) = agent_lookup::find_qa_agent() {
+        a
+    } else {
+        if json {
+            println!(r#"{{"error": "No QA agent configured", "exit_code": 4}}"#);
+        } else {
+            println!("{}", agent_lookup::qa_agent_missing_message());
         }
+        std::process::exit(4);
     };
 
     if !json {
@@ -320,6 +323,7 @@ async fn execute_bugs(base: &str, json: bool, ui: &UiContext) -> anyhow::Result<
 }
 
 /// Execute full QA report
+#[allow(clippy::unused_async)]
 async fn execute_report(
     base: &str,
     full: bool,
@@ -337,16 +341,15 @@ async fn execute_report(
     }
 
     // Check for QA agent
-    let agent = match agent_lookup::find_qa_agent() {
-        Some(a) => a,
-        None => {
-            if json {
-                println!(r#"{{"error": "No QA agent configured", "exit_code": 4}}"#);
-            } else {
-                println!("{}", agent_lookup::qa_agent_missing_message());
-            }
-            std::process::exit(4);
+    let agent = if let Some(a) = agent_lookup::find_qa_agent() {
+        a
+    } else {
+        if json {
+            println!(r#"{{"error": "No QA agent configured", "exit_code": 4}}"#);
+        } else {
+            println!("{}", agent_lookup::qa_agent_missing_message());
         }
+        std::process::exit(4);
     };
 
     if !json {
@@ -408,7 +411,7 @@ async fn execute_report(
                     file.lines_removed
                 ));
             }
-            report.push_str("\n");
+            report.push('\n');
         }
 
         // Add standard QA report

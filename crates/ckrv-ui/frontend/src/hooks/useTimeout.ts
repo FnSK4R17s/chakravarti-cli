@@ -67,6 +67,7 @@ export function useTimeout(): UseTimeoutReturn {
             timeoutIdsRef.current.forEach(id => {
                 window.clearTimeout(id);
             });
+            // eslint-disable-next-line react-hooks/exhaustive-deps
             timeoutIdsRef.current.clear();
         };
     }, []);

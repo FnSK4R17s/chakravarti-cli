@@ -33,9 +33,17 @@ cargo run -p ckrv-cli -- --help
 
 `ckrv` invokes AI agents via their CLI tools—no API keys needed. Install the agents you want to use:
 
-- **Claude Code**: [claude.ai/code](https://claude.ai/code) (requires Claude subscription)
-- **Codex**: [OpenAI Codex CLI](https://github.com/openai/codex-cli) (requires OpenAI subscription)
-- **Kilo Code**: File-based auth supporting 30+ AI providers (Gemini, DeepSeek, Mistral, Qwen, etc.)
+- **Claude Code**: [claude.ai/code](https://claude.ai/code) (Claude subscription)
+- **Codex**: [OpenAI Codex CLI](https://github.com/openai/codex-cli) (OpenAI subscription)
+- **Kilo Code**: 30+ AI providers via file-based auth (`kilo auth`)
+- **Gemini CLI**: `GEMINI_API_KEY` + `~/.gemini/` config
+- **Cursor**: `~/.cursor/` config (Cursor subscription)
+- **Amp**: `~/.amp/` config (Amp authentication)
+- **Qwen Code**: `QWEN_API_KEY`
+- **Opencode**: `~/.config/opencode/` config
+- **Factory Droid**: `~/.factory/` config
+- **GitHub Copilot**: `~/.config/github-copilot/` (GitHub Copilot subscription)
+- **Mistral Vibe**: `MISTRAL_API_KEY`
 
 Configure agents in `~/.config/chakravarti/agents.yaml`:
 
@@ -47,7 +55,9 @@ agents:
   - name: codex
     agent_type: codex
   - name: kilo
-    agent_type: kilo
+    agent_type: kilo_code
+  - name: gemini
+    agent_type: gemini
 ```
 
 ## Project Structure

@@ -25,6 +25,10 @@
 //! ckrv term --list-sessions          # List all sessions
 //! ckrv term --cleanup fix-auth       # Remove a session
 //! ```
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::used_underscore_binding)]
 
 // ============================================================
 // IMPORTS
@@ -534,7 +538,7 @@ fn list_agents(_args: &TermArgs, json: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn list_sessions(args: &TermArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
+fn list_sessions(_args: &TermArgs, json: bool, _ui: &UiContext) -> anyhow::Result<()> {
     let sessions = get_all_sessions()?;
 
     if json {
@@ -1134,7 +1138,7 @@ async fn execute_in_sandbox(
         AgentType::MistralVibe => "/home/vibe",
         _ => "/home/claude",
     };
-    let mounts = agent_provider.config_mounts(&host_home, &container_home);
+    let mounts = agent_provider.config_mounts(&host_home, container_home);
 
     // Convert to BindMount
     let extra_mounts: Vec<BindMount> = mounts
@@ -1348,7 +1352,7 @@ fn post_session_prompt() -> anyhow::Result<PostAction> {
 
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("What would you like to do with the changes?")
-        .items(&items)
+        .items(items)
         .default(0)
         .interact()?;
 
@@ -1406,7 +1410,7 @@ fn prompt_commit_message(worktree: &Worktree, agent_name: &str) -> anyhow::Resul
 
     let choice = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Commit message")
-        .items(&items)
+        .items(items)
         .default(0)
         .interact()?;
 
@@ -1566,7 +1570,7 @@ fn prompt_for_options(agent_type: &AgentType) -> anyhow::Result<PromptResult> {
 
     let launch_choice = Select::with_theme(&theme)
         .with_prompt("Launch options")
-        .items(&["Launch directly", "Configure options..."])
+        .items(["Launch directly", "Configure options..."])
         .default(0)
         .interact()?;
 
@@ -1588,7 +1592,7 @@ fn prompt_for_options(agent_type: &AgentType) -> anyhow::Result<PromptResult> {
 
     let term_selections = MultiSelect::with_theme(&theme)
         .with_prompt("Isolation modes (Space to toggle, Enter to confirm)")
-        .items(&term_options)
+        .items(term_options)
         .interact()?;
 
     for idx in &term_selections {

@@ -10,6 +10,7 @@ use std::path::Path;
 pub struct GithubCopilotProvider;
 
 impl GithubCopilotProvider {
+    /// Create a new GitHub Copilot provider.
     pub fn new() -> Self {
         Self
     }

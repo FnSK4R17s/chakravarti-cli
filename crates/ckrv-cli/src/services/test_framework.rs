@@ -15,7 +15,7 @@ use serde::Serialize;
 // ============================================================
 
 /// Supported test frameworks.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TestFramework {
     Cargo,
     Npm,
@@ -29,12 +29,12 @@ impl TestFramework {
     /// Returns a human-readable name for the test framework.
     pub fn name(&self) -> &'static str {
         match self {
-            TestFramework::Cargo => "Cargo (Rust)",
-            TestFramework::Npm => "npm (Node.js)",
-            TestFramework::Pytest => "pytest (Python)",
-            TestFramework::GoTest => "go test (Go)",
-            TestFramework::Make => "make test",
-            TestFramework::Unknown => "Unknown",
+            Self::Cargo => "Cargo (Rust)",
+            Self::Npm => "npm (Node.js)",
+            Self::Pytest => "pytest (Python)",
+            Self::GoTest => "go test (Go)",
+            Self::Make => "make test",
+            Self::Unknown => "Unknown",
         }
     }
 }
@@ -171,6 +171,7 @@ pub fn get_test_command(framework: &TestFramework) -> (String, Vec<String>) {
 }
 
 /// Run tests locally (not in sandbox)
+#[allow(clippy::unused_async)]
 pub async fn run_tests_local(cwd: &Path) -> TestResult {
     let start = Instant::now();
     let framework = detect_framework(cwd);
@@ -188,10 +189,10 @@ pub async fn run_tests_local(cwd: &Path) -> TestResult {
 
             // Parse test counts from output (simplified)
             let (total, passed, failed) = parse_test_counts(&stdout, &stderr, &framework);
-            let failures = if !success {
-                parse_failures(&stdout, &stderr, &framework)
-            } else {
+            let failures = if success {
                 vec![]
+            } else {
+                parse_failures(&stdout, &stderr, &framework)
             };
 
             TestResult {
@@ -211,15 +212,15 @@ pub async fn run_tests_local(cwd: &Path) -> TestResult {
             // Provide helpful error messages based on the error type and framework
             let (error_msg, setup_hint) = match (e.kind(), &framework) {
                 (std::io::ErrorKind::NotFound, TestFramework::Npm) => (
-                    format!("Test command not found. npm is not installed or not in PATH."),
+                    "Test command not found. npm is not installed or not in PATH.".to_string(),
                     "Install Node.js and npm, then add a test script to package.json:\n  \"scripts\": { \"test\": \"jest\" }".to_string(),
                 ),
                 (std::io::ErrorKind::NotFound, TestFramework::Pytest) => (
-                    format!("pytest not found. Python testing is not configured."),
+                    "pytest not found. Python testing is not configured.".to_string(),
                     "Install pytest: pip install pytest".to_string(),
                 ),
                 (std::io::ErrorKind::NotFound, TestFramework::Cargo) => (
-                    format!("cargo not found. Rust is not installed."),
+                    "cargo not found. Rust is not installed.".to_string(),
                     "Install Rust: https://rustup.rs/".to_string(),
                 ),
                 _ => (
@@ -282,16 +283,8 @@ fn parse_test_counts(stdout: &str, stderr: &str, framework: &TestFramework) -> (
     // Default: if no parse, assume 1 test
     (
         1,
-        if combined.contains("FAIL") || combined.contains("FAILED") {
-            0
-        } else {
-            1
-        },
-        if combined.contains("FAIL") || combined.contains("FAILED") {
-            1
-        } else {
-            0
-        },
+        u32::from(!(combined.contains("FAIL") || combined.contains("FAILED"))),
+        u32::from(combined.contains("FAIL") || combined.contains("FAILED")),
     )
 }
 

@@ -9,7 +9,7 @@ use std::process::Command;
 /// Check Docker daemon status.
 ///
 /// Returns whether Docker is available and running.
-pub async fn check_docker_handler() -> Result<DockerStatus, TransportError> {
+pub fn check_docker_handler() -> Result<DockerStatus, TransportError> {
     Ok(check_docker())
 }
 
@@ -77,7 +77,7 @@ mod tests {
     async fn test_check_docker_handler() {
         // This test just verifies the handler doesn't panic
         // Actual Docker availability depends on the environment
-        let result = check_docker_handler().await;
+        let result = check_docker_handler();
         assert!(result.is_ok());
     }
 

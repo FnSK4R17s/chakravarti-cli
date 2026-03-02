@@ -697,8 +697,11 @@ export const TaskEditor: React.FC = () => {
      */
     useEffect(() => {
         if (tasksDetailData?.success && tasksDetailData.tasks) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setTasks(tasksDetailData.tasks);
+             
             setRawYaml(tasksDetailData.raw_yaml);
+             
             setHasChanges(false);
         }
     }, [tasksDetailData]);

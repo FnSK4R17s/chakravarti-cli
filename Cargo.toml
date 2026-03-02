@@ -17,7 +17,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 authors = ["Chakravarti CLI Contributors"]
 license = "MIT"
@@ -94,11 +94,34 @@ unsafe_code = "forbid"
 missing_docs = "warn"
 
 [workspace.lints.clippy]
-all = "warn"
-pedantic = "warn"
-nursery = "warn"
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
 unwrap_used = "warn"
 expect_used = "warn"
 panic = "warn"
 todo = "warn"
 unimplemented = "warn"
+
+# ── Pedantic/nursery lints allowed for now ──
+# These are aspirational but too noisy to enforce in CI today.
+# Remove these allows as code quality improves.
+missing_const_for_fn = "allow"      # nursery: frequent false positives
+must_use_candidate = "allow"        # pedantic: noisy on builders/constructors
+return_self_not_must_use = "allow"  # pedantic: same category as must_use
+uninlined_format_args = "allow"     # pedantic: style preference
+doc_markdown = "allow"              # pedantic: too strict for doc formatting
+missing_errors_doc = "allow"        # pedantic: # Errors on every Result fn
+unnecessary_literal_bound = "allow" # nursery: lifetime bound suggestions
+cast_possible_truncation = "allow"  # pedantic: intentional u128→u64 casts
+cast_precision_loss = "allow"       # pedantic: u64→f64 for display/stats
+cast_sign_loss = "allow"            # pedantic: intentional i32→u32 casts
+cast_lossless = "allow"             # pedantic: u32→f64 infallible casts
+too_many_lines = "allow"            # pedantic: function length limits
+too_many_arguments = "allow"        # pedantic: function arg limits
+map_unwrap_or = "allow"             # pedantic: style preference
+doc_link_with_quotes = "allow"      # pedantic: doc link formatting
+struct_field_names = "allow"        # pedantic: field postfix matching
+missing_panics_doc = "allow"        # pedantic: # Panics section
+must_use_unit = "allow"             # pedantic: #[must_use] on () return
+struct_excessive_bools = "allow"    # pedantic: bool field count

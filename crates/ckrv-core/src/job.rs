@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{RunState, Spec};
+use crate::RunState;
 
 // ============================================================
 // TYPES
@@ -208,13 +208,16 @@ impl AttemptResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Spec;
 
     fn test_spec() -> Spec {
         Spec {
             id: "test_spec".to_string(),
-            goal: "Test goal".to_string(),
+            branch: None,
+            created: None,
+            status: None,
+            overview: Some("Test goal".to_string()),
             constraints: vec![],
-            acceptance: vec!["Test passes".to_string()],
             verify: None,
             source_path: None,
         }

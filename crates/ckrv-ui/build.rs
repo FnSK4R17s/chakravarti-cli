@@ -1,3 +1,6 @@
+//! Build script for ckrv-ui: compiles the frontend if not pre-built.
+#![allow(clippy::expect_used, clippy::panic)]
+
 use std::path::Path;
 use std::process::Command;
 

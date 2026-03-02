@@ -10,9 +10,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-// ============================================================================
+// ============================================================
 // Internal Types (matching plan.yaml structure)
-// ============================================================================
+// ============================================================
 
 /// Model assignment configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -53,9 +53,9 @@ struct PlanFile {
     batches: Vec<PlanBatch>,
 }
 
-// ============================================================================
+// ============================================================
 // Path Utilities
-// ============================================================================
+// ============================================================
 
 /// Get the specs directory path for a project.
 fn get_specs_dir(project_root: &Path) -> PathBuf {
@@ -67,12 +67,12 @@ fn get_spec_path(project_root: &Path, name: &str) -> PathBuf {
     get_specs_dir(project_root).join(name)
 }
 
-// ============================================================================
+// ============================================================
 // Handlers
-// ============================================================================
+// ============================================================
 
 /// List all plans.
-pub async fn list_plans_handler(state: &AppState) -> Result<ListPlansResponse, TransportError> {
+pub fn list_plans_handler(state: &AppState) -> Result<ListPlansResponse, TransportError> {
     let specs_dir = get_specs_dir(&state.project_root);
     let mut plans = Vec::new();
 
@@ -90,18 +90,19 @@ pub async fn list_plans_handler(state: &AppState) -> Result<ListPlansResponse, T
                             .to_string();
 
                         // Try to load and count batches
-                        let (batch_count, total_cost) = if let Ok(content) =
+                        let (batch_count, total_cost) =
                             fs::read_to_string(&plan_path)
-                        {
-                            if let Ok(plan) = serde_yaml::from_str::<PlanFile>(&content) {
-                                let cost: f64 = plan.batches.iter().map(|b| b.estimated_cost).sum();
-                                (plan.batches.len(), Some(cost))
-                            } else {
-                                (0, None)
-                            }
-                        } else {
-                            (0, None)
-                        };
+                                .ok()
+                                .map_or((0, None), |content| {
+                                    serde_yaml::from_str::<PlanFile>(&content).ok().map_or(
+                                        (0, None),
+                                        |plan| {
+                                            let cost: f64 =
+                                                plan.batches.iter().map(|b| b.estimated_cost).sum();
+                                            (plan.batches.len(), Some(cost))
+                                        },
+                                    )
+                                });
 
                         plans.push(PlanSummary {
                             spec_name,
@@ -120,10 +121,7 @@ pub async fn list_plans_handler(state: &AppState) -> Result<ListPlansResponse, T
 }
 
 /// Get a plan for a spec.
-pub async fn get_plan_handler(
-    state: &AppState,
-    spec_name: String,
-) -> Result<PlanDetail, TransportError> {
+pub fn get_plan_handler(state: &AppState, spec_name: String) -> Result<PlanDetail, TransportError> {
     let plan_path = get_spec_path(&state.project_root, &spec_name).join("plan.yaml");
 
     if !plan_path.exists() {
@@ -178,7 +176,7 @@ pub async fn get_plan_handler(
 }
 
 /// Update a plan.
-pub async fn update_plan_handler(
+pub fn update_plan_handler(
     state: &AppState,
     spec_name: String,
     raw_yaml: String,
@@ -192,14 +190,11 @@ pub async fn update_plan_handler(
     fs::write(&plan_path, &raw_yaml)
         .map_err(|e| TransportError::Internal(format!("Failed to write plan: {e}")))?;
 
-    get_plan_handler(state, spec_name).await
+    get_plan_handler(state, spec_name)
 }
 
 /// Delete a plan.
-pub async fn delete_plan_handler(
-    state: &AppState,
-    spec_name: String,
-) -> Result<(), TransportError> {
+pub fn delete_plan_handler(state: &AppState, spec_name: String) -> Result<(), TransportError> {
     let plan_path = get_spec_path(&state.project_root, &spec_name).join("plan.yaml");
 
     if !plan_path.exists() {
@@ -214,9 +209,9 @@ pub async fn delete_plan_handler(
     Ok(())
 }
 
-// ============================================================================
+// ============================================================
 // Tests
-// ============================================================================
+// ============================================================
 
 #[cfg(test)]
 mod tests {
@@ -225,7 +220,7 @@ mod tests {
     #[tokio::test]
     async fn test_list_plans_handler() {
         let state = AppState::new(PathBuf::from("/tmp/test-plans"));
-        let result = list_plans_handler(&state).await;
+        let result = list_plans_handler(&state);
         assert!(result.is_ok());
     }
 }

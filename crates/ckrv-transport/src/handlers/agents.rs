@@ -5,19 +5,19 @@
 use crate::error::TransportError;
 use crate::state::AppState;
 use crate::types::{
-    AgentConfig, AgentType, DeleteAgentRequest, GeminiConfig, GlmConfig, GlmModel,
-    KiloCodeConfig, KiloCodeModel, ListAgentsResponse, OpenRouterConfig, OpenRouterModel,
-    SetDefaultAgentRequest, SetQaAgentRequest, SetTestWriterAgentRequest, TestAgentRequest,
-    TestAgentResponse, UpsertAgentRequest,
+    AgentConfig, AgentType, DeleteAgentRequest, GeminiConfig, GlmConfig, GlmModel, KiloCodeConfig,
+    KiloCodeModel, ListAgentsResponse, OpenRouterConfig, OpenRouterModel, SetDefaultAgentRequest,
+    SetQaAgentRequest, SetTestWriterAgentRequest, TestAgentRequest, TestAgentResponse,
+    UpsertAgentRequest,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-// ============================================================================
+// ============================================================
 // Agent File Types
-// ============================================================================
+// ============================================================
 
 /// Full agent configuration as stored in file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,6 +98,7 @@ pub struct KiloCodeFileConfig {
 /// Gemini CLI config as stored in file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeminiFileConfig {
+    /// Optional model override.
     pub model: Option<String>,
 }
 
@@ -116,9 +117,9 @@ pub struct AgentsFile {
     pub agents: Vec<AgentFileConfig>,
 }
 
-// ============================================================================
+// ============================================================
 // Path Resolution
-// ============================================================================
+// ============================================================
 
 /// Get the path to the agents config file.
 fn get_agents_path(state: &AppState) -> PathBuf {
@@ -184,9 +185,9 @@ fn save_agents(state: &AppState, agents: &AgentsFile) -> Result<(), TransportErr
     Ok(())
 }
 
-// ============================================================================
+// ============================================================
 // Conversions
-// ============================================================================
+// ============================================================
 
 impl From<AgentFileConfig> for AgentConfig {
     fn from(fc: AgentFileConfig) -> Self {
@@ -207,7 +208,7 @@ impl From<AgentFileConfig> for AgentConfig {
         let kilo = fc.kilo.map(|k| KiloCodeConfig { model: k.model });
         let gemini = fc.gemini.map(|g| GeminiConfig { model: g.model });
 
-        AgentConfig {
+        Self {
             id: fc.id,
             name: fc.name,
             agent_type: fc.agent_type,
@@ -226,18 +227,19 @@ impl From<AgentFileConfig> for AgentConfig {
     }
 }
 
-// ============================================================================
+// ============================================================
 // Handlers
-// ============================================================================
+// ============================================================
 
 /// List all configured agents.
-pub async fn list_agents_handler(state: &AppState) -> Result<ListAgentsResponse, TransportError> {
+pub fn list_agents_handler(state: &AppState) -> Result<ListAgentsResponse, TransportError> {
     let agents = load_agents(state);
     Ok(agents.agents.into_iter().map(Into::into).collect())
 }
 
 /// Create or update an agent.
-pub async fn upsert_agent_handler(
+#[allow(clippy::needless_pass_by_value)]
+pub fn upsert_agent_handler(
     state: &AppState,
     request: UpsertAgentRequest,
 ) -> Result<AgentConfig, TransportError> {
@@ -300,7 +302,8 @@ pub async fn upsert_agent_handler(
 }
 
 /// Delete an agent by name.
-pub async fn delete_agent_handler(
+#[allow(clippy::needless_pass_by_value)]
+pub fn delete_agent_handler(
     state: &AppState,
     request: DeleteAgentRequest,
 ) -> Result<(), TransportError> {
@@ -322,7 +325,8 @@ pub async fn delete_agent_handler(
 }
 
 /// Set the default agent.
-pub async fn set_default_agent_handler(
+#[allow(clippy::needless_pass_by_value)]
+pub fn set_default_agent_handler(
     state: &AppState,
     request: SetDefaultAgentRequest,
 ) -> Result<AgentConfig, TransportError> {
@@ -349,11 +353,14 @@ pub async fn set_default_agent_handler(
     }
 
     save_agents(state, &agents)?;
-    Ok(result_agent.unwrap().into())
+    let agent = result_agent
+        .ok_or_else(|| TransportError::NotFound(format!("Agent not found: {}", request.name)))?;
+    Ok(agent.into())
 }
 
 /// Set the QA agent.
-pub async fn set_qa_agent_handler(
+#[allow(clippy::needless_pass_by_value)]
+pub fn set_qa_agent_handler(
     state: &AppState,
     request: SetQaAgentRequest,
 ) -> Result<AgentConfig, TransportError> {
@@ -381,11 +388,14 @@ pub async fn set_qa_agent_handler(
     }
 
     save_agents(state, &agents)?;
-    Ok(result_agent.unwrap().into())
+    let agent = result_agent
+        .ok_or_else(|| TransportError::NotFound(format!("Agent not found: {}", request.name)))?;
+    Ok(agent.into())
 }
 
 /// Set the test writer agent.
-pub async fn set_test_writer_agent_handler(
+#[allow(clippy::needless_pass_by_value)]
+pub fn set_test_writer_agent_handler(
     state: &AppState,
     request: SetTestWriterAgentRequest,
 ) -> Result<AgentConfig, TransportError> {
@@ -413,13 +423,14 @@ pub async fn set_test_writer_agent_handler(
     }
 
     save_agents(state, &agents)?;
-    Ok(result_agent.unwrap().into())
+    let agent = result_agent
+        .ok_or_else(|| TransportError::NotFound(format!("Agent not found: {}", request.name)))?;
+    Ok(agent.into())
 }
 
 /// Test an agent configuration.
-pub async fn test_agent_handler(
-    request: TestAgentRequest,
-) -> Result<TestAgentResponse, TransportError> {
+#[allow(clippy::needless_pass_by_value)]
+pub fn test_agent_handler(request: TestAgentRequest) -> Result<TestAgentResponse, TransportError> {
     let result = match request.agent.agent_type {
         AgentType::Claude => {
             // Test Claude CLI
@@ -438,45 +449,47 @@ pub async fn test_agent_handler(
         }
         AgentType::ClaudeOpenRouter => {
             // Test OpenRouter API configuration
-            if let Some(ref config) = request.agent.openrouter {
-                if config.api_key.is_none()
-                    || config
-                        .api_key
-                        .as_ref()
-                        .map(|k| k.is_empty())
-                        .unwrap_or(true)
-                {
-                    Err("OpenRouter API key is required".to_string())
-                } else {
-                    Ok(format!(
-                        "OpenRouter config valid for model: {}",
-                        config.model
-                    ))
-                }
-            } else {
-                Err("OpenRouter configuration is required".to_string())
-            }
+            request.agent.openrouter.as_ref().map_or_else(
+                || Err("OpenRouter configuration is required".to_string()),
+                |config| {
+                    if config.api_key.is_none()
+                        || config
+                            .api_key
+                            .as_ref()
+                            .map(String::is_empty)
+                            .unwrap_or(true)
+                    {
+                        Err("OpenRouter API key is required".to_string())
+                    } else {
+                        Ok(format!(
+                            "OpenRouter config valid for model: {}",
+                            config.model
+                        ))
+                    }
+                },
+            )
         }
         AgentType::ClaudeGlm => {
             // Test GLM Coding Plan API
-            if let Some(ref config) = request.agent.glm {
-                if config.api_key.is_none()
-                    || config
-                        .api_key
-                        .as_ref()
-                        .map(|k| k.is_empty())
-                        .unwrap_or(true)
-                {
-                    Err("Z.AI API key is required for GLM Coding Plan".to_string())
-                } else {
-                    Ok(format!(
-                        "GLM Coding Plan config valid for model: {}",
-                        config.model
-                    ))
-                }
-            } else {
-                Err("GLM configuration is required".to_string())
-            }
+            request.agent.glm.as_ref().map_or_else(
+                || Err("GLM configuration is required".to_string()),
+                |config| {
+                    if config.api_key.is_none()
+                        || config
+                            .api_key
+                            .as_ref()
+                            .map(String::is_empty)
+                            .unwrap_or(true)
+                    {
+                        Err("Z.AI API key is required for GLM Coding Plan".to_string())
+                    } else {
+                        Ok(format!(
+                            "GLM Coding Plan config valid for model: {}",
+                            config.model
+                        ))
+                    }
+                },
+            )
         }
         AgentType::Codex => {
             // Test Codex CLI
@@ -634,16 +647,15 @@ pub async fn test_agent_handler(
     }
 }
 
-// ============================================================================
+// ============================================================
 // Kilo Code Models
-// ============================================================================
+// ============================================================
 
 /// Get models from Kilo Code CLI by running `kilo models`.
 pub async fn get_kilo_models_handler() -> Result<Vec<KiloCodeModel>, TransportError> {
-    match fetch_kilo_models().await {
-        Ok(models) => Ok(models),
-        Err(_) => Ok(get_fallback_kilo_models()),
-    }
+    fetch_kilo_models()
+        .await
+        .or_else(|_| Ok(get_fallback_kilo_models()))
 }
 
 /// Fetch models by running `kilo models` command.
@@ -674,13 +686,10 @@ async fn fetch_kilo_models() -> Result<Vec<KiloCodeModel>, TransportError> {
             //   kilo/model-name                (2 segments, no tag, e.g. kilo/giga-potato)
             let stripped = line.strip_prefix("kilo/")?;
 
-            let (provider, model_name) = if let Some(slash_pos) = stripped.find('/') {
-                // Has a provider segment: provider/model-name
-                (&stripped[..slash_pos], &stripped[slash_pos + 1..])
-            } else {
-                // No provider segment: treat entire remainder as model name, provider = "kilo"
-                ("kilo", stripped)
-            };
+            let (provider, model_name) =
+                stripped.find('/').map_or(("kilo", stripped), |slash_pos| {
+                    (&stripped[..slash_pos], &stripped[slash_pos + 1..])
+                });
 
             let free = model_name.ends_with(":free") || !model_name.contains(':');
 
@@ -720,9 +729,9 @@ fn get_fallback_kilo_models() -> Vec<KiloCodeModel> {
     ]
 }
 
-// ============================================================================
+// ============================================================
 // OpenRouter API
-// ============================================================================
+// ============================================================
 
 /// OpenRouter API response structure.
 #[derive(Debug, Deserialize)]
@@ -748,27 +757,11 @@ struct OpenRouterApiPricing {
     completion: Option<String>,
 }
 
-/// Format pricing as a human-readable string.
-fn format_pricing(pricing: &OpenRouterApiPricing) -> String {
-    let prompt = pricing.prompt.as_deref().unwrap_or("0");
-    let completion = pricing.completion.as_deref().unwrap_or("0");
-
-    let prompt_f: f64 = prompt.parse().unwrap_or(0.0) * 1_000_000.0;
-    let completion_f: f64 = completion.parse().unwrap_or(0.0) * 1_000_000.0;
-
-    if prompt_f == 0.0 && completion_f == 0.0 {
-        "Free".to_string()
-    } else {
-        format!("${prompt_f:.2}/${completion_f:.2} per 1M tokens")
-    }
-}
-
 /// Get models from OpenRouter API.
 pub async fn get_openrouter_models_handler() -> Result<Vec<OpenRouterModel>, TransportError> {
-    match fetch_openrouter_models().await {
-        Ok(models) => Ok(models),
-        Err(_) => Ok(get_fallback_models()),
-    }
+    fetch_openrouter_models()
+        .await
+        .or_else(|_| Ok(get_fallback_models()))
 }
 
 /// Fetch models from OpenRouter API.
@@ -850,7 +843,7 @@ fn get_fallback_models() -> Vec<OpenRouterModel> {
             id: "anthropic/claude-sonnet-4".to_string(),
             name: "Claude Sonnet 4".to_string(),
             description: Some("Anthropic's Claude Sonnet 4 - excellent for coding".to_string()),
-            context_length: Some(200000),
+            context_length: Some(200_000),
             pricing_prompt: Some("$3".to_string()),
             pricing_completion: Some("$15".to_string()),
         },
@@ -858,7 +851,7 @@ fn get_fallback_models() -> Vec<OpenRouterModel> {
             id: "anthropic/claude-opus-4".to_string(),
             name: "Claude Opus 4".to_string(),
             description: Some("Anthropic's most capable model".to_string()),
-            context_length: Some(200000),
+            context_length: Some(200_000),
             pricing_prompt: Some("$15".to_string()),
             pricing_completion: Some("$75".to_string()),
         },
@@ -866,7 +859,7 @@ fn get_fallback_models() -> Vec<OpenRouterModel> {
             id: "google/gemini-2.5-pro-preview".to_string(),
             name: "Gemini 2.5 Pro".to_string(),
             description: Some("Google's latest Gemini Pro model".to_string()),
-            context_length: Some(1000000),
+            context_length: Some(1_000_000),
             pricing_prompt: Some("$1.25".to_string()),
             pricing_completion: Some("$10".to_string()),
         },
@@ -881,9 +874,9 @@ fn get_fallback_models() -> Vec<OpenRouterModel> {
     ]
 }
 
-// ============================================================================
+// ============================================================
 // GLM Coding Plan Models
-// ============================================================================
+// ============================================================
 
 /// OpenAI-compatible model list response from Z.AI.
 #[derive(Debug, Deserialize)]
@@ -895,20 +888,17 @@ struct GlmApiResponse {
 struct GlmApiModel {
     id: String,
     #[serde(default)]
+    #[allow(dead_code)]
     owned_by: Option<String>,
 }
 
 /// Known context window sizes for GLM models.
 fn glm_context_length(id: &str) -> Option<u32> {
     match id {
-        "glm-5" => Some(205_000),
-        "glm-4.7" => Some(205_000),
+        "glm-5" | "glm-4.7" | "glm-4.6" => Some(205_000),
         "glm-4.7-flash" => Some(200_000),
-        "glm-4.6" => Some(205_000),
         "glm-4.6v" => Some(128_000),
-        "glm-4.5" => Some(131_000),
-        "glm-4.5-air" => Some(131_000),
-        "glm-4.5-flash" => Some(131_000),
+        "glm-4.5" | "glm-4.5-air" | "glm-4.5-flash" => Some(131_000),
         "glm-4.5v" => Some(64_000),
         _ => None,
     }
@@ -1049,18 +1039,18 @@ fn get_fallback_glm_models() -> Vec<GlmModel> {
     ]
 }
 
-// ============================================================================
+// ============================================================
 // Tests
-// ============================================================================
+// ============================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_list_agents_handler() {
+    #[test]
+    fn test_list_agents_handler() {
         let state = AppState::new(std::path::PathBuf::from("/tmp/test-agents"));
-        let result = list_agents_handler(&state).await;
+        let result = list_agents_handler(&state);
         assert!(result.is_ok());
     }
 

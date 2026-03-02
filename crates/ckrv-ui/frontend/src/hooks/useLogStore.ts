@@ -198,13 +198,16 @@ export function useLastSeenTimestamp(executionId: string | null) {
             const persisted = loadPersistedTimestamp(executionId);
             if (persisted) {
                 timestampRef.current = persisted;
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setLastSeenTimestamp(persisted);
             } else {
                 timestampRef.current = null;
+                 
                 setLastSeenTimestamp(null);
             }
         } else {
             timestampRef.current = null;
+             
             setLastSeenTimestamp(null);
         }
     }, [executionId]);

@@ -1,6 +1,6 @@
 ---
-last_commit: f92f604
-last_updated: 2026-03-01
+last_commit: 2a2da7f
+last_updated: 2026-03-02
 related_files:
   - Cargo.toml
   - crates/ckrv-core/src/lib.rs
@@ -149,6 +149,8 @@ pub trait AgentProvider: Send + Sync {
 // - ClaudeProvider (Claude Code native)
 // - CodexProvider (OpenAI Codex)
 // - KiloCodeProvider (Kilo Code multi-provider)
+// - AmpProvider, GithubCopilotProvider, CursorProvider, FactoryDroidProvider
+// - GeminiProvider, OpencodeProvider, QwenProvider, VibeProvider
 // OpenRouter and GLM models route through Claude Code CLI via env vars
 ```
 

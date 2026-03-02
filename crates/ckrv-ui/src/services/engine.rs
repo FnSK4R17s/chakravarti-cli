@@ -57,6 +57,10 @@
 //!     .await?;
 //! ```
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -77,11 +81,16 @@ use crate::models::log::{LogEntry, LogLevel};
 use crate::services::history::HistoryService;
 use crate::services::log_store::LogStore;
 
+// ============================================================
+// TYPES
+// ============================================================
+
 /// Status of a batch in the execution plan.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BatchStatus {
     /// Waiting to start.
+    #[default]
     Pending,
     /// Currently executing.
     Running,
@@ -99,19 +108,12 @@ impl<'de> serde::Deserialize<'de> for BatchStatus {
     {
         let s = String::deserialize(deserializer)?;
         match s.to_lowercase().as_str() {
-            "" | "pending" => Ok(BatchStatus::Pending),
-            "running" => Ok(BatchStatus::Running),
-            "completed" => Ok(BatchStatus::Completed),
-            "failed" => Ok(BatchStatus::Failed),
-            _ => Ok(BatchStatus::Pending), // Default to pending for unknown values
+            "running" => Ok(Self::Running),
+            "completed" => Ok(Self::Completed),
+            "failed" => Ok(Self::Failed),
+            // "" | "pending" and unknown values default to Pending
+            _ => Ok(Self::Pending),
         }
-    }
-}
-
-// Default implementation for serde(default) - returns Pending
-impl Default for BatchStatus {
-    fn default() -> Self {
-        BatchStatus::Pending
     }
 }
 
@@ -286,6 +288,10 @@ pub struct ExecutionEngine {
     current_execution_id: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
+
 impl ExecutionEngine {
     /// Create a new execution engine rooted at the given project path.
     pub fn new(project_root: PathBuf, sender: mpsc::Sender<LogMessage>) -> Self {
@@ -299,8 +305,9 @@ impl ExecutionEngine {
 
     /// Set the current execution ID for log persistence
     fn set_execution_id(&self, execution_id: &str) {
-        let mut guard = self.current_execution_id.lock().unwrap();
-        *guard = Some(execution_id.to_string());
+        if let Ok(mut guard) = self.current_execution_id.lock() {
+            *guard = Some(execution_id.to_string());
+        }
     }
 
     /// T013: Modified log method that persists logs via LogStore
@@ -310,9 +317,13 @@ impl ExecutionEngine {
         println!("[ExecutionEngine] {}: {}", type_, message);
 
         // T013: Persist to disk if execution ID is set
-        if let Some(execution_id) = self.current_execution_id.lock().unwrap().clone() {
+        let execution_id = self
+            .current_execution_id
+            .lock()
+            .ok()
+            .and_then(|g| g.clone());
+        if let Some(execution_id) = execution_id {
             let level = match type_ {
-                "info" => LogLevel::Info,
                 "warning" => LogLevel::Warning,
                 "error" => LogLevel::Error,
                 "log" => LogLevel::Log,
@@ -322,6 +333,7 @@ impl ExecutionEngine {
                 "batch_error" => LogLevel::BatchError,
                 "success" => LogLevel::Success,
                 "status" => LogLevel::Status,
+                // "info" and anything else
                 _ => LogLevel::Info,
             };
 
@@ -333,6 +345,7 @@ impl ExecutionEngine {
     }
 
     /// T013: Log method for batch-attributed logs that persists with batch info
+    #[allow(dead_code)]
     async fn log_with_batch(&self, type_: &str, message: &str, batch_id: &str, batch_name: &str) {
         let _ = self
             .sender
@@ -342,9 +355,13 @@ impl ExecutionEngine {
         println!("[ExecutionEngine] {}/{}: {}", batch_name, type_, message);
 
         // T013: Persist to disk if execution ID is set
-        if let Some(execution_id) = self.current_execution_id.lock().unwrap().clone() {
+        let execution_id = self
+            .current_execution_id
+            .lock()
+            .ok()
+            .and_then(|g| g.clone());
+        if let Some(execution_id) = execution_id {
             let level = match type_ {
-                "info" => LogLevel::Info,
                 "warning" => LogLevel::Warning,
                 "error" => LogLevel::Error,
                 "log" => LogLevel::Log,
@@ -354,6 +371,7 @@ impl ExecutionEngine {
                 "batch_error" => LogLevel::BatchError,
                 "success" => LogLevel::Success,
                 "status" => LogLevel::Status,
+                // "info" and anything else
                 _ => LogLevel::Info,
             };
 
@@ -364,6 +382,7 @@ impl ExecutionEngine {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn save_plan(&self, plan_path: &Path, plan: &ExecutionPlan) -> Result<()> {
         let content = serde_yaml::to_string(plan)?;
         std::fs::write(plan_path, content)?;
@@ -500,7 +519,7 @@ impl ExecutionEngine {
                     self.log("warning", &format!("Failed to create history entry: {}", e))
                         .await;
                 }
-            };
+            }
             id
         };
 
@@ -508,7 +527,7 @@ impl ExecutionEngine {
         self.set_execution_id(&run_id);
 
         // Initialize Worktree Manager
-        let mut manager = DefaultWorktreeManager::new(&self.project_root)
+        let _manager = DefaultWorktreeManager::new(&self.project_root)
             .context("Failed to init worktree manager")?;
         let exe = std::env::current_exe()?; // Self-reference for spawning tasks?
                                             // Wait, self-referencing implies `ckrv task` is available.
@@ -517,16 +536,17 @@ impl ExecutionEngine {
                                             // If `ckrv-ui` does not support `task` subcommand, we need to find `ckrv` binary.
 
         // Try to find ckrv in the same directory as the current executable, or use PATH
-        let ckrv_exe = if let Some(parent) = exe.parent() {
-            let candidate = parent.join("ckrv");
-            if candidate.exists() {
-                candidate
-            } else {
-                PathBuf::from("ckrv")
-            }
-        } else {
-            PathBuf::from("ckrv")
-        };
+        let ckrv_exe = exe.parent().map_or_else(
+            || PathBuf::from("ckrv"),
+            |parent| {
+                let candidate = parent.join("ckrv");
+                if candidate.exists() {
+                    candidate
+                } else {
+                    PathBuf::from("ckrv")
+                }
+            },
+        );
 
         let mut completed_batches = HashSet::new();
         let mut batch_task_map = HashMap::new();
@@ -588,7 +608,11 @@ impl ExecutionEngine {
                     let executor_model = executor_model.clone();
                     let agent = agent.clone();
                     let sender = self.sender.clone();
-                    let execution_id = self.current_execution_id.lock().unwrap().clone();
+                    let execution_id = self
+                        .current_execution_id
+                        .lock()
+                        .ok()
+                        .and_then(|g| g.clone());
                     let batch_id_for_error = batch.id.clone(); // Capture for error handling
 
                     // Spawn the batch execution - wrap result to always include batch_id
@@ -822,7 +846,8 @@ impl ExecutionEngine {
         );
         for id in &batch.task_ids {
             if let Some(t) = task_map.get(id) {
-                description.push_str(&format!("- [{}]: {} ({})\n", t.id, t.title, t.description));
+                use std::fmt::Write;
+                let _ = writeln!(description, "- [{}]: {} ({})", t.id, t.title, t.description);
             }
         }
 
@@ -865,7 +890,7 @@ impl ExecutionEngine {
         ];
 
         // Determine the model to use
-        let model = executor_model.or(batch.model_assignment.default.clone());
+        let model = executor_model.or_else(|| batch.model_assignment.default.clone());
 
         if let Some(ref m) = model {
             task_args.push("--agent".to_string());
@@ -920,7 +945,7 @@ impl ExecutionEngine {
                         description
                     );
 
-                    let escaped_prompt = agent_prompt.replace("\"", "\\\"");
+                    let escaped_prompt = agent_prompt.replace('"', "\\\"");
 
                     // Base command based on agent type
                     let (cmd, agent_binary) = if is_codex {
@@ -942,7 +967,7 @@ impl ExecutionEngine {
                         .with_timeout(Duration::from_secs(900)); // 15 minute timeout
 
                     // Configure execution based on agent type
-                    let config = if is_codex {
+                    if is_codex {
                         // Codex path: Use mounted credentials from ~/.codex
                         let _ = sender
                             .send(
@@ -958,12 +983,12 @@ impl ExecutionEngine {
                         if let Some(ref model_name) = model {
                             cfg = cfg.env("OPENAI_MODEL", model_name);
                         }
-
-                        cfg
                     } else if is_glm {
                         // GLM Coding Plan path: Use Claude Code CLI with Z.AI env vars
                         // Per https://docs.z.ai/devpack/tool/claude#manual-configuration
-                        let model_name = model.as_ref().unwrap();
+                        let model_name = model
+                            .as_ref()
+                            .ok_or_else(|| anyhow::anyhow!("GLM agent requires a model name"))?;
                         let _ = sender
                             .send(
                                 LogMessage::new(
@@ -1002,12 +1027,12 @@ impl ExecutionEngine {
                                 )
                                 .await;
                         }
-
-                        cfg
                     } else if is_openrouter {
                         // OpenRouter path: Use Claude Code CLI with OpenRouter env vars
                         // Per https://openrouter.ai/docs/guides/guides/claude-code-integration
-                        let model_name = model.as_ref().unwrap();
+                        let model_name = model.as_ref().ok_or_else(|| {
+                            anyhow::anyhow!("OpenRouter agent requires a model name")
+                        })?;
                         let _ = sender
                             .send(
                                 LogMessage::new(
@@ -1019,12 +1044,10 @@ impl ExecutionEngine {
                             .await;
 
                         // Get OpenRouter API key from environment or agent config
-                        let api_key = if let Ok(key) = std::env::var("OPENROUTER_API_KEY") {
-                            Some(key)
-                        } else {
+                        let api_key = std::env::var("OPENROUTER_API_KEY").ok().or_else(|| {
                             let agents_dir = root.join(".agents");
                             Self::find_openrouter_key(&agents_dir, model_name)
-                        };
+                        });
 
                         if let Some(key) = api_key {
                             // Required env vars for OpenRouter (same as runner.rs)
@@ -1047,8 +1070,6 @@ impl ExecutionEngine {
                                 )
                                 .await;
                         }
-
-                        cfg
                     } else {
                         // Claude subscription path: Use native Claude Code auth via ~/.claude
                         let _ = sender
@@ -1057,11 +1078,10 @@ impl ExecutionEngine {
                                     .with_batch(&batch.id, &batch.name),
                             )
                             .await;
-                        cfg
-                    };
+                    }
 
                     // Set HOME for Claude Code config
-                    let config = config.env("HOME", "/home/claude");
+                    let config = cfg.env("HOME", "/home/claude");
                     let config = config.env("NO_COLOR", "1");
 
                     // Execute in sandbox with real-time streaming
@@ -1086,37 +1106,32 @@ impl ExecutionEngine {
                             let log_type = if is_stderr { "error" } else { "log" };
 
                             // Determine the message to send and log level
-                            let (msg, level_str): (String, &str) = if let Ok(json) =
-                                serde_json::from_str::<serde_json::Value>(&line)
-                            {
-                                // Extract text content from Claude's JSON output
-                                if let Some(content) = json.get("result") {
-                                    if let Some(text) = content.as_str() {
-                                        (text.to_string(), "log")
-                                    } else {
-                                        (line.clone(), log_type)
-                                    }
-                                } else if let Some(tool_name) =
-                                    json.pointer("/type").and_then(|v| v.as_str())
-                                {
-                                    if tool_name == "tool_use" {
-                                        if let Some(name) =
-                                            json.pointer("/content/0/name").and_then(|v| v.as_str())
-                                        {
-                                            (format!("🔧 Using tool: {}", name), "info")
-                                        } else {
-                                            (line.clone(), log_type)
-                                        }
-                                    } else {
-                                        (line.clone(), log_type)
-                                    }
-                                } else {
-                                    (line.clone(), log_type)
-                                }
-                            } else {
-                                // Not JSON, forward as plain text
-                                (line.clone(), log_type)
-                            };
+                            let (msg, level_str): (String, &str) = serde_json::from_str::<serde_json::Value>(&line)
+                                .map_or_else(
+                                    |_| (line.clone(), log_type),
+                                    |json| {
+                                        // Extract text content from Claude's JSON output
+                                        json.get("result")
+                                            .and_then(|content| content.as_str())
+                                            .map_or_else(
+                                                || {
+                                                    json.pointer("/type")
+                                                        .and_then(|v| v.as_str())
+                                                        .and_then(|tool_name| {
+                                                            if tool_name == "tool_use" {
+                                                                json.pointer("/content/0/name")
+                                                                    .and_then(|v| v.as_str())
+                                                                    .map(|name| (format!("\u{1f527} Using tool: {}", name), "info"))
+                                                            } else {
+                                                                None
+                                                            }
+                                                        })
+                                                        .unwrap_or_else(|| (line.clone(), log_type))
+                                                },
+                                                |text| (text.to_string(), "log"),
+                                            )
+                                    },
+                                );
 
                             // Send to WebSocket
                             let _ = sender_clone
@@ -1131,7 +1146,7 @@ impl ExecutionEngine {
                                 let level = match level_str {
                                     "info" => LogLevel::Info,
                                     "error" => LogLevel::Error,
-                                    "log" => LogLevel::Log,
+                                    // "log" and anything else
                                     _ => LogLevel::Log,
                                 };
                                 let entry = LogEntry::with_batch(
@@ -1254,8 +1269,8 @@ impl ExecutionEngine {
         let batch_name_err = batch_name.to_string();
 
         // Spawn stdout reader
-        let stdout_handle = if let Some(out) = stdout {
-            Some(tokio::spawn(async move {
+        let stdout_handle = stdout.map(|out| {
+            tokio::spawn(async move {
                 use tokio::io::{AsyncBufReadExt, BufReader};
                 let mut reader = BufReader::new(out).lines();
                 while let Ok(Some(line)) = reader.next_line().await {
@@ -1266,14 +1281,12 @@ impl ExecutionEngine {
                         )
                         .await;
                 }
-            }))
-        } else {
-            None
-        };
+            })
+        });
 
         // Spawn stderr reader
-        let stderr_handle = if let Some(err) = stderr {
-            Some(tokio::spawn(async move {
+        let stderr_handle = stderr.map(|err| {
+            tokio::spawn(async move {
                 use tokio::io::{AsyncBufReadExt, BufReader};
                 let mut reader = BufReader::new(err).lines();
                 while let Ok(Some(line)) = reader.next_line().await {
@@ -1284,10 +1297,8 @@ impl ExecutionEngine {
                         )
                         .await;
                 }
-            }))
-        } else {
-            None
-        };
+            })
+        });
 
         let status = child.wait().await?;
 
@@ -1344,7 +1355,7 @@ impl ExecutionEngine {
         }
     }
 
-    async fn resolve_conflicts(&self, branch: &str, spec_path: &Path) -> Result<()> {
+    async fn resolve_conflicts(&self, _branch: &str, spec_path: &Path) -> Result<()> {
         // Gather conflicts
         let output = AsyncCommand::new("git")
             .args(["diff", "--name-only", "--diff-filter=U"])
@@ -1408,6 +1419,7 @@ impl ExecutionEngine {
         Ok(())
     }
 
+    #[allow(clippy::unused_self)]
     fn update_batch_status(
         &self,
         plan_path: &Path,
@@ -1420,7 +1432,7 @@ impl ExecutionEngine {
 
         for batch in &mut plan.batches {
             if batch.id == batch_id {
-                batch.status = status.clone();
+                batch.status = status;
                 if let Some(b) = branch {
                     batch.branch = Some(b.to_string());
                 }
@@ -1434,6 +1446,7 @@ impl ExecutionEngine {
         Ok(())
     }
 
+    #[allow(clippy::unused_self)]
     fn mark_tasks_complete(&self, tasks_path: &Path, ids: &[String]) -> Result<()> {
         let content = std::fs::read_to_string(tasks_path)?;
         let mut file: TaskFile = serde_yaml::from_str(&content)?;

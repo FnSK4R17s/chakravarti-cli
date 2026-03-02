@@ -8,6 +8,10 @@
 //! - POST /tasks/save - Save task
 //! - POST /tasks/status - Update task status
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::handlers::tasks::{get_task_handler, list_tasks_handler};
 use crate::state::AppState;
 use axum::extract::{Query, State};
@@ -15,6 +19,10 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Query params for GET /tasks.
 #[derive(Deserialize)]
@@ -29,12 +37,16 @@ struct TaskDetailQuery {
     task: Option<String>,
 }
 
+// ============================================================
+// HANDLERS
+// ============================================================
+
 /// List tasks for a spec.
 async fn list_tasks(
     State(state): State<AppState>,
     Query(query): Query<TasksQuery>,
 ) -> impl IntoResponse {
-    match list_tasks_handler(&state, query.spec).await {
+    match list_tasks_handler(&state, query.spec) {
         Ok(tasks) => Json(tasks).into_response(),
         Err(e) => e.into_response(),
     }
@@ -45,7 +57,7 @@ async fn get_task_detail(
     State(state): State<AppState>,
     Query(query): Query<TaskDetailQuery>,
 ) -> impl IntoResponse {
-    match get_task_handler(&state, query.spec, query.task.unwrap_or_default()).await {
+    match get_task_handler(&state, query.spec, query.task.unwrap_or_default()) {
         Ok(task) => Json(task).into_response(),
         Err(e) => e.into_response(),
     }
@@ -53,6 +65,7 @@ async fn get_task_detail(
 
 /// Save task request.
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct SaveTaskRequest {
     spec: String,
     task_id: String,
@@ -91,6 +104,10 @@ async fn update_task_status(
         "new_status": request.status
     }))
 }
+
+// ============================================================
+// ROUTES
+// ============================================================
 
 /// Create task routes.
 pub fn routes() -> Router<AppState> {
