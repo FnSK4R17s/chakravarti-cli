@@ -35,6 +35,7 @@ export interface TestProjectFixture {
  * ```
  */
 export const test = base.extend<TestProjectFixture>({
+    // eslint-disable-next-line no-empty-pattern
     testProject: async ({}, use) => {
         // Create temp directory with unique name
         const tempDir = await mkdtemp(join(tmpdir(), 'ckrv-test-'));
@@ -71,6 +72,7 @@ export const test = base.extend<TestProjectFixture>({
         }
     },
 
+    // eslint-disable-next-line no-empty-pattern
     backendPort: async ({}, use) => {
         // Each test gets a unique port to avoid conflicts
         // In practice, tests may share a backend or spin up their own

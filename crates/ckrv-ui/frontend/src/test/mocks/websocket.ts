@@ -41,7 +41,8 @@ export class MockWebSocket {
   /** Track all created instances for test assertions */
   static instances: MockWebSocket[] = [];
 
-  constructor(url: string, _protocols?: string | string[]) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  constructor(url: string, protocols?: string | string[]) {
     this.url = url;
     MockWebSocket.instances.push(this);
   }
@@ -68,13 +69,15 @@ export class MockWebSocket {
     this.onclose?.(new CloseEvent('close', { code, reason }));
   }
 
-  send(_data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
     if (this.readyState !== MockWebSocket.OPEN) {
       throw new DOMException('WebSocket is not open');
     }
   }
 
-  close(_code?: number, _reason?: string): void {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  close(code?: number, reason?: string): void {
     this.readyState = MockWebSocket.CLOSED;
   }
 

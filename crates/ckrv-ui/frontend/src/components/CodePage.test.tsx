@@ -17,7 +17,6 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { useState } from 'react';
 import { render, screen } from '@/test/test-utils';
 import { userEvent } from '@/test/test-utils';
 import CodePage from './CodePage';
@@ -43,11 +42,13 @@ vi.mock('./BarebonesExecutor', () => ({
   default: () => <div data-testid="mock-executor">Executor</div>,
 }));
 
-// Mock useCodeTab: use a simple useState-based implementation
-vi.mock('../hooks/useCodeTab', () => ({
-  useCodeTab: (initialTab: string) => useState(initialTab),
-  default: (initialTab: string) => useState(initialTab),
-}));
+// Mock useCodeTab: use a simple useState-based implementation.
+// vi.mock factories are hoisted, so we must import React inside the factory.
+vi.mock('../hooks/useCodeTab', async () => {
+  const React = await import('react');
+  const useTabState = (initialTab: string) => React.useState(initialTab);
+  return { useCodeTab: useTabState, default: useTabState };
+});
 
 // Mock useWorkflowProgress: return empty stages so no completion indicators show
 vi.mock('../hooks/useWorkflowProgress', () => ({
