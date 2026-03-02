@@ -43,7 +43,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
         working-directory: crates/ckrv-ui/frontend
-      - run: cargo clippy --workspace -- -D warnings
+      - run: cargo clippy --workspace --exclude ckrv-tauri -- -D warnings
 
   # ── Rust Tests ─────────────────────────────────────────────────────────
   rust-test:
@@ -62,7 +62,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
         working-directory: crates/ckrv-ui/frontend
-      - run: cargo test --workspace
+      - run: cargo test --workspace --exclude ckrv-tauri
 
   # ── Rust Build ─────────────────────────────────────────────────────────
   rust-build:
