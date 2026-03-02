@@ -8,6 +8,10 @@
 //! - POST /tasks/save - Save task
 //! - POST /tasks/status - Update task status
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::handlers::tasks::{get_task_handler, list_tasks_handler};
 use crate::state::AppState;
 use axum::extract::{Query, State};
@@ -15,6 +19,10 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Query params for GET /tasks.
 #[derive(Deserialize)]
@@ -28,6 +36,10 @@ struct TaskDetailQuery {
     spec: String,
     task: Option<String>,
 }
+
+// ============================================================
+// HANDLERS
+// ============================================================
 
 /// List tasks for a spec.
 async fn list_tasks(
@@ -92,6 +104,10 @@ async fn update_task_status(
         "new_status": request.status
     }))
 }
+
+// ============================================================
+// ROUTES
+// ============================================================
 
 /// Create task routes.
 pub fn routes() -> Router<AppState> {

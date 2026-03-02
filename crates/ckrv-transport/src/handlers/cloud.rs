@@ -2,10 +2,18 @@
 //!
 //! Handler for cloud service status.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::error::TransportError;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Cloud service status.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,6 +47,10 @@ struct StoredTokens {
     #[allow(dead_code)]
     expires_at: Option<i64>,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 /// Get cloud service status.
 ///
@@ -130,6 +142,10 @@ fn base64_url_decode(input: &str) -> Option<Vec<u8>> {
 
     BASE64_STANDARD.decode(&standard).ok()
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

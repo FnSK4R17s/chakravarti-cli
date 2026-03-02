@@ -9,6 +9,10 @@
 #![allow(clippy::match_same_arms)]
 #![allow(clippy::unwrap_used)]
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -34,6 +38,10 @@ use tabled::{
         Alignment, Modify, Width,
     },
 };
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the run command.
 #[derive(Args)]
@@ -297,6 +305,10 @@ fn load_agent_model_instructions(cwd: &Path) -> String {
    - Use 'claude' (default) if high reasoning/risk required (Level 5)."
         .to_string()
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 /// Execute the run command.
 pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {

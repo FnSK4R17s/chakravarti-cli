@@ -21,6 +21,10 @@
 //! axum::serve(listener, router).await?;
 //! ```
 
+// ============================================================
+// MODULES
+// ============================================================
+
 pub mod agents;
 pub mod cloud;
 pub mod commands;
@@ -40,8 +44,16 @@ pub mod tasks;
 pub mod terminal;
 pub mod test;
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::state::AppState;
 use axum::Router;
+
+// ============================================================
+// FUNCTIONS
+// ============================================================
 
 /// Create the API router with all routes configured.
 ///

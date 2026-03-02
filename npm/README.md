@@ -1,6 +1,6 @@
 ---
-last_commit: f92f604
-last_updated: 2026-03-01
+last_commit: 2a2da7f
+last_updated: 2026-03-02
 ---
 
 # @ckrv/cli
@@ -71,10 +71,18 @@ Chakravarti orchestrates multiple AI coding agents in isolated Docker sandboxes:
 | Claude Code | GLM Coding Plan | Z.AI's GLM-4.7 and GLM-4.5-Air |
 | Codex | OpenAI Subscription | Native Codex CLI integration |
 | Kilo Code | File-based auth | 30+ AI providers (Gemini, DeepSeek, Mistral, Qwen, etc.) |
+| Gemini CLI | GEMINI_API_KEY | Google Gemini coding assistant CLI |
+| Cursor | Cursor Subscription | Cursor AI coding assistant CLI |
+| Amp | Amp authentication | Ampcode AI coding agent |
+| Qwen Code | QWEN_API_KEY | Alibaba's Qwen coding models CLI |
+| Opencode | File-based auth | Open source coding CLI |
+| Factory Droid | Factory authentication | Factory's autonomous developer CLI |
+| GitHub Copilot | GitHub Copilot Subscription | GitHub Copilot CLI |
+| Mistral Vibe | MISTRAL_API_KEY | Mistral AI's coding assistant CLI |
 
 ## Features
 
-- **Multi-Agent Support** — Claude, Codex, Kilo Code, OpenRouter, GLM models
+- **Multi-Agent Support** — 13 agents: Claude, Codex, Kilo Code, Gemini, Cursor, Amp, Qwen, Opencode, Factory, Copilot, Mistral Vibe, OpenRouter, GLM
 - **Isolated Execution** — Git worktree isolation per task
 - **Docker Sandboxing** — Safe containerized execution
 - **Metrics Tracking** — Token usage and cost accounting

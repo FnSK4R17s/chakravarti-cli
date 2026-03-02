@@ -27,12 +27,20 @@
 //! });
 //! ```
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
 #[cfg(feature = "typescript")]
 use ts_rs::TS;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Events broadcast during orchestration.
 ///
@@ -83,6 +91,10 @@ pub enum OrchestrationEvent {
         timestamp: String,
     },
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 /// Broadcast hub for orchestration events.
 ///
@@ -140,6 +152,10 @@ impl Default for Hub {
 
 /// Thread-safe shared reference to a Hub.
 pub type SharedHub = Arc<Hub>;
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

@@ -226,9 +226,9 @@ impl SpecOutput {
     }
 }
 
-// ============================================================================
+// ============================================================
 // Task structures (existing, kept for compatibility)
-// ============================================================================
+// ============================================================
 
 /// A single implementation task generated from a specification.
 #[derive(Debug, Serialize, Deserialize, tabled::Tabled)]

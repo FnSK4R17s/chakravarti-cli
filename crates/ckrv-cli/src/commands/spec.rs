@@ -3,10 +3,18 @@
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::branches_sharing_code)]
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use serde::Serialize;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the spec command
 #[derive(Args)]
@@ -196,6 +204,10 @@ struct ValidationErrorOutput {
 
 use crate::ui::components::{Banner, RichTable};
 use crate::ui::{Renderable, UiContext};
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 /// Execute the spec command
 pub async fn execute(args: SpecArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {

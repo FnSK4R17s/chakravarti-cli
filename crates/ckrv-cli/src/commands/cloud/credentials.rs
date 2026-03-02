@@ -1,6 +1,14 @@
 //! Cloud credentials command - Manage git credentials for private repos.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use clap::{Args, Subcommand};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the credentials command
 #[derive(Debug, Args)]
@@ -51,6 +59,10 @@ pub struct RemoveArgs {
     /// Name of the credential to remove
     pub name: String,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 /// Execute the credentials command
 pub async fn execute(args: CredentialsArgs, ui: &crate::ui::UiContext) -> anyhow::Result<()> {

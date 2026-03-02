@@ -2,6 +2,10 @@
 //!
 //! Axum route wrappers for command handlers.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::handlers::commands::{
     run_diff_handler, run_execute_handler, run_fix_handler, run_git_init_handler, run_init_handler,
     run_plan_handler, run_promote_handler, run_spec_new_handler, run_spec_tasks_handler,
@@ -12,6 +16,10 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::post;
 use axum::{Json, Router};
+
+// ============================================================
+// HANDLERS
+// ============================================================
 
 /// Run init command.
 async fn run_init(State(state): State<AppState>) -> impl IntoResponse {
@@ -107,6 +115,10 @@ async fn run_fix(
         Err(e) => e.into_response(),
     }
 }
+
+// ============================================================
+// ROUTES
+// ============================================================
 
 /// Create command routes.
 pub fn routes() -> Router<AppState> {

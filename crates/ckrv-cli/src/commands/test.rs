@@ -4,6 +4,10 @@
 #![allow(clippy::ptr_arg)]
 #![allow(clippy::match_same_arms)]
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
@@ -15,6 +19,10 @@ use crate::services::{
 };
 use crate::ui::components::Banner;
 use crate::ui::{Renderable, UiContext};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the test command
 #[derive(Args)]
@@ -168,6 +176,10 @@ pub struct ProposedTest {
     /// Priority level (high, medium, low).
     pub priority: String,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 /// Execute the test command
 pub async fn execute(args: TestArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {

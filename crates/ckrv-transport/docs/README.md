@@ -1,6 +1,6 @@
 ---
-last_commit: f92f604
-last_updated: 2026-03-01
+last_commit: 2a2da7f
+last_updated: 2026-03-02
 related_files:
   - src/lib.rs
   - src/handlers/mod.rs
@@ -138,6 +138,14 @@ pub enum AgentType {
     ClaudeGlm,          // Claude Code with Z.AI GLM Coding Plan
     Codex,              // OpenAI Codex CLI
     KiloCode,           // Kilo Code multi-provider CLI
+    Gemini,             // Google Gemini CLI
+    Cursor,             // Cursor CLI
+    Amp,                // Amp CLI
+    Qwen,               // Qwen Code CLI
+    Opencode,           // Opencode CLI
+    FactoryDroid,       // Factory Droid CLI
+    GithubCopilot,      // GitHub Copilot CLI
+    MistralVibe,        // Mistral Vibe CLI
 }
 ```
 
@@ -158,6 +166,16 @@ pub struct AgentConfig {
     pub openrouter: Option<OpenRouterConfig>,
     pub glm: Option<GlmConfig>,
     pub kilo: Option<KiloCodeConfig>,
+    pub gemini: Option<GeminiConfig>,
+}
+```
+
+### GeminiConfig Structure
+
+```rust
+pub struct GeminiConfig {
+    pub api_key: Option<String>,
+    pub model: Option<String>,
 }
 ```
 

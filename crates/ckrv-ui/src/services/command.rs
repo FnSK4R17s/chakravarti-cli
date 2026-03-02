@@ -42,10 +42,18 @@
 //! - `Success` - Operation completed successfully
 //! - `StepStart` / `StepEnd` - Execution phase boundaries
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use chrono::Utc;
 use ckrv_transport::{AppState, OrchestrationEvent, SystemMode};
 use std::process::{Command, Stdio};
 use tokio::io::{AsyncBufReadExt, BufReader};
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// CLI command execution wrapper for web UI integration.
 ///
@@ -58,6 +66,10 @@ impl Default for CommandService {
         Self::new()
     }
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl CommandService {
     /// Create a new command service instance.

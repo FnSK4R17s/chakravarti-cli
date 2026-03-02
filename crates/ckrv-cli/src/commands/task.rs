@@ -6,6 +6,10 @@
 #![allow(clippy::manual_let_else)]
 #![allow(clippy::items_after_statements)]
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::path::PathBuf;
 
 use clap::Args;
@@ -17,6 +21,10 @@ use ckrv_core::{
 };
 
 use crate::ui::UiContext;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Arguments for the task command.
 #[derive(Args)]
@@ -89,6 +97,10 @@ enum TaskEvent {
         message: String,
     },
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 fn emit_event(event: &TaskEvent, json: bool) {
     if json {

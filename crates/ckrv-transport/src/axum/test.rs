@@ -13,6 +13,10 @@
 //! - POST /test/fix - Fix failing tests
 //! - POST /test/generate - Generate tests
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::handlers::test::{
     create_test_plan_handler, fix_tests_handler, generate_tests_handler, get_coverage_handler,
     get_plan_status_handler, get_test_writer_agent_handler, get_write_status_handler,
@@ -24,6 +28,10 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+
+// ============================================================
+// HANDLERS
+// ============================================================
 
 /// Get test writer agent.
 async fn get_test_agent(State(state): State<AppState>) -> impl IntoResponse {
@@ -133,6 +141,10 @@ async fn generate_tests(
         Err(e) => e.into_response(),
     }
 }
+
+// ============================================================
+// ROUTES
+// ============================================================
 
 /// Create test routes.
 pub fn routes() -> Router<AppState> {

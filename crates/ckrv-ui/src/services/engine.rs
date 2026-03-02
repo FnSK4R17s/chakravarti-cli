@@ -57,6 +57,10 @@
 //!     .await?;
 //! ```
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -76,6 +80,10 @@ use crate::models::history::{HistoryBatchStatus, Run, RunStatus};
 use crate::models::log::{LogEntry, LogLevel};
 use crate::services::history::HistoryService;
 use crate::services::log_store::LogStore;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Status of a batch in the execution plan.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
@@ -279,6 +287,10 @@ pub struct ExecutionEngine {
     /// Current execution ID for log persistence
     current_execution_id: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl ExecutionEngine {
     /// Create a new execution engine rooted at the given project path.

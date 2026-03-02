@@ -13,6 +13,10 @@
 //! - GET /specs/{name}/clarifications - Get clarifications
 //! - POST /specs/{name}/clarify - Answer clarifications
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::handlers::specs::{
     create_spec_handler, get_spec_handler, list_specs_handler, update_spec_handler,
 };
@@ -24,11 +28,19 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 
+// ============================================================
+// TYPES
+// ============================================================
+
 /// Query params for GET /specs/detail.
 #[derive(Deserialize)]
 struct SpecDetailQuery {
     name: String,
 }
+
+// ============================================================
+// HANDLERS
+// ============================================================
 
 /// List all specs.
 async fn list_specs(State(state): State<AppState>) -> impl IntoResponse {
@@ -138,6 +150,10 @@ async fn clarify(
         "spec": name
     }))
 }
+
+// ============================================================
+// ROUTES
+// ============================================================
 
 /// Create spec routes.
 pub fn routes() -> Router<AppState> {

@@ -472,9 +472,9 @@ pub enum Commands {
     Term(commands::term::TermArgs),
 }
 
-// ============================================================================
+// ============================================================
 // Command Metadata Types for SKILL.md and MCP generation
-// ============================================================================
+// ============================================================
 
 /// Metadata extracted from a clap Command for documentation/MCP generation
 #[derive(Debug, Clone, Serialize)]

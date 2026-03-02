@@ -2,6 +2,10 @@
 //!
 //! Axum route wrappers for agent handlers.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::handlers::agents::{
     delete_agent_handler, get_glm_models_handler, get_kilo_models_handler,
     get_openrouter_models_handler, list_agents_handler, set_default_agent_handler,
@@ -17,6 +21,10 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
+
+// ============================================================
+// HANDLERS
+// ============================================================
 
 /// List all agents.
 async fn list_agents(State(state): State<AppState>) -> impl IntoResponse {
@@ -143,6 +151,10 @@ async fn get_glm_models() -> impl IntoResponse {
         Err(e) => e.into_response(),
     }
 }
+
+// ============================================================
+// ROUTES
+// ============================================================
 
 /// Create agent routes.
 pub fn routes() -> Router<AppState> {

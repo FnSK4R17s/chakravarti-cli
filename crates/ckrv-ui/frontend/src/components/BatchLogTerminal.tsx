@@ -63,26 +63,27 @@ export interface BatchLogEntry {
 
 /**
  * Props for the BatchLogTerminal component.
+ * Renders a terminal-style log viewer for a single batch execution with header and scrollable log content.
  */
 export interface BatchLogTerminalProps {
-    /** Unique identifier for the batch */
+    /** Unique identifier for the batch, used for log persistence features */
     batchId: string;
-    /** Display name for the batch header */
+    /** Display name shown in the batch header */
     batchName: string;
-    /** Index of this batch in the carousel (reserved for future use) */
+    /** Zero-based index of this batch within the carousel, reserved for future use */
     batchIndex: number;
-    /** Current execution status of the batch */
+    /** Current execution status of the batch. Controls status icon and color */
     status: BatchStatus;
-    /** Array of log entries to display */
+    /** Array of log entries to display in chronological order */
     logs: BatchLogEntry[];
-    /** Git branch name, shown when batch completes */
+    /** Git branch name displayed in the header when the batch status is 'completed' */
     branch?: string;
     /**
      * Whether to auto-scroll to newest logs as they arrive.
      * @default true
      */
     autoScroll?: boolean;
-    /** Model identifier for display (e.g., "claude-sonnet-4-20250514") */
+    /** Model identifier shown as a chip in the header (e.g., "claude-sonnet-4-20250514") */
     model?: string;
 }
 

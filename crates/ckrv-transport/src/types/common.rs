@@ -2,10 +2,18 @@
 //!
 //! Shared types used across multiple handlers.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "typescript")]
 use ts_rs::TS;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Docker daemon status.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,6 +103,10 @@ impl<T> PaginatedResponse<T> {
         }
     }
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

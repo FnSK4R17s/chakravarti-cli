@@ -1,6 +1,6 @@
 ---
-last_commit: f92f604
-last_updated: 2026-03-01
+last_commit: 2a2da7f
+last_updated: 2026-03-02
 related_files:
   - src/main.rs
   - src/commands/mod.rs
@@ -49,18 +49,19 @@ src/
 ├── main.rs              # Tauri app builder, plugin registration, 50+ IPC handlers
 └── commands/
     ├── mod.rs           # Module declarations
-    ├── agents.rs        # Agent CRUD, OpenRouter models, default/QA/test agent (112 lines)
-    ├── cli.rs           # CLI command wrappers: init, spec, plan, run, verify, etc. (153 lines)
-    ├── diff.rs          # Branch listing, default branch, diff generation (51 lines)
-    ├── execution.rs     # Start/stop execution, status, logs, branch listing (164 lines)
-    ├── history.rs       # Run history CRUD (95 lines)
-    ├── plans.rs         # Plan CRUD (56 lines)
-    ├── project.rs       # Project root persistence, recent projects, folder dialog (150 lines)
-    ├── qa.rs            # QA agent, review/bugs/report commands (124 lines)
-    ├── specs.rs         # Spec CRUD, validation, design/tasks generation (98 lines)
-    ├── status.rs        # System status, Docker check, cloud status (38 lines)
-    ├── terminal.rs      # Docker-based terminal sessions with PTY (330 lines)
-    └── test.rs          # Test runner, planner, writer, coverage, fix (379 lines)
+    ├── agents.rs        # Agent CRUD, OpenRouter/GLM/Kilo models, default/QA/test agent
+    ├── cli.rs           # CLI command wrappers: init, spec, plan, run, verify, etc.
+    ├── diff.rs          # Branch listing, default branch, diff generation
+    ├── execution.rs     # Start/stop execution, status, logs, branch listing
+    ├── history.rs       # Run history CRUD
+    ├── plans.rs         # Plan CRUD
+    ├── project.rs       # Project root persistence, recent projects, folder dialog
+    ├── qa.rs            # QA agent, review/bugs/report commands
+    ├── specs.rs         # Spec CRUD, validation, design/tasks generation
+    ├── status.rs        # System status, Docker check, cloud status
+    ├── terminal.rs      # Docker-based terminal sessions with PTY
+    ├── test.rs          # Test runner, planner, writer, coverage, fix
+    └── update.rs        # Auto-update: check and install from GitHub Releases
 ```
 
 ## IPC Commands (50+)
@@ -77,7 +78,8 @@ src/
 |---------|---------|---------|
 | `list_agents` | `agents::list_agents` | List configured agents |
 | `get_openrouter_models` | `agents::get_openrouter_models` | Fetch OpenRouter model catalog |
-| `get_kilo_models` | `agents::get_kilo_models` | Fetch Kilo Code model catalog |
+| `get_kilo_models` | `agents::get_kilo_models` | Fetch Kilo Code model catalog (returns `KiloModelsWrapped`) |
+| `get_glm_models` | `agents::get_glm_models` | Fetch Z.AI GLM model catalog (returns `GlmModelsWrapped`) |
 | `upsert_agent` | `agents::upsert_agent` | Create or update agent config |
 | `delete_agent` | `agents::delete_agent` | Remove agent |
 | `set_default_agent` | `agents::set_default_agent` | Set default execution agent |
@@ -132,6 +134,12 @@ src/
 | `get_recent_projects` | `project::get_recent_projects` | Recent project list (max 10) |
 | `open_project_dialog` | `project::open_project_dialog` | Native folder picker |
 
+### Auto-Update
+| Command | Handler | Purpose |
+|---------|---------|---------|
+| `check_for_updates` | `update::check_for_updates` | Check GitHub Releases for a newer version (returns `Option<UpdateInfo>`) |
+| `install_update` | `update::install_update` | Download, verify, install update, then restart |
+
 ### QA, Test, CLI, Diff, History
 
 Additional commands wrap the corresponding `ckrv-transport` handlers for QA reviews, test execution, CLI operations, diff viewing, and run history.
@@ -145,6 +153,7 @@ Additional commands wrap the corresponding `ckrv-transport` handlers for QA revi
 | `tauri-plugin-fs` | 2 | File system access |
 | `tauri-plugin-pty` | 0.2 | PTY for interactive terminals |
 | `tauri-plugin-process` | 2 | App restart/exit |
+| `tauri-plugin-updater` | 2 | Auto-update from GitHub Releases |
 
 ## Capabilities
 

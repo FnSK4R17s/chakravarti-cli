@@ -1,5 +1,9 @@
 //! Docker/Podman client wrapper.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -15,11 +19,19 @@ use futures_util::StreamExt;
 
 use crate::SandboxError;
 
+// ============================================================
+// CONSTANTS
+// ============================================================
+
 /// GHCR registry prefix for pre-built agent images.
 pub const GHCR_PREFIX: &str = "ghcr.io/fnsk4r17s";
 
 /// Default Docker image for execution (contains Claude Code CLI).
 pub const DEFAULT_IMAGE: &str = "ghcr.io/fnsk4r17s/ckrv-agent:latest";
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Docker client wrapper.
 pub struct DockerClient {
@@ -684,6 +696,10 @@ impl DockerClient {
     }
 }
 
+// ============================================================
+// OUTPUT TYPES
+// ============================================================
+
 /// Output from container execution.
 #[derive(Debug, Clone)]
 pub struct ExecutionOutput {
@@ -696,6 +712,10 @@ pub struct ExecutionOutput {
     /// Duration in milliseconds.
     pub duration_ms: u64,
 }
+
+// ============================================================
+// TESTS
+// ============================================================
 
 #[cfg(test)]
 mod tests {

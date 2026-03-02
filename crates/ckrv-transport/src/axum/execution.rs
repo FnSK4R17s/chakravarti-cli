@@ -13,6 +13,10 @@
 //! - GET /execution/{id}/logs - Get execution logs
 //! - GET /execution/{id}/logs/tail - Tail execution logs
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use crate::handlers::execution::{
     get_execution_status_handler, get_logs_handler, list_branches_handler,
     merge_all_branches_handler, merge_branch_handler, start_execution_handler,
@@ -26,6 +30,10 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 use tokio::sync::broadcast;
+
+// ============================================================
+// HANDLERS
+// ============================================================
 
 /// Start execution.
 async fn start_execution(
@@ -235,6 +243,10 @@ async fn get_status(State(state): State<AppState>) -> impl IntoResponse {
         Err(e) => e.into_response(),
     }
 }
+
+// ============================================================
+// ROUTES
+// ============================================================
 
 /// Create execution routes.
 pub fn routes() -> Router<AppState> {

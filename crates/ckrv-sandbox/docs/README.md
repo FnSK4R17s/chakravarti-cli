@@ -1,6 +1,6 @@
 ---
-last_commit: f92f604
-last_updated: 2026-03-01
+last_commit: 2a2da7f
+last_updated: 2026-03-02
 related_files:
   - src/lib.rs
   - src/executor.rs
@@ -70,6 +70,14 @@ src/
     ├── claude.rs   # Claude Code provider
     ├── codex.rs    # OpenAI Codex provider
     ├── kilo.rs     # Kilo Code provider
+    ├── amp.rs      # Amp CLI provider
+    ├── copilot.rs  # GitHub Copilot CLI provider
+    ├── cursor.rs   # Cursor CLI provider
+    ├── factory.rs  # Factory Droid CLI provider
+    ├── gemini.rs   # Gemini CLI provider
+    ├── opencode.rs # Opencode CLI provider
+    ├── qwen.rs     # Qwen Code CLI provider
+    ├── vibe.rs     # Mistral Vibe CLI provider
     └── tests.rs    # Agent unit tests
 ```
 
@@ -128,6 +136,14 @@ Supported agents in this crate:
 | Claude Code | `ClaudeProvider` | `claude` |
 | OpenAI Codex | `CodexProvider` | `codex` |
 | Kilo Code | `KiloCodeProvider` | `kilo` |
+| Amp | `AmpProvider` | `amp` |
+| GitHub Copilot | `GithubCopilotProvider` | `gh copilot` |
+| Cursor | `CursorProvider` | `cursor` |
+| Factory Droid | `FactoryDroidProvider` | `factory` |
+| Gemini CLI | `GeminiProvider` | `gemini` |
+| Opencode | `OpencodeProvider` | `opencode` |
+| Qwen Code | `QwenProvider` | `qwen-coder` |
+| Mistral Vibe | `VibeProvider` | `vibe` |
 
 ```rust
 use ckrv_sandbox::{AgentType, create_agent, default_agent};

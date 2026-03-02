@@ -4,10 +4,18 @@
 //! non-interactive automation. Auth can be provided via `AMP_API_KEY` or
 //! existing settings in `~/.config/amp/settings.json`.
 
+// ============================================================
+// IMPORTS
+// ============================================================
+
 use super::{AgentConfig, AgentOutput, AgentProvider, AgentType};
 use anyhow::Result;
 use bollard::models::Mount;
 use std::path::Path;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 /// Amp CLI provider
 #[derive(Debug, Default)]
@@ -19,6 +27,10 @@ impl AmpProvider {
         Self
     }
 }
+
+// ============================================================
+// IMPLEMENTATION
+// ============================================================
 
 impl AgentProvider for AmpProvider {
     fn name(&self) -> &str {
