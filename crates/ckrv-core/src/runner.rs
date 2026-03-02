@@ -568,6 +568,7 @@ steps:
 "#;
 
     #[tokio::test]
+    #[ignore] // Requires agent CLI (claude) installed
     async fn test_runner_executes_workflow() {
         let dir = TempDir::new().expect("temp dir");
         let workflow = Workflow::parse(TEST_WORKFLOW).expect("parse");
@@ -589,6 +590,7 @@ steps:
     }
 
     #[tokio::test]
+    #[ignore] // Requires agent CLI (claude) installed
     async fn test_runner_records_outputs() {
         let dir = TempDir::new().expect("temp dir");
         let workflow = Workflow::parse(TEST_WORKFLOW).expect("parse");
