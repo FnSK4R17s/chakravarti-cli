@@ -102,7 +102,7 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
                 if (fitAddonRef.current && terminalRef.current) {
                     try {
                         fitAddonRef.current.fit();
-                    } catch (e) {
+                    } catch {
                         // Ignore fit errors during resize
                     }
                 }
@@ -155,6 +155,7 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
                     term.writeln(`\x1b[32m# Container: ${data.container_id?.slice(0, 12) || 'unknown'}\x1b[0m`);
 
                     // Check if running in Tauri mode
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const isTauriMode = data.mode === 'tauri' || (window as any).__TAURI__;
 
                     if (isTauriMode && data.container_id) {
@@ -193,6 +194,7 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
                                 pty.resize(cols, rows);
                             });
 
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             (term as any).__pty = pty;
 
                         } catch (ptyError) {
@@ -268,6 +270,7 @@ export const TestFixModal: React.FC<TestFixModalProps> = ({ error, baseBranch, o
             fetch('/api/terminal/stop', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                // eslint-disable-next-line react-hooks/exhaustive-deps
                 body: JSON.stringify({ session_id: sessionIdRef.current }),
             }).catch(() => { });
         };

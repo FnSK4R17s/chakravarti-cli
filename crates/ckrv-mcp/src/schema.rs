@@ -89,10 +89,9 @@ fn build_option_schema(opt: &OptionMetadata) -> Value {
 /// Convert clap type hint to JSON Schema type
 fn type_hint_to_json_type(type_hint: &str) -> String {
     match type_hint.to_uppercase().as_str() {
-        "FLAG" => "boolean".to_string(),
+        "FLAG" | "BOOL" | "BOOLEAN" => "boolean".to_string(),
         "NUMBER" | "INTEGER" | "INT" | "I32" | "U32" | "I64" | "U64" => "integer".to_string(),
         "FLOAT" | "F32" | "F64" => "number".to_string(),
-        "BOOL" | "BOOLEAN" => "boolean".to_string(),
         // Default everything else to string (PATH, URL, STRING, etc.)
         _ => "string".to_string(),
     }
@@ -155,6 +154,8 @@ mod tests {
             path: vec!["ckrv".to_string(), "spec".to_string(), "new".to_string()],
             name: "new".to_string(),
             description: "Create a new spec".to_string(),
+            long_description: None,
+            after_help: None,
             arguments: vec![ArgumentMetadata {
                 id: "description".to_string(),
                 help: "Feature description".to_string(),

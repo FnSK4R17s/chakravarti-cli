@@ -20,7 +20,6 @@ pub struct ListPlansWrapped {
 pub async fn list_plans(state: State<'_, SharedState>) -> Result<ListPlansWrapped, String> {
     let app_state = state.read().await;
     list_plans_handler(&app_state)
-        .await
         .map(|plans| ListPlansWrapped { plans })
         .map_err(|e| e.to_string())
 }
@@ -29,9 +28,7 @@ pub async fn list_plans(state: State<'_, SharedState>) -> Result<ListPlansWrappe
 #[tauri::command]
 pub async fn get_plan(state: State<'_, SharedState>, spec: String) -> Result<PlanDetail, String> {
     let app_state = state.read().await;
-    get_plan_handler(&app_state, spec)
-        .await
-        .map_err(|e| e.to_string())
+    get_plan_handler(&app_state, spec).map_err(|e| e.to_string())
 }
 
 /// Save/update a plan.
@@ -42,16 +39,12 @@ pub async fn save_plan(
     raw_yaml: String,
 ) -> Result<PlanDetail, String> {
     let app_state = state.read().await;
-    update_plan_handler(&app_state, spec, raw_yaml)
-        .await
-        .map_err(|e| e.to_string())
+    update_plan_handler(&app_state, spec, raw_yaml).map_err(|e| e.to_string())
 }
 
 /// Delete a plan.
 #[tauri::command]
 pub async fn delete_plan(state: State<'_, SharedState>, spec: String) -> Result<(), String> {
     let app_state = state.read().await;
-    delete_plan_handler(&app_state, spec)
-        .await
-        .map_err(|e| e.to_string())
+    delete_plan_handler(&app_state, spec).map_err(|e| e.to_string())
 }

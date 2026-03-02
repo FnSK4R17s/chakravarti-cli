@@ -41,7 +41,7 @@ fn get_spec_path(project_root: &Path, name: &str) -> PathBuf {
 // ============================================================================
 
 /// List all specifications.
-pub async fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, TransportError> {
+pub fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, TransportError> {
     let specs_dir = get_specs_dir(&state.project_root);
     let mut specs = Vec::new();
 
@@ -77,22 +77,21 @@ pub async fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, T
 
                         // Check implementation status
                         let impl_yaml = path.join("implementation.yaml");
-                        let (status, implementation_branch) = if impl_yaml.exists() {
-                            if let Ok(content) = std::fs::read_to_string(&impl_yaml) {
-                                if let Ok(summary) =
+                        let (status, _implementation_branch) = if impl_yaml.exists() {
+                            std::fs::read_to_string(&impl_yaml).ok().map_or(
+                                (SpecStatus::Draft, None),
+                                |content| {
                                     serde_yaml::from_str::<ImplementationSummary>(&content)
-                                {
-                                    if summary.status == "completed" {
-                                        (SpecStatus::Implemented, Some(summary.branch))
-                                    } else {
-                                        (SpecStatus::InProgress, None)
-                                    }
-                                } else {
-                                    (SpecStatus::Draft, None)
-                                }
-                            } else {
-                                (SpecStatus::Draft, None)
-                            }
+                                        .ok()
+                                        .map_or((SpecStatus::Draft, None), |summary| {
+                                            if summary.status == "completed" {
+                                                (SpecStatus::Implemented, Some(summary.branch))
+                                            } else {
+                                                (SpecStatus::InProgress, None)
+                                            }
+                                        })
+                                },
+                            )
                         } else if has_tasks {
                             (SpecStatus::Planned, None)
                         } else {
@@ -100,11 +99,9 @@ pub async fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, T
                         };
 
                         // Try to read title from spec.yaml
-                        let title = if let Ok(content) = std::fs::read_to_string(&spec_yaml) {
-                            extract_title_from_yaml(&content)
-                        } else {
-                            None
-                        };
+                        let title = std::fs::read_to_string(&spec_yaml)
+                            .ok()
+                            .and_then(|content| extract_title_from_yaml(&content));
 
                         specs.push(SpecSummary {
                             name: name.clone(),
@@ -143,10 +140,7 @@ fn extract_title_from_yaml(content: &str) -> Option<String> {
 }
 
 /// Get a single specification.
-pub async fn get_spec_handler(
-    state: &AppState,
-    name: String,
-) -> Result<SpecDetail, TransportError> {
+pub fn get_spec_handler(state: &AppState, name: String) -> Result<SpecDetail, TransportError> {
     let spec_path = get_spec_path(&state.project_root, &name).join("spec.yaml");
 
     if !spec_path.exists() {
@@ -198,14 +192,15 @@ pub async fn get_spec_handler(
     let requirements: Vec<serde_json::Value> = spec
         .get("requirements")
         .and_then(|v| {
-            if let Some(arr) = v.as_sequence() {
-                serde_json::to_value(arr).ok()
-            } else if let Some(map) = v.as_mapping() {
-                map.get(&serde_yaml::Value::String("functional".to_string()))
-                    .and_then(|f| serde_json::to_value(f).ok())
-            } else {
-                None
-            }
+            v.as_sequence().map_or_else(
+                || {
+                    v.as_mapping().and_then(|map| {
+                        map.get(serde_yaml::Value::String("functional".to_string()))
+                            .and_then(|f| serde_json::to_value(f).ok())
+                    })
+                },
+                |arr| serde_json::to_value(arr).ok(),
+            )
         })
         .and_then(|v| v.as_array().cloned())
         .unwrap_or_default();
@@ -255,7 +250,7 @@ pub async fn get_spec_handler(
 }
 
 /// Create a new specification.
-pub async fn create_spec_handler(
+pub fn create_spec_handler(
     state: &AppState,
     request: CreateSpecRequest,
 ) -> Result<SpecSummary, TransportError> {
@@ -302,7 +297,7 @@ pub async fn create_spec_handler(
 }
 
 /// Update a specification.
-pub async fn update_spec_handler(
+pub fn update_spec_handler(
     state: &AppState,
     name: String,
     request: UpdateSpecRequest,
@@ -320,11 +315,11 @@ pub async fn update_spec_handler(
     }
 
     // Return updated spec
-    get_spec_handler(state, name).await
+    get_spec_handler(state, name)
 }
 
 /// Delete a specification.
-pub async fn delete_spec_handler(state: &AppState, name: String) -> Result<(), TransportError> {
+pub fn delete_spec_handler(state: &AppState, name: String) -> Result<(), TransportError> {
     let spec_path = get_spec_path(&state.project_root, &name);
 
     if !spec_path.exists() {
@@ -362,7 +357,7 @@ pub struct ValidationError {
 }
 
 /// Validate a specification.
-pub async fn validate_spec_handler(
+pub fn validate_spec_handler(
     state: &AppState,
     name: String,
 ) -> Result<ValidateSpecResponse, TransportError> {
@@ -380,7 +375,7 @@ pub async fn validate_spec_handler(
         if let Ok(result) = serde_json::from_str::<serde_json::Value>(&json_str) {
             let valid = result
                 .get("valid")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false);
 
             let errors: Vec<ValidationError> = result
@@ -433,7 +428,7 @@ pub struct DesignResponse {
 }
 
 /// Generate design for a spec.
-pub async fn generate_design_handler(
+pub fn generate_design_handler(
     state: &AppState,
     name: String,
 ) -> Result<DesignResponse, TransportError> {
@@ -480,7 +475,7 @@ pub struct GenerateTasksResponse {
 }
 
 /// Generate tasks for a spec.
-pub async fn generate_tasks_handler(
+pub fn generate_tasks_handler(
     state: &AppState,
     name: String,
 ) -> Result<GenerateTasksResponse, TransportError> {
@@ -504,7 +499,7 @@ pub async fn generate_tasks_handler(
                         .map(String::from),
                     task_count: result
                         .get("task_count")
-                        .and_then(|v| v.as_u64())
+                        .and_then(serde_json::Value::as_u64)
                         .map(|v| v as usize)
                         .unwrap_or(0),
                 });

@@ -40,10 +40,11 @@ pub struct AgentTask {
 }
 
 /// Status of a task.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AgentTaskStatus {
     /// Task created but not started.
+    #[default]
     Pending,
     /// Task is currently running.
     Running,
@@ -179,11 +180,7 @@ impl AgentTask {
     }
 }
 
-impl Default for AgentTaskStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
-}
+// Default is derived below via the enum variant attribute
 
 // ============================================================
 // TESTS

@@ -24,11 +24,10 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use serde::Deserialize;
 
 /// Get test writer agent.
 async fn get_test_agent(State(state): State<AppState>) -> impl IntoResponse {
-    match get_test_writer_agent_handler(&state).await {
+    match get_test_writer_agent_handler(&state) {
         Ok(agent) => Json(serde_json::json!({ "agent": agent })).into_response(),
         Err(e) => e.into_response(),
     }
@@ -39,7 +38,7 @@ async fn run_tests(
     State(state): State<AppState>,
     Json(request): Json<RunTestsRequest>,
 ) -> impl IntoResponse {
-    match run_tests_handler(&state, request).await {
+    match run_tests_handler(&state, request) {
         Ok(result) => {
             // Map to old API format expected by frontend
             let test_result = serde_json::json!({
@@ -80,7 +79,7 @@ async fn create_test_plan(
 
 /// Get test plan status.
 async fn get_plan_status(State(state): State<AppState>) -> impl IntoResponse {
-    match get_plan_status_handler(&state).await {
+    match get_plan_status_handler(&state) {
         Ok(status) => Json(status).into_response(),
         Err(e) => e.into_response(),
     }
@@ -99,7 +98,7 @@ async fn write_tests(
 
 /// Get write status.
 async fn get_write_status(State(state): State<AppState>) -> impl IntoResponse {
-    match get_write_status_handler(&state).await {
+    match get_write_status_handler(&state) {
         Ok(status) => Json(status).into_response(),
         Err(e) => e.into_response(),
     }

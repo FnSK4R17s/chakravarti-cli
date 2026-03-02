@@ -102,6 +102,7 @@ impl UiContext {
     }
 
     /// Print a component to stdout in a rendered form.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn print(&self, component: impl Renderable) {
         if self.silent {
             // In silent mode, we don't print "UI components" via this method usually?

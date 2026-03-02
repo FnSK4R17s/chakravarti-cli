@@ -6,6 +6,9 @@
 //! ```bash
 //! cargo run -p ckrv-cli --bin command_docs_gen
 //! ```
+#![allow(clippy::format_push_string)]
+#![allow(clippy::expect_used)]
+#![allow(clippy::panic)]
 
 // ============================================================
 // IMPORTS
@@ -14,7 +17,6 @@
 use std::fs;
 use std::path::Path;
 
-use chrono::Utc;
 use ckrv_cli::{extract_command_metadata, CommandMetadata, OptionMetadata};
 
 // ============================================================
@@ -93,7 +95,8 @@ fn generate_command_doc(cmd: &CommandMetadata, output_dir: &Path, commit_hash: &
     let filepath = output_dir.join(&filename);
     let content = generate_markdown(cmd, output_dir, commit_hash);
 
-    fs::write(&filepath, content).expect(&format!("Failed to write {}", filepath.display()));
+    fs::write(&filepath, content)
+        .unwrap_or_else(|_| panic!("Failed to write {}", filepath.display()));
 }
 
 /// Generate the full markdown content for a command documentation page.
@@ -102,13 +105,13 @@ fn generate_markdown(cmd: &CommandMetadata, _output_dir: &Path, commit_hash: &st
 
     // Frontmatter
     output.push_str(&format!(
-        r#"---
+        r"---
 command: {}
 generated_from: crates/ckrv-cli/src/lib.rs
 last_commit: {}
 ---
 
-"#,
+",
         cmd.name, commit_hash
     ));
 
@@ -173,7 +176,11 @@ last_commit: {}
                 output.push_str(&format!(
                     "| `{}` | {} |\n",
                     subcmd.name,
-                    if subcmd.description.is_empty() { "-" } else { &subcmd.description }
+                    if subcmd.description.is_empty() {
+                        "-"
+                    } else {
+                        &subcmd.description
+                    }
                 ));
             }
             output.push('\n');

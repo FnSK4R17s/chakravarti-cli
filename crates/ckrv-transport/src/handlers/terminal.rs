@@ -87,7 +87,9 @@ pub async fn start_terminal_handler(
 
     // Check if session already exists
     {
-        let sessions = TERMINAL_SESSIONS.lock().unwrap();
+        let sessions = TERMINAL_SESSIONS
+            .lock()
+            .map_err(|e| TransportError::Internal(format!("Lock poisoned: {e}")))?;
         if let Some(container_id) = sessions.get(&session_id) {
             return Ok(StartTerminalResponse {
                 success: true,
@@ -292,7 +294,7 @@ pub async fn start_terminal_handler(
                 // Set extended timeout for GLM
                 env_vars.push(format!(
                     "API_TIMEOUT_MS={}",
-                    glm_config.timeout_ms.unwrap_or(3000000)
+                    glm_config.timeout_ms.unwrap_or(3_000_000)
                 ));
 
                 // Set default model if specified
@@ -514,7 +516,9 @@ pub async fn start_terminal_handler(
 
             // Store session
             {
-                let mut sessions = TERMINAL_SESSIONS.lock().unwrap();
+                let mut sessions = TERMINAL_SESSIONS
+                    .lock()
+                    .map_err(|e| TransportError::Internal(format!("Lock poisoned: {e}")))?;
                 sessions.insert(session_id.clone(), container.id.clone());
             }
 
@@ -544,21 +548,20 @@ pub async fn start_terminal_handler(
 pub async fn handle_terminal_ws(socket: WebSocket, session_id: String) {
     // Look up container
     let container_id = {
-        let sessions = TERMINAL_SESSIONS.lock().unwrap();
+        let Ok(sessions) = TERMINAL_SESSIONS.lock() else {
+            return;
+        };
         sessions.get(&session_id).cloned()
     };
 
-    let container_id = match container_id {
-        Some(id) => id,
-        None => {
-            let (mut sender, _) = socket.split();
-            let _ = sender
-                .send(Message::Text(
-                    "Error: No session found. Start a session first.".into(),
-                ))
-                .await;
-            return;
-        }
+    let Some(container_id) = container_id else {
+        let (mut sender, _) = socket.split();
+        let _ = sender
+            .send(Message::Text(
+                "Error: No session found. Start a session first.".into(),
+            ))
+            .await;
+        return;
     };
 
     // Connect to Docker
@@ -647,10 +650,12 @@ pub async fn handle_terminal_ws(socket: WebSocket, session_id: String) {
                         match msg {
                             Some(Ok(log)) => {
                                 let text = match log {
-                                    LogOutput::StdOut { message } => String::from_utf8_lossy(&message).to_string(),
-                                    LogOutput::StdErr { message } => String::from_utf8_lossy(&message).to_string(),
-                                    LogOutput::Console { message } => String::from_utf8_lossy(&message).to_string(),
-                                    _ => continue,
+                                    LogOutput::StdOut { message }
+                                    | LogOutput::StdErr { message }
+                                    | LogOutput::Console { message } => {
+                                        String::from_utf8_lossy(&message).to_string()
+                                    }
+                                    LogOutput::StdIn { .. } => continue,
                                 };
                                 if ws_sender.send(Message::Text(text.into())).await.is_err() {
                                     break;
@@ -677,10 +682,15 @@ pub async fn handle_terminal_ws(socket: WebSocket, session_id: String) {
                         if let Ok(resize) = serde_json::from_str::<serde_json::Value>(text.as_ref())
                         {
                             if resize.get("type").and_then(|t| t.as_str()) == Some("resize") {
-                                let cols =
-                                    resize.get("cols").and_then(|c| c.as_u64()).unwrap_or(120)
-                                        as u16;
-                                let rows = resize.get("rows").and_then(|r| r.as_u64()).unwrap_or(30)
+                                let cols = resize
+                                    .get("cols")
+                                    .and_then(serde_json::Value::as_u64)
+                                    .unwrap_or(120)
+                                    as u16;
+                                let rows = resize
+                                    .get("rows")
+                                    .and_then(serde_json::Value::as_u64)
+                                    .unwrap_or(30)
                                     as u16;
                                 let _ = docker_for_input
                                     .resize_exec(
@@ -714,7 +724,7 @@ pub async fn handle_terminal_ws(socket: WebSocket, session_id: String) {
         });
 
         // Wait for either task to complete
-        let _ = tokio::select! {
+        tokio::select! {
             _ = output_task => {},
             _ = input_task => {},
         };
@@ -727,18 +737,17 @@ pub async fn stop_terminal_handler(
 ) -> Result<StopTerminalResponse, TransportError> {
     // Remove from store
     let container_id = {
-        let mut sessions = TERMINAL_SESSIONS.lock().unwrap();
+        let mut sessions = TERMINAL_SESSIONS
+            .lock()
+            .map_err(|e| TransportError::Internal(format!("Lock poisoned: {e}")))?;
         sessions.remove(&request.session_id)
     };
 
-    let container_id = match container_id {
-        Some(id) => id,
-        None => {
-            return Ok(StopTerminalResponse {
-                success: true,
-                message: Some("Session not found (already stopped?)".to_string()),
-            });
-        }
+    let Some(container_id) = container_id else {
+        return Ok(StopTerminalResponse {
+            success: true,
+            message: Some("Session not found (already stopped?)".to_string()),
+        });
     };
 
     // Stop and remove container

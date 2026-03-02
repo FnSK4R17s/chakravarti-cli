@@ -75,7 +75,7 @@ pub struct BranchesResponse {
 // ============================================================================
 
 /// Get available git branches.
-pub async fn get_branches_handler(state: &AppState) -> Result<BranchesResponse, TransportError> {
+pub fn get_branches_handler(state: &AppState) -> Result<BranchesResponse, TransportError> {
     let cwd = &state.project_root;
 
     // Get current branch
@@ -105,7 +105,7 @@ pub async fn get_branches_handler(state: &AppState) -> Result<BranchesResponse, 
 }
 
 /// Get the default branch (main or master).
-pub async fn get_default_branch_handler(state: &AppState) -> Result<String, TransportError> {
+pub fn get_default_branch_handler(state: &AppState) -> Result<String, TransportError> {
     let cwd = &state.project_root;
 
     let main_check = Command::new("git")
@@ -121,7 +121,7 @@ pub async fn get_default_branch_handler(state: &AppState) -> Result<String, Tran
 }
 
 /// Get diff between two branches.
-pub async fn get_diff_handler(
+pub fn get_diff_handler(
     state: &AppState,
     query: DiffQuery,
 ) -> Result<DiffResponse, TransportError> {
@@ -130,7 +130,7 @@ pub async fn get_diff_handler(
     // Determine base branch
     let base = match query.base {
         Some(b) => b,
-        None => get_default_branch_handler(state).await?,
+        None => get_default_branch_handler(state)?,
     };
 
     let target = query.target.unwrap_or_else(|| "HEAD".to_string());
@@ -219,7 +219,9 @@ pub async fn get_diff_handler(
 }
 
 /// Apply a diff patch.
-pub async fn apply_diff_handler(state: &AppState, patch: String) -> Result<(), TransportError> {
+pub fn apply_diff_handler(state: &AppState, patch: String) -> Result<(), TransportError> {
+    use std::io::Write;
+
     let cwd = &state.project_root;
 
     let mut child = Command::new("git")
@@ -229,7 +231,6 @@ pub async fn apply_diff_handler(state: &AppState, patch: String) -> Result<(), T
         .spawn()
         .map_err(|e| TransportError::Internal(format!("Failed to apply patch: {e}")))?;
 
-    use std::io::Write;
     if let Some(mut stdin) = child.stdin.take() {
         stdin
             .write_all(patch.as_bytes())
@@ -251,10 +252,7 @@ pub async fn apply_diff_handler(state: &AppState, patch: String) -> Result<(), T
 }
 
 /// Revert changes to a file.
-pub async fn revert_file_handler(
-    state: &AppState,
-    file_path: String,
-) -> Result<(), TransportError> {
+pub fn revert_file_handler(state: &AppState, file_path: String) -> Result<(), TransportError> {
     let cwd = &state.project_root;
 
     let output = Command::new("git")
@@ -286,6 +284,6 @@ mod tests {
     async fn test_get_default_branch() {
         let state = AppState::new(PathBuf::from("/tmp/test-diff"));
         // This will likely fail in a non-git directory, which is expected
-        let _ = get_default_branch_handler(&state).await;
+        let _ = get_default_branch_handler(&state);
     }
 }

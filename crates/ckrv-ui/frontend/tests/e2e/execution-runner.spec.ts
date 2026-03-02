@@ -146,12 +146,6 @@ test.describe('Execution Runner', () => {
         // Check that the page loads correctly
         await expect(page.locator('body')).toBeVisible();
 
-        // Look for any connection status indicators
-        const statusIndicator = page.locator('[data-testid="connection-status"], [data-testid="ws-status"]');
-
-        // If we can find a reconnecting status element, verify its structure
-        const reconnectingElement = page.locator('[data-testid="reconnecting-indicator"]');
-
         // The reconnecting element should be hidden when connected
         // This is a baseline test - actual reconnection testing requires network simulation
         console.log('WebSocket reconnection UI elements checked');

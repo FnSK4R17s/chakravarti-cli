@@ -1,4 +1,6 @@
 //! Git diff analyzer - analyze changes vs base branch.
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::ptr_arg)]
 
 // ============================================================
 // IMPORTS
@@ -14,7 +16,7 @@ use serde::Serialize;
 // ============================================================
 
 /// Type of file change.
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ChangeType {
     Added,
@@ -41,6 +43,7 @@ pub struct ChangedFile {
 // ============================================================
 
 /// Get the default base branch (usually main or master).
+#[allow(dead_code)]
 pub fn get_base_branch() -> anyhow::Result<String> {
     // Try to get the default branch from remote
     let output = Command::new("git")
@@ -60,7 +63,7 @@ pub fn get_base_branch() -> anyhow::Result<String> {
             .args(["rev-parse", "--verify", branch])
             .output()?;
         if check.status.success() {
-            return Ok(branch.to_string());
+            return Ok((*branch).to_string());
         }
     }
 
@@ -217,6 +220,7 @@ fn get_file_diff_stats(base: &str, file: &PathBuf) -> anyhow::Result<(u32, u32)>
 }
 
 /// Get the full diff content for QA review
+#[allow(dead_code)]
 pub fn get_diff_content(base: &str) -> anyhow::Result<String> {
     let output = Command::new("git")
         .args(["diff", &format!("{}...HEAD", base)])
@@ -231,6 +235,7 @@ pub fn get_diff_content(base: &str) -> anyhow::Result<String> {
 }
 
 /// Check if there are any changes vs base
+#[allow(dead_code)]
 pub fn has_changes(base: &str) -> bool {
     get_changed_files(base)
         .map(|files| !files.is_empty())

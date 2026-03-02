@@ -76,15 +76,15 @@ impl TestOutputParser {
     #[must_use]
     pub fn parse(&self, output: &str, success: bool, duration_ms: u64) -> Vec<TestResult> {
         match self.framework {
-            TestFramework::Cargo => self.parse_cargo(output, duration_ms),
-            TestFramework::Npm => self.parse_npm(output, duration_ms),
-            TestFramework::Python => self.parse_python(output, duration_ms),
-            TestFramework::Go => self.parse_go(output, duration_ms),
-            TestFramework::Generic => self.parse_generic(output, success, duration_ms),
+            TestFramework::Cargo => Self::parse_cargo(output, duration_ms),
+            TestFramework::Npm => Self::parse_npm(output, duration_ms),
+            TestFramework::Python => Self::parse_python(output, duration_ms),
+            TestFramework::Go => Self::parse_go(output, duration_ms),
+            TestFramework::Generic => Self::parse_generic(output, success, duration_ms),
         }
     }
 
-    fn parse_cargo(&self, output: &str, duration_ms: u64) -> Vec<TestResult> {
+    fn parse_cargo(output: &str, duration_ms: u64) -> Vec<TestResult> {
         let mut results = Vec::new();
 
         for line in output.lines() {
@@ -129,7 +129,7 @@ impl TestOutputParser {
         results
     }
 
-    fn parse_npm(&self, output: &str, duration_ms: u64) -> Vec<TestResult> {
+    fn parse_npm(output: &str, duration_ms: u64) -> Vec<TestResult> {
         let mut results = Vec::new();
 
         // Look for common npm test patterns
@@ -173,7 +173,7 @@ impl TestOutputParser {
         results
     }
 
-    fn parse_python(&self, output: &str, duration_ms: u64) -> Vec<TestResult> {
+    fn parse_python(output: &str, duration_ms: u64) -> Vec<TestResult> {
         let mut results = Vec::new();
 
         for line in output.lines() {
@@ -230,7 +230,7 @@ impl TestOutputParser {
         results
     }
 
-    fn parse_go(&self, output: &str, duration_ms: u64) -> Vec<TestResult> {
+    fn parse_go(output: &str, duration_ms: u64) -> Vec<TestResult> {
         let mut results = Vec::new();
 
         for line in output.lines() {
@@ -285,7 +285,7 @@ impl TestOutputParser {
         results
     }
 
-    fn parse_generic(&self, output: &str, success: bool, duration_ms: u64) -> Vec<TestResult> {
+    fn parse_generic(output: &str, success: bool, duration_ms: u64) -> Vec<TestResult> {
         vec![TestResult {
             name: "test".to_string(),
             status: if success {

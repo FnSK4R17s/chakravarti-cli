@@ -34,10 +34,12 @@ interface NavigationContextType {
     currentPage: PageType;
     setCurrentPage: (page: PageType) => void;
 }
+// eslint-disable-next-line react-refresh/only-export-components
 export const NavigationContext = createContext<NavigationContextType>({
     currentPage: 'dashboard',
     setCurrentPage: () => { },
 });
+// eslint-disable-next-line react-refresh/only-export-components
 export const useNavigation = () => useContext(NavigationContext);
 
 // Check if running in Tauri environment

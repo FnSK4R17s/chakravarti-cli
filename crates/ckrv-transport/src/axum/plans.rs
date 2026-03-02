@@ -26,7 +26,7 @@ async fn get_plan(
     State(state): State<AppState>,
     Query(query): Query<PlanDetailQuery>,
 ) -> impl IntoResponse {
-    match get_plan_handler(&state, query.spec).await {
+    match get_plan_handler(&state, query.spec) {
         Ok(plan) => Json(plan).into_response(),
         Err(e) => e.into_response(),
     }
@@ -34,6 +34,7 @@ async fn get_plan(
 
 /// Save plan request.
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct SavePlanRequest {
     spec: String,
     content: Option<String>,

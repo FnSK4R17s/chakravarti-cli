@@ -27,6 +27,7 @@ pub enum CloudError {
 
     /// Configuration error
     #[error("Configuration error: {0}")]
+    #[allow(dead_code)]
     ConfigError(String),
 
     /// Credential storage error
@@ -52,17 +53,17 @@ pub enum CloudError {
 impl From<reqwest::Error> for CloudError {
     fn from(err: reqwest::Error) -> Self {
         if err.is_connect() {
-            CloudError::NetworkError(format!("Connection failed: {}", err))
+            Self::NetworkError(format!("Connection failed: {}", err))
         } else if err.is_timeout() {
-            CloudError::NetworkError(format!("Request timed out: {}", err))
+            Self::NetworkError(format!("Request timed out: {}", err))
         } else {
-            CloudError::ApiError(err.to_string())
+            Self::ApiError(err.to_string())
         }
     }
 }
 
 impl From<keyring::Error> for CloudError {
     fn from(err: keyring::Error) -> Self {
-        CloudError::CredentialError(err.to_string())
+        Self::CredentialError(err.to_string())
     }
 }

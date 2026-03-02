@@ -5,10 +5,9 @@
 // ============================================================
 
 use super::{
-    create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType,
-    AmpProvider, ClaudeProvider, CodexProvider, CursorProvider, FactoryDroidProvider,
-    GeminiProvider, GithubCopilotProvider, KiloCodeProvider, MistralVibeProvider,
-    OpencodeProvider, QwenProvider,
+    create_agent, default_agent, AgentConfig, AgentOutput, AgentProvider, AgentType, AmpProvider,
+    ClaudeProvider, CodexProvider, CursorProvider, FactoryDroidProvider, GeminiProvider,
+    GithubCopilotProvider, KiloCodeProvider, MistralVibeProvider, OpencodeProvider, QwenProvider,
 };
 use std::path::Path;
 
@@ -18,39 +17,57 @@ use std::path::Path;
 
 #[test]
 fn test_agent_type_from_str() {
-    assert_eq!(AgentType::from_str("claude"), Some(AgentType::Claude));
-    assert_eq!(AgentType::from_str("Claude"), Some(AgentType::Claude));
-    assert_eq!(AgentType::from_str("claude-code"), Some(AgentType::Claude));
-    assert_eq!(AgentType::from_str("codex"), Some(AgentType::Codex));
-    assert_eq!(AgentType::from_str("Codex"), Some(AgentType::Codex));
-    assert_eq!(AgentType::from_str("openai"), Some(AgentType::Codex));
-    assert_eq!(AgentType::from_str("openai-codex"), Some(AgentType::Codex));
-    assert_eq!(AgentType::from_str("kilo"), Some(AgentType::KiloCode));
-    assert_eq!(AgentType::from_str("Kilo"), Some(AgentType::KiloCode));
-    assert_eq!(AgentType::from_str("kilo-code"), Some(AgentType::KiloCode));
-    assert_eq!(AgentType::from_str("kilocode"), Some(AgentType::KiloCode));
-    assert_eq!(AgentType::from_str("gemini"), Some(AgentType::Gemini));
-    assert_eq!(AgentType::from_str("Gemini"), Some(AgentType::Gemini));
-    assert_eq!(AgentType::from_str("gemini-cli"), Some(AgentType::Gemini));
-    assert_eq!(AgentType::from_str("cursor"), Some(AgentType::Cursor));
-    assert_eq!(AgentType::from_str("cursor-cli"), Some(AgentType::Cursor));
-    assert_eq!(AgentType::from_str("amp"), Some(AgentType::Amp));
-    assert_eq!(AgentType::from_str("ampcode"), Some(AgentType::Amp));
-    assert_eq!(AgentType::from_str("qwen"), Some(AgentType::Qwen));
-    assert_eq!(AgentType::from_str("qwen-code"), Some(AgentType::Qwen));
-    assert_eq!(AgentType::from_str("qwencode"), Some(AgentType::Qwen));
-    assert_eq!(AgentType::from_str("opencode"), Some(AgentType::Opencode));
-    assert_eq!(AgentType::from_str("open-code"), Some(AgentType::Opencode));
-    assert_eq!(AgentType::from_str("factory"), Some(AgentType::FactoryDroid));
-    assert_eq!(AgentType::from_str("factory-droid"), Some(AgentType::FactoryDroid));
-    assert_eq!(AgentType::from_str("factory_droid"), Some(AgentType::FactoryDroid));
-    assert_eq!(AgentType::from_str("github-copilot"), Some(AgentType::GithubCopilot));
-    assert_eq!(AgentType::from_str("copilot"), Some(AgentType::GithubCopilot));
-    assert_eq!(AgentType::from_str("gh-copilot"), Some(AgentType::GithubCopilot));
-    assert_eq!(AgentType::from_str("mistral-vibe"), Some(AgentType::MistralVibe));
-    assert_eq!(AgentType::from_str("mistral_vibe"), Some(AgentType::MistralVibe));
-    assert_eq!(AgentType::from_str("vibe"), Some(AgentType::MistralVibe));
-    assert_eq!(AgentType::from_str("unknown"), None);
+    assert_eq!(AgentType::parse("claude"), Some(AgentType::Claude));
+    assert_eq!(AgentType::parse("Claude"), Some(AgentType::Claude));
+    assert_eq!(AgentType::parse("claude-code"), Some(AgentType::Claude));
+    assert_eq!(AgentType::parse("codex"), Some(AgentType::Codex));
+    assert_eq!(AgentType::parse("Codex"), Some(AgentType::Codex));
+    assert_eq!(AgentType::parse("openai"), Some(AgentType::Codex));
+    assert_eq!(AgentType::parse("openai-codex"), Some(AgentType::Codex));
+    assert_eq!(AgentType::parse("kilo"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::parse("Kilo"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::parse("kilo-code"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::parse("kilocode"), Some(AgentType::KiloCode));
+    assert_eq!(AgentType::parse("gemini"), Some(AgentType::Gemini));
+    assert_eq!(AgentType::parse("Gemini"), Some(AgentType::Gemini));
+    assert_eq!(AgentType::parse("gemini-cli"), Some(AgentType::Gemini));
+    assert_eq!(AgentType::parse("cursor"), Some(AgentType::Cursor));
+    assert_eq!(AgentType::parse("cursor-cli"), Some(AgentType::Cursor));
+    assert_eq!(AgentType::parse("amp"), Some(AgentType::Amp));
+    assert_eq!(AgentType::parse("ampcode"), Some(AgentType::Amp));
+    assert_eq!(AgentType::parse("qwen"), Some(AgentType::Qwen));
+    assert_eq!(AgentType::parse("qwen-code"), Some(AgentType::Qwen));
+    assert_eq!(AgentType::parse("qwencode"), Some(AgentType::Qwen));
+    assert_eq!(AgentType::parse("opencode"), Some(AgentType::Opencode));
+    assert_eq!(AgentType::parse("open-code"), Some(AgentType::Opencode));
+    assert_eq!(AgentType::parse("factory"), Some(AgentType::FactoryDroid));
+    assert_eq!(
+        AgentType::parse("factory-droid"),
+        Some(AgentType::FactoryDroid)
+    );
+    assert_eq!(
+        AgentType::parse("factory_droid"),
+        Some(AgentType::FactoryDroid)
+    );
+    assert_eq!(
+        AgentType::parse("github-copilot"),
+        Some(AgentType::GithubCopilot)
+    );
+    assert_eq!(AgentType::parse("copilot"), Some(AgentType::GithubCopilot));
+    assert_eq!(
+        AgentType::parse("gh-copilot"),
+        Some(AgentType::GithubCopilot)
+    );
+    assert_eq!(
+        AgentType::parse("mistral-vibe"),
+        Some(AgentType::MistralVibe)
+    );
+    assert_eq!(
+        AgentType::parse("mistral_vibe"),
+        Some(AgentType::MistralVibe)
+    );
+    assert_eq!(AgentType::parse("vibe"), Some(AgentType::MistralVibe));
+    assert_eq!(AgentType::parse("unknown"), None);
 }
 
 #[test]

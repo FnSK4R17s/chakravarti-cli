@@ -126,11 +126,7 @@ impl<P: Planner> DefaultOrchestrator<P> {
         self.event_handler.handle(event);
     }
 
-    async fn execute_step(
-        &self,
-        step: &mut Step,
-        _worktree_path: &PathBuf,
-    ) -> Result<(), OrchestratorError> {
+    fn execute_step(&self, step: &mut Step, _worktree_path: &PathBuf) {
         let start = Instant::now();
 
         self.emit(JobEvent::StepStarted {
@@ -152,33 +148,21 @@ impl<P: Planner> DefaultOrchestrator<P> {
             step_id: step.id.clone(),
             duration_ms: step.duration_ms.unwrap_or(0),
         });
-
-        Ok(())
     }
 
-    async fn execute_plan(
-        &self,
-        plan: &mut Plan,
-        worktree_path: &PathBuf,
-    ) -> Result<(), OrchestratorError> {
+    fn execute_plan(&self, plan: &mut Plan, worktree_path: &PathBuf) {
         // Get steps in execution order
         let step_order: Vec<String> = plan.steps.iter().map(|s| s.id.clone()).collect();
 
         for step_id in step_order {
             // Find and execute step
             if let Some(step) = plan.steps.iter_mut().find(|s| s.id == step_id) {
-                self.execute_step(step, worktree_path).await?;
+                self.execute_step(step, worktree_path);
             }
         }
-
-        Ok(())
     }
 
-    async fn run_attempt(
-        &self,
-        job: &mut Job,
-        plan: &mut Plan,
-    ) -> Result<AttemptResult, OrchestratorError> {
+    fn run_attempt(&self, job: &Job, plan: &mut Plan) -> Result<AttemptResult, OrchestratorError> {
         let attempt_num = job.attempt_count() + 1;
 
         self.emit(JobEvent::AttemptStarted {
@@ -199,24 +183,14 @@ impl<P: Planner> DefaultOrchestrator<P> {
             .map_err(|e| OrchestratorError::GitError(e.to_string()))?;
 
         // Execute plan
-        match self.execute_plan(plan, &worktree_path).await {
-            Ok(()) => {
-                let result = AttemptResult::success("All steps completed");
-                self.emit(JobEvent::AttemptCompleted {
-                    number: attempt_num,
-                    result: result.clone(),
-                });
-                Ok(result)
-            }
-            Err(e) => {
-                let result = AttemptResult::failure(&e.to_string());
-                self.emit(JobEvent::AttemptCompleted {
-                    number: attempt_num,
-                    result: result.clone(),
-                });
-                Err(e)
-            }
-        }
+        self.execute_plan(plan, &worktree_path);
+
+        let result = AttemptResult::success("All steps completed");
+        self.emit(JobEvent::AttemptCompleted {
+            number: attempt_num,
+            result: result.clone(),
+        });
+        Ok(result)
     }
 }
 
@@ -248,7 +222,7 @@ impl<P: Planner + 'static> Orchestrator for DefaultOrchestrator<P> {
         // Retry loop
         let mut last_error = None;
         for attempt in 1..=config.max_attempts {
-            match self.run_attempt(&mut job, &mut plan).await {
+            match self.run_attempt(&job, &mut plan) {
                 Ok(result) => {
                     job.add_attempt(result);
 
@@ -281,7 +255,7 @@ impl<P: Planner + 'static> Orchestrator for DefaultOrchestrator<P> {
                     });
                 }
                 Err(e) => {
-                    job.add_attempt(AttemptResult::failure(&e.to_string()));
+                    job.add_attempt(AttemptResult::failure(e.to_string()));
                     last_error = Some(e);
 
                     // Check if we should retry
@@ -299,7 +273,7 @@ impl<P: Planner + 'static> Orchestrator for DefaultOrchestrator<P> {
                 attempts: config.max_attempts,
                 last_error: last_error
                     .as_ref()
-                    .map_or("Unknown".to_string(), |e| e.to_string()),
+                    .map_or_else(|| "Unknown".to_string(), ToString::to_string),
             },
         });
 
@@ -329,9 +303,11 @@ mod tests {
 
         let spec = Spec {
             id: "test-spec".to_string(),
-            goal: "Test goal".to_string(),
+            branch: None,
+            created: None,
+            status: None,
+            overview: Some("Test goal".to_string()),
             constraints: vec![],
-            acceptance: vec![],
             verify: None,
             source_path: None,
         };
@@ -355,9 +331,11 @@ mod tests {
 
         let spec = Spec {
             id: "dir-test".to_string(),
-            goal: "Test".to_string(),
+            branch: None,
+            created: None,
+            status: None,
+            overview: Some("Test".to_string()),
             constraints: vec![],
-            acceptance: vec![],
             verify: None,
             source_path: None,
         };

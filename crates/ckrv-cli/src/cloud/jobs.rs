@@ -4,6 +4,7 @@ use crate::cloud::client::{CloudClient, CloudJob};
 use crate::cloud::error::CloudError;
 
 /// Dispatch a job to the cloud
+#[allow(dead_code)]
 pub async fn dispatch_job(
     spec_content: &str,
     git_repo_url: &str,
@@ -17,18 +18,21 @@ pub async fn dispatch_job(
 }
 
 /// Get job status
+#[allow(dead_code)]
 pub async fn get_job_status(job_id: &str) -> Result<CloudJob, CloudError> {
     let client = CloudClient::new()?;
     client.get_job(job_id).await
 }
 
 /// Get job diff artifact
+#[allow(dead_code)]
 pub async fn get_job_diff(job_id: &str) -> Result<String, CloudError> {
     let client = CloudClient::new()?;
     client.get_job_diff(job_id).await
 }
 
 /// Format job status for display
+#[allow(dead_code)]
 pub fn format_job_status(job: &CloudJob) -> String {
     let mut lines = vec![
         format!("Job: {}", job.id),

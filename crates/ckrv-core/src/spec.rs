@@ -94,7 +94,7 @@ impl Spec {
         }
 
         // Overview is required
-        if self.overview.as_ref().map_or(true, |o| o.is_empty()) {
+        if self.overview.as_ref().map_or(true, String::is_empty) {
             return Err(CoreError::InvalidSpec("overview is required".to_string()));
         }
 

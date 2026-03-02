@@ -16,10 +16,11 @@ use std::path::{Path, PathBuf};
 // ============================================================================
 
 /// Batch status in history.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum HistoryBatchStatus {
     /// Waiting to start.
+    #[default]
     Pending,
     /// Currently executing.
     Running,
@@ -27,12 +28,6 @@ pub enum HistoryBatchStatus {
     Completed,
     /// Execution failed.
     Failed,
-}
-
-impl Default for HistoryBatchStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
 }
 
 /// Batch in run history.
@@ -56,10 +51,11 @@ pub struct HistoryBatch {
 }
 
 /// Run status.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum HistoryRunStatus {
     /// Currently executing.
+    #[default]
     Running,
     /// Successfully completed.
     Completed,
@@ -67,12 +63,6 @@ pub enum HistoryRunStatus {
     Failed,
     /// Manually aborted.
     Aborted,
-}
-
-impl Default for HistoryRunStatus {
-    fn default() -> Self {
-        Self::Running
-    }
 }
 
 /// Run summary.
@@ -178,7 +168,7 @@ fn save_history(
 // ============================================================================
 
 /// List run history for a spec.
-pub async fn list_history_handler(
+pub fn list_history_handler(
     state: &AppState,
     spec_name: String,
 ) -> Result<ListHistoryResponse, TransportError> {
@@ -209,7 +199,7 @@ pub async fn list_history_handler(
 }
 
 /// Get a specific run.
-pub async fn get_run_handler(
+pub fn get_run_handler(
     state: &AppState,
     spec_name: String,
     run_id: String,
@@ -258,7 +248,7 @@ pub async fn get_run_handler(
 }
 
 /// Create a new run.
-pub async fn create_run_handler(
+pub fn create_run_handler(
     state: &AppState,
     spec_name: String,
     request: CreateRunRequest,
@@ -323,7 +313,7 @@ pub async fn create_run_handler(
 }
 
 /// Update a run.
-pub async fn update_run_handler(
+pub fn update_run_handler(
     state: &AppState,
     spec_name: String,
     run_id: String,
@@ -351,10 +341,8 @@ pub async fn update_run_handler(
             HistoryRunStatus::Completed | HistoryRunStatus::Failed | HistoryRunStatus::Aborted
         ) {
             run.ended_at = Some(chrono::Utc::now());
-            if let Some(started) = Some(run.started_at) {
-                run.elapsed_seconds =
-                    Some((chrono::Utc::now() - started).num_seconds().max(0) as u64);
-            }
+            run.elapsed_seconds =
+                Some((chrono::Utc::now() - run.started_at).num_seconds().max(0) as u64);
         }
     }
 
@@ -365,11 +353,11 @@ pub async fn update_run_handler(
 
     save_history(&state.project_root, &spec_name, &history)?;
 
-    get_run_handler(state, spec_name, run_id).await
+    get_run_handler(state, spec_name, run_id)
 }
 
 /// Delete a run.
-pub async fn delete_run_handler(
+pub fn delete_run_handler(
     state: &AppState,
     spec_name: String,
     run_id: String,

@@ -34,9 +34,8 @@ pub fn run_stdio_transport() {
     let mut stdout = io::stdout();
 
     for line in stdin.lock().lines() {
-        let line = match line {
-            Ok(l) => l,
-            Err(_) => break,
+        let Ok(line) = line else {
+            break;
         };
 
         // Skip empty lines
@@ -119,15 +118,15 @@ fn handle_tools_list(id: Value) -> MCPResponse {
 /// Handle the tools/call method
 fn handle_tools_call(id: Value, params: &Value) -> MCPResponse {
     // Extract tool name
-    let name = match params.get("name").and_then(|n| n.as_str()) {
-        Some(n) => n,
-        None => {
-            return MCPResponse::error(id, MCPError::invalid_params("missing 'name' parameter"));
-        }
+    let Some(name) = params.get("name").and_then(|n| n.as_str()) else {
+        return MCPResponse::error(id, MCPError::invalid_params("missing 'name' parameter"));
     };
 
     // Extract arguments (default to empty object)
-    let arguments = params.get("arguments").cloned().unwrap_or(json!({}));
+    let arguments = params
+        .get("arguments")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
 
     // Execute the tool
     match execute_tool(name, &arguments) {

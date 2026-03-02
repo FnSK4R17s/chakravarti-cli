@@ -1,4 +1,5 @@
 //! Verify command - run tests, lint, and quality checks.
+#![allow(clippy::ptr_arg)]
 
 // ============================================================
 // IMPORTS
@@ -194,9 +195,9 @@ fn finish_verify(
 
     let output = VerifyOutput {
         success: all_passed,
-        checks: checks.clone(),
+        checks,
         total_duration_ms: total_duration,
-        summary: summary.clone(),
+        summary,
     };
 
     if json {
@@ -370,6 +371,7 @@ async fn run_tests(cwd: &PathBuf, project_type: &ProjectType) -> CheckResult {
     run_command(name, cmd, &args, cwd, start).await
 }
 
+#[allow(clippy::unused_async)]
 async fn run_command(
     name: String,
     cmd: &str,

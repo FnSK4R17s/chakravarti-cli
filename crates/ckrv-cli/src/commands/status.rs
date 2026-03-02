@@ -1,10 +1,10 @@
 //! Status command - check job status.
+#![allow(clippy::format_push_string)]
+#![allow(clippy::manual_let_else)]
 
 // ============================================================
 // IMPORTS
 // ============================================================
-
-use std::path::PathBuf;
 
 use clap::Args;
 use serde::Serialize;

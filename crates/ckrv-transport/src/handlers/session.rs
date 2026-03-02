@@ -79,7 +79,9 @@ pub async fn start_session_handler(
 ) -> Result<StartSessionResponse, TransportError> {
     // Check if session already exists
     {
-        let sessions = SESSIONS.lock().unwrap();
+        let sessions = SESSIONS
+            .lock()
+            .map_err(|e| TransportError::Internal(format!("Session lock poisoned: {e}")))?;
         if let Some(container_id) = sessions.get(&request.session_id) {
             return Ok(StartSessionResponse {
                 session_id: request.session_id,
@@ -103,7 +105,9 @@ pub async fn start_session_handler(
 
     // Store session
     {
-        let mut sessions = SESSIONS.lock().unwrap();
+        let mut sessions = SESSIONS
+            .lock()
+            .map_err(|e| TransportError::Internal(format!("Session lock poisoned: {e}")))?;
         sessions.insert(request.session_id.clone(), container_id.clone());
     }
 
@@ -120,7 +124,9 @@ pub async fn exec_in_session_handler(
 ) -> Result<ExecResponse, TransportError> {
     // Look up container ID
     let container_id = {
-        let sessions = SESSIONS.lock().unwrap();
+        let sessions = SESSIONS
+            .lock()
+            .map_err(|e| TransportError::Internal(format!("Session lock poisoned: {e}")))?;
         sessions.get(&request.session_id).cloned()
     };
 
@@ -157,13 +163,14 @@ pub async fn stop_session_handler(
 ) -> Result<(), TransportError> {
     // Remove from store
     let container_id = {
-        let mut sessions = SESSIONS.lock().unwrap();
+        let mut sessions = SESSIONS
+            .lock()
+            .map_err(|e| TransportError::Internal(format!("Session lock poisoned: {e}")))?;
         sessions.remove(&request.session_id)
     };
 
-    let container_id = match container_id {
-        Some(id) => id,
-        None => return Ok(()), // Already stopped
+    let Some(container_id) = container_id else {
+        return Ok(()); // Already stopped
     };
 
     // Stop container
@@ -179,19 +186,21 @@ pub async fn stop_session_handler(
 }
 
 /// Get active session info.
-pub async fn get_session_handler(
+pub fn get_session_handler(
     _state: &AppState,
     session_id: String,
 ) -> Result<Option<String>, TransportError> {
-    let sessions = SESSIONS.lock().unwrap();
+    let sessions = SESSIONS
+        .lock()
+        .map_err(|e| TransportError::Internal(format!("Session lock poisoned: {e}")))?;
     Ok(sessions.get(&session_id).cloned())
 }
 
 /// List all active sessions.
-pub async fn list_sessions_handler(
-    _state: &AppState,
-) -> Result<Vec<(String, String)>, TransportError> {
-    let sessions = SESSIONS.lock().unwrap();
+pub fn list_sessions_handler(_state: &AppState) -> Result<Vec<(String, String)>, TransportError> {
+    let sessions = SESSIONS
+        .lock()
+        .map_err(|e| TransportError::Internal(format!("Session lock poisoned: {e}")))?;
     Ok(sessions
         .iter()
         .map(|(k, v)| (k.clone(), v.clone()))
@@ -210,7 +219,7 @@ mod tests {
     #[tokio::test]
     async fn test_list_sessions_handler() {
         let state = AppState::new(PathBuf::from("/tmp/test-session"));
-        let result = list_sessions_handler(&state).await;
+        let result = list_sessions_handler(&state);
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }

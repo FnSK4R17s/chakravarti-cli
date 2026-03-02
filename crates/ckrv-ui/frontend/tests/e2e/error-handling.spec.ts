@@ -64,9 +64,6 @@ test.describe('Error Handling', () => {
         await page.goto('/');
         await page.waitForLoadState('networkidle');
 
-        // Look for any loading indicators
-        const loadingIndicators = page.locator('[class*="animate-spin"], [data-testid*="loading"]');
-
         // Count loading indicators - they should exist in the codebase
         // but may not be visible if nothing is loading
         console.log('Checking for loading indicator patterns in the page...');

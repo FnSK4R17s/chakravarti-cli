@@ -64,8 +64,8 @@ pub fn is_initialized(repo_root: &Path) -> bool {
 pub fn repo_root(path: &Path) -> Result<std::path::PathBuf, GitError> {
     let repo = git2::Repository::discover(path)?;
     repo.workdir()
-        .map(|p| p.to_path_buf())
-        .ok_or_else(|| GitError::NotARepo("Bare repository".to_string()))
+        .map(Path::to_path_buf)
+        .ok_or_else(|| GitError::NotARepo("Bare repository".into()))
 }
 
 // ============================================================

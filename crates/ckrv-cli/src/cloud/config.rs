@@ -41,6 +41,7 @@ impl CloudConfig {
     }
 
     /// Get the refresh token endpoint
+    #[allow(dead_code)]
     pub fn refresh_url(&self) -> String {
         format!("{}/auth/refresh", self.api_url)
     }

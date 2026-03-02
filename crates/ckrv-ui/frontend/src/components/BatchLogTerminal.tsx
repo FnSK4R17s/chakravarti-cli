@@ -107,8 +107,10 @@ const StatusIcon: React.FC<{ status: BatchStatus }> = ({ status }) => {
 };
 
 export const BatchLogTerminal: React.FC<BatchLogTerminalProps> = ({
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     batchId: _batchId, // Used for future features like log persistence
     batchName,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     batchIndex: _batchIndex, // Reserved for future use
     status,
     logs,

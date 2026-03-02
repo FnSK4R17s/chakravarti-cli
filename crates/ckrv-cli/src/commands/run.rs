@@ -2,6 +2,12 @@
 //!
 //! This command generates an execution plan and orchestrates
 //! multiple agent tasks to implement a feature.
+#![allow(clippy::format_push_string)]
+#![allow(clippy::option_if_let_else)]
+#![allow(clippy::manual_let_else)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::unwrap_used)]
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -9,19 +15,16 @@ use std::time::Duration;
 use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-use futures::future::join_all;
-use std::sync::Arc;
 use tokio::process::Command as AsyncCommand;
 
 use ckrv_core::{
-    runner::{RunnerConfig, WorkflowRunResult, WorkflowRunner},
+    runner::{RunnerConfig, WorkflowRunner},
     AgentTask, OptimizeMode, Workflow, WorkflowStep,
 };
-use ckrv_git::{DefaultDiffGenerator, DefaultWorktreeManager, DiffGenerator, WorktreeManager};
-use ckrv_metrics::{DefaultMetricsCollector, FileMetricsStorage, MetricsCollector, MetricsStorage};
+use ckrv_git::{DefaultWorktreeManager, WorktreeManager};
 use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox};
 
-use crate::ui::components::{Banner, Panel, RichTable};
+use crate::ui::components::{Banner, RichTable};
 use crate::ui::Renderable;
 use crate::ui::UiContext;
 use tabled::{
@@ -75,9 +78,9 @@ pub enum OptimizeModeArg {
 impl From<OptimizeModeArg> for OptimizeMode {
     fn from(arg: OptimizeModeArg) -> Self {
         match arg {
-            OptimizeModeArg::Cost => OptimizeMode::Cost,
-            OptimizeModeArg::Time => OptimizeMode::Time,
-            OptimizeModeArg::Balanced => OptimizeMode::Balanced,
+            OptimizeModeArg::Cost => Self::Cost,
+            OptimizeModeArg::Time => Self::Time,
+            OptimizeModeArg::Balanced => Self::Balanced,
         }
     }
 }
@@ -136,11 +139,11 @@ impl<'de> serde::Deserialize<'de> for BatchStatus {
     {
         let s = String::deserialize(deserializer)?;
         match s.to_lowercase().as_str() {
-            "" | "pending" => Ok(BatchStatus::Pending),
-            "running" => Ok(BatchStatus::Running),
-            "completed" => Ok(BatchStatus::Completed),
-            "failed" => Ok(BatchStatus::Failed),
-            _ => Ok(BatchStatus::Pending), // Default to pending for unknown values
+            "" | "pending" => Ok(Self::Pending),
+            "running" => Ok(Self::Running),
+            "completed" => Ok(Self::Completed),
+            "failed" => Ok(Self::Failed),
+            _ => Ok(Self::Pending), // Default to pending for unknown values
         }
     }
 }
@@ -251,6 +254,7 @@ fn serialize_plan_with_depends_on(plan: &ExecutionPlan) -> String {
 
 /// JSON output for validation errors.
 #[derive(Serialize)]
+#[allow(dead_code)]
 struct ValidationErrorOutput {
     field: String,
     message: String,
@@ -288,14 +292,13 @@ fn load_agent_model_instructions(cwd: &Path) -> String {
         }
     }
     // Default fallback
-    r#"   - Use 'minimax/minimax-m2.1' for light/standard tasks (Level 1-3).
+    r"   - Use 'minimax/minimax-m2.1' for light/standard tasks (Level 1-3).
    - Use 'z-ai/glm-4.7' for complex logic (Level 4).
-   - Use 'claude' (default) if high reasoning/risk required (Level 5)."#
+   - Use 'claude' (default) if high reasoning/risk required (Level 5)."
         .to_string()
 }
 
 /// Execute the run command.
-
 pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
@@ -554,20 +557,16 @@ pub async fn execute(args: RunArgs, json: bool, ui: &UiContext) -> anyhow::Resul
                                 .status();
                         }
                     }
-                } else {
-                    if !json {
-                        println!("      ❌ Merge failed (non-conflict error)");
-                    }
+                } else if !json {
+                    println!("      ❌ Merge failed (non-conflict error)");
                 }
             }
 
             if !json {
                 println!("\n   Merged {}/{} worktrees", merged_count, batch_wts.len());
             }
-        } else {
-            if !json {
-                println!("   ✅ No unmerged worktrees");
-            }
+        } else if !json {
+            println!("   ✅ No unmerged worktrees");
         }
 
         // Check 3: Create implementation.yaml since all tasks are done
@@ -713,7 +712,7 @@ batches:
         let plan_worktree = cwd.join(".ckrv").join("planning").join(&plan_id);
         std::fs::create_dir_all(&plan_worktree)?;
 
-        let mut task = AgentTask::new(
+        let task = AgentTask::new(
             &plan_id,
             "Planning execution batches",
             "orchestrator-plan",
@@ -880,8 +879,8 @@ batches:
                     .unwrap_or(false);
 
                 if has_commits && batch.branch.is_some() {
-                    // Try to merge this completed worktree
                     let branch = batch.branch.as_ref().unwrap();
+
                     if !json {
                         println!("   🔀 Found incomplete batch '{}' with commits, attempting to merge...", batch.name);
                     }
@@ -1021,7 +1020,7 @@ batches:
     while !pending_batches.is_empty() || !running_futures.is_empty() {
         // 1. Identify and spawn unblocked batches
         let mut still_pending = std::collections::VecDeque::new();
-        let mut spawned_any = false;
+        let mut _spawned_any = false;
 
         while let Some(batch) = pending_batches.pop_front() {
             let unblocked = batch
@@ -1033,7 +1032,7 @@ batches:
                 let prefix = "[Orchestrator]";
                 println!("{} Spawning batch: {}", prefix, batch.name);
 
-                spawned_any = true;
+                _spawned_any = true;
                 let exe = exe_arc.clone();
                 let manager = manager_arc.clone();
                 let args_executor_model = args.executor_model.clone();
@@ -1094,9 +1093,6 @@ batches:
                 let batch_id_for_status = batch_id.clone();
 
                 let handle = tokio::spawn(async move {
-                    let mut worktree_path: Option<PathBuf> = None;
-                    let mut worktree_branch = String::new();
-
                     let suffix: String = uuid::Uuid::new_v4().to_string().chars().take(6).collect();
                     let wt_job_id = format!("batch-{}-{}", batch_id, suffix);
 
@@ -1117,8 +1113,8 @@ batches:
                         batch_name,
                         worktree.path.display()
                     );
-                    worktree_path = Some(worktree.path.clone());
-                    worktree_branch = worktree.branch.clone();
+                    let worktree_path = Some(worktree.path.clone());
+                    let worktree_branch = worktree.branch.clone();
 
                     // Update plan.yaml with running status and branch
                     let _ = update_batch_status(
@@ -1190,7 +1186,7 @@ batches:
                             let add_status = std::process::Command::new("git")
                                 .arg("add")
                                 .arg(".")
-                                .current_dir(&wt_path)
+                                .current_dir(wt_path)
                                 .status()?;
 
                             if !add_status.success() {
@@ -1203,16 +1199,21 @@ batches:
                             // Check if there are changes to commit
                             let diff_status = std::process::Command::new("git")
                                 .args(["diff", "--staged", "--quiet"])
-                                .current_dir(&wt_path)
+                                .current_dir(wt_path)
                                 .status()?;
 
                             // Exit code 1 means differences exist (good to commit), 0 means empty
-                            if !diff_status.success() {
+                            if diff_status.success() {
+                                println!(
+                                    "[Orchestrator] No changes to commit for batch '{}'.",
+                                    name
+                                );
+                            } else {
                                 let commit_status = std::process::Command::new("git")
                                     .arg("commit")
                                     .arg("-m")
                                     .arg(&commit_msg)
-                                    .current_dir(&wt_path)
+                                    .current_dir(wt_path)
                                     .status()?;
 
                                 if !commit_status.success() {
@@ -1221,11 +1222,6 @@ batches:
                                         name
                                     ));
                                 }
-                            } else {
-                                println!(
-                                    "[Orchestrator] No changes to commit for batch '{}'.",
-                                    name
-                                );
                             }
                         }
 
@@ -1362,7 +1358,7 @@ batches:
         // Get the spec directory (parent of spec.yaml)
         if let Some(spec_dir) = spec_path.parent() {
             // Count total tasks that were completed
-            let total_tasks = batch_task_map.values().map(|v| v.len()).sum();
+            let total_tasks = batch_task_map.values().map(std::vec::Vec::len).sum();
 
             create_implementation_summary(
                 spec_dir,
@@ -1504,7 +1500,7 @@ fn get_conflicted_files(cwd: &Path) -> Vec<String> {
     match output {
         Ok(out) => String::from_utf8_lossy(&out.stdout)
             .lines()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect(),
         Err(_) => vec![],
     }
@@ -1547,7 +1543,7 @@ async fn resolve_conflicts_with_ai(
 
     // Build prompt for Claude - use interactive mode so Claude can edit files
     let prompt = format!(
-        r#"You are resolving Git merge conflicts. Your ONLY task is to edit the conflicting files to resolve the conflicts.
+        r"You are resolving Git merge conflicts. Your ONLY task is to edit the conflicting files to resolve the conflicts.
 
 BRANCH BEING MERGED: {branch}
 
@@ -1572,7 +1568,7 @@ CRITICAL RULES:
 - You MUST preserve features from both HEAD and incoming changes
 - After editing, stage all files with: git add -A
 
-Start by editing the first conflicted file now."#,
+Start by editing the first conflicted file now.",
         branch = branch_name,
         spec = if spec_context.is_empty() {
             "(No spec provided)".to_string()
@@ -1678,7 +1674,6 @@ async fn execute_cloud_job(
     ui: &UiContext,
 ) -> anyhow::Result<()> {
     use crate::cloud::client::CloudClient;
-    use crate::cloud::jobs;
 
     // Read spec content
     let spec_content = std::fs::read_to_string(spec_path)?;
@@ -1852,7 +1847,7 @@ fn find_best_agent_for_level(cwd: &Path, required_level: u8) -> Option<String> {
     let mut sufficient_agents: Vec<&AgentConfigLite> = enabled_agents
         .iter()
         .filter(|a| a.level >= required_level)
-        .map(|&a| a)
+        .copied()
         .collect();
 
     if !sufficient_agents.is_empty() {

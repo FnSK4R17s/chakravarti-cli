@@ -1,4 +1,5 @@
 //! Init command - initialize Chakravarti in a repository.
+#![allow(clippy::format_push_string)]
 
 // ============================================================
 // IMPORTS
@@ -34,7 +35,7 @@ struct InitOutput {
 }
 
 /// Template for .env.example
-const ENV_EXAMPLE_TEMPLATE: &str = r#"# Chakravarti API Keys
+const ENV_EXAMPLE_TEMPLATE: &str = r"# Chakravarti API Keys
 # Copy this file to .env and fill in your keys.
 # This file (.env) is git-ignored for security.
 
@@ -49,7 +50,7 @@ const ENV_EXAMPLE_TEMPLATE: &str = r#"# Chakravarti API Keys
 # Custom model endpoint (optional)
 # CKRV_MODEL_ENDPOINT=https://api.example.com/v1/chat/completions
 # CKRV_MODEL_API_KEY=...
-"#;
+";
 
 /// Default SWE workflow
 const DEFAULT_SWE_WORKFLOW: &str = r#"# Software Engineering Workflow
@@ -109,6 +110,7 @@ use crate::ui::UiContext;
 // ============================================================
 
 /// Execute the init command.
+#[allow(clippy::unused_async)]
 pub async fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
 
@@ -205,10 +207,10 @@ pub async fn execute(args: InitArgs, json: bool, ui: &UiContext) -> anyhow::Resu
     if json {
         let output = InitOutput {
             success: true,
-            specs_dir: specs_dir.clone(),
-            chakravarti_dir: chakravarti_dir.clone(),
-            config_file: config_file.clone(),
-            secrets_dir: secrets_dir.clone(),
+            specs_dir,
+            chakravarti_dir,
+            config_file,
+            secrets_dir,
             message: if already_initialized {
                 "Reinitialized".to_string()
             } else {

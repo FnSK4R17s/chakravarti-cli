@@ -69,6 +69,7 @@ pub fn clear_tokens() -> Result<(), CloudError> {
 }
 
 /// Check if tokens are stored
+#[allow(dead_code)]
 pub fn has_tokens() -> bool {
     load_tokens().is_ok()
 }

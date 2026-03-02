@@ -98,7 +98,7 @@ impl DefaultVerifier {
     }
 
     /// Run a single command and parse results.
-    fn run_command(&self, cmd: &str, cwd: &Path) -> Result<(bool, String, u64), VerifyError> {
+    fn run_command(cmd: &str, cwd: &Path) -> Result<(bool, String, u64), VerifyError> {
         let start = Instant::now();
 
         let output = Command::new("sh")
@@ -138,7 +138,7 @@ impl Verifier for DefaultVerifier {
         let mut all_passed = true;
 
         for cmd in &config.test_commands {
-            let (success, output, duration) = self.run_command(cmd, cwd)?;
+            let (success, output, duration) = Self::run_command(cmd, cwd)?;
 
             let result = if success {
                 TestResult {

@@ -4,7 +4,7 @@
 //! The updater plugin also runs a background check on app startup (see main.rs).
 
 use serde::Serialize;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use tauri_plugin_updater::UpdaterExt;
 
 /// Information about an available update returned to the frontend.
@@ -47,8 +47,7 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
                 .await
                 .map_err(|e| e.to_string())?;
             // Restart the app to apply the update
-            app.restart();
-            Ok(())
+            app.restart()
         }
         Ok(None) => Err("No update available".to_string()),
         Err(e) => Err(e.to_string()),

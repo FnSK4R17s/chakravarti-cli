@@ -134,6 +134,7 @@ export interface UseTauriPtyReturn {
  * Check if running in Tauri environment
  */
 export function isTauriEnvironment(): boolean {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return typeof window !== 'undefined' && !!(window as any).__TAURI__;
 }
 
@@ -146,6 +147,7 @@ export function isTauriEnvironment(): boolean {
  * interactive docker exec sessions.
  */
 export function useTauriPty(): UseTauriPtyReturn {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ptyRef = useRef<any>(null);
     const isAvailable = isTauriEnvironment();
 

@@ -8,12 +8,13 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// Type of agent execution backend.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "typescript", derive(TS))]
 #[cfg_attr(feature = "typescript", ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum AgentType {
     /// Default Claude Code CLI
+    #[default]
     Claude,
     /// Claude Code with custom OpenRouter API
     ClaudeOpenRouter,
@@ -39,12 +40,6 @@ pub enum AgentType {
     GithubCopilot,
     /// Mistral Vibe CLI
     MistralVibe,
-}
-
-impl Default for AgentType {
-    fn default() -> Self {
-        Self::Claude
-    }
 }
 
 /// Configuration for an AI agent.

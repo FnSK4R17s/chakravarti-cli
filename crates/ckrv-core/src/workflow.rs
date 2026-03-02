@@ -141,7 +141,7 @@ impl Workflow {
     ///
     /// Returns an error if parsing fails.
     pub fn parse(yaml: &str) -> Result<Self, WorkflowError> {
-        let workflow: Workflow =
+        let workflow: Self =
             serde_yaml::from_str(yaml).map_err(|e| WorkflowError::ParseError(e.to_string()))?;
 
         workflow.validate()?;

@@ -112,7 +112,7 @@ pub struct QAAgentInfo {
 // ============================================================================
 
 /// Get the configured QA agent.
-pub async fn get_qa_agent_handler(state: &AppState) -> Result<Option<QAAgentInfo>, TransportError> {
+pub fn get_qa_agent_handler(state: &AppState) -> Result<Option<QAAgentInfo>, TransportError> {
     let agents = load_agents(state);
 
     let qa_agent = agents
@@ -175,7 +175,7 @@ pub async fn run_review_handler(
                                         .unwrap_or("code_quality")
                                         .to_string(),
                                     message: i["message"].as_str()?.to_string(),
-                                    suggestion: i["suggestion"].as_str().map(|s| s.to_string()),
+                                    suggestion: i["suggestion"].as_str().map(str::to_string),
                                 })
                             })
                             .collect()
@@ -326,7 +326,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_qa_agent_handler() {
         let state = AppState::new(PathBuf::from("/tmp/test-qa"));
-        let result = get_qa_agent_handler(&state).await;
+        let result = get_qa_agent_handler(&state);
         assert!(result.is_ok());
     }
 }

@@ -45,25 +45,43 @@ use ts_rs::TS;
 pub enum OrchestrationEvent {
     /// General log message
     Log {
+        /// Log message content
         message: String,
+        /// ISO 8601 timestamp
         timestamp: String,
+        /// Optional structured metadata
         metadata: Option<serde_json::Value>,
     },
     /// Step execution started
     StepStart {
+        /// Name of the step being started
         step_name: String,
+        /// ISO 8601 timestamp
         timestamp: String,
     },
     /// Step execution completed
     StepEnd {
+        /// Name of the step that completed
         step_name: String,
+        /// ISO 8601 timestamp
         timestamp: String,
+        /// Completion status (e.g. "success", "failed")
         status: String,
     },
     /// Error occurred
-    Error { message: String, timestamp: String },
+    Error {
+        /// Error message
+        message: String,
+        /// ISO 8601 timestamp
+        timestamp: String,
+    },
     /// Operation completed successfully
-    Success { message: String, timestamp: String },
+    Success {
+        /// Success message
+        message: String,
+        /// ISO 8601 timestamp
+        timestamp: String,
+    },
 }
 
 /// Broadcast hub for orchestration events.

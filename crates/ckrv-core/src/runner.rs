@@ -272,7 +272,7 @@ impl WorkflowRunner {
                 OutputType::String => {
                     // For string outputs, try to extract from stdout
                     // Look for JSON output or use the full stdout
-                    let output_value = self.extract_string_output(&stdout, &output_def.name);
+                    let output_value = Self::extract_string_output(&stdout, &output_def.name);
                     result = result.with_output(&output_def.name, output_value);
                 }
             }
@@ -289,12 +289,12 @@ impl WorkflowRunner {
         if self.config.use_sandbox {
             self.invoke_agent_sandboxed(prompt, workdir).await
         } else {
-            self.invoke_agent_local(prompt, workdir).await
+            self.invoke_agent_local(prompt, workdir)
         }
     }
 
     /// Invoke agent locally (no Docker).
-    async fn invoke_agent_local(
+    fn invoke_agent_local(
         &self,
         prompt: &str,
         workdir: &std::path::Path,
@@ -461,7 +461,7 @@ impl WorkflowRunner {
                 .env("ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic")
                 .env("ANTHROPIC_AUTH_TOKEN", api_key)
                 .env("ANTHROPIC_API_KEY", "") // Must be explicitly empty!
-                .env("API_TIMEOUT_MS", &timeout.to_string());
+                .env("API_TIMEOUT_MS", timeout.to_string());
 
             if let Some(ref model) = self.config.glm_model {
                 config = config
@@ -521,7 +521,7 @@ impl WorkflowRunner {
     }
 
     /// Extract a string output from agent response.
-    fn extract_string_output(&self, stdout: &str, output_name: &str) -> String {
+    fn extract_string_output(stdout: &str, output_name: &str) -> String {
         // Try to parse as JSON and extract the named field
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(stdout) {
             if let Some(value) = json.get(output_name) {

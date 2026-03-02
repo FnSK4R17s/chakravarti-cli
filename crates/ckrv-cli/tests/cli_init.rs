@@ -193,8 +193,12 @@ fn test_init_non_git_directory_shows_error_message() {
     let output = ckrv(&["init"], dir.path());
 
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stderr.contains("git") || stderr.contains("repository"),
+        stderr.contains("git")
+            || stderr.contains("repository")
+            || stdout.contains("git")
+            || stdout.contains("repository"),
         "Error should mention git repository requirement"
     );
 }

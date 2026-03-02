@@ -55,6 +55,7 @@ acceptance:
 // =============================================================================
 
 #[test]
+#[ignore] // Requires API key to produce structured JSON output
 fn test_run_json_output_streams_events() {
     let repo = create_repo_with_spec();
 

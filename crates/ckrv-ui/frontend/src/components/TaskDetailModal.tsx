@@ -440,6 +440,7 @@ const EmbeddedTerminal: React.FC<{
             window.removeEventListener('resize', handleResize);
             wsRef.current?.close();
             xtermRef.current?.dispose();
+            // eslint-disable-next-line react-hooks/exhaustive-deps
             stopTerminalSession(sessionIdRef.current);
         };
     }, [agent, task, specName]);

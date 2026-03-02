@@ -26,7 +26,6 @@ pub async fn list_history(
 ) -> Result<ListHistoryWrapped, String> {
     let app_state = state.read().await;
     list_history_handler(&app_state, spec)
-        .await
         .map(|runs| ListHistoryWrapped { runs })
         .map_err(|e| e.to_string())
 }
@@ -39,9 +38,7 @@ pub async fn get_run(
     run_id: String,
 ) -> Result<RunDetail, String> {
     let app_state = state.read().await;
-    get_run_handler(&app_state, spec, run_id)
-        .await
-        .map_err(|e| e.to_string())
+    get_run_handler(&app_state, spec, run_id).map_err(|e| e.to_string())
 }
 
 /// Create a new run.
@@ -63,7 +60,6 @@ pub async fn create_run(
             batches: batches.unwrap_or_default(),
         },
     )
-    .await
     .map_err(|e| e.to_string())
 }
 
@@ -78,7 +74,6 @@ pub async fn update_run(
 ) -> Result<RunDetail, String> {
     let app_state = state.read().await;
     update_run_handler(&app_state, spec, run_id, UpdateRunRequest { status, error })
-        .await
         .map_err(|e| e.to_string())
 }
 
@@ -90,7 +85,5 @@ pub async fn delete_run(
     run_id: String,
 ) -> Result<(), String> {
     let app_state = state.read().await;
-    delete_run_handler(&app_state, spec, run_id)
-        .await
-        .map_err(|e| e.to_string())
+    delete_run_handler(&app_state, spec, run_id).map_err(|e| e.to_string())
 }

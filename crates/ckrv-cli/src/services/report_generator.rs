@@ -1,4 +1,6 @@
 //! Report generator - generate Markdown reports for test and QA results.
+#![allow(clippy::format_push_string)]
+#![allow(clippy::option_if_let_else)]
 
 // ============================================================
 // IMPORTS
@@ -30,20 +32,20 @@ impl Severity {
     /// Returns the emoji icon for this severity level.
     pub fn emoji(&self) -> &'static str {
         match self {
-            Severity::Critical => "🔴",
-            Severity::Major => "🟡",
-            Severity::Minor => "🟢",
-            Severity::Info => "ℹ️",
+            Self::Critical => "🔴",
+            Self::Major => "🟡",
+            Self::Minor => "🟢",
+            Self::Info => "ℹ️",
         }
     }
 
     /// Returns a human-readable label for this severity level.
     pub fn label(&self) -> &'static str {
         match self {
-            Severity::Critical => "Critical",
-            Severity::Major => "Major",
-            Severity::Minor => "Minor",
-            Severity::Info => "Info",
+            Self::Critical => "Critical",
+            Self::Major => "Major",
+            Self::Minor => "Minor",
+            Self::Info => "Info",
         }
     }
 }
@@ -72,13 +74,13 @@ impl IssueCategory {
     /// Returns a human-readable label for this issue category.
     pub fn label(&self) -> &'static str {
         match self {
-            IssueCategory::CodeQuality => "Code Quality",
-            IssueCategory::PotentialBug => "Potential Bug",
-            IssueCategory::ErrorHandling => "Error Handling",
-            IssueCategory::Security => "Security",
-            IssueCategory::Performance => "Performance",
-            IssueCategory::Documentation => "Documentation",
-            IssueCategory::BestPractice => "Best Practice",
+            Self::CodeQuality => "Code Quality",
+            Self::PotentialBug => "Potential Bug",
+            Self::ErrorHandling => "Error Handling",
+            Self::Security => "Security",
+            Self::Performance => "Performance",
+            Self::Documentation => "Documentation",
+            Self::BestPractice => "Best Practice",
         }
     }
 }
@@ -153,7 +155,7 @@ impl QASummary {
             "pass".to_string()
         };
 
-        QASummary {
+        Self {
             total_issues: issues.len() as u32,
             critical,
             major,
@@ -198,7 +200,7 @@ pub fn generate_test_report(result: &TestResult, branch: &str, base: &str) -> St
         "| Duration | {:.2}s |\n",
         result.duration_ms as f64 / 1000.0
     ));
-    report.push_str("\n");
+    report.push('\n');
 
     // Failures section
     if !result.failures.is_empty() {
@@ -262,7 +264,7 @@ pub fn generate_qa_report(issues: &[QAIssue], branch: &str, base: &str) -> Strin
     report.push_str(&format!("| 🟢 Minor | {} |\n", summary.minor));
     report.push_str(&format!("| ℹ️ Info | {} |\n", summary.info));
     report.push_str(&format!("| **Total** | {} |\n", summary.total_issues));
-    report.push_str("\n");
+    report.push('\n');
 
     if issues.is_empty() {
         report.push_str("## Issues Found\n\n");
@@ -347,6 +349,6 @@ fn format_issue(issue: &QAIssue) -> String {
         s.push_str(&format!("  - **Fix**: {}\n", suggestion));
     }
 
-    s.push_str("\n");
+    s.push('\n');
     s
 }

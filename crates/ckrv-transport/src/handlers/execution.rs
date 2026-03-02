@@ -66,7 +66,7 @@ pub struct StopRequest {
 // ============================================================================
 
 /// Start batch execution.
-pub async fn start_execution_handler(
+pub fn start_execution_handler(
     state: &AppState,
     request: ExecuteRequest,
 ) -> Result<ExecuteResponse, TransportError> {
@@ -105,9 +105,7 @@ pub async fn start_execution_handler(
 }
 
 /// Get current execution status.
-pub async fn get_execution_status_handler(
-    state: &AppState,
-) -> Result<ExecutionStatus, TransportError> {
+pub fn get_execution_status_handler(_state: &AppState) -> Result<ExecutionStatus, TransportError> {
     // Check if there's a running execution by looking for lock files or processes
     // For now, return a static "not running" status
     Ok(ExecutionStatus {
@@ -121,9 +119,9 @@ pub async fn get_execution_status_handler(
 }
 
 /// Stop execution.
-pub async fn stop_execution_handler(
+pub fn stop_execution_handler(
     state: &AppState,
-    request: StopRequest,
+    _request: StopRequest,
 ) -> Result<(), TransportError> {
     // Try to abort the current run
     let output = Command::new("ckrv")
@@ -141,7 +139,7 @@ pub async fn stop_execution_handler(
 }
 
 /// Pause execution (if supported).
-pub async fn pause_execution_handler(_state: &AppState) -> Result<ExecutionStatus, TransportError> {
+pub fn pause_execution_handler(_state: &AppState) -> Result<ExecutionStatus, TransportError> {
     // Pausing is not currently supported
     Err(TransportError::BadRequest(
         "Pause not supported".to_string(),
@@ -149,9 +147,7 @@ pub async fn pause_execution_handler(_state: &AppState) -> Result<ExecutionStatu
 }
 
 /// Resume execution (if supported).
-pub async fn resume_execution_handler(
-    _state: &AppState,
-) -> Result<ExecutionStatus, TransportError> {
+pub fn resume_execution_handler(_state: &AppState) -> Result<ExecutionStatus, TransportError> {
     // Resuming is not currently supported
     Err(TransportError::BadRequest(
         "Resume not supported".to_string(),
@@ -196,7 +192,7 @@ pub struct ListBranchesResponse {
 }
 
 /// List unmerged worktree branches.
-pub async fn list_branches_handler(
+pub fn list_branches_handler(
     state: &AppState,
     request: ListBranchesRequest,
 ) -> Result<ListBranchesResponse, TransportError> {
@@ -248,20 +244,17 @@ pub async fn list_branches_handler(
     }
 
     // Filter by spec if provided
-    let filter_pattern = if let Some(ref spec) = request.spec {
-        format!("worktree/{}/", spec)
-    } else {
-        "worktree/".to_string()
-    };
+    let filter_pattern = request.spec.as_ref().map_or_else(
+        || "worktree/".to_string(),
+        |spec| format!("worktree/{spec}/"),
+    );
 
     let mut branches = Vec::new();
 
     for branch_name in worktree_branches {
         // Check if matches filter pattern
-        if !branch_name.starts_with(&filter_pattern) {
-            if request.spec.is_some() {
-                continue;
-            }
+        if !branch_name.starts_with(&filter_pattern) && request.spec.is_some() {
+            continue;
         }
 
         // Check if branch is already merged into HEAD
@@ -291,10 +284,9 @@ pub async fn list_branches_handler(
         // Extract batch name from branch name
         let batch_name = branch_name
             .split('/')
-            .last()
+            .next_back()
             .unwrap_or(&branch_name)
-            .replace("ckrv-batch-", "")
-            .to_string();
+            .replace("ckrv-batch-", "");
 
         branches.push(BranchInfo {
             name: branch_name,
@@ -333,7 +325,7 @@ pub struct MergeAllResponse {
 }
 
 /// Merge all worktree branches.
-pub async fn merge_all_branches_handler(
+pub fn merge_all_branches_handler(
     state: &AppState,
     _request: MergeAllRequest,
 ) -> Result<MergeAllResponse, TransportError> {
@@ -350,19 +342,18 @@ pub async fn merge_all_branches_handler(
             let text = String::from_utf8_lossy(&output.stdout);
             let mut worktrees = Vec::new();
             let mut current_path = String::new();
-            let mut current_branch = String::new();
 
             for line in text.lines() {
                 if line.starts_with("worktree ") {
                     current_path = line.strip_prefix("worktree ").unwrap_or("").to_string();
                 } else if line.starts_with("branch refs/heads/") {
-                    current_branch = line
+                    let current_branch = line
                         .strip_prefix("branch refs/heads/")
                         .unwrap_or("")
                         .to_string();
                     // Only include worktree branches
                     if current_branch.contains("worktree/") && !current_path.is_empty() {
-                        worktrees.push((current_path.clone(), current_branch.clone()));
+                        worktrees.push((current_path.clone(), current_branch));
                     }
                 }
             }
@@ -459,7 +450,7 @@ pub struct MergeBranchResponse {
 }
 
 /// Merge a single branch.
-pub async fn merge_branch_handler(
+pub fn merge_branch_handler(
     state: &AppState,
     request: MergeBranchRequest,
 ) -> Result<MergeBranchResponse, TransportError> {
@@ -552,7 +543,7 @@ pub struct LogTailResponse {
 }
 
 /// Get execution logs.
-pub async fn get_logs_handler(
+pub fn get_logs_handler(
     _state: &AppState,
     execution_id: String,
     _params: LogHistoryParams,
@@ -568,7 +559,7 @@ pub async fn get_logs_handler(
 }
 
 /// Tail execution logs.
-pub async fn tail_logs_handler(
+pub fn tail_logs_handler(
     _state: &AppState,
     execution_id: String,
     _params: LogTailParams,
@@ -593,7 +584,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_execution_status_handler() {
         let state = AppState::new(PathBuf::from("/tmp/test-execution"));
-        let result = get_execution_status_handler(&state).await;
+        let result = get_execution_status_handler(&state);
         assert!(result.is_ok());
         assert!(!result.unwrap().running);
     }

@@ -72,13 +72,13 @@ mod axum_impl {
     impl IntoResponse for TransportError {
         fn into_response(self) -> Response {
             let status = match &self {
-                TransportError::NotFound(_) => StatusCode::NOT_FOUND,
-                TransportError::BadRequest(_) => StatusCode::BAD_REQUEST,
-                TransportError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
-                TransportError::Forbidden(_) => StatusCode::FORBIDDEN,
-                TransportError::Conflict(_) => StatusCode::CONFLICT,
-                TransportError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
-                TransportError::ServiceUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
+                Self::NotFound(_) => StatusCode::NOT_FOUND,
+                Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+                Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+                Self::Forbidden(_) => StatusCode::FORBIDDEN,
+                Self::Conflict(_) => StatusCode::CONFLICT,
+                Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+                Self::ServiceUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
             };
 
             let body = Json(serde_json::json!({
@@ -96,7 +96,7 @@ mod axum_impl {
 
 #[cfg(feature = "tauri")]
 impl From<TransportError> for String {
-    fn from(err: TransportError) -> String {
+    fn from(err: TransportError) -> Self {
         err.to_string()
     }
 }
@@ -107,25 +107,25 @@ impl From<TransportError> for String {
 
 impl From<std::io::Error> for TransportError {
     fn from(err: std::io::Error) -> Self {
-        TransportError::Internal(format!("IO error: {err}"))
+        Self::Internal(format!("IO error: {err}"))
     }
 }
 
 impl From<serde_json::Error> for TransportError {
     fn from(err: serde_json::Error) -> Self {
-        TransportError::BadRequest(format!("JSON error: {err}"))
+        Self::BadRequest(format!("JSON error: {err}"))
     }
 }
 
 impl From<serde_yaml::Error> for TransportError {
     fn from(err: serde_yaml::Error) -> Self {
-        TransportError::BadRequest(format!("YAML error: {err}"))
+        Self::BadRequest(format!("YAML error: {err}"))
     }
 }
 
 impl From<anyhow::Error> for TransportError {
     fn from(err: anyhow::Error) -> Self {
-        TransportError::Internal(format!("{err:#}"))
+        Self::Internal(format!("{err:#}"))
     }
 }
 

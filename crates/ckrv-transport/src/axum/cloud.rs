@@ -10,7 +10,7 @@ use axum::{Json, Router};
 
 /// Get cloud status.
 async fn get_cloud_status() -> impl IntoResponse {
-    match get_cloud_status_handler().await {
+    match get_cloud_status_handler() {
         Ok(status) => Json(status).into_response(),
         Err(e) => e.into_response(),
     }

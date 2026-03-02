@@ -75,7 +75,7 @@ impl DeviceAuthFlow {
     pub async fn request_device_code(&self) -> Result<DeviceCodeResponse, CloudError> {
         let response = self
             .client
-            .post(&self.config.device_auth_url())
+            .post(self.config.device_auth_url())
             .json(&serde_json::json!({
                 "client_id": self.config.client_id
             }))
@@ -105,7 +105,7 @@ impl DeviceAuthFlow {
 
             let response = self
                 .client
-                .post(&self.config.token_url())
+                .post(self.config.token_url())
                 .json(&serde_json::json!({
                     "client_id": self.config.client_id,
                     "device_code": device_code.device_code,
@@ -119,6 +119,7 @@ impl DeviceAuthFlow {
                     CloudError::InvalidResponse(format!("Failed to parse token response: {}", e))
                 })?;
 
+                #[allow(clippy::cast_possible_wrap)]
                 let expires_at = chrono::Utc::now().timestamp() + token_response.expires_in as i64;
 
                 return Ok(StoredTokens {
@@ -134,10 +135,9 @@ impl DeviceAuthFlow {
             })?;
 
             match error_response.error.as_str() {
-                "authorization_pending" => continue,
+                "authorization_pending" => {}
                 "slow_down" => {
                     tokio::time::sleep(Duration::from_secs(5)).await;
-                    continue;
                 }
                 "access_denied" => {
                     return Err(CloudError::AuthenticationFailed(
@@ -166,12 +166,14 @@ impl DeviceAuthFlow {
 }
 
 /// Refresh an access token
+#[allow(dead_code)]
 pub async fn refresh_token(refresh_token: &str) -> Result<StoredTokens, CloudError> {
     let config = CloudConfig::load();
     let client = reqwest::Client::new();
 
+    let refresh_url = config.refresh_url();
     let response = client
-        .post(&config.refresh_url())
+        .post(refresh_url)
         .json(&serde_json::json!({
             "refresh_token": refresh_token,
             "grant_type": "refresh_token"
@@ -187,6 +189,7 @@ pub async fn refresh_token(refresh_token: &str) -> Result<StoredTokens, CloudErr
         CloudError::InvalidResponse(format!("Failed to parse token response: {}", e))
     })?;
 
+    #[allow(clippy::cast_possible_wrap)]
     let expires_at = chrono::Utc::now().timestamp() + token_response.expires_in as i64;
 
     Ok(StoredTokens {

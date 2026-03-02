@@ -32,7 +32,7 @@ async fn start_execution(
     State(state): State<AppState>,
     Json(request): Json<ExecuteRequest>,
 ) -> impl IntoResponse {
-    match start_execution_handler(&state, request).await {
+    match start_execution_handler(&state, request) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -53,11 +53,8 @@ async fn execution_ws(
     Query(query): Query<WsQuery>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    use axum::extract::ws::{Message, WebSocket};
-    use futures_util::{SinkExt, StreamExt};
-
     let run_id = query.run_id;
-    let hub = state.hub.clone();
+    let hub = state.hub;
 
     ws.on_upgrade(move |socket| async move {
         handle_execution_ws(socket, hub, run_id).await;
@@ -132,7 +129,7 @@ async fn stop_execution(
     State(state): State<AppState>,
     Json(request): Json<StopRequest>,
 ) -> impl IntoResponse {
-    match stop_execution_handler(&state, request).await {
+    match stop_execution_handler(&state, request) {
         Ok(()) => Json(serde_json::json!({"status": "stopped"})).into_response(),
         Err(e) => e.into_response(),
     }
@@ -150,7 +147,7 @@ async fn get_branches(
     Query(query): Query<BranchesQuery>,
 ) -> impl IntoResponse {
     let request = ListBranchesRequest { spec: query.spec };
-    match list_branches_handler(&state, request).await {
+    match list_branches_handler(&state, request) {
         Ok(response) => Json(response).into_response(),
         Err(e) => e.into_response(),
     }
@@ -161,7 +158,7 @@ async fn merge_branch(
     State(state): State<AppState>,
     Json(request): Json<MergeBranchRequest>,
 ) -> impl IntoResponse {
-    match merge_branch_handler(&state, request).await {
+    match merge_branch_handler(&state, request) {
         Ok(response) => Json(response).into_response(),
         Err(e) => e.into_response(),
     }
@@ -179,9 +176,9 @@ async fn merge_all(
     body: Option<Json<MergeAllBody>>,
 ) -> impl IntoResponse {
     let request = MergeAllRequest {
-        spec: body.map(|b| b.spec.clone()).flatten(),
+        spec: body.and_then(|b| b.spec.clone()),
     };
-    match merge_all_branches_handler(&state, request).await {
+    match merge_all_branches_handler(&state, request) {
         Ok(response) => Json(response).into_response(),
         Err(e) => e.into_response(),
     }
@@ -206,7 +203,7 @@ async fn get_logs(
         limit: query.limit,
         since: query.since,
     };
-    match get_logs_handler(&state, id, params).await {
+    match get_logs_handler(&state, id, params) {
         Ok(response) => Json(response).into_response(),
         Err(e) => e.into_response(),
     }
@@ -225,7 +222,7 @@ async fn tail_logs(
     Query(query): Query<TailQuery>,
 ) -> impl IntoResponse {
     let params = LogTailParams { count: query.count };
-    match tail_logs_handler(&state, id, params).await {
+    match tail_logs_handler(&state, id, params) {
         Ok(response) => Json(response).into_response(),
         Err(e) => e.into_response(),
     }
@@ -233,7 +230,7 @@ async fn tail_logs(
 
 /// Get execution status.
 async fn get_status(State(state): State<AppState>) -> impl IntoResponse {
-    match get_execution_status_handler(&state).await {
+    match get_execution_status_handler(&state) {
         Ok(status) => Json(status).into_response(),
         Err(e) => e.into_response(),
     }

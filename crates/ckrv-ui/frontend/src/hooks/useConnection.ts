@@ -67,6 +67,7 @@ export const useConnection = (intervalMs: number = 5000): UseConnectionResult =>
 
     useEffect(() => {
         // Initial check
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStatus('connecting');
         checkConnection();
 

@@ -7,6 +7,7 @@
 //! ```bash
 //! cargo run -p ckrv-cli --bin skill_gen > .agent/skills/chakravarti-cli/SKILL.md
 //! ```
+#![allow(clippy::format_push_string)]
 
 // ============================================================
 // IMPORTS
@@ -84,7 +85,7 @@ metadata:
 
 /// Generate the global options table section.
 fn generate_global_options_section() -> String {
-    r#"## Global Options
+    r"## Global Options
 
 These options apply to all commands:
 
@@ -95,7 +96,7 @@ These options apply to all commands:
 | `--verbose, -v` | Enable verbose logging |
 | `--help, -h` | Print help |
 | `--version, -V` | Print version |
-"#
+"
     .to_string()
 }
 
@@ -261,11 +262,12 @@ mod tests {
         let metadata = extract_command_metadata();
         let skill_md = generate_skill_md(&metadata);
 
-        // Visible commands should appear
+        // Visible commands should appear (spec/plan/run are nested under "code")
         assert!(skill_md.contains("### ckrv init"), "init should appear");
-        assert!(skill_md.contains("### ckrv spec"), "spec should appear");
-        assert!(skill_md.contains("### ckrv plan"), "plan should appear");
-        assert!(skill_md.contains("### ckrv run"), "run should appear");
+        assert!(skill_md.contains("### ckrv code"), "code should appear");
+        assert!(skill_md.contains("ckrv code spec"), "spec should appear");
+        assert!(skill_md.contains("ckrv code plan"), "plan should appear");
+        assert!(skill_md.contains("ckrv code run"), "run should appear");
     }
 
     #[test]

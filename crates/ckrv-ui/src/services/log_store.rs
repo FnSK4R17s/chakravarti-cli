@@ -47,7 +47,7 @@ impl LogStore {
     fn ensure_log_dir(&self, execution_id: &str) -> Result<PathBuf> {
         let dir = self.base_path.join(execution_id);
         fs::create_dir_all(&dir)
-            .with_context(|| format!("Failed to create log directory: {:?}", dir))?;
+            .with_context(|| format!("Failed to create log directory: {}", dir.display()))?;
         Ok(dir)
     }
 
@@ -63,7 +63,7 @@ impl LogStore {
             .create(true)
             .append(true)
             .open(&path)
-            .with_context(|| format!("Failed to open log file: {:?}", path))?;
+            .with_context(|| format!("Failed to open log file: {}", path.display()))?;
 
         let mut writer = BufWriter::new(file);
         let json = serde_json::to_string(entry).with_context(|| "Failed to serialize log entry")?;
@@ -87,8 +87,8 @@ impl LogStore {
             return Ok(Vec::new());
         }
 
-        let file =
-            File::open(&path).with_context(|| format!("Failed to open log file: {:?}", path))?;
+        let file = File::open(&path)
+            .with_context(|| format!("Failed to open log file: {}", path.display()))?;
 
         let reader = BufReader::new(file);
         let mut entries = Vec::new();
@@ -126,8 +126,8 @@ impl LogStore {
             return Ok((Vec::new(), 0));
         }
 
-        let file =
-            File::open(&path).with_context(|| format!("Failed to open log file: {:?}", path))?;
+        let file = File::open(&path)
+            .with_context(|| format!("Failed to open log file: {}", path.display()))?;
 
         let reader = BufReader::new(file);
         let mut entries = Vec::new();
@@ -208,7 +208,7 @@ impl LogStore {
         // Delete the entire execution directory
         let dir = self.base_path.join(execution_id);
         fs::remove_dir_all(&dir)
-            .with_context(|| format!("Failed to delete log directory: {:?}", dir))?;
+            .with_context(|| format!("Failed to delete log directory: {}", dir.display()))?;
 
         Ok(line_count)
     }
@@ -222,7 +222,7 @@ impl LogStore {
         }
 
         let metadata = fs::metadata(&path)
-            .with_context(|| format!("Failed to get metadata for: {:?}", path))?;
+            .with_context(|| format!("Failed to get metadata for: {}", path.display()))?;
 
         let (_, line_count) = self.read_range(execution_id, 0, usize::MAX)?;
 
@@ -230,13 +230,13 @@ impl LogStore {
         let created_at = metadata
             .created()
             .ok()
-            .map(|t| DateTime::<Utc>::from(t))
+            .map(DateTime::<Utc>::from)
             .unwrap_or_else(Utc::now);
 
         let last_modified = metadata
             .modified()
             .ok()
-            .map(|t| DateTime::<Utc>::from(t))
+            .map(DateTime::<Utc>::from)
             .unwrap_or_else(Utc::now);
 
         Ok(Some(ExecutionLogFile {

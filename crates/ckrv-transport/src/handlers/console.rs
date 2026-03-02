@@ -6,7 +6,7 @@ use crate::error::TransportError;
 use crate::state::AppState;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // ============================================================================
 // Request/Response Types
@@ -75,14 +75,14 @@ pub async fn execute_command_handler(
         .await
     } else {
         // Execute locally
-        execute_locally(&request.command, &cwd, env).await
+        execute_locally(&request.command, &cwd, env)
     }
 }
 
 /// Execute command locally.
-async fn execute_locally(
+fn execute_locally(
     command: &str,
-    cwd: &PathBuf,
+    cwd: &Path,
     env: HashMap<String, String>,
 ) -> Result<ExecuteCommandResponse, TransportError> {
     let output = std::process::Command::new("sh")
@@ -108,9 +108,9 @@ async fn execute_locally(
 /// Execute command in Docker sandbox.
 async fn execute_in_sandbox(
     command: &str,
-    cwd: &PathBuf,
+    cwd: &Path,
     env: HashMap<String, String>,
-    agent_id: Option<String>,
+    _agent_id: Option<String>,
     keep_container: bool,
 ) -> Result<ExecuteCommandResponse, TransportError> {
     use ckrv_sandbox::{DefaultAllowList, DockerSandbox, ExecuteConfig, Sandbox};
@@ -118,7 +118,7 @@ async fn execute_in_sandbox(
     let config = ExecuteConfig {
         command: vec!["sh".to_string(), "-c".to_string(), command.to_string()],
         workdir: PathBuf::from("/workspace"),
-        mount: cwd.clone(),
+        mount: cwd.to_path_buf(),
         env,
         timeout: std::time::Duration::from_secs(30),
         keep_container,
@@ -156,7 +156,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_locally() {
         let cwd = std::env::current_dir().unwrap();
-        let result = execute_locally("echo hello", &cwd, HashMap::new()).await;
+        let result = execute_locally("echo hello", &cwd, HashMap::new());
         assert!(result.is_ok());
         let response = result.unwrap();
         assert!(response.success);

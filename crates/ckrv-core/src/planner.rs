@@ -215,9 +215,11 @@ mod tests {
         let planner = DefaultPlanner::new();
         let spec = Spec {
             id: "test".to_string(),
-            goal: "Test goal".to_string(),
+            branch: None,
+            created: None,
+            status: None,
+            overview: Some("Test goal".to_string()),
             constraints: vec![],
-            acceptance: vec![],
             verify: None,
             source_path: None,
         };

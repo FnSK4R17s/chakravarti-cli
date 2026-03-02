@@ -17,10 +17,3 @@ pub mod error;
 pub mod jobs;
 /// Log streaming and retrieval.
 pub mod logs;
-
-/// Re-export the primary cloud client.
-pub use client::CloudClient;
-/// Re-export the cloud configuration struct.
-pub use config::CloudConfig;
-/// Re-export the cloud error type.
-pub use error::CloudError;

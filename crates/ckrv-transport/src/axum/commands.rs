@@ -15,7 +15,7 @@ use axum::{Json, Router};
 
 /// Run init command.
 async fn run_init(State(state): State<AppState>) -> impl IntoResponse {
-    match run_init_handler(&state).await {
+    match run_init_handler(&state) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -23,7 +23,7 @@ async fn run_init(State(state): State<AppState>) -> impl IntoResponse {
 
 /// Run git init command.
 async fn run_git_init(State(state): State<AppState>) -> impl IntoResponse {
-    match run_git_init_handler(&state).await {
+    match run_git_init_handler(&state) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -34,7 +34,7 @@ async fn run_spec_new(
     State(state): State<AppState>,
     Json(request): Json<SpecNewRequest>,
 ) -> impl IntoResponse {
-    match run_spec_new_handler(&state, request).await {
+    match run_spec_new_handler(&state, request) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -42,7 +42,7 @@ async fn run_spec_new(
 
 /// Run spec tasks command.
 async fn run_spec_tasks(State(state): State<AppState>) -> impl IntoResponse {
-    match run_spec_tasks_handler(&state).await {
+    match run_spec_tasks_handler(&state) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -50,7 +50,7 @@ async fn run_spec_tasks(State(state): State<AppState>) -> impl IntoResponse {
 
 /// Run plan command.
 async fn run_plan(State(state): State<AppState>) -> impl IntoResponse {
-    match run_plan_handler(&state).await {
+    match run_plan_handler(&state) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -58,7 +58,7 @@ async fn run_plan(State(state): State<AppState>) -> impl IntoResponse {
 
 /// Run execute command.
 async fn run_execute(State(state): State<AppState>) -> impl IntoResponse {
-    match run_execute_handler(&state).await {
+    match run_execute_handler(&state) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -69,7 +69,7 @@ async fn run_diff(
     State(state): State<AppState>,
     Json(request): Json<DiffRequest>,
 ) -> impl IntoResponse {
-    match run_diff_handler(&state, request).await {
+    match run_diff_handler(&state, request) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -80,7 +80,7 @@ async fn run_verify(
     State(state): State<AppState>,
     Json(request): Json<VerifyRequest>,
 ) -> impl IntoResponse {
-    match run_verify_handler(&state, request).await {
+    match run_verify_handler(&state, request) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -91,7 +91,7 @@ async fn run_promote(
     State(state): State<AppState>,
     Json(request): Json<PromoteRequest>,
 ) -> impl IntoResponse {
-    match run_promote_handler(&state, request).await {
+    match run_promote_handler(&state, request) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -102,7 +102,7 @@ async fn run_fix(
     State(state): State<AppState>,
     Json(request): Json<FixRequest>,
 ) -> impl IntoResponse {
-    match run_fix_handler(&state, request).await {
+    match run_fix_handler(&state, request) {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }

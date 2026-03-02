@@ -5,9 +5,11 @@
 use serde::{Deserialize, Serialize};
 
 /// Status of a specification
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum SpecStatus {
+    #[default]
     Draft,
     NeedsClarify,
     Ready,
@@ -16,39 +18,28 @@ pub enum SpecStatus {
     Complete,
 }
 
-impl Default for SpecStatus {
-    fn default() -> Self {
-        Self::Draft
-    }
-}
-
 impl std::fmt::Display for SpecStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SpecStatus::Draft => write!(f, "draft"),
-            SpecStatus::NeedsClarify => write!(f, "needs_clarify"),
-            SpecStatus::Ready => write!(f, "ready"),
-            SpecStatus::HasTasks => write!(f, "has_tasks"),
-            SpecStatus::InProgress => write!(f, "in_progress"),
-            SpecStatus::Complete => write!(f, "complete"),
+            Self::Draft => write!(f, "draft"),
+            Self::NeedsClarify => write!(f, "needs_clarify"),
+            Self::Ready => write!(f, "ready"),
+            Self::HasTasks => write!(f, "has_tasks"),
+            Self::InProgress => write!(f, "in_progress"),
+            Self::Complete => write!(f, "complete"),
         }
     }
 }
 
 /// Priority level for user stories
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum Priority {
+    #[default]
     P1,
     P2,
     P3,
     P4,
     P5,
-}
-
-impl Default for Priority {
-    fn default() -> Self {
-        Self::P1
-    }
 }
 
 /// An acceptance scenario in Given/When/Then format.
@@ -85,19 +76,15 @@ pub struct UserStory {
 }
 
 /// Category of a requirement
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum RequirementCategory {
+    #[default]
     Functional,
     NonFunctional,
     Security,
     Performance,
-}
-
-impl Default for RequirementCategory {
-    fn default() -> Self {
-        Self::Functional
-    }
 }
 
 /// A functional or non-functional requirement.
@@ -204,6 +191,7 @@ pub struct SpecOutput {
 
 impl SpecOutput {
     /// Create a new spec with just an ID
+    #[allow(dead_code)]
     pub fn new(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
@@ -244,6 +232,7 @@ impl SpecOutput {
 
 /// A single implementation task generated from a specification.
 #[derive(Debug, Serialize, Deserialize, tabled::Tabled)]
+#[allow(dead_code)]
 pub struct Task {
     /// Unique task identifier (e.g., "T001").
     #[tabled(rename = "ID")]
@@ -280,6 +269,7 @@ pub struct Task {
 
 /// Container for a tasks.yaml file.
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct TaskFile {
     /// List of implementation tasks.
     pub tasks: Vec<Task>,

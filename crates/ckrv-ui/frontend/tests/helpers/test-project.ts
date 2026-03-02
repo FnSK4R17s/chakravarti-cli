@@ -1,9 +1,10 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 /**
  * Test Project Helper
- * 
+ *
  * Creates isolated temporary directories for E2E tests to prevent
  * CLI commands from modifying the working codebase.
- * 
+ *
  * CRITICAL: All E2E tests MUST use this fixture per TR-007.
  */
 
@@ -34,7 +35,7 @@ export interface TestProjectFixture {
  * ```
  */
 export const test = base.extend<TestProjectFixture>({
-    testProject: async ({ }, use) => {
+    testProject: async (_args, use) => {
         // Create temp directory with unique name
         const tempDir = await mkdtemp(join(tmpdir(), 'ckrv-test-'));
 
@@ -70,7 +71,7 @@ export const test = base.extend<TestProjectFixture>({
         }
     },
 
-    backendPort: async ({ }, use) => {
+    backendPort: async (_args, use) => {
         // Each test gets a unique port to avoid conflicts
         // In practice, tests may share a backend or spin up their own
         const port = 3000 + Math.floor(Math.random() * 1000);

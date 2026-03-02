@@ -372,7 +372,8 @@ const AgentManager: React.FC = () => {
             // Clear result after 5 seconds
             setTimeout(() => {
                 setTestResults((prev) => {
-                    const { [agent.id]: _, ...rest } = prev;
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { [agent.id]: _removed, ...rest } = prev;
                     return rest;
                 });
             }, 5000);
@@ -880,6 +881,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, kiloModels, glmM
                 }));
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedProvider, filteredModels.length, isOpenRouter]);
 
     /**
@@ -896,6 +898,7 @@ const AgentModal: React.FC<AgentModalProps> = ({ agent, models, kiloModels, glmM
                 }));
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedKiloProvider, filteredKiloModels.length, isKiloCode]);
 
     // ============================================================

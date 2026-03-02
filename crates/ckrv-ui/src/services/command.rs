@@ -43,7 +43,7 @@
 //! - `StepStart` / `StepEnd` - Execution phase boundaries
 
 use chrono::Utc;
-use ckrv_transport::{AppState, SystemMode, OrchestrationEvent};
+use ckrv_transport::{AppState, OrchestrationEvent, SystemMode};
 use std::process::{Command, Stdio};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
@@ -52,6 +52,12 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 /// Provides async methods that invoke `ckrv` CLI commands as child processes,
 /// streaming stdout/stderr to connected WebSocket clients via orchestration events.
 pub struct CommandService;
+
+impl Default for CommandService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CommandService {
     /// Create a new command service instance.
@@ -173,7 +179,9 @@ impl CommandService {
                 if result.status.success() {
                     // Try to parse JSON output for better status
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                        if let Some(success) = json.get("success").and_then(|v| v.as_bool()) {
+                        if let Some(success) =
+                            json.get("success").and_then(serde_json::Value::as_bool)
+                        {
                             if success {
                                 // Update status
                                 {
@@ -384,7 +392,9 @@ impl CommandService {
                 if result.status.success() {
                     // Try to parse JSON output for better messaging
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                        if let Some(spec_file) = json.get("spec_file").and_then(|v| v.as_str()) {
+                        if let Some(spec_file) =
+                            json.get("spec_file").and_then(serde_json::Value::as_str)
+                        {
                             Self::emit_success(
                                 state,
                                 &format!("Specification created: {}", spec_file),
@@ -402,12 +412,10 @@ impl CommandService {
                     let error_msg = if let Ok(json) =
                         serde_json::from_str::<serde_json::Value>(&stdout)
                     {
-                        if let Some(err) = json.get("error").and_then(|v| v.as_str()) {
-                            if !err.is_empty() {
-                                err.to_string()
-                            } else {
+                        if let Some(err) = json.get("error").and_then(serde_json::Value::as_str) {
+                            if err.is_empty() {
                                 json.get("code")
-                                    .and_then(|v| v.as_str())
+                                    .and_then(serde_json::Value::as_str)
                                     .map(|c| format!("Command failed: {}", c))
                                     .unwrap_or_else(|| {
                                         format!(
@@ -415,6 +423,8 @@ impl CommandService {
                                             result.status.code()
                                         )
                                     })
+                            } else {
+                                err.to_string()
                             }
                         } else {
                             format!("spec new failed with exit code: {:?}", result.status.code())
@@ -495,7 +505,9 @@ impl CommandService {
                 if result.status.success() {
                     // Try to parse JSON output
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                        if let Some(count) = json.get("task_count").and_then(|v| v.as_u64()) {
+                        if let Some(count) =
+                            json.get("task_count").and_then(serde_json::Value::as_u64)
+                        {
                             Self::emit_success(state, &format!("Generated {} tasks", count));
                         } else {
                             Self::emit_success(state, "Tasks generated successfully");
@@ -510,9 +522,9 @@ impl CommandService {
                     let error_msg =
                         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
                             json.get("error")
-                                .and_then(|v| v.as_str())
+                                .and_then(serde_json::Value::as_str)
                                 .filter(|s| !s.is_empty())
-                                .map(|s| s.to_string())
+                                .map(std::string::ToString::to_string)
                                 .unwrap_or_else(|| {
                                     format!(
                                         "spec tasks failed with exit code: {:?}",
@@ -589,30 +601,26 @@ impl CommandService {
         let state_stderr = state.clone();
 
         // Spawn task to read stdout
-        let stdout_handle = if let Some(stdout) = stdout {
-            Some(tokio::spawn(async move {
+        let stdout_handle = stdout.map(|stdout| {
+            tokio::spawn(async move {
                 let reader = BufReader::new(stdout);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    CommandService::emit_log(&state_stdout, &line);
+                    Self::emit_log(&state_stdout, &line);
                 }
-            }))
-        } else {
-            None
-        };
+            })
+        });
 
         // Spawn task to read stderr
-        let stderr_handle = if let Some(stderr) = stderr {
-            Some(tokio::spawn(async move {
+        let stderr_handle = stderr.map(|stderr| {
+            tokio::spawn(async move {
                 let reader = BufReader::new(stderr);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    CommandService::emit_stderr_line(&state_stderr, &line);
+                    Self::emit_stderr_line(&state_stderr, &line);
                 }
-            }))
-        } else {
-            None
-        };
+            })
+        });
 
         // Wait for the process to complete
         let status = child.wait().await;
@@ -703,30 +711,26 @@ impl CommandService {
         let state_stderr = state.clone();
 
         // Spawn task to read stdout
-        let stdout_handle = if let Some(stdout) = stdout {
-            Some(tokio::spawn(async move {
+        let stdout_handle = stdout.map(|stdout| {
+            tokio::spawn(async move {
                 let reader = BufReader::new(stdout);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    CommandService::emit_log(&state_stdout, &line);
+                    Self::emit_log(&state_stdout, &line);
                 }
-            }))
-        } else {
-            None
-        };
+            })
+        });
 
         // Spawn task to read stderr
-        let stderr_handle = if let Some(stderr) = stderr {
-            Some(tokio::spawn(async move {
+        let stderr_handle = stderr.map(|stderr| {
+            tokio::spawn(async move {
                 let reader = BufReader::new(stderr);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    CommandService::emit_stderr_line(&state_stderr, &line);
+                    Self::emit_stderr_line(&state_stderr, &line);
                 }
-            }))
-        } else {
-            None
-        };
+            })
+        });
 
         // Wait for the process to complete
         let status = child.wait().await;
@@ -774,6 +778,7 @@ impl CommandService {
     }
 
     /// Run `ckrv diff` to view changes between the current branch and base.
+    #[allow(clippy::unused_async)]
     pub async fn run_diff(
         state: &AppState,
         base: Option<&str>,
@@ -824,91 +829,101 @@ impl CommandService {
                 }
 
                 if result.status.success() {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                        // Log diff summary
-                        if let Some(current) = json.get("current_branch").and_then(|v| v.as_str()) {
-                            if let Some(base) = json.get("base_branch").and_then(|v| v.as_str()) {
-                                Self::emit_log(
-                                    state,
-                                    &format!("Comparing: {} → {}", base, current),
-                                );
-                            }
-                        }
-
-                        // Log statistics
-                        let files_changed = json
-                            .get("files_changed")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0);
-                        let lines_added = json
-                            .get("lines_added")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0);
-                        let lines_removed = json
-                            .get("lines_removed")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0);
-
-                        Self::emit_log(state, "");
-                        Self::emit_log(state, "📊 Diff Summary:");
-                        Self::emit_log(state, &format!("   {} files changed", files_changed));
-                        Self::emit_log(state, &format!("   +{} insertions", lines_added));
-                        Self::emit_log(state, &format!("   -{} deletions", lines_removed));
-
-                        // Log changed files
-                        if let Some(files) = json.get("files").and_then(|v| v.as_array()) {
-                            if !files.is_empty() {
-                                Self::emit_log(state, "");
-                                Self::emit_log(state, "📁 Changed Files:");
-                                for file in files.iter().take(20) {
-                                    if let Some(filename) =
-                                        file.get("file").and_then(|v| v.as_str())
-                                    {
-                                        let status = file
-                                            .get("status")
-                                            .and_then(|v| v.as_str())
-                                            .unwrap_or("modified");
-                                        let ins = file
-                                            .get("insertions")
-                                            .and_then(|v| v.as_u64())
-                                            .unwrap_or(0);
-                                        let del = file
-                                            .get("deletions")
-                                            .and_then(|v| v.as_u64())
-                                            .unwrap_or(0);
-                                        let icon = match status {
-                                            "added" => "+",
-                                            "deleted" => "-",
-                                            "renamed" => "→",
-                                            _ => "~",
-                                        };
-                                        Self::emit_log(
-                                            state,
-                                            &format!(
-                                                "   {} {} (+{}/-{})",
-                                                icon, filename, ins, del
-                                            ),
-                                        );
-                                    }
-                                }
-                                if files.len() > 20 {
+                    serde_json::from_str::<serde_json::Value>(&stdout).map_or_else(
+                        |_| {
+                            Self::emit_success(state, "Diff retrieved");
+                            Self::emit_step_end(state, "View Diff", "success");
+                            Ok(serde_json::json!({ "output": stdout.to_string() }))
+                        },
+                        |json| {
+                            // Log diff summary
+                            if let Some(current) = json
+                                .get("current_branch")
+                                .and_then(serde_json::Value::as_str)
+                            {
+                                if let Some(base) =
+                                    json.get("base_branch").and_then(serde_json::Value::as_str)
+                                {
                                     Self::emit_log(
                                         state,
-                                        &format!("   ... and {} more files", files.len() - 20),
+                                        &format!("Comparing: {} \u{2192} {}", base, current),
                                     );
                                 }
                             }
-                        }
 
-                        Self::emit_log(state, "");
-                        Self::emit_success(state, "Diff retrieved successfully");
-                        Self::emit_step_end(state, "View Diff", "success");
-                        Ok(json)
-                    } else {
-                        Self::emit_success(state, "Diff retrieved");
-                        Self::emit_step_end(state, "View Diff", "success");
-                        Ok(serde_json::json!({ "output": stdout.to_string() }))
-                    }
+                            // Log statistics
+                            let files_changed = json
+                                .get("files_changed")
+                                .and_then(serde_json::Value::as_u64)
+                                .unwrap_or(0);
+                            let lines_added = json
+                                .get("lines_added")
+                                .and_then(serde_json::Value::as_u64)
+                                .unwrap_or(0);
+                            let lines_removed = json
+                                .get("lines_removed")
+                                .and_then(serde_json::Value::as_u64)
+                                .unwrap_or(0);
+
+                            Self::emit_log(state, "");
+                            Self::emit_log(state, "\u{1f4ca} Diff Summary:");
+                            Self::emit_log(state, &format!("   {} files changed", files_changed));
+                            Self::emit_log(state, &format!("   +{} insertions", lines_added));
+                            Self::emit_log(state, &format!("   -{} deletions", lines_removed));
+
+                            // Log changed files
+                            if let Some(files) =
+                                json.get("files").and_then(serde_json::Value::as_array)
+                            {
+                                if !files.is_empty() {
+                                    Self::emit_log(state, "");
+                                    Self::emit_log(state, "\u{1f4c1} Changed Files:");
+                                    for file in files.iter().take(20) {
+                                        if let Some(filename) =
+                                            file.get("file").and_then(serde_json::Value::as_str)
+                                        {
+                                            let status = file
+                                                .get("status")
+                                                .and_then(serde_json::Value::as_str)
+                                                .unwrap_or("modified");
+                                            let ins = file
+                                                .get("insertions")
+                                                .and_then(serde_json::Value::as_u64)
+                                                .unwrap_or(0);
+                                            let del = file
+                                                .get("deletions")
+                                                .and_then(serde_json::Value::as_u64)
+                                                .unwrap_or(0);
+                                            let icon = match status {
+                                                "added" => "+",
+                                                "deleted" => "-",
+                                                "renamed" => "\u{2192}",
+                                                _ => "~",
+                                            };
+                                            Self::emit_log(
+                                                state,
+                                                &format!(
+                                                    "   {} {} (+{}/-{})",
+                                                    icon, filename, ins, del
+                                                ),
+                                            );
+                                        }
+                                    }
+                                    if files.len() > 20 {
+                                        Self::emit_log(
+                                            state,
+                                            &format!("   ... and {} more files", files.len() - 20),
+                                        );
+                                    }
+                                }
+                            }
+
+                            Self::emit_log(state, "");
+                            Self::emit_success(state, "Diff retrieved successfully");
+                            Self::emit_step_end(state, "View Diff", "success");
+                            Ok(json)
+                        },
+                    )
                 } else {
                     let error_msg =
                         format!("diff failed with exit code: {:?}", result.status.code());
@@ -927,6 +942,7 @@ impl CommandService {
     }
 
     /// Run `ckrv verify` to check lint, types, and tests.
+    #[allow(clippy::fn_params_excessive_bools)]
     pub async fn run_verify(
         state: &AppState,
         lint: bool,
@@ -988,19 +1004,18 @@ impl CommandService {
         let state_stderr = state.clone();
 
         // Stream stderr for progress
-        let stderr_handle = if let Some(stderr) = stderr {
-            Some(tokio::spawn(async move {
+        let stderr_handle = stderr.map(|stderr| {
+            tokio::spawn(async move {
                 let reader = BufReader::new(stderr);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    CommandService::emit_stderr_line(&state_stderr, &line);
+                    Self::emit_stderr_line(&state_stderr, &line);
                 }
-            }))
-        } else {
-            None
-        };
+            })
+        });
 
         // Collect stdout for JSON result
+        #[allow(clippy::option_if_let_else)]
         let stdout_content = if let Some(stdout) = stdout {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
@@ -1028,24 +1043,25 @@ impl CommandService {
 
         match status {
             Ok(exit_status) => {
+                #[allow(clippy::option_if_let_else)]
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout_content) {
                     // Log detailed check results
                     Self::emit_log(state, "");
-                    Self::emit_log(state, "🔍 Verification Results:");
+                    Self::emit_log(state, "\u{1f50d} Verification Results:");
 
-                    if let Some(checks) = json.get("checks").and_then(|v| v.as_array()) {
+                    if let Some(checks) = json.get("checks").and_then(serde_json::Value::as_array) {
                         for check in checks {
                             let name = check
                                 .get("name")
-                                .and_then(|v| v.as_str())
+                                .and_then(serde_json::Value::as_str)
                                 .unwrap_or("Unknown");
                             let passed = check
                                 .get("passed")
-                                .and_then(|v| v.as_bool())
+                                .and_then(serde_json::Value::as_bool)
                                 .unwrap_or(false);
                             let duration = check
                                 .get("duration_ms")
-                                .and_then(|v| v.as_u64())
+                                .and_then(serde_json::Value::as_u64)
                                 .unwrap_or(0);
 
                             let icon = if passed { "✅" } else { "❌" };
@@ -1056,7 +1072,9 @@ impl CommandService {
 
                             // Log error details if check failed
                             if !passed {
-                                if let Some(error) = check.get("error").and_then(|v| v.as_str()) {
+                                if let Some(error) =
+                                    check.get("error").and_then(serde_json::Value::as_str)
+                                {
                                     // Log first few lines of error
                                     for (i, line) in error.lines().take(10).enumerate() {
                                         if i == 0 {
@@ -1082,11 +1100,17 @@ impl CommandService {
 
                     // Log summary
                     if let Some(summary) = json.get("summary") {
-                        let passed = summary.get("passed").and_then(|v| v.as_u64()).unwrap_or(0);
-                        let failed = summary.get("failed").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let passed = summary
+                            .get("passed")
+                            .and_then(serde_json::Value::as_u64)
+                            .unwrap_or(0);
+                        let failed = summary
+                            .get("failed")
+                            .and_then(serde_json::Value::as_u64)
+                            .unwrap_or(0);
                         let duration = json
                             .get("total_duration_ms")
-                            .and_then(|v| v.as_u64())
+                            .and_then(serde_json::Value::as_u64)
                             .unwrap_or(0);
 
                         Self::emit_log(state, "");
@@ -1109,16 +1133,14 @@ impl CommandService {
                         Self::emit_step_end(state, "Verify Code", "failed");
                     }
                     Ok(json)
+                } else if exit_status.success() {
+                    Self::emit_success(state, "Verification complete");
+                    Self::emit_step_end(state, "Verify Code", "success");
+                    Ok(serde_json::json!({ "success": true }))
                 } else {
-                    if exit_status.success() {
-                        Self::emit_success(state, "Verification complete");
-                        Self::emit_step_end(state, "Verify Code", "success");
-                        Ok(serde_json::json!({ "success": true }))
-                    } else {
-                        Self::emit_error(state, "Verification failed");
-                        Self::emit_step_end(state, "Verify Code", "failed");
-                        Err("Verification failed".to_string())
-                    }
+                    Self::emit_error(state, "Verification failed");
+                    Self::emit_step_end(state, "Verify Code", "failed");
+                    Err("Verification failed".to_string())
                 }
             }
             Err(e) => {
@@ -1131,6 +1153,7 @@ impl CommandService {
     }
 
     /// Run `ckrv promote` to create a pull request from the current branch.
+    #[allow(clippy::unused_async)]
     pub async fn run_promote(
         state: &AppState,
         base: Option<&str>,
@@ -1184,7 +1207,7 @@ impl CommandService {
 
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
                     if result.status.success() {
-                        if let Some(url) = json.get("pr_url").and_then(|v| v.as_str()) {
+                        if let Some(url) = json.get("pr_url").and_then(serde_json::Value::as_str) {
                             Self::emit_success(state, &format!("PR created: {}", url));
                         } else {
                             Self::emit_success(state, "Ready to create PR");
@@ -1193,24 +1216,22 @@ impl CommandService {
                     } else {
                         let msg = json
                             .get("message")
-                            .and_then(|v| v.as_str())
+                            .and_then(serde_json::Value::as_str)
                             .unwrap_or("Failed");
                         Self::emit_error(state, msg);
                         Self::emit_step_end(state, "Create Pull Request", "failed");
                     }
                     Ok(json)
+                } else if result.status.success() {
+                    Self::emit_success(state, "Promote complete");
+                    Self::emit_step_end(state, "Create Pull Request", "success");
+                    Ok(serde_json::json!({ "success": true }))
                 } else {
-                    if result.status.success() {
-                        Self::emit_success(state, "Promote complete");
-                        Self::emit_step_end(state, "Create Pull Request", "success");
-                        Ok(serde_json::json!({ "success": true }))
-                    } else {
-                        let error_msg =
-                            format!("promote failed with exit code: {:?}", result.status.code());
-                        Self::emit_error(state, &error_msg);
-                        Self::emit_step_end(state, "Create Pull Request", "failed");
-                        Err(error_msg)
-                    }
+                    let error_msg =
+                        format!("promote failed with exit code: {:?}", result.status.code());
+                    Self::emit_error(state, &error_msg);
+                    Self::emit_step_end(state, "Create Pull Request", "failed");
+                    Err(error_msg)
                 }
             }
             Err(e) => {
@@ -1223,6 +1244,7 @@ impl CommandService {
     }
 
     /// Run `ckrv fix` to auto-fix lint, type, and test issues.
+    #[allow(clippy::fn_params_excessive_bools)]
     pub async fn run_fix(
         state: &AppState,
         lint: bool,
@@ -1294,8 +1316,8 @@ impl CommandService {
         let state_stderr = state.clone();
 
         // Stream stdout for Claude output
-        let stdout_handle = if let Some(stdout) = stdout {
-            Some(tokio::spawn(async move {
+        let stdout_handle = stdout.map(|stdout| {
+            tokio::spawn(async move {
                 let reader = BufReader::new(stdout);
                 let mut lines = reader.lines();
                 let mut json_content = String::new();
@@ -1307,34 +1329,29 @@ impl CommandService {
                     } else {
                         // Log non-JSON lines (progress output)
                         if !line.trim().is_empty() {
-                            CommandService::emit_log(&state_stdout, &format!("🤖 {}", line));
+                            Self::emit_log(&state_stdout, &format!("\u{1f916} {}", line));
                         }
                     }
                 }
                 json_content
-            }))
-        } else {
-            None
-        };
+            })
+        });
 
         // Stream stderr for progress
-        let stderr_handle = if let Some(stderr) = stderr {
-            Some(tokio::spawn(async move {
+        let stderr_handle = stderr.map(|stderr| {
+            tokio::spawn(async move {
                 let reader = BufReader::new(stderr);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    CommandService::emit_stderr_line(&state_stderr, &line);
+                    Self::emit_stderr_line(&state_stderr, &line);
                 }
-            }))
-        } else {
-            None
-        };
+            })
+        });
 
         // Get the stdout content
-        let stdout_content = if let Some(handle) = stdout_handle {
-            handle.await.unwrap_or_default()
-        } else {
-            String::new()
+        let stdout_content = match stdout_handle {
+            Some(handle) => handle.await.unwrap_or_default(),
+            None => String::new(),
         };
 
         let status = child.wait().await;
@@ -1351,21 +1368,22 @@ impl CommandService {
 
         match status {
             Ok(exit_status) => {
+                #[allow(clippy::option_if_let_else)]
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout_content) {
                     // Log results
                     Self::emit_log(state, "");
 
                     let success = json
                         .get("success")
-                        .and_then(|v| v.as_bool())
+                        .and_then(serde_json::Value::as_bool)
                         .unwrap_or(false);
                     let fixes = json
                         .get("fixes_applied")
-                        .and_then(|v| v.as_u64())
+                        .and_then(serde_json::Value::as_u64)
                         .unwrap_or(0);
                     let remaining = json
                         .get("errors_remaining")
-                        .and_then(|v| v.as_u64())
+                        .and_then(serde_json::Value::as_u64)
                         .unwrap_or(0);
 
                     if success {
@@ -1376,23 +1394,21 @@ impl CommandService {
                         Self::emit_success(state, "Fixes applied successfully");
                         Self::emit_step_end(state, "Fix with AI", "success");
                     } else {
-                        if let Some(msg) = json.get("message").and_then(|v| v.as_str()) {
+                        if let Some(msg) = json.get("message").and_then(serde_json::Value::as_str) {
                             Self::emit_error(state, msg);
                         }
                         Self::emit_step_end(state, "Fix with AI", "failed");
                     }
 
                     Ok(json)
+                } else if exit_status.success() {
+                    Self::emit_success(state, "Fix complete");
+                    Self::emit_step_end(state, "Fix with AI", "success");
+                    Ok(serde_json::json!({ "success": true }))
                 } else {
-                    if exit_status.success() {
-                        Self::emit_success(state, "Fix complete");
-                        Self::emit_step_end(state, "Fix with AI", "success");
-                        Ok(serde_json::json!({ "success": true }))
-                    } else {
-                        Self::emit_error(state, "Fix command failed");
-                        Self::emit_step_end(state, "Fix with AI", "failed");
-                        Err("Fix failed".to_string())
-                    }
+                    Self::emit_error(state, "Fix command failed");
+                    Self::emit_step_end(state, "Fix with AI", "failed");
+                    Err("Fix failed".to_string())
                 }
             }
             Err(e) => {

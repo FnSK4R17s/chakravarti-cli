@@ -128,7 +128,7 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                 if (fitAddonRef.current && terminalRef.current) {
                     try {
                         fitAddonRef.current.fit();
-                    } catch (e) {
+                    } catch {
                         // Ignore fit errors during resize
                     }
                 }
@@ -211,6 +211,7 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                     }
 
                     // Check if running in Tauri mode (no WebSocket available)
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const isTauriMode = res.mode === 'tauri' || (window as any).__TAURI__;
 
                     if (isTauriMode && res.container_id) {
@@ -254,6 +255,7 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                             });
 
                             // Store PTY reference for cleanup
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             (term as any).__pty = pty;
 
                         } catch (ptyError) {
@@ -276,7 +278,7 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                                     if (data && data.data) {
                                         term.write(data.data);
                                     }
-                                } catch (e) {
+                                } catch {
                                     // Ignore read errors
                                 }
                                 if (mounted) {
@@ -292,7 +294,7 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ session_id: sessionIdRef.current, data }),
                                     });
-                                } catch (e) {
+                                } catch {
                                     // Ignore write errors
                                 }
                             });
@@ -370,16 +372,20 @@ export const AgentCliModal: React.FC<AgentCliModalProps> = ({ agent, onClose }) 
             window.removeEventListener('resize', handleResize);
             wsRef.current?.close();
             // Kill PTY if it exists (Tauri mode)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if (xtermRef.current && (xtermRef.current as any).__pty) {
                 try {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (xtermRef.current as any).__pty.kill();
-                } catch (e) {
+                } catch {
                     // Ignore kill errors
                 }
             }
             xtermRef.current?.dispose();
+            // eslint-disable-next-line react-hooks/exhaustive-deps
             stopTerminalSession(sessionIdRef.current).catch(() => { });
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [agent.id]);
 
     // ============================================================

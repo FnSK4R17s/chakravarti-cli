@@ -32,7 +32,7 @@ struct SpecDetailQuery {
 
 /// List all specs.
 async fn list_specs(State(state): State<AppState>) -> impl IntoResponse {
-    match list_specs_handler(&state).await {
+    match list_specs_handler(&state) {
         Ok(specs) => Json(specs).into_response(),
         Err(e) => e.into_response(),
     }
@@ -43,7 +43,7 @@ async fn get_spec_detail(
     State(state): State<AppState>,
     Query(query): Query<SpecDetailQuery>,
 ) -> impl IntoResponse {
-    match get_spec_handler(&state, query.name).await {
+    match get_spec_handler(&state, query.name) {
         Ok(spec) => Json(spec).into_response(),
         Err(e) => e.into_response(),
     }
@@ -54,7 +54,7 @@ async fn create_spec(
     State(state): State<AppState>,
     Json(request): Json<CreateSpecRequest>,
 ) -> impl IntoResponse {
-    match create_spec_handler(&state, request).await {
+    match create_spec_handler(&state, request) {
         Ok(spec) => (axum::http::StatusCode::CREATED, Json(spec)).into_response(),
         Err(e) => e.into_response(),
     }
@@ -75,7 +75,7 @@ async fn save_spec(
     let update_request = UpdateSpecRequest {
         raw_yaml: request.raw_yaml,
     };
-    match update_spec_handler(&state, request.name, update_request).await {
+    match update_spec_handler(&state, request.name, update_request) {
         Ok(spec) => Json(spec).into_response(),
         Err(e) => e.into_response(),
     }

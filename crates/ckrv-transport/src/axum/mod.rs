@@ -59,7 +59,6 @@ use axum::Router;
 ///     .nest("/api", create_router(state.clone()))
 ///     .with_state(state);
 /// ```
-#[must_use]
 pub fn create_router(state: AppState) -> Router<AppState> {
     Router::new()
         // Status routes
@@ -105,7 +104,6 @@ pub fn create_router(state: AppState) -> Router<AppState> {
 ///
 /// This is a convenience function that wraps `create_router` with
 /// permissive CORS settings for development.
-#[must_use]
 pub fn create_router_with_cors(state: AppState) -> Router<AppState> {
     use tower_http::cors::{Any, CorsLayer};
 

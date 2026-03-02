@@ -505,6 +505,7 @@ export const SpecEditor: React.FC = () => {
      */
     useEffect(() => {
         if (specDetailData?.success && specDetailData.spec) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSpec(specDetailData.spec);
             setRawYaml(specDetailData.raw_yaml);
         }

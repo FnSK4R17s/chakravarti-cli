@@ -54,7 +54,7 @@ pub enum RenderError {
 // IMPLEMENTATION
 // ============================================================
 
-impl<'a> PromptRenderer<'a> {
+impl PromptRenderer<'_> {
     /// Create a new prompt renderer.
     #[must_use]
     pub fn new() -> Self {

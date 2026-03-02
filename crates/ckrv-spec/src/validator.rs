@@ -65,7 +65,7 @@ pub fn validate(spec: &Spec) -> ValidationResult {
     }
 
     // Overview is required
-    if spec.overview.as_ref().map_or(true, |o| o.is_empty()) {
+    if spec.overview.as_ref().map_or(true, String::is_empty) {
         errors.push(ValidationError {
             field: "overview".to_string(),
             message: "overview is required".to_string(),

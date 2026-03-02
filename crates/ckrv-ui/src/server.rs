@@ -40,7 +40,7 @@
 use axum::{
     body::Body,
     http::{header, StatusCode, Uri},
-    response::{IntoResponse, Response},
+    response::IntoResponse,
     routing::get,
     Router,
 };
@@ -114,8 +114,8 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
 
     if std::env::var("CKRV_PROJECT_ROOT").is_ok() {
         println!(
-            "Using custom project root from CKRV_PROJECT_ROOT: {:?}",
-            project_root
+            "Using custom project root from CKRV_PROJECT_ROOT: {}",
+            project_root.display()
         );
     }
 

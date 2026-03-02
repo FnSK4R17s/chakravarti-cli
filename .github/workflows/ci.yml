@@ -37,6 +37,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: crates/ckrv-ui/frontend
       - run: cargo clippy --workspace -- -D warnings
 
   # ── Rust Tests ─────────────────────────────────────────────────────────
@@ -50,6 +56,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: crates/ckrv-ui/frontend
       - run: cargo test --workspace
 
   # ── Rust Build ─────────────────────────────────────────────────────────

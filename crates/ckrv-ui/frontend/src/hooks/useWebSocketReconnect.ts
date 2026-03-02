@@ -169,6 +169,7 @@ export function useWebSocketReconnect(
 
                 // Schedule retry
                 retryTimeoutRef.current = window.setTimeout(() => {
+                    // eslint-disable-next-line react-hooks/immutability
                     createConnection(url, retryCount + 1);
                 }, delay);
             } else {

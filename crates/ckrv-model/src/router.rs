@@ -220,45 +220,41 @@ impl ModelRouter {
         if let Some(ref override_model) = context.model_override {
             return ModelSelection {
                 model: override_model.clone(),
-                provider: self.provider_for_model(override_model),
-                estimated_cost_per_1k: self.cost_per_1k(override_model),
+                provider: Self::provider_for_model(override_model),
+                estimated_cost_per_1k: Self::cost_per_1k(override_model),
                 reason: "User override".to_string(),
             };
         }
 
         // Select based on optimization mode
         let (model, reason) = match context.optimize {
-            OptimizeMode::Cost => self.select_cost_optimized(context),
-            OptimizeMode::Time => self.select_time_optimized(context),
+            OptimizeMode::Cost => Self::select_cost_optimized(context),
+            OptimizeMode::Time => Self::select_time_optimized(context),
             OptimizeMode::Balanced => self.select_balanced(context),
         };
 
         ModelSelection {
-            provider: self.provider_for_model(&model),
-            estimated_cost_per_1k: self.cost_per_1k(&model),
+            provider: Self::provider_for_model(&model),
+            estimated_cost_per_1k: Self::cost_per_1k(&model),
             model,
             reason,
         }
     }
 
-    fn select_cost_optimized(&self, context: &RoutingContext) -> (String, String) {
+    fn select_cost_optimized(_context: &RoutingContext) -> (String, String) {
         // Always use cheapest models for cost optimization
-        let model = match context.task_type {
-            TaskType::Planning => "gpt-4o-mini",
-            TaskType::Execution => "gpt-4o-mini",
-            TaskType::Verification => "gpt-4o-mini",
-        };
+        let model = "gpt-4o-mini";
         (
             model.to_string(),
             "Cost optimized: using cheapest model".to_string(),
         )
     }
 
-    fn select_time_optimized(&self, context: &RoutingContext) -> (String, String) {
+    fn select_time_optimized(context: &RoutingContext) -> (String, String) {
         // Use faster/more capable models for time optimization
         let model = match context.task_type {
-            TaskType::Planning => "gpt-4o",  // Better reasoning = fewer retries
-            TaskType::Execution => "gpt-4o", // Better code gen = fewer retries
+            // Better reasoning = fewer retries, better code gen = fewer retries
+            TaskType::Planning | TaskType::Execution => "gpt-4o",
             TaskType::Verification => "gpt-4o-mini", // Quick verification
         };
         (
@@ -280,7 +276,7 @@ impl ModelRouter {
         )
     }
 
-    fn provider_for_model(&self, model: &str) -> String {
+    fn provider_for_model(model: &str) -> String {
         if model.starts_with("claude") {
             "anthropic".to_string()
         } else if model.starts_with("gpt") || model.starts_with("o1") {
@@ -290,11 +286,11 @@ impl ModelRouter {
         }
     }
 
-    fn cost_per_1k(&self, model: &str) -> f64 {
+    fn cost_per_1k(model: &str) -> f64 {
         // Approximate cost per 1K tokens (input + output average)
         match model {
-            "gpt-4o" => 0.00625,       // ($2.5 + $10) / 2 / 1000
-            "gpt-4o-mini" => 0.000375, // ($0.15 + $0.60) / 2 / 1000
+            "gpt-4o" => 0.006_25,       // ($2.5 + $10) / 2 / 1000
+            "gpt-4o-mini" => 0.000_375, // ($0.15 + $0.60) / 2 / 1000
             "gpt-4-turbo" => 0.02,
             "claude-3-5-sonnet" => 0.009,
             "claude-3-5-haiku" => 0.0024,
@@ -325,7 +321,7 @@ impl ModelRouter {
                 Ok(response) => {
                     // Record budget usage
                     if let Ok(mut budget) = self.budget.lock() {
-                        let cost = self.cost_per_1k(&request.model)
+                        let cost = Self::cost_per_1k(&request.model)
                             * (response.usage.prompt_tokens + response.usage.completion_tokens)
                                 as f64
                             / 1000.0;
@@ -340,7 +336,6 @@ impl ModelRouter {
                 }
                 Err(e) => {
                     last_error = Some(e);
-                    continue;
                 }
             }
         }

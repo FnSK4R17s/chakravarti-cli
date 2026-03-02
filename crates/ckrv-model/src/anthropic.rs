@@ -178,8 +178,7 @@ impl ModelProvider for AnthropicProvider {
             .into_iter()
             .filter(|c| c.content_type == "text")
             .map(|c| c.text)
-            .collect::<Vec<_>>()
-            .join("");
+            .collect::<String>();
 
         let total_tokens = api_response.usage.input_tokens + api_response.usage.output_tokens;
 

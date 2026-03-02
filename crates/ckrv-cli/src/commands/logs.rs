@@ -1,4 +1,5 @@
 //! Logs command - Stream or view cloud job logs.
+#![allow(clippy::option_if_let_else)]
 
 // ============================================================
 // IMPORTS
@@ -37,7 +38,7 @@ pub struct LogsArgs {
 /// Execute the logs command.
 pub async fn execute(args: LogsArgs, ui: &crate::ui::UiContext) -> anyhow::Result<()> {
     use crate::cloud::client::CloudClient;
-    use crate::cloud::logs::{fetch_logs, stream_logs, LogEntry};
+    use crate::cloud::logs::{stream_logs, LogEntry};
 
     // Verify job exists first
     let client = CloudClient::new().map_err(|e| anyhow::anyhow!("{}", e))?;

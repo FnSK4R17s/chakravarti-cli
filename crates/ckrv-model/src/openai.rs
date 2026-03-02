@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    provider::{CompletionRequest, CompletionResponse, Message, ModelProvider},
+    provider::{CompletionRequest, CompletionResponse, ModelProvider},
     ModelError, TokenUsage,
 };
 

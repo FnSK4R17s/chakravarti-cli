@@ -26,6 +26,8 @@
 //!
 //! See `docs/adding-endpoints.md` for detailed instructions.
 
+#![allow(clippy::needless_pass_by_value)]
+
 pub mod agents;
 pub mod cloud;
 pub mod commands;

@@ -34,7 +34,6 @@ pub struct ListSpecsWrapped {
 pub async fn list_specs(state: State<'_, SharedState>) -> Result<ListSpecsWrapped, String> {
     let app_state = state.read().await;
     list_specs_handler(&app_state)
-        .await
         .map(|specs| ListSpecsWrapped { specs })
         .map_err(|e| e.to_string())
 }
@@ -43,9 +42,7 @@ pub async fn list_specs(state: State<'_, SharedState>) -> Result<ListSpecsWrappe
 #[tauri::command]
 pub async fn get_spec(state: State<'_, SharedState>, name: String) -> Result<SpecDetail, String> {
     let app_state = state.read().await;
-    get_spec_handler(&app_state, name)
-        .await
-        .map_err(|e| e.to_string())
+    get_spec_handler(&app_state, name).map_err(|e| e.to_string())
 }
 
 /// Create a new specification.
@@ -57,7 +54,6 @@ pub async fn create_spec(
 ) -> Result<SpecSummary, String> {
     let app_state = state.read().await;
     create_spec_handler(&app_state, CreateSpecRequest { description, name })
-        .await
         .map_err(|e| e.to_string())
 }
 
@@ -69,18 +65,14 @@ pub async fn update_spec(
     raw_yaml: Option<String>,
 ) -> Result<SpecDetail, String> {
     let app_state = state.read().await;
-    update_spec_handler(&app_state, name, UpdateSpecRequest { raw_yaml })
-        .await
-        .map_err(|e| e.to_string())
+    update_spec_handler(&app_state, name, UpdateSpecRequest { raw_yaml }).map_err(|e| e.to_string())
 }
 
 /// Delete a specification.
 #[tauri::command]
 pub async fn delete_spec(state: State<'_, SharedState>, name: String) -> Result<(), String> {
     let app_state = state.read().await;
-    delete_spec_handler(&app_state, name)
-        .await
-        .map_err(|e| e.to_string())
+    delete_spec_handler(&app_state, name).map_err(|e| e.to_string())
 }
 
 /// Validate a specification.
@@ -90,9 +82,7 @@ pub async fn validate_spec(
     name: String,
 ) -> Result<ValidateSpecResponse, String> {
     let app_state = state.read().await;
-    validate_spec_handler(&app_state, name)
-        .await
-        .map_err(|e| e.to_string())
+    validate_spec_handler(&app_state, name).map_err(|e| e.to_string())
 }
 
 /// Generate design for a specification.
@@ -102,9 +92,7 @@ pub async fn generate_design(
     name: String,
 ) -> Result<DesignResponse, String> {
     let app_state = state.read().await;
-    generate_design_handler(&app_state, name)
-        .await
-        .map_err(|e| e.to_string())
+    generate_design_handler(&app_state, name).map_err(|e| e.to_string())
 }
 
 /// Generate tasks for a specification.
@@ -114,7 +102,5 @@ pub async fn generate_tasks(
     name: String,
 ) -> Result<GenerateTasksResponse, String> {
     let app_state = state.read().await;
-    generate_tasks_handler(&app_state, name)
-        .await
-        .map_err(|e| e.to_string())
+    generate_tasks_handler(&app_state, name).map_err(|e| e.to_string())
 }

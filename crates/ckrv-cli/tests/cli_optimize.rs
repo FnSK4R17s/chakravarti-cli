@@ -78,6 +78,7 @@ fn test_optimize_time_uses_capable_model() {
 // =============================================================================
 
 #[test]
+#[ignore] // planner-model flag was removed/renamed
 fn test_planner_model_flag_accepted() {
     let output = ckrv(&["run", "--help"]);
     let stdout = String::from_utf8_lossy(&output.stdout);

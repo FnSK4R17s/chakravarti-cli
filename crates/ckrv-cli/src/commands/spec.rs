@@ -1,4 +1,7 @@
 //! Spec commands - create and manage specifications.
+#![allow(clippy::option_if_let_else)]
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::branches_sharing_code)]
 
 use std::path::PathBuf;
 
@@ -169,6 +172,7 @@ pub enum SpecCommand {
 
 /// JSON output for spec new command
 #[derive(Serialize)]
+#[allow(dead_code)]
 struct SpecNewOutput {
     success: bool,
     spec_path: PathBuf,
@@ -419,8 +423,8 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
             "branch": if branch_created { Some(&numbered_name) } else { None },
             "message": "Spec generated with AI",
             "spec": {
-                "user_story_count": spec_details.as_ref().map(|s| s.user_story_count()).unwrap_or(0),
-                "requirement_count": spec_details.as_ref().map(|s| s.requirement_count()).unwrap_or(0),
+                "user_story_count": spec_details.as_ref().map(super::spec_structs::SpecOutput::user_story_count).unwrap_or(0),
+                "requirement_count": spec_details.as_ref().map(super::spec_structs::SpecOutput::requirement_count).unwrap_or(0),
                 "has_clarifications": has_clarifications,
                 "status": spec_details.as_ref().map(|s| s.status.to_string()).unwrap_or_else(|| "unknown".to_string()),
             }
@@ -447,6 +451,7 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
 }
 
 /// Resolve clarifications in an existing spec
+#[allow(clippy::unused_async)]
 async fn execute_clarify(spec_path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
     use std::io::{self, Write};
 
@@ -678,7 +683,7 @@ async fn execute_design(
     // Create a basic research.md if it doesn't exist
     if !research_path.exists() {
         let research_content = format!(
-            r#"# Research: {}
+            r"# Research: {}
 
 **Generated**: {}
 **Status**: Auto-generated during design phase
@@ -694,7 +699,7 @@ async fn execute_design(
 ## Risks & Mitigations
 
 (Document any risks identified during design)
-"#,
+",
             spec.id,
             chrono::Local::now().format("%Y-%m-%d")
         );
@@ -745,7 +750,7 @@ fn execute_init(name: &str, json: bool) -> anyhow::Result<()> {
     // Generate a numbered name
     let existing_count = if specs_dir.exists() {
         std::fs::read_dir(&specs_dir)
-            .map(|entries| entries.filter_map(|e| e.ok()).count())
+            .map(|entries| entries.filter_map(std::result::Result::ok).count())
             .unwrap_or(0)
     } else {
         0
@@ -808,7 +813,7 @@ clarifications: []
     std::fs::write(spec_folder.join("spec.yaml"), spec_yaml)?;
 
     // Create empty checklist
-    let checklist = r#"# Requirements Checklist
+    let checklist = r"# Requirements Checklist
 
 ## Specification Quality
 
@@ -817,7 +822,7 @@ clarifications: []
 - [ ] User stories have acceptance criteria
 - [ ] Functional requirements are testable
 - [ ] Success criteria are measurable
-"#;
+";
     std::fs::write(
         spec_folder.join("checklists").join("requirements.md"),
         checklist,
@@ -856,46 +861,43 @@ fn resolve_spec_path(
     spec_path: Option<&PathBuf>,
     cwd: &std::path::Path,
 ) -> anyhow::Result<PathBuf> {
-    match spec_path {
-        Some(path) => {
-            if path.is_absolute() {
-                Ok(path.clone())
-            } else {
-                Ok(cwd.join(path))
-            }
+    if let Some(path) = spec_path {
+        if path.is_absolute() {
+            Ok(path.clone())
+        } else {
+            Ok(cwd.join(path))
         }
-        None => {
-            // Get current branch name
-            let branch_output = std::process::Command::new("git")
-                .args(["rev-parse", "--abbrev-ref", "HEAD"])
-                .current_dir(cwd)
-                .output();
+    } else {
+        // Get current branch name
+        let branch_output = std::process::Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .current_dir(cwd)
+            .output();
 
-            match branch_output {
-                Ok(output) if output.status.success() => {
-                    let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        match branch_output {
+            Ok(output) if output.status.success() => {
+                let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
-                    let specs_dir = cwd.join(".specs");
-                    let spec_folder = specs_dir.join(&branch);
-                    let spec_file = spec_folder.join("spec.yaml");
-                    let spec_file_yml = spec_folder.join("spec.yml");
+                let specs_dir = cwd.join(".specs");
+                let spec_folder = specs_dir.join(&branch);
+                let spec_file = spec_folder.join("spec.yaml");
+                let spec_file_yml = spec_folder.join("spec.yml");
 
-                    if spec_file.exists() {
-                        Ok(spec_file)
-                    } else if spec_file_yml.exists() {
-                        Ok(spec_file_yml)
-                    } else {
-                        Err(anyhow::anyhow!(
-                            "No spec found for branch '{}'. Expected at: {}",
-                            branch,
-                            spec_file.display()
-                        ))
-                    }
+                if spec_file.exists() {
+                    Ok(spec_file)
+                } else if spec_file_yml.exists() {
+                    Ok(spec_file_yml)
+                } else {
+                    Err(anyhow::anyhow!(
+                        "No spec found for branch '{}'. Expected at: {}",
+                        branch,
+                        spec_file.display()
+                    ))
                 }
-                _ => Err(anyhow::anyhow!(
-                    "Failed to detect current branch. Provide spec path explicitly."
-                )),
             }
+            _ => Err(anyhow::anyhow!(
+                "Failed to detect current branch. Provide spec path explicitly."
+            )),
         }
     }
 }
@@ -915,70 +917,65 @@ async fn execute_tasks(
     let is_auto_detected = spec_path.is_none();
 
     // Resolve spec path - auto-detect from current branch if not provided
-    let spec_path = match spec_path {
-        Some(path) => {
-            if path.is_absolute() {
-                path.clone()
-            } else {
-                cwd.join(path)
-            }
+    let spec_path = if let Some(path) = spec_path {
+        if path.is_absolute() {
+            path.clone()
+        } else {
+            cwd.join(path)
         }
-        None => {
-            // Get current branch name
-            let branch_output = std::process::Command::new("git")
-                .args(["rev-parse", "--abbrev-ref", "HEAD"])
-                .current_dir(&cwd)
-                .output();
+    } else {
+        // Get current branch name
+        let branch_output = std::process::Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .current_dir(&cwd)
+            .output();
 
-            match branch_output {
-                Ok(output) if output.status.success() => {
-                    let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        match branch_output {
+            Ok(output) if output.status.success() => {
+                let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
-                    // Try to find spec file in folder matching branch name
-                    let specs_dir = cwd.join(".specs");
-                    let spec_folder = specs_dir.join(&branch);
-                    let spec_file = spec_folder.join("spec.yaml");
-                    let spec_file_yml = spec_folder.join("spec.yml");
+                // Try to find spec file in folder matching branch name
+                let specs_dir = cwd.join(".specs");
+                let spec_folder = specs_dir.join(&branch);
+                let spec_file = spec_folder.join("spec.yaml");
+                let spec_file_yml = spec_folder.join("spec.yml");
 
-                    if spec_file.exists() {
-                        spec_file
-                    } else if spec_file_yml.exists() {
-                        spec_file_yml
-                    } else {
-                        if json {
-                            let output = serde_json::json!({
-                                "success": false,
-                                "error": format!("No spec found for branch '{}'. Expected: {}", branch, spec_file.display()),
-                                "code": "SPEC_NOT_FOUND"
-                            });
-                            println!("{}", serde_json::to_string_pretty(&output)?);
-                        } else {
-                            eprintln!("Error: No spec found for branch '{}'", branch);
-                            eprintln!("Expected: {}", spec_file.display());
-                            eprintln!();
-                            eprintln!("Either:");
-                            eprintln!("  1. Switch to a spec branch: git checkout <spec-branch>");
-                            eprintln!("  2. Create the spec first: ckrv spec new \"description\"");
-                        }
-                        std::process::exit(1);
-                    }
-                }
-                _ => {
+                if spec_file.exists() {
+                    spec_file
+                } else if spec_file_yml.exists() {
+                    spec_file_yml
+                } else {
                     if json {
                         let output = serde_json::json!({
                             "success": false,
-                            "error": "Could not determine current branch. Provide spec path explicitly.",
-                            "code": "BRANCH_UNKNOWN"
+                            "error": format!("No spec found for branch '{}'. Expected: {}", branch, spec_file.display()),
+                            "code": "SPEC_NOT_FOUND"
                         });
                         println!("{}", serde_json::to_string_pretty(&output)?);
                     } else {
-                        eprintln!("Error: Could not determine current branch.");
-                        eprintln!(
-                            "Provide spec path explicitly: ckrv spec tasks .specs/<spec>.yaml"
-                        );
+                        eprintln!("Error: No spec found for branch '{}'", branch);
+                        eprintln!("Expected: {}", spec_file.display());
+                        eprintln!();
+                        eprintln!("Either:");
+                        eprintln!("  1. Switch to a spec branch: git checkout <spec-branch>");
+                        eprintln!("  2. Create the spec first: ckrv spec new \"description\"");
                     }
                     std::process::exit(1);
                 }
+            }
+            _ => {
+                if json {
+                    let output = serde_json::json!({
+                        "success": false,
+                        "error": "Could not determine current branch. Provide spec path explicitly.",
+                        "code": "BRANCH_UNKNOWN"
+                    });
+                    println!("{}", serde_json::to_string_pretty(&output)?);
+                } else {
+                    eprintln!("Error: Could not determine current branch.");
+                    eprintln!("Provide spec path explicitly: ckrv spec tasks .specs/<spec>.yaml");
+                }
+                std::process::exit(1);
             }
         }
     };
@@ -1220,7 +1217,7 @@ fn generate_short_name(description: &str) -> String {
         .filter(|w| w.len() > 2)
         .filter(|w| !stop_words.contains(w))
         .take(3)
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
 
     if words.is_empty() {
@@ -1331,7 +1328,7 @@ fn execute_validate(path: Option<&PathBuf>, json: bool) -> anyhow::Result<()> {
 
         // Check overview is not placeholder
         if let Some(ref overview) = spec.overview {
-            if overview.contains("[") && overview.contains("]") {
+            if overview.contains('[') && overview.contains(']') {
                 additional_warnings
                     .push("Overview appears to contain placeholder text".to_string());
             }

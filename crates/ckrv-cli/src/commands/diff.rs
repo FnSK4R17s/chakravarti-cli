@@ -1,4 +1,5 @@
 //! Diff command - view changes between main branch and current spec branch.
+#![allow(clippy::match_same_arms)]
 
 // ============================================================
 // IMPORTS
@@ -137,7 +138,7 @@ pub async fn execute(args: DiffArgs, json: bool, ui: &UiContext) -> anyhow::Resu
     }
 
     // Get diff statistics
-    let diff_stat = std::process::Command::new("git")
+    let _diff_stat = std::process::Command::new("git")
         .args([
             "diff",
             "--stat",
@@ -322,7 +323,7 @@ fn parse_name_status(output: &str) -> Vec<FileChange> {
                     _ => "modified",
                 };
                 Some(FileChange {
-                    file: parts.last()?.to_string(),
+                    file: (*parts.last()?).to_string(),
                     status: status.to_string(),
                     insertions: 0,
                     deletions: 0,
@@ -359,6 +360,7 @@ fn parse_numstat(output: &str, mut files: Vec<FileChange>) -> (Vec<FileChange>, 
     (files, total_added, total_removed)
 }
 
+#[allow(clippy::unused_async)]
 async fn generate_ai_summary(cwd: &PathBuf, base: &str, current: &str) -> anyhow::Result<String> {
     // Get commit messages
     let log_output = std::process::Command::new("git")
@@ -374,7 +376,7 @@ async fn generate_ai_summary(cwd: &PathBuf, base: &str, current: &str) -> anyhow
         .current_dir(cwd)
         .output()?;
 
-    let stat = String::from_utf8_lossy(&stat_output.stdout);
+    let _stat = String::from_utf8_lossy(&stat_output.stdout);
 
     // Simple summary without AI for now (can be enhanced with Claude)
     let commit_count = commits.lines().count();

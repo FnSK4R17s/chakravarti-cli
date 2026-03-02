@@ -106,7 +106,7 @@ impl CloudClient {
     pub async fn get_current_user(&self) -> Result<User, CloudError> {
         let response = self
             .client
-            .get(&self.config.user_url())
+            .get(self.config.user_url())
             .bearer_auth(&self.tokens.access_token)
             .send()
             .await?;
@@ -134,7 +134,7 @@ impl CloudClient {
 
         let response = self
             .client
-            .post(&self.config.jobs_url())
+            .post(self.config.jobs_url())
             .bearer_auth(&self.tokens.access_token)
             .json(&body)
             .send()
@@ -147,7 +147,7 @@ impl CloudClient {
     pub async fn get_job(&self, job_id: &str) -> Result<CloudJob, CloudError> {
         let response = self
             .client
-            .get(&self.config.job_url(job_id))
+            .get(self.config.job_url(job_id))
             .bearer_auth(&self.tokens.access_token)
             .send()
             .await?;
@@ -186,7 +186,7 @@ impl CloudClient {
     ) -> Result<CredentialSummary, CloudError> {
         let response = self
             .client
-            .post(&self.config.credentials_url())
+            .post(self.config.credentials_url())
             .bearer_auth(&self.tokens.access_token)
             .json(&serde_json::json!({
                 "name": name,
@@ -202,17 +202,17 @@ impl CloudClient {
 
     /// List git credentials
     pub async fn list_credentials(&self) -> Result<Vec<CredentialSummary>, CloudError> {
-        let response = self
-            .client
-            .get(&self.config.credentials_url())
-            .bearer_auth(&self.tokens.access_token)
-            .send()
-            .await?;
-
         #[derive(Deserialize)]
         struct CredentialList {
             credentials: Vec<CredentialSummary>,
         }
+
+        let response = self
+            .client
+            .get(self.config.credentials_url())
+            .bearer_auth(&self.tokens.access_token)
+            .send()
+            .await?;
 
         let list: CredentialList = self.handle_response(response).await?;
         Ok(list.credentials)

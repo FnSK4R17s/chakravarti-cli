@@ -14,7 +14,7 @@ use axum::{Json, Router};
 
 /// Get QA agent.
 async fn get_qa_agent(State(state): State<AppState>) -> impl IntoResponse {
-    match get_qa_agent_handler(&state).await {
+    match get_qa_agent_handler(&state) {
         Ok(agent) => Json(serde_json::json!({ "agent": agent })).into_response(),
         Err(e) => e.into_response(),
     }

@@ -34,7 +34,7 @@ async fn list_tasks(
     State(state): State<AppState>,
     Query(query): Query<TasksQuery>,
 ) -> impl IntoResponse {
-    match list_tasks_handler(&state, query.spec).await {
+    match list_tasks_handler(&state, query.spec) {
         Ok(tasks) => Json(tasks).into_response(),
         Err(e) => e.into_response(),
     }
@@ -45,7 +45,7 @@ async fn get_task_detail(
     State(state): State<AppState>,
     Query(query): Query<TaskDetailQuery>,
 ) -> impl IntoResponse {
-    match get_task_handler(&state, query.spec, query.task.unwrap_or_default()).await {
+    match get_task_handler(&state, query.spec, query.task.unwrap_or_default()) {
         Ok(task) => Json(task).into_response(),
         Err(e) => e.into_response(),
     }
@@ -53,6 +53,7 @@ async fn get_task_detail(
 
 /// Save task request.
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct SaveTaskRequest {
     spec: String,
     task_id: String,
