@@ -21,7 +21,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@/test/test-utils';
 import { userEvent } from '@/test/test-utils';
-import { useState } from 'react';
 import { ErrorBoundary } from './ErrorBoundary';
 
 // ============================================================
@@ -37,28 +36,6 @@ function ThrowingComponent({ shouldThrow }: { shouldThrow: boolean }) {
   return <div>Child content</div>;
 }
 
-/**
- * A wrapper that lets us toggle `shouldThrow` via a button, so we can
- * test that clicking "Try Again" re-renders children successfully.
- */
-function ToggleErrorWrapper() {
-  const [shouldThrow, setShouldThrow] = useState(true);
-  return (
-    <ErrorBoundary>
-      {shouldThrow ? (
-        <ThrowingComponent shouldThrow={true} />
-      ) : (
-        <div>Recovered content</div>
-      )}
-      {/* hidden control so tests can flip the flag after reset */}
-      <button
-        style={{ display: 'none' }}
-        data-testid="disable-throw"
-        onClick={() => setShouldThrow(false)}
-      />
-    </ErrorBoundary>
-  );
-}
 
 // ============================================================
 // SETUP – suppress React's error logging for error boundary tests

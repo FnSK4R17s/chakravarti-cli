@@ -35,7 +35,7 @@ export interface TestProjectFixture {
  * ```
  */
 export const test = base.extend<TestProjectFixture>({
-    testProject: async (_args, use) => {
+    testProject: async ({}, use) => {
         // Create temp directory with unique name
         const tempDir = await mkdtemp(join(tmpdir(), 'ckrv-test-'));
 
@@ -71,7 +71,7 @@ export const test = base.extend<TestProjectFixture>({
         }
     },
 
-    backendPort: async (_args, use) => {
+    backendPort: async ({}, use) => {
         // Each test gets a unique port to avoid conflicts
         // In practice, tests may share a backend or spin up their own
         const port = 3000 + Math.floor(Math.random() * 1000);

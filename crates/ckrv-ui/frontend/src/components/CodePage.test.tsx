@@ -17,6 +17,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { useState } from 'react';
 import { render, screen } from '@/test/test-utils';
 import { userEvent } from '@/test/test-utils';
 import CodePage from './CodePage';
@@ -44,14 +45,8 @@ vi.mock('./BarebonesExecutor', () => ({
 
 // Mock useCodeTab: use a simple useState-based implementation
 vi.mock('../hooks/useCodeTab', () => ({
-  useCodeTab: (initialTab: string) => {
-    const { useState } = require('react');
-    return useState(initialTab);
-  },
-  default: (initialTab: string) => {
-    const { useState } = require('react');
-    return useState(initialTab);
-  },
+  useCodeTab: (initialTab: string) => useState(initialTab),
+  default: (initialTab: string) => useState(initialTab),
 }));
 
 // Mock useWorkflowProgress: return empty stages so no completion indicators show

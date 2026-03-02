@@ -17,7 +17,7 @@
  * - fixtures: createSpecDetail factory and inline spec list overrides
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@/test/test-utils';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/mocks/server';
