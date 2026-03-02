@@ -245,7 +245,8 @@ mod tests {
         let stat = diff.stat();
 
         // Should have some stats
-        assert!(stat.files_changed >= 0);
+        // files_changed is usize, so just verify we got a stat
+        let _ = stat.files_changed;
     }
 
     #[test]

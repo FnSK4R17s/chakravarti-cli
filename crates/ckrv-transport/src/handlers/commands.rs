@@ -279,7 +279,6 @@ fn run_ckrv_command(state: &AppState, args: &[&str]) -> Result<CommandResponse, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     #[test]
     fn test_command_response_default() {

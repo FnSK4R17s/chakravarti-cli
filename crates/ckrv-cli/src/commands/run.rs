@@ -890,9 +890,7 @@ batches:
                     .map(|o| o.status.success() && !o.stdout.is_empty())
                     .unwrap_or(false);
 
-                if has_commits && batch.branch.is_some() {
-                    let branch = batch.branch.as_ref().unwrap();
-
+                if let Some(branch) = batch.branch.as_ref().filter(|_| has_commits) {
                     if !json {
                         println!("   🔀 Found incomplete batch '{}' with commits, attempting to merge...", batch.name);
                     }

@@ -11,6 +11,7 @@ fn ckrv(args: &[&str]) -> std::process::Output {
 }
 
 /// Helper to run ckrv and get stdout as string
+#[allow(dead_code)]
 fn ckrv_stdout(args: &[&str]) -> String {
     let output = ckrv(args);
     String::from_utf8_lossy(&output.stdout).to_string()

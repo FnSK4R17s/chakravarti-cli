@@ -124,9 +124,9 @@ fn test_model_override_respected() {
 #[test]
 fn test_all_optimize_modes_valid() {
     // All three modes should be valid
-    for mode in &["cost", "time", "balanced"] {
+    for _mode in &["cost", "time", "balanced"] {
         let output = ckrv(&["run", "--help"]);
-        let stdout = String::from_utf8_lossy(&output.stdout);
+        let _stdout = String::from_utf8_lossy(&output.stdout);
         // Help should document the modes
         assert!(output.status.success());
     }
