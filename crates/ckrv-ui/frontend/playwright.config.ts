@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Playwright Configuration for Chakravarti CLI UI E2E Tests
@@ -13,7 +14,9 @@ import path from 'path';
  * - Local: Falls back to `cargo run`. If a server is already running on
  *          port 3000, Playwright reuses it (reuseExistingServer).
  */
-const workspaceRoot = path.resolve(__dirname, '../../..');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const workspaceRoot = resolve(__dirname, '../../..');
 
 export default defineConfig({
     testDir: './tests/e2e',
