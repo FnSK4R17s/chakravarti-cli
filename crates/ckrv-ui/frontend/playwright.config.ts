@@ -1,11 +1,23 @@
 import { defineConfig, devices } from '@playwright/test';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Playwright Configuration for Chakravarti CLI UI E2E Tests
- * 
+ *
  * CRITICAL: Tests run in isolated temporary directories per TR-007.
  * See tests/helpers/test-project.ts for the isolation implementation.
+ *
+ * The backend server is started automatically via the webServer option.
+ * - CI: Uses a pre-built binary downloaded from the rust-build job artifact.
+ *        Set CKRV_BINARY env var to the absolute path of the binary.
+ * - Local: Falls back to `cargo run`. If a server is already running on
+ *          port 3000, Playwright reuses it (reuseExistingServer).
  */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const workspaceRoot = resolve(__dirname, '../../..');
+
 export default defineConfig({
     testDir: './tests/e2e',
 
@@ -66,18 +78,14 @@ export default defineConfig({
         },
     ],
 
-    /* Global setup - can be used to start backend server */
-    // globalSetup: './tests/global-setup.ts',
-
-    /* Global teardown - cleanup */
-    // globalTeardown: './tests/global-teardown.ts',
-
-    /* Run local dev server before starting the tests */
-    // Uncomment to auto-start backend:
-    // webServer: {
-    //     command: 'CKRV_PROJECT_ROOT=$(mktemp -d) cargo run --package ckrv-ui',
-    //     url: 'http://localhost:3000/api/status',
-    //     reuseExistingServer: !process.env.CI,
-    //     timeout: 120000,
-    // },
+    /* Start the real backend server before running E2E tests */
+    webServer: {
+        command: process.env.CKRV_BINARY
+            ? `${process.env.CKRV_BINARY} ui --port 3000`
+            : 'cargo run -p ckrv-cli -- ui --port 3000',
+        cwd: workspaceRoot,
+        url: 'http://localhost:3000/api/status',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+    },
 });

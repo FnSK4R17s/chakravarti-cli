@@ -529,24 +529,181 @@ try {
 
 ## Testing Conventions
 
+### Stack
+
+- **Vitest** — Test runner (configured via `vitest.config.ts`)
+- **React Testing Library** — Component rendering and queries
+- **MSW (Mock Service Worker)** — API mocking at the network level
+- **@testing-library/user-event** — Realistic user interaction simulation
+
+### File Organization
+
+Tests are **colocated** with source files:
+
+```text
+src/
+  components/
+    StatusWidget.tsx
+    StatusWidget.test.tsx     ← colocated test
+  hooks/
+    useSpec.ts
+    useSpec.test.tsx           ← colocated test
+  test/
+    setup.ts                   ← global setup (jest-dom, MSW lifecycle, browser mocks)
+    test-utils.tsx             ← custom render with providers (QueryClientProvider)
+    mocks/
+      handlers.ts              ← base MSW handlers (happy-path defaults)
+      server.ts                ← MSW server instance
+      fixtures.ts              ← factory functions for test data
+      websocket.ts             ← MockWebSocket class for WS hooks
+```
+
+### Import Pattern
+
+Always import from `@/test/test-utils` instead of `@testing-library/react`:
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor } from '@/test/test-utils';
+import { userEvent } from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/test/mocks/server';
+```
+
+### Query Priority
+
+Prefer accessible queries over test IDs:
+
+```typescript
+// ✅ Best - accessible queries
+screen.getByRole('button', { name: /submit/i });
+screen.getByText('Repository Status');
+screen.getByLabelText('Email address');
+
+// ✅ Good - for async data
+await screen.findByText('Loading complete');
+
+// ⚠️ Acceptable - when no accessible alternative exists
+screen.getByTestId('code-tab-spec');
+
+// ❌ Avoid - brittle
+document.querySelector('.my-class');
+```
+
+### Async Data
+
+Use `findBy*` queries (which internally use `waitFor`) for content that appears after API calls:
+
+```typescript
+// ✅ Correct
+render(<StatusWidget />);
+expect(await screen.findByText('Repository Status')).toBeInTheDocument();
+
+// ❌ Wrong - may fail on timing
+render(<StatusWidget />);
+expect(screen.getByText('Repository Status')).toBeInTheDocument();
+```
+
+### User Interactions
+
+Use `userEvent` (not `fireEvent`) for realistic event simulation:
+
+```typescript
+const user = userEvent.setup();
+await user.click(screen.getByRole('button', { name: /delete/i }));
+await user.type(screen.getByRole('textbox'), 'hello');
+```
+
+### MSW Patterns
+
+**Base handlers** in `handlers.ts` provide happy-path defaults. Override per-test with `server.use()`:
+
+```typescript
+it('shows error when API fails', async () => {
+  server.use(
+    http.get('/api/status', () => {
+      return HttpResponse.error();
+    })
+  );
+  render(<StatusWidget />);
+  await waitFor(() => {
+    expect(screen.getByText('Connection Error')).toBeInTheDocument();
+  });
+});
+```
+
+### Hook Testing
+
+Use `renderHook` with a QueryClientProvider wrapper:
+
+```typescript
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
+}
+
+it('fetches specs', async () => {
+  const { result } = renderHook(() => useSpecs(), { wrapper: createWrapper() });
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(result.current.data?.specs).toHaveLength(2);
+});
+```
+
+### Naming Conventions
+
+```text
+describe('ComponentName', () => {
+  it('renders loading state initially', ...);
+  it('displays data after loading', ...);
+  it('shows error when API fails', ...);
+  it('calls onSubmit when form is submitted', ...);
+});
+```
+
+### Test File Header
+
+Every test file follows the standard `@module` header format:
+
 ```typescript
 /**
- * @test TaskCard
+ * @module StatusWidget.test
+ * @description
+ * Unit tests for the StatusWidget component.
  *
- * ## Test Cases
- * - Renders pending state with gray styling
- * - Renders running state with spinner and timer
- * - Renders completed state with success icon
- * - Renders failed state with retry button
- * - Calls onRetry when retry button clicked
- * - Expands/collapses on click
- * - Keyboard navigation works (Enter, Space, R)
+ * @context
+ * Tests status display, loading/error states, and git init flow.
  *
- * ## Edge Cases
- * - Very long task title (should truncate)
- * - Missing optional props (should use defaults)
- * - Rapid status changes (should not flicker)
+ * @dependencies
+ * - @/test/test-utils: Custom render with QueryClientProvider
+ * - msw: API mocking for /api/status
  */
+```
+
+### Coverage Thresholds
+
+Coverage is enforced in `vitest.config.ts`. Current thresholds:
+
+| Metric    | Threshold |
+|-----------|-----------|
+| Lines     | 20%       |
+| Functions | 18%       |
+| Branches  | 15%       |
+
+Thresholds will increase as coverage grows.
+
+### Running Tests
+
+```bash
+npm run test          # Watch mode
+npm run test:run      # Single run (CI)
+npm run test:coverage # With coverage report
 ```
 
 ---
@@ -652,6 +809,7 @@ These are defined in `src/index.css` and work like any other theme color.
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-03-02 | Added comprehensive Testing Conventions section (Vitest + RTL + MSW) | Claude |
 | 2026-02-03 | Migrated to shadcn/tweakcn theme system (darkmatter). Replaced all hardcoded colors. | Antigravity |
 | 2026-02-03 | Added centralized theme.ts with OKLCH-based color tokens | Antigravity |
 | 2026-02-03 | Initial version | Claude + Shikhar |

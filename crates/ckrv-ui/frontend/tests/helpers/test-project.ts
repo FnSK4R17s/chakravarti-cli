@@ -11,8 +11,12 @@
 import { test as base, expect } from '@playwright/test';
 import { mkdtemp, rm, cp, mkdir, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export interface TestProjectFixture {
     /** Absolute path to the isolated test project directory */
@@ -35,7 +39,8 @@ export interface TestProjectFixture {
  * ```
  */
 export const test = base.extend<TestProjectFixture>({
-    testProject: async (_args, use) => {
+    // eslint-disable-next-line no-empty-pattern
+    testProject: async ({}, use) => {
         // Create temp directory with unique name
         const tempDir = await mkdtemp(join(tmpdir(), 'ckrv-test-'));
 
@@ -71,7 +76,8 @@ export const test = base.extend<TestProjectFixture>({
         }
     },
 
-    backendPort: async (_args, use) => {
+    // eslint-disable-next-line no-empty-pattern
+    backendPort: async ({}, use) => {
         // Each test gets a unique port to avoid conflicts
         // In practice, tests may share a backend or spin up their own
         const port = 3000 + Math.floor(Math.random() * 1000);
