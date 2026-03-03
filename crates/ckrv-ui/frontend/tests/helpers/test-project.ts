@@ -11,8 +11,12 @@
 import { test as base, expect } from '@playwright/test';
 import { mkdtemp, rm, cp, mkdir, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export interface TestProjectFixture {
     /** Absolute path to the isolated test project directory */

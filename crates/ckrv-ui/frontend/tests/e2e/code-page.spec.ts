@@ -45,20 +45,17 @@ test.describe('Code Page - Unified Workflow', () => {
         await expect(page.locator('[data-testid="code-content-spec"]')).toBeVisible();
     });
 
-    test('[US1] T012: Sidebar shows exactly 5 navigation items', async ({ page }) => {
-        // Count the nav items (excluding disabled ones like Quick Run)
-        const navItems = page.locator('nav[role="navigation"] button:not([disabled])');
-        const count = await navItems.count();
+    test('[US1] T012: Sidebar shows all navigation items', async ({ page }) => {
+        // Main nav has 4 items; Agents and Settings are in the bottom section
+        const mainNavItems = page.locator('nav[role="navigation"] button:not([disabled])');
+        await expect(mainNavItems).toHaveCount(4);
 
-        // Should be exactly 5: Dashboard, Agents, Code, Test, QA
-        expect(count).toBe(5);
-
-        // Verify each nav item exists
+        // Verify each nav item exists (main nav + bottom section)
         await expect(page.locator('[data-testid="nav-dashboard"]')).toBeVisible();
-        await expect(page.locator('[data-testid="nav-agents"]')).toBeVisible();
         await expect(page.locator('[data-testid="nav-code"]')).toBeVisible();
         await expect(page.locator('[data-testid="nav-test"]')).toBeVisible();
         await expect(page.locator('[data-testid="nav-qa"]')).toBeVisible();
+        await expect(page.locator('[data-testid="nav-agents"]')).toBeVisible();
 
         // Verify old nav items do NOT exist
         await expect(page.locator('[data-testid="nav-specs"]')).not.toBeVisible();
