@@ -82,6 +82,12 @@ jobs:
         run: npm install
         working-directory: crates/ckrv-ui/frontend
       - run: cargo build --release -p ckrv-cli
+      - name: Upload ckrv binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ckrv-binary
+          path: target/release/ckrv
+          retention-days: 1
 
   # ── Frontend Lint ──────────────────────────────────────────────────────
   frontend-lint:
@@ -161,14 +167,32 @@ jobs:
   # ── Frontend E2E Tests ──────────────────────────────────────────────
   frontend-e2e:
     name: Frontend E2E Tests
+    needs: [rust-build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Download ckrv binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ckrv-binary
+          path: ./bin
+      - name: Make binary executable
+        run: chmod +x ./bin/ckrv
+      - name: Prepare isolated test project
+        run: |
+          TEST_PROJECT=$(mktemp -d)
+          cd "$TEST_PROJECT"
+          git init
+          git config user.email "ci@test.com"
+          git config user.name "CI"
+          mkdir -p specs .chakravarti
+          echo '{"name":"test-project","version":"1.0.0"}' > package.json
+          git add . && git commit -m "init"
+          echo "CKRV_PROJECT_ROOT=$TEST_PROJECT" >> "$GITHUB_ENV"
       - name: Install dependencies
         run: npm install
         working-directory: crates/ckrv-ui/frontend
@@ -178,6 +202,8 @@ jobs:
       - name: Run Playwright tests
         run: npx playwright test --project=chromium
         working-directory: crates/ckrv-ui/frontend
+        env:
+          CKRV_BINARY: ${{ github.workspace }}/bin/ckrv
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
