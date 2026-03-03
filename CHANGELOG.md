@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/FnSK4R17s/chakravarti-cli/compare/v0.2.0...v0.3.0) (2026-03-03)
+
+
+### Features
+
+* **ui:** add frontend unit/component test infrastructure ([#75](https://github.com/FnSK4R17s/chakravarti-cli/issues/75)) ([2c131e2](https://github.com/FnSK4R17s/chakravarti-cli/commit/2c131e2e1223c4cec9b2e24ca148644c73123da4))
+
 ## [0.2.0](https://github.com/FnSK4R17s/chakravarti-cli/compare/v0.1.6...v0.2.0) (2026-03-02)
 
 
