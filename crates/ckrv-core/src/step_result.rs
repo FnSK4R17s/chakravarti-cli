@@ -49,9 +49,9 @@ pub enum StepExecutionStatus {
 impl StepExecutionResult {
     /// Create a successful result.
     #[must_use]
-    pub fn success(step_id: impl Into<String>, duration_ms: u64) -> Self {
+    pub fn success(step_id: &str, duration_ms: u64) -> Self {
         Self {
-            step_id: step_id.into(),
+            step_id: step_id.to_owned(),
             status: StepExecutionStatus::Success,
             outputs: HashMap::new(),
             stdout: String::new(),
@@ -62,35 +62,35 @@ impl StepExecutionResult {
 
     /// Create a failed result.
     #[must_use]
-    pub fn failed(step_id: impl Into<String>, error: impl Into<String>) -> Self {
+    pub fn failed(step_id: &str, error: &str) -> Self {
         Self {
-            step_id: step_id.into(),
+            step_id: step_id.to_owned(),
             status: StepExecutionStatus::Failed,
             outputs: HashMap::new(),
             stdout: String::new(),
-            stderr: error.into(),
+            stderr: error.to_owned(),
             duration_ms: 0,
         }
     }
 
     /// Add an output to the result.
     #[must_use]
-    pub fn with_output(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
-        self.outputs.insert(name.into(), value.into());
+    pub fn with_output(mut self, name: &str, value: &str) -> Self {
+        self.outputs.insert(name.to_owned(), value.to_owned());
         self
     }
 
     /// Set stdout.
     #[must_use]
-    pub fn with_stdout(mut self, stdout: impl Into<String>) -> Self {
-        self.stdout = stdout.into();
+    pub fn with_stdout(mut self, stdout: &str) -> Self {
+        stdout.clone_into(&mut self.stdout);
         self
     }
 
     /// Set stderr.
     #[must_use]
-    pub fn with_stderr(mut self, stderr: impl Into<String>) -> Self {
-        self.stderr = stderr.into();
+    pub fn with_stderr(mut self, stderr: &str) -> Self {
+        stderr.clone_into(&mut self.stderr);
         self
     }
 

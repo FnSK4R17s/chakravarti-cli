@@ -32,10 +32,10 @@ pub struct BindMount {
 impl BindMount {
     /// Create a new read-write bind mount.
     #[must_use]
-    pub fn new(source: impl Into<String>, target: impl Into<String>) -> Self {
+    pub fn new(source: &str, target: &str) -> Self {
         Self {
-            source: source.into(),
-            target: target.into(),
+            source: source.to_owned(),
+            target: target.to_owned(),
             read_only: false,
         }
     }
@@ -66,9 +66,9 @@ pub struct ExecuteConfig {
 impl ExecuteConfig {
     /// Create a new config.
     #[must_use]
-    pub fn new(command: impl Into<String>, mount: PathBuf) -> Self {
+    pub fn new(command: &str, mount: PathBuf) -> Self {
         Self {
-            command: vec![command.into()],
+            command: vec![command.to_owned()],
             workdir: PathBuf::from("/workspace"),
             mount,
             env: HashMap::new(),
@@ -80,15 +80,15 @@ impl ExecuteConfig {
 
     /// Set command as shell command.
     #[must_use]
-    pub fn shell(mut self, cmd: impl Into<String>) -> Self {
-        self.command = vec!["sh".to_string(), "-c".to_string(), cmd.into()];
+    pub fn shell(mut self, cmd: &str) -> Self {
+        self.command = vec!["sh".to_string(), "-c".to_string(), cmd.to_owned()];
         self
     }
 
     /// Add environment variable.
     #[must_use]
-    pub fn env(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.env.insert(key.into(), value.into());
+    pub fn env(mut self, key: &str, value: &str) -> Self {
+        self.env.insert(key.to_owned(), value.to_owned());
         self
     }
 
@@ -197,7 +197,7 @@ impl DockerSandbox {
     }
 
     /// Set the Docker image to use.
-    pub fn set_image(&mut self, image: impl Into<String>) {
+    pub fn set_image(&mut self, image: &str) {
         self.client.set_image(image);
     }
 

@@ -149,6 +149,10 @@ export type SpecSummary = {
      */
     name: string,
     /**
+     * Relative path to spec directory
+     */
+    path: string,
+    /**
      * Human-readable title
      */
     title: string | null,
@@ -164,6 +168,18 @@ export type SpecSummary = {
      * Has tasks
      */
     has_tasks: boolean,
+    /**
+     * Has design artifact
+     */
+    has_design: boolean,
+    /**
+     * Has implementation artifact
+     */
+    has_implementation: boolean,
+    /**
+     * Implementation branch name if available
+     */
+    implementation_branch: string | null,
     /**
      * Number of tasks
      */

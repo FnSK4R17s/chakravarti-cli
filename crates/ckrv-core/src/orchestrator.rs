@@ -255,7 +255,8 @@ impl<P: Planner + 'static> Orchestrator for DefaultOrchestrator<P> {
                     });
                 }
                 Err(e) => {
-                    job.add_attempt(AttemptResult::failure(e.to_string()));
+                    let err_msg = e.to_string();
+                    job.add_attempt(AttemptResult::failure(&err_msg));
                     last_error = Some(e);
 
                     // Check if we should retry

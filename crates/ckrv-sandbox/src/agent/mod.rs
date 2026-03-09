@@ -152,8 +152,8 @@ impl AgentConfig {
     }
 
     /// Set the model override.
-    pub fn with_model(mut self, model: impl Into<String>) -> Self {
-        self.model = Some(model.into());
+    pub fn with_model(mut self, model: &str) -> Self {
+        self.model = Some(model.to_owned());
         self
     }
 

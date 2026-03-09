@@ -310,7 +310,7 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
     // Build the rich prompt for Claude using the prompts module
     let prompt = crate::prompts::build_spec_prompt(description, &numbered_name);
 
-    // Run Claude in Docker sandbox
+    // Run Claude in Docker sandbox with credential mounts
     let result = {
         let sandbox = DockerSandbox::new(ckrv_sandbox::DefaultAllowList::default())
             .map_err(|e| anyhow::anyhow!("Failed to create sandbox: {}", e))?;
@@ -320,9 +320,27 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
             shell_escape::escape(prompt.clone().into())
         );
 
+        // Mount Claude credentials so the agent can authenticate
+        let host_home = std::env::var("HOME").unwrap_or_default();
+        let container_home = "/home/claude";
+        let mut extra_mounts = Vec::new();
+
+        let claude_config = format!("{host_home}/.claude.json");
+        if std::path::Path::new(&claude_config).exists() {
+            let target = format!("{container_home}/.claude.json");
+            extra_mounts.push(ckrv_sandbox::BindMount::new(&claude_config, &target));
+        }
+
+        let claude_dir = format!("{host_home}/.claude");
+        if std::path::Path::new(&claude_dir).exists() {
+            let target = format!("{container_home}/.claude");
+            extra_mounts.push(ckrv_sandbox::BindMount::new(&claude_dir, &target));
+        }
+
         let config = ExecuteConfig::new("", specs_dir.clone())
             .shell(&command)
-            .with_timeout(Duration::from_secs(300));
+            .with_timeout(Duration::from_secs(300))
+            .with_extra_mounts(extra_mounts);
 
         sandbox
             .execute(config)
@@ -331,6 +349,8 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
     }?;
 
     if !result.success() {
+        // Clean up the empty spec folder on failure
+        let _ = std::fs::remove_dir_all(&spec_folder);
         if json {
             let output = serde_json::json!({
                 "success": false,
@@ -347,6 +367,23 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
 
     // Write the generated spec (strip any markdown code fences)
     let spec_content = result.stdout.trim();
+
+    // Guard against empty output (e.g. Claude not authenticated)
+    if spec_content.is_empty() {
+        let _ = std::fs::remove_dir_all(&spec_folder);
+        if json {
+            let output = serde_json::json!({
+                "success": false,
+                "error": "AI returned empty output — check that Claude is authenticated inside the container",
+                "code": "EMPTY_OUTPUT"
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            eprintln!("Error: AI returned empty output");
+            eprintln!("Make sure Claude is authenticated. Try: claude /login");
+        }
+        std::process::exit(1);
+    }
     let spec_content = crate::prompts::strip_yaml_fences(spec_content);
 
     // Validate the generated YAML before writing

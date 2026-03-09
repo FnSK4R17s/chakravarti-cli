@@ -109,7 +109,10 @@ export const ChatDashboard: React.FC = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(params),
             });
-            if (!res.ok) throw new Error('Failed to create spec');
+            if (!res.ok) {
+                const body = await res.json().catch(() => null);
+                throw new Error(body?.error || `Spec creation failed (HTTP ${res.status})`);
+            }
             return res.json();
         },
         onSuccess: () => {
@@ -317,6 +320,16 @@ export const ChatDashboard: React.FC = () => {
                                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-success/20 text-success text-sm">
                                     <Sparkles size={16} />
                                     Specification created! Check the Code page.
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Error feedback */}
+                        {createSpecMutation.isError && (
+                            <div className="mt-6 text-center">
+                                <div className="inline-flex items-center gap-2 px-4 py-3 rounded-lg bg-destructive/15 text-destructive text-sm max-w-xl">
+                                    <span className="shrink-0">✕</span>
+                                    <span className="text-left">{createSpecMutation.error.message}</span>
                                 </div>
                             </div>
                         )}

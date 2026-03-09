@@ -44,10 +44,10 @@ pub struct Step {
 impl Step {
     /// Create a new step with default status.
     #[must_use]
-    pub fn new(id: impl Into<String>, name: impl Into<String>, step_type: StepType) -> Self {
+    pub fn new(id: &str, name: &str, step_type: StepType) -> Self {
         Self {
-            id: id.into(),
-            name: name.into(),
+            id: id.to_owned(),
+            name: name.to_owned(),
             step_type,
             dependencies: Vec::new(),
             status: StepStatus::Pending,
@@ -58,8 +58,8 @@ impl Step {
 
     /// Add a dependency to this step.
     #[must_use]
-    pub fn with_dependency(mut self, dep_id: impl Into<String>) -> Self {
-        self.dependencies.push(dep_id.into());
+    pub fn with_dependency(mut self, dep_id: &str) -> Self {
+        self.dependencies.push(dep_id.to_owned());
         self
     }
 }

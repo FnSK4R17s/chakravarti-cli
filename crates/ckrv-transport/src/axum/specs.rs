@@ -51,12 +51,22 @@ async fn list_specs(State(state): State<AppState>) -> impl IntoResponse {
 }
 
 /// Get spec by name (query param style).
+///
+/// Returns `{ success, spec, raw_yaml }` to match frontend expectations.
 async fn get_spec_detail(
     State(state): State<AppState>,
     Query(query): Query<SpecDetailQuery>,
 ) -> impl IntoResponse {
     match get_spec_handler(&state, query.name) {
-        Ok(spec) => Json(spec).into_response(),
+        Ok(spec) => {
+            let raw_yaml = spec.raw_yaml.clone();
+            Json(serde_json::json!({
+                "success": true,
+                "spec": spec,
+                "raw_yaml": raw_yaml,
+            }))
+            .into_response()
+        }
         Err(e) => e.into_response(),
     }
 }

@@ -117,9 +117,9 @@ impl TestResult {
     /// * `name` - The test name or identifier.
     /// * `duration_ms` - How long the test took in milliseconds.
     #[must_use]
-    pub fn passed(name: impl Into<String>, duration_ms: u64) -> Self {
+    pub fn passed(name: &str, duration_ms: u64) -> Self {
         Self {
-            name: name.into(),
+            name: name.to_owned(),
             status: TestStatus::Passed,
             duration_ms,
             output: None,
@@ -134,9 +134,9 @@ impl TestResult {
     /// * `duration_ms` - How long the test took in milliseconds.
     /// * `output` - Optional failure output or error message.
     #[must_use]
-    pub fn failed(name: impl Into<String>, duration_ms: u64, output: Option<String>) -> Self {
+    pub fn failed(name: &str, duration_ms: u64, output: Option<String>) -> Self {
         Self {
-            name: name.into(),
+            name: name.to_owned(),
             status: TestStatus::Failed,
             duration_ms,
             output,

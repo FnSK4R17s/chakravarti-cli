@@ -186,7 +186,8 @@ impl WorkflowRunner {
                 }
                 Err(e) => {
                     all_success = false;
-                    let failed_result = StepExecutionResult::failed(&step.id, e.to_string());
+                    let err_msg = e.to_string();
+                    let failed_result = StepExecutionResult::failed(&step.id, &err_msg);
                     step_results.push(failed_result);
 
                     if !self.config.continue_on_failure {
@@ -260,12 +261,12 @@ impl WorkflowRunner {
                         if file_path.exists() {
                             // Read file content for use in subsequent steps
                             if let Ok(content) = std::fs::read_to_string(&file_path) {
-                                result = result.with_output(&output_def.name, content);
+                                result = result.with_output(&output_def.name, &content);
                             } else {
-                                result = result.with_output(&output_def.name, filename.clone());
+                                result = result.with_output(&output_def.name, filename);
                             }
                         } else {
-                            result = result.with_output(&output_def.name, filename.clone());
+                            result = result.with_output(&output_def.name, filename);
                         }
                     }
                 }
@@ -273,7 +274,7 @@ impl WorkflowRunner {
                     // For string outputs, try to extract from stdout
                     // Look for JSON output or use the full stdout
                     let output_value = Self::extract_string_output(&stdout, &output_def.name);
-                    result = result.with_output(&output_def.name, output_value);
+                    result = result.with_output(&output_def.name, &output_value);
                 }
             }
         }
@@ -457,11 +458,12 @@ impl WorkflowRunner {
                 "Using GLM Coding Plan for Claude Code in sandbox"
             );
 
+            let timeout_str = timeout.to_string();
             config = config
                 .env("ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic")
                 .env("ANTHROPIC_AUTH_TOKEN", api_key)
                 .env("ANTHROPIC_API_KEY", "") // Must be explicitly empty!
-                .env("API_TIMEOUT_MS", timeout.to_string());
+                .env("API_TIMEOUT_MS", &timeout_str);
 
             if let Some(ref model) = self.config.glm_model {
                 config = config

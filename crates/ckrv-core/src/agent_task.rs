@@ -79,16 +79,11 @@ pub enum TaskError {
 impl AgentTask {
     /// Create a new task.
     #[must_use]
-    pub fn new(
-        id: impl Into<String>,
-        prompt: impl Into<String>,
-        workflow_name: impl Into<String>,
-        worktree_path: PathBuf,
-    ) -> Self {
+    pub fn new(id: &str, prompt: &str, workflow_name: &str, worktree_path: PathBuf) -> Self {
         Self {
-            id: id.into(),
-            original_prompt: prompt.into(),
-            workflow_name: workflow_name.into(),
+            id: id.to_owned(),
+            original_prompt: prompt.to_owned(),
+            workflow_name: workflow_name.to_owned(),
             status: AgentTaskStatus::Pending,
             worktree_path,
             created_at: Utc::now(),

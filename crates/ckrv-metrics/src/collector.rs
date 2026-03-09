@@ -147,10 +147,10 @@ pub struct StepTimer<'a, C: MetricsCollector> {
 
 impl<'a, C: MetricsCollector> StepTimer<'a, C> {
     /// Create and start a timer.
-    pub fn start(collector: &'a C, step_id: impl Into<String>) -> Self {
+    pub fn start(collector: &'a C, step_id: &str) -> Self {
         Self {
             collector,
-            step_id: step_id.into(),
+            step_id: step_id.to_owned(),
             start: Instant::now(),
         }
     }

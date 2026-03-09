@@ -125,15 +125,15 @@ impl DefaultAllowList {
 
     /// Add an allowed command.
     #[must_use]
-    pub fn allow(mut self, cmd: impl Into<String>) -> Self {
-        self.allowed.push(cmd.into());
+    pub fn allow(mut self, cmd: &str) -> Self {
+        self.allowed.push(cmd.to_owned());
         self
     }
 
     /// Add a blocked pattern.
     #[must_use]
-    pub fn block(mut self, pattern: impl Into<String>) -> Self {
-        self.blocked.push(pattern.into());
+    pub fn block(mut self, pattern: &str) -> Self {
+        self.blocked.push(pattern.to_owned());
         self
     }
 }

@@ -38,6 +38,7 @@ fn create_initialized_repo() -> TempDir {
 // =============================================================
 
 #[test]
+#[ignore] // Requires Docker + AI provider: spec generation runs in sandbox
 fn test_spec_new_json_output_has_required_fields() {
     let repo = create_initialized_repo();
 
@@ -151,6 +152,63 @@ fn test_spec_new_fails_without_init() {
         !output.status.success(),
         "spec new should fail without init"
     );
+}
+
+#[test]
+fn test_spec_new_json_error_has_success_false() {
+    let dir = TempDir::new().expect("temp dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(dir.path())
+        .output()
+        .ok();
+    // Don't run ckrv init — spec new should fail
+
+    let output = ckrv(&["code", "spec", "new", "test", "--json"], dir.path());
+
+    assert!(
+        !output.status.success(),
+        "spec new should fail without init"
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // When --json is used, error output should be valid JSON with success: false
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
+        assert_eq!(
+            json.get("success").and_then(|v| v.as_bool()),
+            Some(false),
+            "JSON error output must have success: false"
+        );
+        assert!(
+            json.get("error").is_some(),
+            "JSON error output must have an 'error' field"
+        );
+    }
+    // If stdout isn't JSON, the error was printed to stderr (also valid)
+}
+
+#[test]
+fn test_spec_new_no_leftover_dir_on_failure() {
+    let dir = TempDir::new().expect("temp dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(dir.path())
+        .output()
+        .ok();
+
+    // Initialize but don't set up Docker — spec creation will fail
+    let _ = ckrv(&["init"], dir.path());
+
+    let output = ckrv(&["code", "spec", "new", "cleanup_test"], dir.path());
+
+    if !output.status.success() {
+        // On failure, the spec folder should be cleaned up
+        let spec_dir = dir.path().join(".specs").join("cleanup_test");
+        assert!(
+            !spec_dir.exists(),
+            "Spec folder should be cleaned up on failure"
+        );
+    }
 }
 
 // =============================================================

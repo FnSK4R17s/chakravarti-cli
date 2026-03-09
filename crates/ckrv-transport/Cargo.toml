@@ -60,7 +60,7 @@ tauri = { version = "2.0", optional = true }
 ts-rs = { version = "10.1", features = ["serde-compat", "serde-json-impl"], optional = true }
 
 # HTTP client for external APIs
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { workspace = true }
 
 # Shell escaping
 shell-escape = "0.1"

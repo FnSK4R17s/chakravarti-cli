@@ -7,6 +7,7 @@ use std::process::Command;
 fn main() {
     println!("cargo:rerun-if-changed=frontend/src");
     println!("cargo:rerun-if-changed=frontend/package.json");
+    println!("cargo:rerun-if-changed=frontend/dist");
 
     // Skip if frontend is already built (CI/justfile pre-builds it)
     if Path::new("frontend/dist/index.html").exists() {
