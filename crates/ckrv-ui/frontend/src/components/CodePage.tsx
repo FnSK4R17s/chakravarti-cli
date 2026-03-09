@@ -92,7 +92,7 @@ const CodePage: React.FC<CodePageProps> = ({
             <Tabs
                 value={activeTab}
                 onValueChange={(value) => setActiveTab(value as CodeTabType)}
-                className="h-full flex flex-col"
+                className="flex-1 min-h-0 flex flex-col"
             >
                 <div className="shrink-0 px-4 pt-2 border-b border-border bg-muted/30">
                     <TabsList className="h-11 bg-transparent p-0 gap-1">

@@ -172,11 +172,11 @@ const Section: React.FC<SectionProps> = ({ title, count, children, defaultOpen =
     const [isOpen, setIsOpen] = useState(defaultOpen);
     const colorClasses = {
         slate: 'border-border bg-muted/50',
-        blue: 'border-info bg-info/20',
-        green: 'border-success bg-success/20',
-        amber: 'border-warning bg-warning/20',
-        purple: 'border-primary bg-primary/20',
-        cyan: 'border-info/30 bg-info/5'
+        blue: 'border-border bg-muted/50',
+        green: 'border-border bg-muted/50',
+        amber: 'border-border bg-muted/50',
+        purple: 'border-border bg-muted/50',
+        cyan: 'border-border bg-muted/50'
     };
 
     return (
@@ -263,18 +263,18 @@ const UserStoryCard: React.FC<UserStoryCardProps> = ({ story }) => {
                     <div className="mt-3 pt-3 border-t border-border space-y-3">
                         <div>
                             <label className="text-xs text-muted-foreground uppercase tracking-wide">Description</label>
-                            <p className="text-sm text-secondary-foreground mt-1 whitespace-pre-wrap">{story.description}</p>
+                            <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{story.description}</p>
                         </div>
                         {story.why_priority && (
                             <div>
                                 <label className="text-xs text-muted-foreground uppercase tracking-wide">Why Priority</label>
-                                <p className="text-sm text-secondary-foreground mt-1">{story.why_priority}</p>
+                                <p className="text-sm text-foreground mt-1">{story.why_priority}</p>
                             </div>
                         )}
                         {story.independent_test && (
                             <div>
                                 <label className="text-xs text-muted-foreground uppercase tracking-wide">Independent Test</label>
-                                <p className="text-sm text-secondary-foreground mt-1">{story.independent_test}</p>
+                                <p className="text-sm text-foreground mt-1">{story.independent_test}</p>
                             </div>
                         )}
                         {story.acceptance_scenarios && story.acceptance_scenarios.length > 0 && (
@@ -625,7 +625,7 @@ export const SpecEditor: React.FC = () => {
                         <>
                             {/* Overview Section */}
                             <Section title="Overview" color="blue" defaultOpen={true}>
-                                <p className="text-sm text-secondary-foreground whitespace-pre-wrap p-2">
+                                <p className="text-sm text-foreground whitespace-pre-wrap p-2">
                                     {spec.overview}
                                 </p>
                             </Section>
@@ -645,7 +645,7 @@ export const SpecEditor: React.FC = () => {
                                     {functionalReqs.map((req) => (
                                         <div key={req.id} className="flex items-start gap-3 py-2 border-b border-border last:border-0">
                                             <Badge variant="info" className="font-mono text-xs flex-shrink-0">{req.id}</Badge>
-                                            <span className="text-sm text-secondary-foreground">{req.description}</span>
+                                            <span className="text-sm text-foreground">{req.description}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -660,7 +660,7 @@ export const SpecEditor: React.FC = () => {
                                                 <Badge variant="secondary" className="font-mono text-xs">{sc.id}</Badge>
                                                 <CheckCircle2 size={14} className="text-success" />
                                             </div>
-                                            <p className="text-sm text-secondary-foreground mt-1">{sc.metric}</p>
+                                            <p className="text-sm text-foreground mt-1">{sc.metric}</p>
                                             {sc.measurement && (
                                                 <p className="text-xs text-muted-foreground mt-1">
                                                     <span className="font-medium">Measurement:</span> {sc.measurement}
