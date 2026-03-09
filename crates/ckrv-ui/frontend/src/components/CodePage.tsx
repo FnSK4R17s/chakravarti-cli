@@ -25,7 +25,8 @@
 
 // === IMPORTS ===
 import React from 'react';
-import { FileText, ListTodo, Workflow, Rocket, CheckCircle2, Code } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { FileText, ListTodo, Workflow, Rocket, CheckCircle2, Code, Lock } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SpecEditor } from './SpecEditor';
@@ -35,6 +36,7 @@ import BarebonesExecutor from './BarebonesExecutor';
 import { CODE_TABS, type CodeTabType } from '../types';
 import { useCodeTab } from '../hooks/useCodeTab';
 import { useWorkflowProgress } from '../hooks/useWorkflowProgress';
+import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
 
 // Icon map for dynamic rendering
 const ICON_MAP = {
@@ -66,6 +68,23 @@ const CodePage: React.FC<CodePageProps> = ({
 
     // Fetch workflow progress for visual indicators
     const workflowProgress = useWorkflowProgress(selectedSpec);
+
+    // Auto-detect current spec for status check
+    const { selectedSpec: autoSpec } = useAutoSelectedSpec();
+    const specName = selectedSpec ?? autoSpec;
+
+    // Fetch spec detail to check status (shares cache with SpecEditor)
+    const { data: specDetail } = useQuery({
+        queryKey: ['spec', specName],
+        queryFn: async () => {
+            const res = await fetch(`/api/specs/detail?name=${encodeURIComponent(specName!)}`);
+            return res.json();
+        },
+        enabled: !!specName,
+    });
+
+    const isDraft = specDetail?.spec?.status === 'draft';
+    const lockedTabs = new Set<string>(isDraft ? ['tasks', 'plan', 'run'] : []);
 
     // Get completion status for a tab
     const getTabStatus = (tabId: CodeTabType): 'pending' | 'complete' => {
@@ -100,22 +119,29 @@ const CodePage: React.FC<CodePageProps> = ({
                             const Icon = ICON_MAP[tab.icon];
                             const status = getTabStatus(tab.id);
                             const isComplete = status === 'complete';
+                            const isLocked = lockedTabs.has(tab.id);
 
                             return (
                                 <TabsTrigger
                                     key={tab.id}
                                     value={tab.id}
+                                    disabled={isLocked}
                                     className={`relative gap-2 px-4 py-2 rounded-t-lg rounded-b-none border-b-2 transition-all
                                         data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-primary
-                                        ${isComplete
-                                            ? 'text-foreground border-transparent data-[state=inactive]:text-success'
-                                            : 'text-muted-foreground border-transparent data-[state=inactive]:hover:text-foreground'
+                                        ${isLocked
+                                            ? 'opacity-40 cursor-not-allowed border-transparent'
+                                            : isComplete
+                                                ? 'text-foreground border-transparent data-[state=inactive]:text-success'
+                                                : 'text-muted-foreground border-transparent data-[state=inactive]:hover:text-foreground'
                                         }`}
                                     data-testid={`code-tab-${tab.id}`}
                                 >
                                     <Icon size={16} />
                                     <span>{tab.label}</span>
-                                    {isComplete && (
+                                    {isLocked && (
+                                        <Lock size={12} className="ml-1 text-muted-foreground" />
+                                    )}
+                                    {!isLocked && isComplete && (
                                         <CheckCircle2
                                             size={14}
                                             className="text-success ml-1"
