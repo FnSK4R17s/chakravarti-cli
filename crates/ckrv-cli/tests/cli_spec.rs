@@ -38,6 +38,7 @@ fn create_initialized_repo() -> TempDir {
 // =============================================================
 
 #[test]
+#[ignore] // Requires Docker + AI provider: spec generation runs in sandbox
 fn test_spec_new_json_output_has_required_fields() {
     let repo = create_initialized_repo();
 
