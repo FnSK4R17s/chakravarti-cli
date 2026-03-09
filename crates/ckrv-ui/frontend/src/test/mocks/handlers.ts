@@ -18,6 +18,11 @@ import { http, HttpResponse } from 'msw';
 import { createSystemStatus, createAgent, createSpec, createDockerStatus } from './fixtures';
 
 export const handlers = [
+  // GET /health — lightweight connectivity check (returns plain text "OK")
+  http.get('/health', () => {
+    return new HttpResponse('OK', { status: 200 });
+  }),
+
   // GET /api/status
   http.get('/api/status', () => {
     return HttpResponse.json(createSystemStatus());
