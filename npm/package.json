@@ -1,6 +1,6 @@
 {
   "name": "@ckrv/cli",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "AI-powered code generation CLI with spec-driven development",
   "keywords": [
     "ai",
