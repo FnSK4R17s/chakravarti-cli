@@ -12,11 +12,15 @@
 //! - POST /specs/{name}/tasks - Generate tasks
 //! - GET /specs/{name}/clarifications - Get clarifications
 //! - POST /specs/{name}/clarify - Answer clarifications
+//!
+//! Handlers that call synchronous filesystem/CLI operations use
+//! `tokio::task::spawn_blocking` to avoid blocking the async runtime.
 
 // ============================================================
 // IMPORTS
 // ============================================================
 
+use crate::error::TransportError;
 use crate::handlers::specs::{
     create_spec_handler, get_spec_handler, list_specs_handler, update_spec_handler,
 };
@@ -44,9 +48,10 @@ struct SpecDetailQuery {
 
 /// List all specs.
 async fn list_specs(State(state): State<AppState>) -> impl IntoResponse {
-    match list_specs_handler(&state) {
-        Ok(specs) => Json(specs).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || list_specs_handler(&state)).await {
+        Ok(Ok(specs)) => Json(specs).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -57,8 +62,9 @@ async fn get_spec_detail(
     State(state): State<AppState>,
     Query(query): Query<SpecDetailQuery>,
 ) -> impl IntoResponse {
-    match get_spec_handler(&state, query.name) {
-        Ok(spec) => {
+    let name = query.name;
+    match tokio::task::spawn_blocking(move || get_spec_handler(&state, name)).await {
+        Ok(Ok(spec)) => {
             let raw_yaml = spec.raw_yaml.clone();
             Json(serde_json::json!({
                 "success": true,
@@ -67,7 +73,8 @@ async fn get_spec_detail(
             }))
             .into_response()
         }
-        Err(e) => e.into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -76,9 +83,10 @@ async fn create_spec(
     State(state): State<AppState>,
     Json(request): Json<CreateSpecRequest>,
 ) -> impl IntoResponse {
-    match create_spec_handler(&state, request) {
-        Ok(spec) => (axum::http::StatusCode::CREATED, Json(spec)).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || create_spec_handler(&state, request)).await {
+        Ok(Ok(spec)) => (axum::http::StatusCode::CREATED, Json(spec)).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -94,12 +102,16 @@ async fn save_spec(
     State(state): State<AppState>,
     Json(request): Json<SaveSpecRequest>,
 ) -> impl IntoResponse {
+    let name = request.name;
     let update_request = UpdateSpecRequest {
         raw_yaml: request.raw_yaml,
     };
-    match update_spec_handler(&state, request.name, update_request) {
-        Ok(spec) => Json(spec).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || update_spec_handler(&state, name, update_request))
+        .await
+    {
+        Ok(Ok(spec)) => Json(spec).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 

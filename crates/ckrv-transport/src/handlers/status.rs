@@ -70,15 +70,17 @@ fn detect_is_initialized(project_root: &Path) -> bool {
 /// Get current system status.
 ///
 /// Returns the current system status including git branch and initialization state.
+/// Uses `blocking_read()` on the status lock since this runs inside
+/// `spawn_blocking`.
 ///
 /// # Example
 ///
 /// ```rust,ignore
-/// let status = get_status_handler(&state).await?;
+/// let status = get_status_handler(&state)?;
 /// println!("Branch: {}", status.active_branch);
 /// ```
-pub async fn get_status_handler(state: &AppState) -> Result<SystemStatus, TransportError> {
-    let mut status = state.status.read().await.clone();
+pub fn get_status_handler(state: &AppState) -> Result<SystemStatus, TransportError> {
+    let mut status = state.status.blocking_read().clone();
 
     // Dynamically detect git branch using project root
     if let Some(branch) = detect_git_branch(&state.project_root) {
@@ -105,11 +107,11 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    #[tokio::test]
-    async fn test_get_status_handler() {
+    #[test]
+    fn test_get_status_handler() {
         let state = AppState::new(PathBuf::from("/tmp/test"));
 
-        let result = get_status_handler(&state).await;
+        let result = get_status_handler(&state);
         assert!(result.is_ok());
 
         let status = result.expect("should have status");
