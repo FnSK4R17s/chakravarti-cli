@@ -29,9 +29,8 @@ impl CostEstimate {
     }
 
     /// Add cost for a model.
-    pub fn add(&mut self, model: impl Into<String>, cost: f64) {
-        let model = model.into();
-        *self.by_model.entry(model).or_insert(0.0) += cost;
+    pub fn add(&mut self, model: &str, cost: f64) {
+        *self.by_model.entry(model.to_owned()).or_insert(0.0) += cost;
         self.total_usd += cost;
     }
 

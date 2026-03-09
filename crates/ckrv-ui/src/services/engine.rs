@@ -1008,7 +1008,7 @@ impl ExecutionEngine {
                         if let Some(key) = api_key {
                             // Required env vars for Z.AI GLM Coding Plan
                             cfg = cfg.env("ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic");
-                            cfg = cfg.env("ANTHROPIC_AUTH_TOKEN", key);
+                            cfg = cfg.env("ANTHROPIC_AUTH_TOKEN", &key);
                             cfg = cfg.env("ANTHROPIC_API_KEY", ""); // Must be explicitly empty!
                             cfg = cfg.env("API_TIMEOUT_MS", "3000000"); // Extended timeout for GLM
 
@@ -1052,7 +1052,7 @@ impl ExecutionEngine {
                         if let Some(key) = api_key {
                             // Required env vars for OpenRouter (same as runner.rs)
                             cfg = cfg.env("ANTHROPIC_BASE_URL", "https://openrouter.ai/api");
-                            cfg = cfg.env("ANTHROPIC_AUTH_TOKEN", key);
+                            cfg = cfg.env("ANTHROPIC_AUTH_TOKEN", &key);
                             cfg = cfg.env("ANTHROPIC_API_KEY", ""); // Must be explicitly empty!
 
                             // Set model for all tiers

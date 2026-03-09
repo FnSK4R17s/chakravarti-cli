@@ -181,16 +181,18 @@ pub enum AttemptResult {
 impl AttemptResult {
     /// Create a success result.
     #[must_use]
-    pub fn success(diff: impl Into<String>) -> Self {
-        Self::Succeeded { diff: diff.into() }
+    pub fn success(diff: &str) -> Self {
+        Self::Succeeded {
+            diff: diff.to_owned(),
+        }
     }
 
     /// Create a failure result.
     #[must_use]
-    pub fn failure(error: impl Into<String>) -> Self {
+    pub fn failure(error: &str) -> Self {
         Self::ExecutionFailed {
             step: "unknown".to_string(),
-            error: error.into(),
+            error: error.to_owned(),
         }
     }
 

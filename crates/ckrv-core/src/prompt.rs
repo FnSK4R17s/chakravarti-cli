@@ -105,15 +105,15 @@ impl RenderContext {
 
     /// Add an input variable.
     #[must_use]
-    pub fn with_input(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
-        self.inputs.insert(name.into(), value.into());
+    pub fn with_input(mut self, name: &str, value: &str) -> Self {
+        self.inputs.insert(name.to_owned(), value.to_owned());
         self
     }
 
     /// Add outputs from a completed step.
     #[must_use]
-    pub fn with_step_outputs(mut self, step_id: impl Into<String>, outputs: StepOutputs) -> Self {
-        self.steps.insert(step_id.into(), outputs);
+    pub fn with_step_outputs(mut self, step_id: &str, outputs: StepOutputs) -> Self {
+        self.steps.insert(step_id.to_owned(), outputs);
         self
     }
 
@@ -151,8 +151,8 @@ impl StepOutputs {
 
     /// Add an output.
     #[must_use]
-    pub fn with_output(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
-        self.outputs.insert(name.into(), value.into());
+    pub fn with_output(mut self, name: &str, value: &str) -> Self {
+        self.outputs.insert(name.to_owned(), value.to_owned());
         self
     }
 }

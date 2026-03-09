@@ -28,15 +28,15 @@ impl EnvConfig {
 
     /// Set an environment variable.
     #[must_use]
-    pub fn set(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.vars.insert(key.into(), value.into());
+    pub fn set(mut self, key: &str, value: &str) -> Self {
+        self.vars.insert(key.to_owned(), value.to_owned());
         self
     }
 
     /// Pass through a host environment variable.
     #[must_use]
-    pub fn passthrough(mut self, key: impl Into<String>) -> Self {
-        self.passthrough.push(key.into());
+    pub fn passthrough(mut self, key: &str) -> Self {
+        self.passthrough.push(key.to_owned());
         self
     }
 

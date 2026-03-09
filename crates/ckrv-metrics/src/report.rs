@@ -38,27 +38,27 @@ pub struct Metrics {
 impl Metrics {
     /// Create new metrics for a job.
     #[must_use]
-    pub fn new(job_id: impl Into<String>, spec_id: impl Into<String>) -> Self {
+    pub fn new(job_id: &str, spec_id: &str) -> Self {
         Self {
-            job_id: job_id.into(),
-            spec_id: spec_id.into(),
+            job_id: job_id.to_owned(),
+            spec_id: spec_id.to_owned(),
             ..Default::default()
         }
     }
 
     /// Add token usage for a model.
-    pub fn add_token_usage(&mut self, model: impl Into<String>, input: u64, output: u64) {
+    pub fn add_token_usage(&mut self, model: &str, input: u64, output: u64) {
         self.token_usage.push(TokenUsageEntry {
-            model: model.into(),
+            model: model.to_owned(),
             input_tokens: input,
             output_tokens: output,
         });
     }
 
     /// Add step metrics.
-    pub fn add_step(&mut self, step_id: impl Into<String>, duration_ms: u64) {
+    pub fn add_step(&mut self, step_id: &str, duration_ms: u64) {
         self.step_metrics.push(StepMetrics {
-            step_id: step_id.into(),
+            step_id: step_id.to_owned(),
             duration_ms,
             model: None,
             tokens: None,
@@ -186,9 +186,9 @@ pub struct FileMetricsStorage {
 
 impl FileMetricsStorage {
     /// Create a new file-based storage.
-    pub fn new(base_path: impl Into<PathBuf>) -> Self {
+    pub fn new(base_path: &std::path::Path) -> Self {
         Self {
-            base_path: base_path.into(),
+            base_path: base_path.to_path_buf(),
         }
     }
 
@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn test_file_storage_save_load() {
         let dir = TempDir::new().expect("temp dir");
-        let storage = FileMetricsStorage::new(dir.path().join(".chakravarti"));
+        let storage = FileMetricsStorage::new(&dir.path().join(".chakravarti"));
 
         let mut metrics = Metrics::new("test-job", "test-spec");
         metrics.total_time_ms = 1234;
@@ -294,7 +294,7 @@ mod tests {
     #[test]
     fn test_file_storage_not_found() {
         let dir = TempDir::new().expect("temp dir");
-        let storage = FileMetricsStorage::new(dir.path().join(".chakravarti"));
+        let storage = FileMetricsStorage::new(&dir.path().join(".chakravarti"));
 
         let result = storage.load("nonexistent");
         assert!(result.is_err());

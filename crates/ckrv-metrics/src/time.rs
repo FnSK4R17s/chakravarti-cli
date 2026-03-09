@@ -46,8 +46,8 @@ impl Stopwatch {
     }
 
     /// Record a split time with a label.
-    pub fn split(&mut self, label: impl Into<String>) {
-        self.splits.push((label.into(), self.elapsed()));
+    pub fn split(&mut self, label: &str) {
+        self.splits.push((label.to_owned(), self.elapsed()));
     }
 
     /// Get all recorded splits.

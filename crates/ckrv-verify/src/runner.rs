@@ -37,9 +37,9 @@ impl VerifyConfig {
     /// * `worktree_path` - Path to the worktree to verify.
     /// * `spec` - The specification to verify against.
     #[must_use]
-    pub fn new(worktree_path: impl Into<String>, spec: Spec) -> Self {
+    pub fn new(worktree_path: &str, spec: Spec) -> Self {
         Self {
-            worktree_path: worktree_path.into(),
+            worktree_path: worktree_path.to_owned(),
             spec,
             test_commands: vec!["cargo test".to_string()],
             timeout_secs: 300,
@@ -52,8 +52,8 @@ impl VerifyConfig {
     ///
     /// * `cmd` - Shell command to execute during verification.
     #[must_use]
-    pub fn with_command(mut self, cmd: impl Into<String>) -> Self {
-        self.test_commands.push(cmd.into());
+    pub fn with_command(mut self, cmd: &str) -> Self {
+        self.test_commands.push(cmd.to_owned());
         self
     }
 

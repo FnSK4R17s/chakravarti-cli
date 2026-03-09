@@ -10,6 +10,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
+  CARGO_INCREMENTAL: 0
 
 jobs:
   # ── Rust Format ────────────────────────────────────────────────────────
@@ -34,6 +35,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      - name: Install mold linker
+        run: sudo apt-get update && sudo apt-get install -y mold clang
       - uses: Swatinem/rust-cache@v2
         with:
           key: clippy
@@ -53,6 +56,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install mold linker
+        run: sudo apt-get update && sudo apt-get install -y mold clang
       - uses: Swatinem/rust-cache@v2
         with:
           key: test
@@ -62,7 +67,10 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
         working-directory: crates/ckrv-ui/frontend
-      - run: cargo test --workspace --exclude ckrv-tauri
+      - name: Build tests
+        run: cargo test --workspace --exclude ckrv-tauri --no-run
+      - name: Run tests
+        run: cargo test --workspace --exclude ckrv-tauri
 
   # ── Rust Build ─────────────────────────────────────────────────────────
   rust-build:
@@ -72,6 +80,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install mold linker
+        run: sudo apt-get update && sudo apt-get install -y mold clang
       - uses: Swatinem/rust-cache@v2
         with:
           key: build

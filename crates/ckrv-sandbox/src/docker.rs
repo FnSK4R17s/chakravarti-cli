@@ -56,8 +56,8 @@ impl DockerClient {
     }
 
     /// Set the default image.
-    pub fn set_image(&mut self, image: impl Into<String>) {
-        self.default_image = image.into();
+    pub fn set_image(&mut self, image: &str) {
+        image.clone_into(&mut self.default_image);
     }
 
     /// Check if Docker is available.
