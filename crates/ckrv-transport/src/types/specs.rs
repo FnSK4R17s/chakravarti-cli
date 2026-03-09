@@ -15,6 +15,9 @@ pub struct SpecSummary {
     /// Spec name (directory name)
     pub name: String,
 
+    /// Relative path to spec directory
+    pub path: String,
+
     /// Human-readable title
     pub title: Option<String>,
 
@@ -26,6 +29,15 @@ pub struct SpecSummary {
 
     /// Has tasks
     pub has_tasks: bool,
+
+    /// Has design artifact
+    pub has_design: bool,
+
+    /// Has implementation artifact
+    pub has_implementation: bool,
+
+    /// Implementation branch name if available
+    pub implementation_branch: Option<String>,
 
     /// Number of tasks
     pub task_count: usize,
@@ -121,7 +133,15 @@ pub struct UpdateSpecRequest {
 }
 
 /// Response with a list of specs.
-pub type ListSpecsResponse = Vec<SpecSummary>;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "typescript", derive(TS))]
+#[cfg_attr(feature = "typescript", ts(export))]
+pub struct ListSpecsResponse {
+    /// List of spec summaries
+    pub specs: Vec<SpecSummary>,
+    /// Total count of specs
+    pub count: usize,
+}
 
 // ============================================================
 // Plan Types

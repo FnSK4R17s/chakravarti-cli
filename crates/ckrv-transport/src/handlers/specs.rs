@@ -75,9 +75,14 @@ pub fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, Transpo
                         let plan_yaml = path.join("plan.yaml");
                         let has_plan = plan_yaml.exists();
 
+                        // Check for design artifact
+                        let design_yaml = path.join("design.yaml");
+                        let has_design = design_yaml.exists();
+
                         // Check implementation status
                         let impl_yaml = path.join("implementation.yaml");
-                        let (status, _implementation_branch) = if impl_yaml.exists() {
+                        let has_implementation = impl_yaml.exists();
+                        let (status, implementation_branch) = if has_implementation {
                             std::fs::read_to_string(&impl_yaml).ok().map_or(
                                 (SpecStatus::Draft, None),
                                 |content| {
@@ -87,7 +92,7 @@ pub fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, Transpo
                                             if summary.status == "completed" {
                                                 (SpecStatus::Implemented, Some(summary.branch))
                                             } else {
-                                                (SpecStatus::InProgress, None)
+                                                (SpecStatus::InProgress, Some(summary.branch))
                                             }
                                         })
                                 },
@@ -103,12 +108,17 @@ pub fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, Transpo
                             .ok()
                             .and_then(|content| extract_title_from_yaml(&content));
 
+                        let spec_path = format!(".specs/{name}");
                         specs.push(SpecSummary {
                             name: name.clone(),
+                            path: spec_path,
                             title,
                             status,
                             has_plan,
                             has_tasks,
+                            has_design,
+                            has_implementation,
+                            implementation_branch,
                             task_count,
                             created_at: None,
                             updated_at: None,
@@ -121,17 +131,40 @@ pub fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, Transpo
 
     // Sort by name
     specs.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(specs)
+    let count = specs.len();
+    Ok(ListSpecsResponse { specs, count })
 }
 
 /// Extract title from spec YAML content.
+///
+/// Handles both inline values (`overview: Some text`) and block scalars
+/// (`overview: |\n  First line of text`).
 fn extract_title_from_yaml(content: &str) -> Option<String> {
-    // Simple extraction - look for overview or goal field
-    for line in content.lines() {
+    let lines: Vec<&str> = content.lines().collect();
+    for (i, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
         if trimmed.starts_with("overview:") || trimmed.starts_with("goal:") {
             let value = trimmed.split(':').nth(1)?.trim();
-            if !value.is_empty() && !value.starts_with('|') && !value.starts_with('>') {
+            if value.starts_with('|') || value.starts_with('>') {
+                // Block scalar — grab the first non-empty indented line
+                for next_line in &lines[i + 1..] {
+                    let next_trimmed = next_line.trim();
+                    if next_trimmed.is_empty() {
+                        continue;
+                    }
+                    // Stop if we hit a non-indented line (new YAML key)
+                    if !next_line.starts_with(' ') && !next_line.starts_with('\t') {
+                        break;
+                    }
+                    // Truncate long overviews for the title
+                    let title = if next_trimmed.len() > 120 {
+                        format!("{}…", &next_trimmed[..120])
+                    } else {
+                        next_trimmed.to_string()
+                    };
+                    return Some(title);
+                }
+            } else if !value.is_empty() {
                 return Some(value.trim_matches('"').trim_matches('\'').to_string());
             }
         }
@@ -276,12 +309,17 @@ pub fn create_spec_handler(
                     .map(String::from)
                     .unwrap_or_else(|| "unknown".to_string());
 
+                let spec_path = format!(".specs/{spec_id}");
                 return Ok(SpecSummary {
                     name: spec_id,
+                    path: spec_path,
                     title: Some(request.description),
                     status: SpecStatus::Draft,
                     has_plan: false,
                     has_tasks: false,
+                    has_design: false,
+                    has_implementation: false,
+                    implementation_branch: None,
                     task_count: 0,
                     created_at: Some(chrono::Utc::now().to_rfc3339()),
                     updated_at: None,
@@ -540,5 +578,31 @@ goal: Old format goal
 "#;
         let title = extract_title_from_yaml(yaml);
         assert_eq!(title, Some("Old format goal".to_string()));
+    }
+
+    #[test]
+    fn test_extract_title_block_scalar() {
+        let yaml = r#"id: "001-webapp"
+overview: |
+  A full-stack web application with a compiled backend
+  serving a modern frontend.
+status: draft
+"#;
+        let title = extract_title_from_yaml(yaml);
+        assert_eq!(
+            title,
+            Some("A full-stack web application with a compiled backend".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_title_folded_scalar() {
+        let yaml = r#"id: "002-api"
+overview: >
+  A REST API with authentication
+status: draft
+"#;
+        let title = extract_title_from_yaml(yaml);
+        assert_eq!(title, Some("A REST API with authentication".to_string()));
     }
 }

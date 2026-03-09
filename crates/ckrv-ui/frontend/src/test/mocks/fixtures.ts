@@ -53,10 +53,14 @@ export function createAgent(overrides?: Partial<AgentConfig>): AgentConfig {
 export function createSpec(overrides?: Partial<SpecSummary>): SpecSummary {
   return {
     name: '042-add-auth',
+    path: '.specs/042-add-auth',
     title: 'Add Authentication',
     status: 'draft',
     has_plan: false,
     has_tasks: false,
+    has_design: false,
+    has_implementation: false,
+    implementation_branch: null,
     task_count: 0,
     created_at: '2026-01-15T10:00:00Z',
     updated_at: '2026-01-15T10:00:00Z',

@@ -10,20 +10,10 @@ use ckrv_transport::handlers::specs::{
     get_spec_handler, list_specs_handler, update_spec_handler, validate_spec_handler,
     DesignResponse, GenerateTasksResponse, ValidateSpecResponse,
 };
-use ckrv_transport::types::{CreateSpecRequest, SpecDetail, SpecSummary, UpdateSpecRequest};
-use serde::Serialize;
+use ckrv_transport::types::{
+    CreateSpecRequest, ListSpecsResponse, SpecDetail, SpecSummary, UpdateSpecRequest,
+};
 use tauri::State;
-
-// ============================================================
-// Types
-// ============================================================
-
-/// Response wrapper for list_specs to match frontend expectations.
-#[derive(Serialize)]
-pub struct ListSpecsWrapped {
-    /// List of specification summaries.
-    specs: Vec<SpecSummary>,
-}
 
 // ============================================================
 // Handlers
@@ -31,11 +21,9 @@ pub struct ListSpecsWrapped {
 
 /// List all specifications.
 #[tauri::command]
-pub async fn list_specs(state: State<'_, SharedState>) -> Result<ListSpecsWrapped, String> {
+pub async fn list_specs(state: State<'_, SharedState>) -> Result<ListSpecsResponse, String> {
     let app_state = state.read().await;
-    list_specs_handler(&app_state)
-        .map(|specs| ListSpecsWrapped { specs })
-        .map_err(|e| e.to_string())
+    list_specs_handler(&app_state).map_err(|e| e.to_string())
 }
 
 /// Get a single specification detail.
