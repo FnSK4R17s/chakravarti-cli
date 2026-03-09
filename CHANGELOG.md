@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/FnSK4R17s/chakravarti-cli/compare/v0.3.0...v0.3.1) (2026-03-09)
+
+
+### Performance Improvements
+
+* optimize Rust build times across workspace ([#79](https://github.com/FnSK4R17s/chakravarti-cli/issues/79)) ([34f354b](https://github.com/FnSK4R17s/chakravarti-cli/commit/34f354b83ed0ed16e971ac719bb109fc93f1f6e9))
+
 ## [0.3.0](https://github.com/FnSK4R17s/chakravarti-cli/compare/v0.2.0...v0.3.0) (2026-03-03)
 
 
