@@ -72,7 +72,9 @@ test.describe('Responsive Layout', () => {
             return page.click('text=Run');
         });
 
-        await page.waitForLoadState('networkidle');
+        // Use domcontentloaded instead of networkidle — the Run tab makes
+        // long-lived API/WebSocket connections that prevent networkidle
+        await page.waitForLoadState('domcontentloaded');
 
         // Look for expand/minimize buttons
         const expandButton = page.locator('[aria-label="Maximize panel"], [aria-label="Minimize panel"], button:has(svg)').first();
