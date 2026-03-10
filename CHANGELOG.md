@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/FnSK4R17s/chakravarti-cli/compare/v0.3.1...v0.3.2) (2026-03-09)
+
+
+### Bug Fixes
+
+* **ui:** prevent connection badge disconnect on message submit ([#83](https://github.com/FnSK4R17s/chakravarti-cli/issues/83)) ([06f811d](https://github.com/FnSK4R17s/chakravarti-cli/commit/06f811d20572b0d64ee445a1a7f33463754c88ef))
+
 ## [0.3.1](https://github.com/FnSK4R17s/chakravarti-cli/compare/v0.3.0...v0.3.1) (2026-03-09)
 
 
