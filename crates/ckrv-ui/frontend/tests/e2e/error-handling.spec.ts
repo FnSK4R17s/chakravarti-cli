@@ -24,7 +24,7 @@ test.describe('Error Handling', () => {
      */
     test('T041: API error handling displays error messages', async ({ page }) => {
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // The error boundary should be in place
         // Check that there's no error state by default
@@ -42,7 +42,7 @@ test.describe('Error Handling', () => {
         await page.goto('/');
 
         // Verify the app loads properly
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Look for any error boundary retry buttons
         const retryButton = page.locator('[data-testid="retry-button"], button:has-text("Try Again")');
@@ -62,7 +62,7 @@ test.describe('Error Handling', () => {
      */
     test('T042: loading states are visible during async operations', async ({ page }) => {
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Count loading indicators - they should exist in the codebase
         // but may not be visible if nothing is loading
@@ -104,7 +104,7 @@ test.describe('Error Handling', () => {
             console.log('Could not navigate to agents page');
         });
 
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Look for any form elements
         const form = page.locator('form').first();
@@ -155,7 +155,7 @@ test.describe('Loading States', () => {
 
     test('buttons show loading state when clicked', async ({ page }) => {
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Find buttons that might have loading states
         const buttons = page.locator('button');

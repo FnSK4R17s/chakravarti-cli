@@ -24,7 +24,7 @@ test.describe('Responsive Layout', () => {
         await page.setViewportSize({ width: 1280, height: 720 });
 
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Check that body doesn't have horizontal overflow
         const hasHorizontalOverflow = await page.evaluate(() => {
@@ -41,7 +41,7 @@ test.describe('Responsive Layout', () => {
         await page.setViewportSize({ width: 1024, height: 768 });
 
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Navigation should still be visible
         const nav = page.locator('nav, [role="navigation"]');
@@ -100,7 +100,7 @@ test.describe('Responsive Layout', () => {
 test.describe('Scroll Behavior', () => {
     test('fixed headers remain visible during scroll', async ({ page }) => {
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Check for sticky/fixed headers
         const stickyElements = await page.evaluate(() => {
@@ -120,7 +120,7 @@ test.describe('Scroll Behavior', () => {
 
     test('nested scroll areas work correctly', async ({ page }) => {
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Find scrollable areas
         const scrollableAreas = await page.evaluate(() => {

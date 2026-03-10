@@ -26,7 +26,7 @@ test.describe('Visual Consistency', () => {
         await page.goto('/');
 
         // Wait for page to fully load
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Verify the page rendered with a dark background (Tailwind v4 uses OKLCH)
         const bgColor = await page.locator('body').evaluate(el =>
@@ -47,7 +47,7 @@ test.describe('Visual Consistency', () => {
             return page.click('text=Code');
         });
 
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Screenshot for visual comparison
         await page.screenshot({ path: 'test-results/visual-code-spec.png', fullPage: true });
@@ -65,7 +65,7 @@ test.describe('Visual Consistency', () => {
             return page.click('text=Run');
         });
 
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Screenshot for visual comparison
         await page.screenshot({ path: 'test-results/visual-code-runner.png', fullPage: true });
@@ -81,7 +81,7 @@ test.describe('Visual Consistency', () => {
      */
     test('T032: animation timing - button hover effects', async ({ page }) => {
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Find a button with transition
         const button = page.locator('button').first();
@@ -99,7 +99,7 @@ test.describe('Visual Consistency', () => {
 
     test('T032: animation timing - modal transitions', async ({ page }) => {
         await page.goto('/');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         // Try to open a modal (like agent manager or command palette)
         const agentButton = page.locator('[data-testid="nav-agents"]');
