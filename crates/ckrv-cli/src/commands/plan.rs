@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::Args;
 
-use ckrv_sandbox::{DockerSandbox, ExecuteConfig, Sandbox};
+use ckrv_sandbox::{BindMount, DockerSandbox, ExecuteConfig, Sandbox};
 
 use crate::ui::components::Banner;
 use crate::ui::Renderable;
@@ -263,7 +263,6 @@ async fn execute_planning_docker(
     );
 
     // Build credential mounts for Claude Code
-    use ckrv_sandbox::BindMount;
     let container_home = "/home/claude";
     let mut credential_mounts = Vec::new();
 

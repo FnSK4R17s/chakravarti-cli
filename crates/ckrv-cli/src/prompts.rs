@@ -156,7 +156,7 @@ pub fn build_design_prompt(spec_yaml: &str, spec_id: &str) -> String {
     }
 
     format!(
-        r#"Generate a technical design document for this feature specification.
+        r"Generate a technical design document for this feature specification.
 
 SPECIFICATION (this is the AUTHORITATIVE source of truth — follow it exactly):
 {spec_yaml}
@@ -185,7 +185,7 @@ INSTRUCTIONS:
 7. Identify risks and mitigations
 8. Keep the design practical and implementable
 
-Output the complete markdown document now:"#,
+Output the complete markdown document now:",
         spec_yaml = spec_yaml,
         spec_id = spec_id,
         project_context = project_context,
