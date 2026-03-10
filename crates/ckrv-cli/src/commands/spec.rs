@@ -389,7 +389,10 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
     // Validate the generated YAML before writing
     let parsed: Result<super::spec_structs::SpecOutput, _> = serde_yaml::from_str(&spec_content);
     let (final_content, has_clarifications) = match parsed {
-        Ok(spec) => {
+        Ok(mut spec) => {
+            // Inject the original user prompt so it's preserved in the spec
+            spec.input_prompt = Some(description.to_string());
+
             let has_clarifications = spec.has_unresolved_clarifications();
             let user_story_count = spec.user_story_count();
             let requirement_count = spec.requirement_count();
@@ -405,14 +408,23 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
                     );
                 }
             }
-            (spec_content, has_clarifications)
+
+            // Re-serialize with input_prompt included
+            let yaml = serde_yaml::to_string(&spec).unwrap_or(spec_content);
+            (yaml, has_clarifications)
         }
         Err(e) => {
             if !json {
                 eprintln!("Warning: Generated YAML may have formatting issues: {}", e);
                 eprintln!("Writing raw output - manual review recommended");
             }
-            (spec_content, false)
+            // Fallback: inject input_prompt as raw YAML at the top
+            let injected = format!(
+                "input_prompt: |\n  {}\n{}",
+                description.replace('\n', "\n  "),
+                spec_content
+            );
+            (injected, false)
         }
     };
 
@@ -690,7 +702,7 @@ async fn execute_design(
     // Build the design prompt
     let prompt = crate::prompts::build_design_prompt(&spec_content, &spec.id);
 
-    // Run Claude in Docker sandbox
+    // Run Claude in Docker sandbox with credential mounts
     let result = {
         let sandbox = DockerSandbox::new(ckrv_sandbox::DefaultAllowList::default())
             .map_err(|e| anyhow::anyhow!("Failed to create sandbox: {}", e))?;
@@ -700,9 +712,27 @@ async fn execute_design(
             shell_escape::escape(prompt.clone().into())
         );
 
+        // Mount Claude credentials so the agent can authenticate
+        let host_home = std::env::var("HOME").unwrap_or_default();
+        let container_home = "/home/claude";
+        let mut extra_mounts = Vec::new();
+
+        let claude_config = format!("{host_home}/.claude.json");
+        if std::path::Path::new(&claude_config).exists() {
+            let target = format!("{container_home}/.claude.json");
+            extra_mounts.push(ckrv_sandbox::BindMount::new(&claude_config, &target));
+        }
+
+        let claude_dir = format!("{host_home}/.claude");
+        if std::path::Path::new(&claude_dir).exists() {
+            let target = format!("{container_home}/.claude");
+            extra_mounts.push(ckrv_sandbox::BindMount::new(&claude_dir, &target));
+        }
+
         let config = ExecuteConfig::new("", spec_folder.clone())
             .shell(&command)
-            .with_timeout(Duration::from_secs(300));
+            .with_timeout(Duration::from_secs(300))
+            .with_extra_mounts(extra_mounts);
 
         sandbox
             .execute(config)
@@ -1191,7 +1221,7 @@ Output ONLY the raw YAML content. No ```yaml fences."#,
         eprintln!();
     }
 
-    // Run Claude in Docker sandbox
+    // Run Claude in Docker sandbox with credential mounts
     let result = {
         let sandbox = DockerSandbox::new(ckrv_sandbox::DefaultAllowList::default())
             .map_err(|e| anyhow::anyhow!("Failed to create sandbox: {}", e))?;
@@ -1201,10 +1231,28 @@ Output ONLY the raw YAML content. No ```yaml fences."#,
             shell_escape::escape(prompt.clone().into())
         );
 
+        // Mount Claude credentials so the agent can authenticate
+        let host_home = std::env::var("HOME").unwrap_or_default();
+        let container_home = "/home/claude";
+        let mut extra_mounts = Vec::new();
+
+        let claude_config = format!("{host_home}/.claude.json");
+        if std::path::Path::new(&claude_config).exists() {
+            let target = format!("{container_home}/.claude.json");
+            extra_mounts.push(ckrv_sandbox::BindMount::new(&claude_config, &target));
+        }
+
+        let claude_dir = format!("{host_home}/.claude");
+        if std::path::Path::new(&claude_dir).exists() {
+            let target = format!("{container_home}/.claude");
+            extra_mounts.push(ckrv_sandbox::BindMount::new(&claude_dir, &target));
+        }
+
         let specs_dir = spec_path.parent().unwrap_or(&cwd);
         let config = ExecuteConfig::new("", specs_dir.to_path_buf())
             .shell(&command)
-            .with_timeout(Duration::from_secs(300));
+            .with_timeout(Duration::from_secs(300))
+            .with_extra_mounts(extra_mounts);
 
         sandbox
             .execute(config)

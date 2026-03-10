@@ -137,12 +137,13 @@ describe('TaskEditor', () => {
       http.get('/api/specs', () =>
         HttpResponse.json({ specs: [SPEC_WITH_TASKS], count: 1 })
       ),
-      http.get('/api/tasks/detail', () =>
+      // TaskEditor now fetches from /api/specs/{name}/tasks/artifacts
+      http.get('/api/specs/my-feature/tasks/artifacts', () =>
         HttpResponse.json({
-          success: true,
+          has_tasks: true,
           tasks: [TASK_ONE, TASK_TWO],
-          raw_yaml: 'tasks:\n  - id: T001',
-          count: 2,
+          raw: 'tasks:\n  - id: T001',
+          task_count: 2,
         })
       )
     );
@@ -163,12 +164,12 @@ describe('TaskEditor', () => {
       http.get('/api/specs', () =>
         HttpResponse.json({ specs: [SPEC_WITH_TASKS], count: 1 })
       ),
-      http.get('/api/tasks/detail', () =>
+      http.get('/api/specs/my-feature/tasks/artifacts', () =>
         HttpResponse.json({
-          success: true,
+          has_tasks: true,
           tasks: [TASK_ONE, TASK_TWO],
-          raw_yaml: '',
-          count: 2,
+          raw: '',
+          task_count: 2,
         })
       )
     );
@@ -190,11 +191,11 @@ describe('TaskEditor', () => {
       http.get('/api/specs', () =>
         HttpResponse.json({ specs: [SPEC_WITH_TASKS], count: 1 })
       ),
-      http.get('/api/tasks/detail', () =>
+      http.get('/api/specs/my-feature/tasks/artifacts', () =>
         HttpResponse.json({
-          success: false,
+          has_tasks: false,
           tasks: [],
-          count: 0,
+          task_count: 0,
           error: 'Failed to load tasks',
         })
       )
@@ -202,7 +203,7 @@ describe('TaskEditor', () => {
 
     render(<TaskEditor />);
 
-    // When success is false and tasks is empty the component renders the
+    // When has_tasks is false and tasks is empty the component renders the
     // "No Tasks Found" empty state for the selected spec.
     await waitFor(() => {
       expect(screen.getByText('No Tasks Found')).toBeInTheDocument();

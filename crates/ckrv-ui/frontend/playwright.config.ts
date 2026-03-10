@@ -27,11 +27,11 @@ export default defineConfig({
     /* Fail the build on CI if you accidentally left test.only in the source code */
     forbidOnly: !!process.env.CI,
 
-    /* Retry on CI only */
-    retries: process.env.CI ? 2 : 0,
+    /* Retry on CI only (1 retry to catch flakes without burning budget) */
+    retries: process.env.CI ? 1 : 0,
 
-    /* Opt out of parallel tests on CI for stability */
-    workers: process.env.CI ? 1 : undefined,
+    /* Allow parallel tests within each shard on CI */
+    workers: process.env.CI ? 2 : undefined,
 
     /* Reporter configuration */
     reporter: [
@@ -54,8 +54,8 @@ export default defineConfig({
         video: 'on-first-retry',
     },
 
-    /* Test timeout - 60 seconds per TR-005 */
-    timeout: 60000,
+    /* Test timeout - 30 seconds (reduced from 60s to catch hangs faster) */
+    timeout: 30000,
 
     /* Expect timeout for assertions */
     expect: {

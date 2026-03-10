@@ -70,6 +70,13 @@ pub struct PromoteRequest {
     pub push: Option<bool>,
 }
 
+/// Plan command request.
+#[derive(Debug, Deserialize)]
+pub struct PlanRequest {
+    /// Spec name to generate plan for (auto-detects from branch if omitted).
+    pub spec: Option<String>,
+}
+
 /// Fix command request.
 #[derive(Debug, Deserialize)]
 pub struct FixRequest {
@@ -141,8 +148,17 @@ pub fn run_spec_tasks_handler(state: &AppState) -> Result<CommandResponse, Trans
 }
 
 /// Run ckrv plan command.
-pub fn run_plan_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
-    run_ckrv_command(state, &["plan"])
+pub fn run_plan_handler(
+    state: &AppState,
+    request: PlanRequest,
+) -> Result<CommandResponse, TransportError> {
+    let mut args = vec!["plan", "--json"];
+    let spec_path;
+    if let Some(ref spec) = request.spec {
+        spec_path = format!(".specs/{}", spec);
+        args.push(&spec_path);
+    }
+    run_ckrv_command(state, &args)
 }
 
 /// Run ckrv execute command.

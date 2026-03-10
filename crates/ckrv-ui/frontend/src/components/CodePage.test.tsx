@@ -17,8 +17,11 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@/test/test-utils';
+import { render, screen, waitFor } from '@/test/test-utils';
 import { userEvent } from '@/test/test-utils';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/test/mocks/server';
+import { createSpec } from '@/test/mocks/fixtures';
 import CodePage from './CodePage';
 
 // ============================================================
@@ -54,6 +57,12 @@ vi.mock('../hooks/useCodeTab', async () => {
 vi.mock('../hooks/useWorkflowProgress', () => ({
   useWorkflowProgress: () => [],
   default: () => [],
+}));
+
+// Mock useAutoSelectedSpec: return a known spec name so tab locking can resolve
+vi.mock('../hooks/useAutoSelectedSpec', () => ({
+  useAutoSelectedSpec: () => ({ selectedSpec: '042-add-auth', isLoading: false }),
+  default: () => ({ selectedSpec: '042-add-auth', isLoading: false }),
 }));
 
 // ============================================================
@@ -96,10 +105,25 @@ describe('CodePage', () => {
   });
 
   it('can switch to the Tasks tab', async () => {
+    // Override specs to include a spec with design (unlocks tasks tab)
+    server.use(
+      http.get('/api/specs', () => {
+        return HttpResponse.json({
+          specs: [createSpec({ has_design: true })],
+          count: 1,
+        });
+      }),
+    );
+
     const user = userEvent.setup();
     render(<CodePage />);
 
+    // Wait for specs data to load so the tasks tab becomes enabled
     const tasksTab = screen.getByTestId('code-tab-tasks');
+    await waitFor(() => {
+      expect(tasksTab).not.toBeDisabled();
+    });
+
     await user.click(tasksTab);
 
     expect(tasksTab).toHaveAttribute('data-state', 'active');

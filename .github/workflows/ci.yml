@@ -174,12 +174,16 @@ jobs:
           path: crates/ckrv-ui/frontend/coverage/
           retention-days: 14
 
-  # ── Frontend E2E Tests ──────────────────────────────────────────────
+  # ── Frontend E2E Tests (sharded) ─────────────────────────────────────
   frontend-e2e:
-    name: Frontend E2E Tests
+    name: "Frontend E2E Tests (${{ matrix.shard }})"
     needs: [rust-build]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1/3, 2/3, 3/3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -199,7 +203,54 @@ jobs:
           git init
           git config user.email "ci@test.com"
           git config user.name "CI"
-          mkdir -p specs .chakravarti
+          mkdir -p .specs/test-feature .chakravarti
+
+          # Create minimal spec artifacts so all Code page tabs are unlocked
+          cat > .specs/test-feature/spec.yaml << 'SPEC'
+          id: test-feature
+          overview: Test feature for E2E
+          status: draft
+          user_stories: []
+          requirements: { functional: [] }
+          success_criteria: []
+          SPEC
+
+          cat > .specs/test-feature/design.md << 'DESIGN'
+          # Test Design
+          Placeholder design for E2E tests.
+          DESIGN
+
+          cat > .specs/test-feature/tasks.yaml << 'TASKS'
+          tasks:
+            - id: T001
+              phase: Setup
+              title: Test task
+              description: Placeholder
+              file: src/main.rs
+              user_story: null
+              parallel: false
+              complexity: 1
+              model_tier: standard
+              estimated_tokens: 1000
+              risk: low
+              context_required: []
+              status: pending
+          TASKS
+
+          cat > .specs/test-feature/plan.yaml << 'PLAN'
+          batches:
+            - id: setup
+              name: Setup
+              task_ids: [T001]
+              depends_on: []
+              model_assignment:
+                default: claude
+                overrides: {}
+              execution_strategy: sequential
+              estimated_time: 1m
+              reasoning: Single task batch
+          PLAN
+
           echo '{"name":"test-project","version":"1.0.0"}' > package.json
           git add . && git commit -m "init"
           echo "CKRV_PROJECT_ROOT=$TEST_PROJECT" >> "$GITHUB_ENV"
@@ -209,8 +260,8 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install chromium --with-deps
         working-directory: crates/ckrv-ui/frontend
-      - name: Run Playwright tests
-        run: npx playwright test --project=chromium
+      - name: Run Playwright tests (shard ${{ matrix.shard }})
+        run: npx playwright test --project=chromium --shard=${{ matrix.shard }}
         working-directory: crates/ckrv-ui/frontend
         env:
           CKRV_BINARY: ${{ github.workspace }}/bin/ckrv
@@ -218,6 +269,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ strategy.job-index }}
           path: crates/ckrv-ui/frontend/playwright-report/
           retention-days: 14

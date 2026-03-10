@@ -166,6 +166,9 @@ pub struct SpecOutput {
     /// Current status of the specification.
     #[serde(default)]
     pub status: SpecStatus,
+    /// The original user input prompt that created this spec.
+    #[serde(default)]
+    pub input_prompt: Option<String>,
     /// High-level overview of the feature.
     #[serde(default)]
     pub overview: Option<String>,
@@ -198,6 +201,7 @@ impl SpecOutput {
             branch: None,
             created: None,
             status: SpecStatus::Draft,
+            input_prompt: None,
             overview: None,
             user_stories: Vec::new(),
             requirements: Requirements::default(),

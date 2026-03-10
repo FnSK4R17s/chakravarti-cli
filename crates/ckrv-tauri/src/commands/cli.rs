@@ -8,8 +8,8 @@ use crate::SharedState;
 use ckrv_transport::handlers::commands::{
     run_diff_handler, run_execute_handler, run_fix_handler, run_git_init_handler, run_init_handler,
     run_plan_handler, run_promote_handler, run_spec_new_handler, run_spec_tasks_handler,
-    run_verify_handler, CommandResponse, DiffRequest, FixRequest, PromoteRequest, SpecNewRequest,
-    VerifyRequest,
+    run_verify_handler, CommandResponse, DiffRequest, FixRequest, PlanRequest, PromoteRequest,
+    SpecNewRequest, VerifyRequest,
 };
 use tauri::State;
 
@@ -52,9 +52,12 @@ pub async fn run_spec_tasks(state: State<'_, SharedState>) -> Result<CommandResp
 
 /// Run ckrv plan command.
 #[tauri::command]
-pub async fn run_plan(state: State<'_, SharedState>) -> Result<CommandResponse, String> {
+pub async fn run_plan(
+    state: State<'_, SharedState>,
+    spec: Option<String>,
+) -> Result<CommandResponse, String> {
     let app_state = state.read().await;
-    run_plan_handler(&app_state).map_err(|e| e.to_string())
+    run_plan_handler(&app_state, PlanRequest { spec }).map_err(|e| e.to_string())
 }
 
 /// Run ckrv execute command.

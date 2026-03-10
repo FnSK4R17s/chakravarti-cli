@@ -2,8 +2,8 @@
  * @module SpecEditor.test
  * @description
  * Unit tests for the SpecEditor component. Validates loading state,
- * empty state, spec list rendering, spec detail view, view toggles,
- * clarification badge, and error state.
+ * empty state, spec list rendering, spec detail view, clarification
+ * badge, and error state.
  *
  * @context
  * SpecEditor is the main content panel for the Spec page. It auto-selects
@@ -269,7 +269,7 @@ describe('SpecEditor', () => {
       });
     });
 
-    it('displays spec overview text in the visual view', async () => {
+    it('displays spec overview text', async () => {
       render(<SpecEditor />);
 
       await waitFor(() => {
@@ -337,83 +337,9 @@ describe('SpecEditor', () => {
   });
 
   // ----------------------------------------------------------
-  // 5. View toggle tabs (visual / outline / code)
+  // 5. Clarification UI when unresolved clarifications exist
   // ----------------------------------------------------------
-  describe('view toggle tabs', () => {
-    const SPEC_NAME = '042-add-auth';
-
-    beforeEach(() => {
-      useAutoSelectSpec(SPEC_NAME);
-
-      server.use(
-        http.get('/api/specs/detail', () =>
-          HttpResponse.json({
-            success: true,
-            spec: createSpecDetail({ id: SPEC_NAME }),
-            raw_yaml: 'id: 042-add-auth\noverview: Implement login/signup',
-          })
-        ),
-        http.get(`/api/specs/${SPEC_NAME}/clarifications`, () =>
-          HttpResponse.json({ clarifications: [], unresolved_count: 0 })
-        )
-      );
-    });
-
-    it('shows Visual, Outline, and YAML tab triggers', async () => {
-      render(<SpecEditor />);
-
-      await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /visual/i })).toBeInTheDocument();
-      });
-
-      expect(screen.getByRole('tab', { name: /outline/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /yaml/i })).toBeInTheDocument();
-    });
-
-    it('defaults to the Visual tab', async () => {
-      render(<SpecEditor />);
-
-      await waitFor(() => {
-        const visualTab = screen.getByRole('tab', { name: /visual/i });
-        expect(visualTab).toHaveAttribute('data-state', 'active');
-      });
-    });
-
-    it('switches to outline view when the Outline tab is clicked', async () => {
-      const { userEvent: user } = await import('@testing-library/user-event');
-      const ue = user.setup();
-
-      render(<SpecEditor />);
-
-      const outlineTab = await screen.findByRole('tab', { name: /outline/i });
-      await ue.click(outlineTab);
-
-      // The outline view renders 'spec:' in font-mono
-      await waitFor(() => {
-        expect(screen.getByText('spec:')).toBeInTheDocument();
-      });
-    });
-
-    it('switches to YAML view when the YAML tab is clicked', async () => {
-      const { userEvent: user } = await import('@testing-library/user-event');
-      const ue = user.setup();
-
-      render(<SpecEditor />);
-
-      const yamlTab = await screen.findByRole('tab', { name: /yaml/i });
-      await ue.click(yamlTab);
-
-      // The YAML view renders the raw_yaml in a <pre><code> block
-      await waitFor(() => {
-        expect(screen.getByText(/id: 042-add-auth/)).toBeInTheDocument();
-      });
-    });
-  });
-
-  // ----------------------------------------------------------
-  // 6. Clarification badge when unresolved clarifications exist
-  // ----------------------------------------------------------
-  describe('clarification badge', () => {
+  describe('clarification indicators', () => {
     const SPEC_NAME = '042-add-auth';
 
     beforeEach(() => {
@@ -430,7 +356,7 @@ describe('SpecEditor', () => {
       );
     });
 
-    it('shows clarification alert when unresolved clarifications exist', async () => {
+    it('shows Clarify button with count when unresolved clarifications exist', async () => {
       server.use(
         http.get(`/api/specs/${SPEC_NAME}/clarifications`, () =>
           HttpResponse.json({
@@ -449,48 +375,13 @@ describe('SpecEditor', () => {
 
       render(<SpecEditor />);
 
+      // The header shows a "Clarify (N)" button when there are unresolved clarifications
       await waitFor(() => {
-        expect(
-          screen.getByText(/1 clarification needed/)
-        ).toBeInTheDocument();
-      });
-
-      expect(screen.getByRole('button', { name: /resolve now/i })).toBeInTheDocument();
-    });
-
-    it('shows plural form for multiple unresolved clarifications', async () => {
-      server.use(
-        http.get(`/api/specs/${SPEC_NAME}/clarifications`, () =>
-          HttpResponse.json({
-            clarifications: [
-              {
-                topic: 'auth-method',
-                question: 'Which auth method?',
-                options: [],
-                resolved: null,
-              },
-              {
-                topic: 'session-length',
-                question: 'How long should sessions last?',
-                options: [],
-                resolved: null,
-              },
-            ],
-            unresolved_count: 2,
-          })
-        )
-      );
-
-      render(<SpecEditor />);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(/2 clarifications needed/)
-        ).toBeInTheDocument();
+        expect(screen.getByText(/Clarify/)).toBeInTheDocument();
       });
     });
 
-    it('does NOT show the clarification alert banner when all are resolved', async () => {
+    it('shows Clarified button when all clarifications are resolved', async () => {
       server.use(
         http.get(`/api/specs/${SPEC_NAME}/clarifications`, () =>
           HttpResponse.json({
@@ -514,16 +405,13 @@ describe('SpecEditor', () => {
         expect(screen.getByText('Overview')).toBeInTheDocument();
       });
 
-      // The clarification alert banner says "X clarification(s) needed" where X is
-      // a positive integer. When unresolvedCount is 0 this banner must not appear.
-      // Note: SpecWorkflow renders "No clarifications needed" (starts with "No"),
-      // so we match only the numeric form: e.g. "1 clarification needed".
-      expect(screen.queryByText(/\d+ clarifications? needed/)).not.toBeInTheDocument();
+      // When all resolved, shows "Clarified" (disabled button)
+      expect(screen.getByText('Clarified')).toBeInTheDocument();
     });
   });
 
   // ----------------------------------------------------------
-  // 7. Error state when APIs fail
+  // 6. Error state when APIs fail
   // ----------------------------------------------------------
   describe('error state', () => {
     it('shows empty spec list when /api/specs returns an error', async () => {

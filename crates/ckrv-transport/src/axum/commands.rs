@@ -13,7 +13,8 @@ use crate::error::TransportError;
 use crate::handlers::commands::{
     run_diff_handler, run_execute_handler, run_fix_handler, run_git_init_handler, run_init_handler,
     run_plan_handler, run_promote_handler, run_spec_new_handler, run_spec_tasks_handler,
-    run_verify_handler, DiffRequest, FixRequest, PromoteRequest, SpecNewRequest, VerifyRequest,
+    run_verify_handler, DiffRequest, FixRequest, PlanRequest, PromoteRequest, SpecNewRequest,
+    VerifyRequest,
 };
 use crate::state::AppState;
 use axum::extract::State;
@@ -65,8 +66,11 @@ async fn run_spec_tasks(State(state): State<AppState>) -> impl IntoResponse {
 }
 
 /// Run plan command.
-async fn run_plan(State(state): State<AppState>) -> impl IntoResponse {
-    match tokio::task::spawn_blocking(move || run_plan_handler(&state)).await {
+async fn run_plan(
+    State(state): State<AppState>,
+    Json(request): Json<PlanRequest>,
+) -> impl IntoResponse {
+    match tokio::task::spawn_blocking(move || run_plan_handler(&state, request)).await {
         Ok(Ok(result)) => Json(result).into_response(),
         Ok(Err(e)) => e.into_response(),
         Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),

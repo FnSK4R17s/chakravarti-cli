@@ -28,16 +28,15 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
 import {
-    ChevronDown, ChevronRight,
-    GitBranch, Layers, List, Code,
-    Zap, Brain, Cpu, ArrowRight, Link2, DollarSign, Timer,
-    Network, Workflow, Box, Sparkles,
+    ChevronRight,
+    GitBranch, Layers,
+    Zap, Brain, Cpu, ArrowRight,
+    Workflow, Box,
     Save, Settings2
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Dialog,
     DialogContent,
@@ -74,7 +73,6 @@ interface ModelAssignment {
  *   depends_on: [],
  *   model_assignment: { default: 'claude-sonnet-4-20250514', overrides: {} },
  *   execution_strategy: 'parallel',
- *   estimated_cost: 0.05,
  *   estimated_time: '5m',
  *   reasoning: 'Independent setup tasks'
  * };
@@ -92,8 +90,6 @@ interface Batch {
     model_assignment: ModelAssignment;
     /** Execution strategy: 'parallel' or 'sequential' */
     execution_strategy: string;
-    /** Estimated cost in USD */
-    estimated_cost: number;
     /** Estimated execution time (e.g., '5m', '1h') */
     estimated_time: string;
     /** Reasoning for batch grouping */
@@ -149,7 +145,19 @@ const fetchAgents = async (): Promise<{ agents: AgentConfig[] }> => {
 
 const fetchPlan = async (spec: string): Promise<PlanResponse> => {
     const res = await fetch(`/api/plans/detail?spec=${spec}`);
-    return res.json();
+    const data = await res.json();
+    // Normalize batches to ensure arrays are never undefined
+    if (data.batches) {
+        data.batches = data.batches.map((b: Batch) => ({
+            ...b,
+            task_ids: b.task_ids ?? [],
+            depends_on: b.depends_on ?? [],
+            model_assignment: b.model_assignment ?? { default: 'unknown', overrides: {} },
+            estimated_time: b.estimated_time ?? '',
+            reasoning: b.reasoning ?? '',
+        }));
+    }
+    return data;
 };
 
 const savePlan = async (spec: string, batches: Batch[]) => {
@@ -376,8 +384,8 @@ const BatchEditModal: React.FC<BatchEditModalProps> = ({ batch, isOpen, onClose,
 
                     <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
                         <div>
-                            <span className="text-xs text-muted-foreground">Estimated Cost</span>
-                            <div className="font-medium">${batch.estimated_cost.toFixed(2)}</div>
+                            <span className="text-xs text-muted-foreground">Strategy</span>
+                            <div className="font-medium capitalize">{batch.execution_strategy}</div>
                         </div>
                         <div>
                             <span className="text-xs text-muted-foreground">Estimated Time</span>
@@ -397,127 +405,6 @@ const BatchEditModal: React.FC<BatchEditModalProps> = ({ batch, isOpen, onClose,
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    );
-};
-
-// BatchCard using shadcn Card
-/**
- * Props for BatchCard component.
- * Card displaying batch details with tasks, dependencies, and costs.
- */
-interface BatchCardProps {
-    /** Batch data to display */
-    batch: Batch;
-    /** Whether this batch is currently selected */
-    isSelected: boolean;
-    /** Callback when the card is clicked */
-    onClick: () => void;
-    /** Optional callback to open the edit modal */
-    onEdit?: () => void;
-    /** List of model info for displaying model badges */
-    models: ModelInfo[];
-}
-
-const BatchCard: React.FC<BatchCardProps> = ({ batch, isSelected, onClick, onEdit, models }) => {
-    /** Whether the batch details are expanded */
-    const [expanded, setExpanded] = useState(false);
-
-    return (
-        <Card
-            className={`cursor-pointer transition-all ${isSelected ? 'ring-1 ring-primary border-primary/50' : 'hover:border-muted-foreground/50'}`}
-            onClick={onClick}
-        >
-            <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="secondary" className="font-mono text-xs truncate">
-                                {batch.id}
-                            </Badge>
-                            <StrategyBadge strategy={batch.execution_strategy} />
-                        </div>
-                        <h4 className="font-medium text-foreground truncate">{batch.name}</h4>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <ModelBadge model={batch.model_assignment.default} size="sm" models={models} />
-                        {onEdit && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={(e) => { e.stopPropagation(); onEdit(); }}
-                                title="Edit stage configuration"
-                            >
-                                <Settings2 size={14} />
-                            </Button>
-                        )}
-                    </div>
-                </div>
-
-                {/* Tasks */}
-                <div className="flex flex-wrap gap-1 mt-3">
-                    {batch.task_ids.map(taskId => {
-                        const override = batch.model_assignment.overrides[taskId];
-                        return (
-                            <Badge
-                                key={taskId}
-                                variant={override ? 'warning' : 'secondary'}
-                                className="font-mono text-xs"
-                                title={override ? `Override: ${override}` : undefined}
-                            >
-                                {taskId}
-                                {override && <Sparkles size={10} className="inline ml-0.5" />}
-                            </Badge>
-                        );
-                    })}
-                </div>
-
-                {/* Dependencies */}
-                {batch.depends_on.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-border">
-                        <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                            <Link2 size={12} /> Depends on:
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                            {batch.depends_on.map(dep => (
-                                <Badge key={dep} variant="info" className="font-mono text-xs">
-                                    {dep}
-                                </Badge>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Stats */}
-                <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                        <DollarSign size={12} />
-                        ${batch.estimated_cost.toFixed(2)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                        <Timer size={12} />
-                        {batch.estimated_time}
-                    </span>
-                </div>
-
-                {/* Expand for reasoning */}
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
-                    className="mt-2 text-xs"
-                >
-                    {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    Reasoning
-                </Button>
-
-                {expanded && (
-                    <p className="text-sm text-muted-foreground mt-2 p-2 bg-muted rounded border border-border">
-                        {batch.reasoning}
-                    </p>
-                )}
-            </CardContent>
-        </Card>
     );
 };
 
@@ -740,8 +627,6 @@ export default function PlanEditor() {
     const selectedSpecName = manualSpecOverride ?? autoSelectedSpec;
 
     // --- UI State ---
-    /** Current view mode: DAG visualization, list, timeline, cost analysis, or raw YAML */
-    const [view, setView] = useState<'dag' | 'list' | 'timeline' | 'cost' | 'code'>('dag');
     /** Currently selected batch ID for detail panel */
     const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
     /** Timestamp of last successful save */
@@ -798,7 +683,7 @@ export default function PlanEditor() {
         totalBatches: batches.length,
         totalTasks: batches.reduce((sum, b) => sum + b.task_ids.length, 0),
         parallelBatches: batches.filter(b => b.execution_strategy === 'parallel').length,
-        totalCost: batches.reduce((sum, b) => sum + b.estimated_cost, 0),
+        sequentialBatches: batches.filter(b => b.execution_strategy === 'sequential').length,
         heavyTasks: batches.filter(b => getModelConfig(b.model_assignment.default, models).tier === 'heavy').reduce((sum, b) => sum + b.task_ids.length, 0),
     }), [batches, models]);
 
@@ -876,27 +761,7 @@ export default function PlanEditor() {
                         {lastSaved && <span className="text-xs text-muted-foreground">• Saved {lastSaved.toLocaleTimeString()}</span>}
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        {/* View Toggles using Tabs */}
-                        <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>
-                            <TabsList>
-                                <TabsTrigger value="dag" className="gap-1.5">
-                                    <Network size={16} />
-                                    DAG
-                                </TabsTrigger>
-                                <TabsTrigger value="list" className="gap-1.5">
-                                    <List size={16} />
-                                    List
-                                </TabsTrigger>
-                                <TabsTrigger value="code" className="gap-1.5">
-                                    <Code size={16} />
-                                    YAML
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
-
-                        <div className="w-px h-6 bg-border" />
-
+                    <div className="flex items-center gap-2">
                         <Button
                             onClick={handleSave}
                             size="icon"
@@ -935,10 +800,10 @@ export default function PlanEditor() {
                     <Card>
                         <CardContent className="p-4 flex items-center justify-between">
                             <div>
-                                <div className="text-2xl font-bold text-foreground">${stats.totalCost.toFixed(2)}</div>
-                                <div className="text-xs text-muted-foreground">Est. Cost</div>
+                                <div className="text-2xl font-bold text-foreground">{stats.parallelBatches}</div>
+                                <div className="text-xs text-muted-foreground">Parallel Batches</div>
                             </div>
-                            <DollarSign className="text-warning" size={20} />
+                            <GitBranch className="text-warning" size={20} />
                         </CardContent>
                     </Card>
                     <Card>
@@ -957,46 +822,13 @@ export default function PlanEditor() {
                         No plan available for this spec. Run 'ckrv plan' to generate one.
                     </Card>
                 ) : (
-                    <>
-                        {view === 'dag' && (
-                            <DagView
-                                batches={batches}
-                                selectedBatch={selectedBatch}
-                                onSelectBatch={setSelectedBatch}
-                                onEditBatch={setEditingBatch}
-                                models={models}
-                            />
-                        )}
-
-                        {view === 'list' && (
-                            <div className="grid lg:grid-cols-2 gap-4">
-                                {batches.map(batch => (
-                                    <BatchCard
-                                        key={batch.id}
-                                        batch={batch}
-                                        isSelected={selectedBatch === batch.id}
-                                        onClick={() => setSelectedBatch(batch.id)}
-                                        onEdit={() => setEditingBatch(batch)}
-                                        models={models}
-                                    />
-                                ))}
-                            </div>
-                        )}
-
-                        {view === 'code' && (
-                            <Card>
-                                <CardHeader className="py-2 px-4 flex flex-row items-center justify-between border-b border-border">
-                                    <CardTitle className="text-sm font-mono">plan.yaml</CardTitle>
-                                    <Button variant="ghost" size="sm">Copy</Button>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <pre className="p-4 text-xs font-mono text-foreground overflow-auto max-h-[600px] bg-muted">
-                                        {planData?.raw_yaml}
-                                    </pre>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </>
+                    <DagView
+                        batches={batches}
+                        selectedBatch={selectedBatch}
+                        onSelectBatch={setSelectedBatch}
+                        onEditBatch={setEditingBatch}
+                        models={models}
+                    />
                 )}
             </div>
 

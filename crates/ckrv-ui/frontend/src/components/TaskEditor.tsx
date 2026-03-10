@@ -14,7 +14,7 @@
  * - useAutoSelectedSpec: Auto-selects spec based on current git branch
  * - useQuery/useMutation: React Query for task operations
  * - TaskDetailModal: Modal for viewing and executing individual tasks
- * - shadcn/ui components: Card, Badge, Select, Tabs for consistent UI
+ * - shadcn/ui components: Card, Badge, Button, Collapsible for consistent UI
  *
  * @example
  * // Rendered directly as a page component
@@ -31,23 +31,14 @@ import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
 import {
     ChevronDown, ChevronRight, Play,
     CheckCircle2, Circle, AlertTriangle, GitBranch,
-    Layers, Code, Filter, Zap, Brain, Cpu,
-    Link2, FileText, Save, Loader2, RotateCcw, ClipboardList
+    Layers, Zap, Brain, Cpu,
+    Link2, FileText, Loader2, ClipboardList
 } from 'lucide-react';
 import { TaskDetailModal } from './TaskDetailModal';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 
 // === TYPES ===
@@ -127,17 +118,14 @@ const fetchSpecs = async (): Promise<{ specs: SpecListItem[], count: number }> =
 };
 
 const fetchTasksDetail = async (spec: string): Promise<{ success: boolean; tasks: Task[]; raw_yaml?: string; count: number; error?: string }> => {
-    const res = await fetch(`/api/tasks/detail?spec=${encodeURIComponent(spec)}`);
-    return res.json();
-};
-
-const saveTasks = async (spec: string, tasks: Task[]): Promise<{ success: boolean; message?: string }> => {
-    const res = await fetch('/api/tasks/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spec, tasks }),
-    });
-    return res.json();
+    const res = await fetch(`/api/specs/${encodeURIComponent(spec)}/tasks/artifacts`);
+    const data = await res.json();
+    return {
+        success: data.has_tasks ?? false,
+        tasks: data.tasks ?? [],
+        raw_yaml: data.raw ?? undefined,
+        count: data.task_count ?? 0,
+    };
 };
 
 const updateTaskStatus = async (spec: string, taskId: string, status: string): Promise<{ success: boolean; message?: string }> => {
@@ -149,13 +137,17 @@ const updateTaskStatus = async (spec: string, taskId: string, status: string): P
     return res.json();
 };
 
-const generatePlan = async (): Promise<{ success: boolean; message?: string }> => {
+const generatePlan = async (spec?: string): Promise<{ success: boolean; message?: string }> => {
     const res = await fetch('/api/command/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ spec: spec ?? null }),
     });
-    return res.json();
+    const data = await res.json();
+    if (!res.ok) {
+        throw new Error(data.error || data.message || 'Plan generation failed');
+    }
+    return data;
 };
 
 // === SUB-COMPONENTS ===
@@ -330,13 +322,16 @@ interface PhaseGroupProps {
     expandedTasks: Set<string>;
     /** Callback to toggle a task's expanded state */
     toggleExpand: (id: string) => void;
+    /** Force collapse/expand from parent */
+    forceCollapsed?: boolean;
 }
 
-const PhaseGroup: React.FC<PhaseGroupProps> = ({ phase, tasks, onStatusChange, expandedTasks, toggleExpand }) => {
+const PhaseGroup: React.FC<PhaseGroupProps> = ({ phase, tasks, onStatusChange, expandedTasks, toggleExpand, forceCollapsed }) => {
     /** Whether this phase group is collapsed */
-    const [collapsed, setCollapsed] = useState(false);
+    const [localCollapsed, setLocalCollapsed] = useState(false);
+    const collapsed = forceCollapsed ?? localCollapsed;
+    const setCollapsed = (v: boolean) => setLocalCollapsed(v);
     const completedCount = tasks.filter(t => t.status === 'completed').length;
-    const totalTokens = tasks.reduce((sum, t) => sum + t.estimated_tokens, 0);
 
     const phaseColors: Record<string, string> = {
         'Setup': 'border-l-success bg-success/20',
@@ -362,14 +357,11 @@ const PhaseGroup: React.FC<PhaseGroupProps> = ({ phase, tasks, onStatusChange, e
                                 {completedCount}/{tasks.length}
                             </Badge>
                         </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>{totalTokens.toLocaleString()} tokens</span>
-                            <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-success transition-all"
-                                    style={{ width: `${(completedCount / tasks.length) * 100}%` }}
-                                />
-                            </div>
+                        <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-success transition-all"
+                                style={{ width: `${(completedCount / tasks.length) * 100}%` }}
+                            />
                         </div>
                     </button>
                 </CollapsibleTrigger>
@@ -390,189 +382,6 @@ const PhaseGroup: React.FC<PhaseGroupProps> = ({ phase, tasks, onStatusChange, e
         </Collapsible>
     );
 };
-
-// Summary Stats using Card
-/**
- * Props for SummaryStats component.
- * Displays aggregate statistics for all tasks.
- */
-interface SummaryStatsProps {
-    /** All tasks to compute statistics from */
-    tasks: Task[];
-}
-
-const SummaryStats: React.FC<SummaryStatsProps> = ({ tasks }) => {
-    const stats = [
-        { label: 'Total Tasks', value: tasks.length, color: 'bg-muted-foreground' },
-        { label: 'Completed', value: tasks.filter(t => t.status === 'completed').length, color: 'bg-success' },
-        { label: 'Parallelizable', value: tasks.filter(t => t.parallel).length, color: 'bg-info' },
-        { label: 'Critical Risk', value: tasks.filter(t => t.risk === 'critical').length, color: 'bg-destructive' }
-    ];
-
-    return (
-        <div className="grid grid-cols-4 gap-4 mb-6">
-            {stats.map(({ label, value, color }) => (
-                <Card key={label}>
-                    <CardContent className="p-4">
-                        <div className="text-2xl font-bold text-foreground">{value}</div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${color}`} />
-                            {label}
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
-    );
-};
-
-// Filter Bar using Select components
-/**
- * Filter state for task filtering.
- */
-interface FilterState {
-    /** Selected phase filter, or '__all__' for no filter */
-    phase: string;
-    /** Selected status filter, or '__all__' for no filter */
-    status: string;
-    /** Selected risk filter, or '__all__' for no filter */
-    risk: string;
-    /** Selected model tier filter, or '__all__' for no filter */
-    tier: string;
-    /** Whether to show only parallelizable tasks */
-    parallelOnly: boolean;
-}
-
-/**
- * Props for FilterBar component.
- * Bar with dropdowns for filtering tasks by various criteria.
- */
-interface FilterBarProps {
-    /** Current filter state */
-    filters: FilterState;
-    /** Callback to update the filter state */
-    setFilters: (f: FilterState) => void;
-    /** List of unique phase names for the phase filter */
-    phases: string[];
-    /** Statistics showing filtered count, total count, and token sum */
-    stats: { filtered: number; total: number; tokens: number };
-}
-
-const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, phases, stats }) => (
-    <Card className="mb-4">
-        <CardContent className="p-4">
-            <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                    <Filter size={16} className="text-muted-foreground" />
-                    <span className="text-sm font-medium text-muted-foreground">Filters:</span>
-                </div>
-
-                <Select value={filters.phase} onValueChange={(v) => setFilters({ ...filters, phase: v })}>
-                    <SelectTrigger className="w-[140px]">
-                        <SelectValue placeholder="All Phases" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="__all__">All Phases</SelectItem>
-                        {phases.filter(p => p && p.trim() !== '').map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-
-                <Select value={filters.status} onValueChange={(v) => setFilters({ ...filters, status: v })}>
-                    <SelectTrigger className="w-[130px]">
-                        <SelectValue placeholder="All Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="__all__">All Status</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="running">Running</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="failed">Failed</SelectItem>
-                    </SelectContent>
-                </Select>
-
-                <Select value={filters.risk} onValueChange={(v) => setFilters({ ...filters, risk: v })}>
-                    <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="All Risk" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="__all__">All Risk</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="critical">Critical</SelectItem>
-                    </SelectContent>
-                </Select>
-
-                <Select value={filters.tier} onValueChange={(v) => setFilters({ ...filters, tier: v })}>
-                    <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="All Tiers" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="__all__">All Tiers</SelectItem>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="standard">Standard</SelectItem>
-                        <SelectItem value="heavy">Heavy</SelectItem>
-                    </SelectContent>
-                </Select>
-
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                    <Checkbox
-                        checked={filters.parallelOnly}
-                        onCheckedChange={(checked: boolean | "indeterminate") => setFilters({ ...filters, parallelOnly: checked === true })}
-                    />
-                    Parallel only
-                </label>
-
-                <div className="ml-auto text-sm text-muted-foreground">
-                    {stats.filtered}/{stats.total} tasks • {stats.tokens.toLocaleString()} tokens
-                </div>
-            </div>
-        </CardContent>
-    </Card>
-);
-
-// View Toggle using Tabs
-/**
- * Props for ViewToggle component.
- * Tab buttons to switch between view modes.
- */
-interface ViewToggleProps {
-    /** Currently selected view mode */
-    view: string;
-    /** Callback to change the view mode */
-    setView: (v: string) => void;
-}
-
-const ViewToggle: React.FC<ViewToggleProps> = ({ view, setView }) => (
-    <Tabs value={view} onValueChange={setView}>
-        <TabsList>
-            <TabsTrigger value="phase" className="gap-1.5">
-                <Layers size={16} />
-                By Phase
-            </TabsTrigger>
-            <TabsTrigger value="code" className="gap-1.5">
-                <Code size={16} />
-                YAML
-            </TabsTrigger>
-        </TabsList>
-    </Tabs>
-);
-
-// YAML View
-/**
- * Props for YamlView component.
- * Displays raw YAML content in a code block.
- */
-interface YamlViewProps {
-    /** Raw YAML string to display */
-    rawYaml?: string;
-}
-
-const YamlView: React.FC<YamlViewProps> = ({ rawYaml }) => (
-    <pre className="font-mono text-sm bg-muted text-foreground p-4 rounded-lg overflow-auto max-h-[60vh]">
-        <code>{rawYaml || '# No YAML content'}</code>
-    </pre>
-);
 
 // Spec List View using Card
 /**
@@ -658,20 +467,12 @@ export const TaskEditor: React.FC = () => {
     // --- Task Data ---
     /** All tasks for the selected spec */
     const [tasks, setTasks] = useState<Task[]>([]);
-    /** Raw YAML content for the code view */
-    const [rawYaml, setRawYaml] = useState<string | undefined>();
-
-    // --- UI State ---
-    /** Current view mode: phase grouping or raw YAML code */
-    const [view, setView] = useState<'phase' | 'code'>('phase');
-    /** Track unsaved changes for save prompt */
-    const [hasChanges, setHasChanges] = useState(false);
     /** Set of task IDs with expanded details visible */
     const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
-    /** Filter state for phase, status, risk, tier, and parallel toggle */
-    const [filters, setFilters] = useState({ phase: '__all__', status: '__all__', risk: '__all__', tier: '__all__', parallelOnly: false });
     /** Currently selected task for the detail modal */
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    /** Whether all phase groups are collapsed */
+    const [allCollapsed, setAllCollapsed] = useState(false);
 
     // === QUERIES ===
 
@@ -699,25 +500,10 @@ export const TaskEditor: React.FC = () => {
         if (tasksDetailData?.success && tasksDetailData.tasks) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setTasks(tasksDetailData.tasks);
-             
-            setRawYaml(tasksDetailData.raw_yaml);
-             
-            setHasChanges(false);
         }
     }, [tasksDetailData]);
 
     // === MUTATIONS ===
-
-    // Save mutation
-    const saveMutation = useMutation({
-        mutationFn: () => saveTasks(selectedSpecName!, tasks),
-        onSuccess: (data: { success: boolean }) => {
-            if (data.success) {
-                setHasChanges(false);
-                queryClient.invalidateQueries({ queryKey: ['tasks', selectedSpecName] });
-            }
-        },
-    });
 
     // Status update mutation (for quick updates)
     const statusMutation = useMutation({
@@ -730,7 +516,7 @@ export const TaskEditor: React.FC = () => {
 
     // Plan generation mutation
     const planMutation = useMutation({
-        mutationFn: generatePlan,
+        mutationFn: () => generatePlan(selectedSpecName ?? undefined),
         onSuccess: (data) => {
             if (data.success) {
                 toast.success('Plan Generated', {
@@ -768,31 +554,14 @@ export const TaskEditor: React.FC = () => {
 
     const phases = useMemo(() => [...new Set(tasks.map(t => t.phase).filter(p => p && p.trim() !== ''))], [tasks]);
 
-    const filteredTasks = useMemo(() => {
-        return tasks.filter(t => {
-            if (filters.phase && filters.phase !== '__all__' && t.phase !== filters.phase) return false;
-            if (filters.status && filters.status !== '__all__' && t.status !== filters.status) return false;
-            if (filters.risk && filters.risk !== '__all__' && t.risk !== filters.risk) return false;
-            if (filters.tier && filters.tier !== '__all__' && t.model_tier !== filters.tier) return false;
-            if (filters.parallelOnly && !t.parallel) return false;
-            return true;
-        });
-    }, [tasks, filters]);
-
-    const stats = {
-        total: tasks.length,
-        filtered: filteredTasks.length,
-        tokens: filteredTasks.reduce((sum, t) => sum + t.estimated_tokens, 0)
-    };
-
     const tasksByPhase = useMemo(() => {
         const grouped: Record<string, Task[]> = {};
-        filteredTasks.forEach(t => {
+        tasks.forEach(t => {
             if (!grouped[t.phase]) grouped[t.phase] = [];
             grouped[t.phase].push(t);
         });
         return grouped;
-    }, [filteredTasks]);
+    }, [tasks]);
 
     // === RENDER HELPERS ===
 
@@ -854,87 +623,55 @@ export const TaskEditor: React.FC = () => {
                             <h1 className="text-lg font-semibold text-foreground">{selectedSpecName}</h1>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <ViewToggle view={view} setView={(v) => setView(v as typeof view)} />
-                        {hasChanges && (
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    if (tasksDetailData?.tasks) {
-                                        setTasks(tasksDetailData.tasks);
-                                        setRawYaml(tasksDetailData.raw_yaml);
-                                        setHasChanges(false);
-                                    }
-                                }}
-                            >
-                                <RotateCcw size={16} className="mr-2" />
-                                Discard
-                            </Button>
-                        )}
-                        <Button
-                            onClick={() => saveMutation.mutate()}
-                            disabled={!hasChanges || saveMutation.isPending}
-                        >
-                            {saveMutation.isPending ? (
-                                <Loader2 size={16} className="mr-2 animate-spin" />
-                            ) : (
-                                <Save size={16} className="mr-2" />
-                            )}
-                            Save
-                        </Button>
+                    <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
-                            onClick={() => planMutation.mutate()}
-                            disabled={planMutation.isPending || specsData?.specs.find(s => s.name === selectedSpecName)?.has_plan}
-                            className="gap-2"
+                            size="sm"
+                            onClick={() => setAllCollapsed(prev => !prev)}
+                            className="gap-1.5"
                         >
-                            {planMutation.isPending ? (
-                                <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                                <ClipboardList size={16} />
-                            )}
-                            {specsData?.specs.find(s => s.name === selectedSpecName)?.has_plan ? 'Plan Generated' : 'Generate Plan'}
+                            {allCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                            {allCollapsed ? 'Expand All' : 'Collapse All'}
                         </Button>
+
+                        <div className="w-px h-5 bg-border" />
+
+                        {specsData?.specs.find(s => s.name === selectedSpecName)?.has_plan ? (
+                            <Button variant="ghost" size="sm" disabled className="text-success gap-1.5">
+                                <CheckCircle2 size={14} />
+                                Plan Generated
+                            </Button>
+                        ) : (
+                            <Button
+                                onClick={() => planMutation.mutate()}
+                                disabled={planMutation.isPending}
+                                className="gap-2"
+                            >
+                                {planMutation.isPending ? (
+                                    <Loader2 size={16} className="animate-spin" />
+                                ) : (
+                                    <ClipboardList size={16} />
+                                )}
+                                Generate Plan
+                            </Button>
+                        )}
                     </div>
                 </CardContent>
             </Card>
 
             {/* Content */}
             <div className="flex-1 overflow-auto p-4">
-                {view !== 'code' && (
-                    <>
-                        <SummaryStats tasks={tasks} />
-                        <FilterBar filters={filters} setFilters={setFilters} phases={phases} stats={stats} />
-                    </>
-                )}
-
-                {view === 'phase' && (
-                    <div>
-                        {phases.filter(p => tasksByPhase[p]?.length > 0).map(phase => (
-                            <PhaseGroup
-                                key={phase}
-                                phase={phase}
-                                tasks={tasksByPhase[phase]}
-                                onStatusChange={handleStatusChange}
-                                expandedTasks={expandedTasks}
-                                toggleExpand={toggleExpand}
-                            />
-                        ))}
-                    </div>
-                )}
-
-
-                {view === 'code' && (
-                    <Card>
-                        <CardHeader className="py-2 px-4 flex flex-row items-center justify-between border-b border-border">
-                            <CardTitle className="text-sm">tasks.yaml</CardTitle>
-                            <Button variant="ghost" size="sm">Copy</Button>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <YamlView rawYaml={rawYaml} />
-                        </CardContent>
-                    </Card>
-                )}
+                {phases.filter(p => tasksByPhase[p]?.length > 0).map(phase => (
+                    <PhaseGroup
+                        key={phase}
+                        phase={phase}
+                        tasks={tasksByPhase[phase]}
+                        onStatusChange={handleStatusChange}
+                        expandedTasks={expandedTasks}
+                        toggleExpand={toggleExpand}
+                        forceCollapsed={allCollapsed ? true : undefined}
+                    />
+                ))}
             </div>
 
             {/* Status Bar */}
@@ -942,11 +679,6 @@ export const TaskEditor: React.FC = () => {
                 <div className="flex items-center gap-4">
                     <span>{tasks.length} tasks</span>
                     <span>{tasks.filter(t => t.status === 'completed').length} completed</span>
-                    <span>{tasks.reduce((s, t) => s + t.estimated_tokens, 0).toLocaleString()} tokens</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${hasChanges ? 'bg-warning' : 'bg-success'}`}></span>
-                    <span>{hasChanges ? 'Unsaved changes' : 'All changes saved'}</span>
                 </div>
             </div>
 

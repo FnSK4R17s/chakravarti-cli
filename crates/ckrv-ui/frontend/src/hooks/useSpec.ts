@@ -161,6 +161,18 @@ const generateTasks = async (name: string) => {
     return response.json();
 };
 
+const fetchDesignArtifacts = async (name: string) => {
+    const response = await fetch(`/api/specs/${encodeURIComponent(name)}/design/artifacts`);
+    if (!response.ok) throw new Error('Failed to fetch design artifacts');
+    return response.json();
+};
+
+const fetchTasksArtifacts = async (name: string) => {
+    const response = await fetch(`/api/specs/${encodeURIComponent(name)}/tasks/artifacts`);
+    if (!response.ok) throw new Error('Failed to fetch tasks artifacts');
+    return response.json();
+};
+
 const fetchClarifications = async (name: string) => {
     const response = await fetch(`/api/specs/${encodeURIComponent(name)}/clarifications`);
     if (!response.ok) throw new Error('Failed to fetch clarifications');
@@ -250,6 +262,32 @@ export function useGenerateTasks() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['specs'] });
         },
+    });
+}
+
+/**
+ * @param name - The spec name to fetch design artifacts for, or null to disable
+ * @returns {UseQueryResult} React Query result containing design.md and research.md content
+ */
+export function useDesignArtifacts(name: string | null) {
+    return useQuery({
+        queryKey: ['design-artifacts', name],
+        queryFn: () => (name ? fetchDesignArtifacts(name) : null),
+        enabled: !!name,
+        staleTime: 10000,
+    });
+}
+
+/**
+ * @param name - The spec name to fetch tasks artifacts for, or null to disable
+ * @returns {UseQueryResult} React Query result containing parsed tasks and raw YAML
+ */
+export function useTasksArtifacts(name: string | null) {
+    return useQuery({
+        queryKey: ['tasks-artifacts', name],
+        queryFn: () => (name ? fetchTasksArtifacts(name) : null),
+        enabled: !!name,
+        staleTime: 10000,
     });
 }
 

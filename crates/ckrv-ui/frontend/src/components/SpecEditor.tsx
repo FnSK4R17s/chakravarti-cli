@@ -28,20 +28,21 @@
 // === IMPORTS ===
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
 import {
-    ChevronDown, ChevronRight, Code, LayoutGrid, List,
+    ChevronDown, ChevronRight,
     FileText, Loader2, AlertCircle, CheckCircle2,
-    Circle, Lightbulb, X, GitBranch, Calendar, Tag
+    Circle, Lightbulb, GitBranch, Calendar, Tag, Sparkles, BookOpen, Search
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SpecWorkflow } from './SpecWorkflow';
 import { ClarifyModal } from './ClarifyModal';
-import { useClarifications, useSubmitClarifications, type Clarification } from '../hooks/useSpec';
+import { useClarifications, useSubmitClarifications, useValidateSpec, useGenerateDesign, useGenerateTasks, useDesignArtifacts, type Clarification } from '../hooks/useSpec';
+import { toast } from 'sonner';
 
 // === TYPES ===
 
@@ -107,6 +108,8 @@ interface SpecDetail {
     created?: string;
     /** Spec status: draft, ready, in_progress, done */
     status?: string;
+    /** Original user input prompt that created this spec */
+    input_prompt?: string;
     /** High-level spec overview (2-4 sentences) */
     overview: string;
     /** User stories describing the feature from user perspective */
@@ -172,11 +175,11 @@ const Section: React.FC<SectionProps> = ({ title, count, children, defaultOpen =
     const [isOpen, setIsOpen] = useState(defaultOpen);
     const colorClasses = {
         slate: 'border-border bg-muted/50',
-        blue: 'border-info bg-info/20',
-        green: 'border-success bg-success/20',
-        amber: 'border-warning bg-warning/20',
-        purple: 'border-primary bg-primary/20',
-        cyan: 'border-info/30 bg-info/5'
+        blue: 'border-border bg-muted/50',
+        green: 'border-border bg-muted/50',
+        amber: 'border-border bg-muted/50',
+        purple: 'border-border bg-muted/50',
+        cyan: 'border-border bg-muted/50'
     };
 
     return (
@@ -227,6 +230,41 @@ const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
     );
 };
 
+// Markdown Content Renderer
+/**
+ * Props for MarkdownContent component.
+ * Renders markdown strings with proper styling for dark theme.
+ */
+interface MarkdownContentProps {
+    /** Raw markdown string to render */
+    content: string;
+}
+
+const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => (
+    <div className="mt-2 p-2 text-sm text-foreground leading-relaxed
+        [&_h1]:text-lg [&_h1]:font-bold [&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:text-foreground [&_h1]:border-b [&_h1]:border-border [&_h1]:pb-1
+        [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:text-foreground
+        [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2.5 [&_h3]:mb-1 [&_h3]:text-foreground
+        [&_h4]:text-sm [&_h4]:font-medium [&_h4]:mt-2 [&_h4]:mb-1 [&_h4]:text-muted-foreground
+        [&_p]:my-1.5
+        [&_ul]:my-1.5 [&_ul]:ml-4 [&_ul]:list-disc
+        [&_ol]:my-1.5 [&_ol]:ml-4 [&_ol]:list-decimal
+        [&_li]:my-0.5
+        [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono
+        [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-md [&_pre]:my-2 [&_pre]:overflow-x-auto
+        [&_pre_code]:bg-transparent [&_pre_code]:p-0
+        [&_blockquote]:border-l-2 [&_blockquote]:border-accent/50 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-muted-foreground
+        [&_table]:w-full [&_table]:my-2 [&_table]:text-xs
+        [&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-1 [&_th]:bg-muted/50 [&_th]:text-left [&_th]:font-medium
+        [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1
+        [&_hr]:my-3 [&_hr]:border-border
+        [&_a]:text-accent [&_a]:underline
+        [&_strong]:font-semibold [&_strong]:text-foreground
+    ">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+);
+
 // User Story Card
 /**
  * Props for UserStoryCard component.
@@ -263,18 +301,18 @@ const UserStoryCard: React.FC<UserStoryCardProps> = ({ story }) => {
                     <div className="mt-3 pt-3 border-t border-border space-y-3">
                         <div>
                             <label className="text-xs text-muted-foreground uppercase tracking-wide">Description</label>
-                            <p className="text-sm text-secondary-foreground mt-1 whitespace-pre-wrap">{story.description}</p>
+                            <p className="text-sm text-foreground mt-1 whitespace-pre-wrap">{story.description}</p>
                         </div>
                         {story.why_priority && (
                             <div>
                                 <label className="text-xs text-muted-foreground uppercase tracking-wide">Why Priority</label>
-                                <p className="text-sm text-secondary-foreground mt-1">{story.why_priority}</p>
+                                <p className="text-sm text-foreground mt-1">{story.why_priority}</p>
                             </div>
                         )}
                         {story.independent_test && (
                             <div>
                                 <label className="text-xs text-muted-foreground uppercase tracking-wide">Independent Test</label>
-                                <p className="text-sm text-secondary-foreground mt-1">{story.independent_test}</p>
+                                <p className="text-sm text-foreground mt-1">{story.independent_test}</p>
                             </div>
                         )}
                         {story.acceptance_scenarios && story.acceptance_scenarios.length > 0 && (
@@ -295,92 +333,6 @@ const UserStoryCard: React.FC<UserStoryCardProps> = ({ story }) => {
         </Card>
     );
 };
-
-// View Mode Toggle
-/**
- * Props for ViewToggle component.
- * Tab buttons to switch between visual, outline, and code views.
- */
-interface ViewToggleProps {
-    /** Currently selected view mode */
-    view: string;
-    /** Callback to change the view mode */
-    setView: (v: string) => void;
-}
-
-const ViewToggle: React.FC<ViewToggleProps> = ({ view, setView }) => (
-    <Tabs value={view} onValueChange={setView}>
-        <TabsList>
-            <TabsTrigger value="visual" className="gap-1.5">
-                <LayoutGrid size={16} />
-                Visual
-            </TabsTrigger>
-            <TabsTrigger value="outline" className="gap-1.5">
-                <List size={16} />
-                Outline
-            </TabsTrigger>
-            <TabsTrigger value="code" className="gap-1.5">
-                <Code size={16} />
-                YAML
-            </TabsTrigger>
-        </TabsList>
-    </Tabs>
-);
-
-// Outline View
-/**
- * Props for OutlineView component.
- * Displays spec structure as a tree outline.
- */
-interface OutlineViewProps {
-    /** Spec data to display */
-    spec: SpecDetail;
-}
-
-const OutlineView: React.FC<OutlineViewProps> = ({ spec }) => (
-    <div className="font-mono text-sm space-y-1">
-        <div className="text-muted-foreground">spec:</div>
-        <div className="pl-4">
-            <div><span className="text-primary">id:</span> <span className="text-foreground">{spec.id}</span></div>
-            {spec.branch && <div><span className="text-primary">branch:</span> <span className="text-muted-foreground">{spec.branch}</span></div>}
-            {spec.status && <div><span className="text-primary">status:</span> <span className="text-muted-foreground">{spec.status}</span></div>}
-            <div><span className="text-primary">overview:</span> <span className="text-muted-foreground truncate inline-block max-w-md">{spec.overview?.slice(0, 80)}...</span></div>
-            <div className="mt-2">
-                <span className="text-primary">user_stories:</span> <span className="text-muted-foreground">({spec.user_stories?.length || 0})</span>
-                {spec.user_stories?.map(s => (
-                    <div key={s.id} className="pl-4 text-muted-foreground">- {s.id}: {s.title}</div>
-                ))}
-            </div>
-            <div className="mt-2">
-                <span className="text-primary">requirements.functional:</span> <span className="text-muted-foreground">({spec.requirements?.functional?.length || 0})</span>
-            </div>
-            <div className="mt-2">
-                <span className="text-primary">success_criteria:</span> <span className="text-muted-foreground">({spec.success_criteria?.length || 0})</span>
-            </div>
-            {spec.clarifications && spec.clarifications.length > 0 && (
-                <div className="mt-2">
-                    <span className="text-primary">clarifications:</span> <span className="text-warning">({spec.clarifications.filter(c => !c.resolved).length} unresolved)</span>
-                </div>
-            )}
-        </div>
-    </div>
-);
-
-// YAML View
-/**
- * Props for YamlView component.
- * Displays raw YAML content in a code block.
- */
-interface YamlViewProps {
-    /** Raw YAML string to display */
-    rawYaml?: string;
-}
-
-const YamlView: React.FC<YamlViewProps> = ({ rawYaml }) => (
-    <pre className="font-mono text-sm bg-muted text-foreground p-4 rounded-lg overflow-auto max-h-[60vh]">
-        <code>{rawYaml || '# No YAML content'}</code>
-    </pre>
-);
 
 // Spec List View
 /**
@@ -471,16 +423,16 @@ export const SpecEditor: React.FC = () => {
     // --- Spec Data ---
     /** Loaded spec detail for display */
     const [spec, setSpec] = useState<SpecDetail | null>(null);
-    /** Raw YAML content for the code view */
-    const [rawYaml, setRawYaml] = useState<string | undefined>();
 
     // --- UI State ---
-    /** Current view mode: visual cards, outline tree, or raw YAML */
-    const [view, setView] = useState<'visual' | 'outline' | 'code'>('visual');
     /** Show the clarification modal for answering spec questions */
     const [showClarifyModal, setShowClarifyModal] = useState(false);
-    /** Show the workflow progress panel sidebar */
-    const [showWorkflowPanel, setShowWorkflowPanel] = useState(true);
+
+    // --- Workflow State ---
+    /** Result from spec validation (valid flag and errors list) */
+    const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[] } | null>(null);
+    /** Track if an async workflow operation is in progress */
+    const [isWorkflowProcessing, setIsWorkflowProcessing] = useState(false);
 
     // === QUERIES ===
 
@@ -507,7 +459,6 @@ export const SpecEditor: React.FC = () => {
         if (specDetailData?.success && specDetailData.spec) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setSpec(specDetailData.spec);
-            setRawYaml(specDetailData.raw_yaml);
         }
     }, [specDetailData]);
 
@@ -515,6 +466,9 @@ export const SpecEditor: React.FC = () => {
     const { data: clarificationsData } = useClarifications(selectedSpecName);
     const clarifications: Clarification[] = clarificationsData?.clarifications ?? [];
     const unresolvedCount = clarificationsData?.unresolved_count ?? 0;
+
+    // Fetch design artifacts (design.md, research.md)
+    const { data: designData } = useDesignArtifacts(selectedSpecName);
 
     // Submit clarifications mutation
     const submitClarificationsMutation = useSubmitClarifications();
@@ -524,6 +478,60 @@ export const SpecEditor: React.FC = () => {
         await submitClarificationsMutation.mutateAsync({ name: selectedSpecName, answers });
         queryClient.invalidateQueries({ queryKey: ['spec', selectedSpecName] });
         queryClient.invalidateQueries({ queryKey: ['clarifications', selectedSpecName] });
+    };
+
+    // --- Workflow Mutations ---
+    const validateMutation = useValidateSpec();
+    const designMutation = useGenerateDesign();
+    const tasksMutation = useGenerateTasks();
+
+    const hasDesign = specsData?.specs.find(s => s.name === selectedSpecName)?.has_design ?? false;
+    const hasTasks = specsData?.specs.find(s => s.name === selectedSpecName)?.has_tasks ?? false;
+    const needsClarification = unresolvedCount > 0;
+    const canDesign = !needsClarification && !hasDesign;
+    const canGenerateTasks = hasDesign && !hasTasks;
+
+    const handleValidate = async () => {
+        if (!selectedSpecName) return;
+        setIsWorkflowProcessing(true);
+        try {
+            const result = await validateMutation.mutateAsync(selectedSpecName);
+            setValidationResult({ valid: result.valid, errors: result.errors.map((e: { field: string; message: string }) => `${e.field}: ${e.message}`) });
+        } catch (e) {
+            toast.error('Validation failed', { description: e instanceof Error ? e.message : 'Unknown error' });
+        } finally {
+            setIsWorkflowProcessing(false);
+        }
+    };
+
+    const handleDesign = async () => {
+        if (!selectedSpecName) return;
+        setIsWorkflowProcessing(true);
+        try {
+            await designMutation.mutateAsync(selectedSpecName);
+            toast.success('Design Generated', { description: 'design.md has been created successfully' });
+            queryClient.invalidateQueries({ queryKey: ['specs'] });
+            queryClient.invalidateQueries({ queryKey: ['design-artifacts', selectedSpecName] });
+        } catch (e) {
+            toast.error('Design Generation Failed', { description: e instanceof Error ? e.message : 'Unknown error' });
+        } finally {
+            setIsWorkflowProcessing(false);
+        }
+    };
+
+    const handleTasks = async () => {
+        if (!selectedSpecName) return;
+        setIsWorkflowProcessing(true);
+        try {
+            await tasksMutation.mutateAsync(selectedSpecName);
+            toast.success('Tasks Generated', { description: 'tasks.yaml has been created successfully' });
+            queryClient.invalidateQueries({ queryKey: ['specs'] });
+            queryClient.invalidateQueries({ queryKey: ['tasks-artifacts', selectedSpecName] });
+        } catch (e) {
+            toast.error('Tasks Generation Failed', { description: e instanceof Error ? e.message : 'Unknown error' });
+        } finally {
+            setIsWorkflowProcessing(false);
+        }
     };
 
     // Show spec list if nothing selected (neither auto nor manual)
@@ -588,44 +596,127 @@ export const SpecEditor: React.FC = () => {
                             </span>
                         )}
                     </div>
-                    <div className="flex items-center gap-3">
-                        <ViewToggle view={view} setView={(v) => setView(v as typeof view)} />
+                    {/* Workflow Actions */}
+                    <div className="flex items-center gap-1.5">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleValidate}
+                            disabled={isWorkflowProcessing}
+                            className={validationResult?.valid ? 'border-success/50 text-success' : ''}
+                        >
+                            {isWorkflowProcessing && validateMutation.isPending ? (
+                                <Loader2 size={14} className="mr-1.5 animate-spin" />
+                            ) : validationResult?.valid ? (
+                                <CheckCircle2 size={14} className="mr-1.5" />
+                            ) : (
+                                <CheckCircle2 size={14} className="mr-1.5" />
+                            )}
+                            Validate
+                        </Button>
+
+                        <div className="w-px h-5 bg-border" />
+
+                        {needsClarification ? (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowClarifyModal(true)}
+                                className="border-warning/50 text-warning hover:bg-warning/10"
+                            >
+                                <Lightbulb size={14} className="mr-1.5" />
+                                Clarify ({unresolvedCount})
+                            </Button>
+                        ) : (
+                            <Button variant="ghost" size="sm" disabled className="text-success gap-1.5">
+                                <CheckCircle2 size={14} />
+                                Clarified
+                            </Button>
+                        )}
+
+                        {hasDesign ? (
+                            <Button variant="ghost" size="sm" disabled className="text-success gap-1.5">
+                                <CheckCircle2 size={14} />
+                                Design
+                            </Button>
+                        ) : canDesign ? (
+                            <Button
+                                size="sm"
+                                onClick={handleDesign}
+                                disabled={isWorkflowProcessing}
+                            >
+                                {isWorkflowProcessing && designMutation.isPending ? (
+                                    <Loader2 size={14} className="mr-1.5 animate-spin" />
+                                ) : (
+                                    <Sparkles size={14} className="mr-1.5" />
+                                )}
+                                Design
+                            </Button>
+                        ) : (
+                            <Button variant="ghost" size="sm" disabled className="opacity-40 gap-1.5">
+                                <FileText size={14} />
+                                Design
+                            </Button>
+                        )}
+
+                        {hasTasks ? (
+                            <Button variant="ghost" size="sm" disabled className="text-success gap-1.5">
+                                <CheckCircle2 size={14} />
+                                Tasks
+                            </Button>
+                        ) : canGenerateTasks ? (
+                            <Button
+                                size="sm"
+                                onClick={handleTasks}
+                                disabled={isWorkflowProcessing}
+                            >
+                                {isWorkflowProcessing && tasksMutation.isPending ? (
+                                    <Loader2 size={14} className="mr-1.5 animate-spin" />
+                                ) : (
+                                    <Sparkles size={14} className="mr-1.5" />
+                                )}
+                                Tasks
+                            </Button>
+                        ) : (
+                            <Button variant="ghost" size="sm" disabled className="opacity-40 gap-1.5">
+                                <FileText size={14} />
+                                Tasks
+                            </Button>
+                        )}
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Clarifications Alert */}
-            {unresolvedCount > 0 && (
+            {/* Validation Result Banner */}
+            {validationResult && !validationResult.valid && (
                 <div className="shrink-0 mx-4 mt-2">
                     <Card className="border-warning/50 bg-warning/5">
-                        <CardContent className="p-3 flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-warning">
-                                <Lightbulb size={18} />
-                                <span className="text-sm font-medium">
-                                    {unresolvedCount} clarification{unresolvedCount > 1 ? 's' : ''} needed
-                                </span>
-                            </div>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-warning/50 text-warning hover:bg-warning/10"
-                                onClick={() => setShowClarifyModal(true)}
-                            >
-                                Resolve Now
-                            </Button>
+                        <CardContent className="p-3 text-sm text-warning">
+                            <AlertCircle className="w-4 h-4 inline mr-2" />
+                            Validation failed:
+                            <ul className="mt-1 ml-6 list-disc">
+                                {validationResult.errors.map((err, i) => (
+                                    <li key={i}>{err}</li>
+                                ))}
+                            </ul>
                         </CardContent>
                     </Card>
                 </div>
             )}
 
-            {/* Content with optional workflow panel */}
-            <div className="flex-1 flex overflow-hidden">
-                <div className="flex-1 overflow-auto p-4">
-                    {view === 'visual' && (
-                        <>
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-4">
+                            {/* Input Prompt */}
+                            {spec.input_prompt && (
+                                <div className="mb-3 px-3 py-2 rounded-md bg-accent/5 border border-accent/20">
+                                    <span className="text-xs font-medium text-accent uppercase tracking-wide">Original Prompt</span>
+                                    <p className="text-sm text-foreground mt-1">{spec.input_prompt}</p>
+                                </div>
+                            )}
+
                             {/* Overview Section */}
                             <Section title="Overview" color="blue" defaultOpen={true}>
-                                <p className="text-sm text-secondary-foreground whitespace-pre-wrap p-2">
+                                <p className="text-sm text-foreground whitespace-pre-wrap p-2">
                                     {spec.overview}
                                 </p>
                             </Section>
@@ -645,7 +736,7 @@ export const SpecEditor: React.FC = () => {
                                     {functionalReqs.map((req) => (
                                         <div key={req.id} className="flex items-start gap-3 py-2 border-b border-border last:border-0">
                                             <Badge variant="info" className="font-mono text-xs flex-shrink-0">{req.id}</Badge>
-                                            <span className="text-sm text-secondary-foreground">{req.description}</span>
+                                            <span className="text-sm text-foreground">{req.description}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -660,7 +751,7 @@ export const SpecEditor: React.FC = () => {
                                                 <Badge variant="secondary" className="font-mono text-xs">{sc.id}</Badge>
                                                 <CheckCircle2 size={14} className="text-success" />
                                             </div>
-                                            <p className="text-sm text-secondary-foreground mt-1">{sc.metric}</p>
+                                            <p className="text-sm text-foreground mt-1">{sc.metric}</p>
                                             {sc.measurement && (
                                                 <p className="text-xs text-muted-foreground mt-1">
                                                     <span className="font-medium">Measurement:</span> {sc.measurement}
@@ -725,68 +816,40 @@ export const SpecEditor: React.FC = () => {
                                     </div>
                                 </Section>
                             )}
-                        </>
-                    )}
 
-                    {view === 'outline' && (
-                        <Card>
-                            <CardContent className="p-6">
-                                <OutlineView spec={spec} />
-                            </CardContent>
-                        </Card>
-                    )}
+                            {/* Research */}
+                            {(designData?.has_research || designData?.research != null) && (
+                                <Section
+                                    title="Research"
+                                    color="cyan"
+                                    defaultOpen={false}
+                                    icon={<Search size={16} className="text-info" />}
+                                >
+                                    {designData.research ? (
+                                        <MarkdownContent content={designData.research} />
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground italic p-2 mt-2">No research content yet.</p>
+                                    )}
+                                </Section>
+                            )}
 
-                    {view === 'code' && (
-                        <Card>
-                            <CardHeader className="py-2 px-4 flex flex-row items-center justify-between border-b border-border">
-                                <CardTitle className="text-sm">spec.yaml</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                <YamlView rawYaml={rawYaml} />
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
+                            {/* Design */}
+                            {(hasDesign || designData?.has_design || designData?.design != null) && (
+                                <Section
+                                    title="Design"
+                                    color="blue"
+                                    defaultOpen={false}
+                                    icon={<BookOpen size={16} className="text-primary" />}
+                                >
+                                    {designData?.design ? (
+                                        <MarkdownContent content={designData.design} />
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground italic p-2 mt-2">No design content yet.</p>
+                                    )}
+                                </Section>
+                            )}
 
-                {/* Workflow Panel (collapsible sidebar) */}
-                {showWorkflowPanel && selectedSpecName && (
-                    <div className="w-80 shrink-0 border-l border-border overflow-auto p-4 bg-muted/20">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold text-foreground">Workflow</h3>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => setShowWorkflowPanel(false)}
-                            >
-                                <X size={14} />
-                            </Button>
-                        </div>
-                        <SpecWorkflow
-                            specName={selectedSpecName}
-                            unresolvedClarifications={unresolvedCount}
-                            hasDesign={specsData?.specs.find(s => s.name === selectedSpecName)?.has_design ?? false}
-                            hasTasks={specsData?.specs.find(s => s.name === selectedSpecName)?.has_tasks ?? false}
-                            onClarifyClick={() => setShowClarifyModal(true)}
-                            onDesignComplete={() => queryClient.invalidateQueries({ queryKey: ['specs'] })}
-                            onTasksComplete={() => queryClient.invalidateQueries({ queryKey: ['specs'] })}
-                        />
-                    </div>
-                )}
             </div>
-
-            {/* Toggle workflow panel button when closed */}
-            {!showWorkflowPanel && (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="absolute right-4 top-20"
-                    onClick={() => setShowWorkflowPanel(true)}
-                >
-                    <Lightbulb size={14} className="mr-1" />
-                    Workflow
-                </Button>
-            )}
 
             {/* Clarify Modal */}
             <ClarifyModal
