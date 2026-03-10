@@ -160,7 +160,11 @@ async fn get_clarifications(
     let state_clone = state.clone();
     let name_clone = name.clone();
     match tokio::task::spawn_blocking(move || {
-        let spec_path = state_clone.project_root.join(".specs").join(&name_clone).join("spec.yaml");
+        let spec_path = state_clone
+            .project_root
+            .join(".specs")
+            .join(&name_clone)
+            .join("spec.yaml");
         if !spec_path.exists() {
             return Ok::<serde_json::Value, String>(serde_json::json!({
                 "spec": name_clone,
@@ -170,16 +174,26 @@ async fn get_clarifications(
         }
         let content = std::fs::read_to_string(&spec_path).map_err(|e| e.to_string())?;
         let yaml: serde_json::Value = serde_yaml::from_str(&content).map_err(|e| e.to_string())?;
-        let clarifications = yaml.get("clarifications").cloned().unwrap_or(serde_json::json!([]));
-        let unresolved_count = clarifications.as_array().map(|arr| {
-            arr.iter().filter(|c| c.get("resolved").map_or(true, |v| v.is_null())).count()
-        }).unwrap_or(0);
+        let clarifications = yaml
+            .get("clarifications")
+            .cloned()
+            .unwrap_or(serde_json::json!([]));
+        let unresolved_count = clarifications
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter(|c| c.get("resolved").map_or(true, serde_json::Value::is_null))
+                    .count()
+            })
+            .unwrap_or(0);
         Ok(serde_json::json!({
             "spec": name_clone,
             "clarifications": clarifications,
             "unresolved_count": unresolved_count
         }))
-    }).await {
+    })
+    .await
+    {
         Ok(Ok(result)) => Json(result).into_response(),
         Ok(Err(e)) => TransportError::Internal(e).into_response(),
         Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
@@ -207,7 +221,11 @@ async fn clarify(
 ) -> impl IntoResponse {
     let answers = request.answers;
     match tokio::task::spawn_blocking(move || {
-        let spec_path = state.project_root.join(".specs").join(&name).join("spec.yaml");
+        let spec_path = state
+            .project_root
+            .join(".specs")
+            .join(&name)
+            .join("spec.yaml");
         if !spec_path.exists() {
             return Err(format!("Spec '{}' not found", name));
         }

@@ -410,8 +410,7 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
             }
 
             // Re-serialize with input_prompt included
-            let yaml = serde_yaml::to_string(&spec)
-                .unwrap_or(spec_content);
+            let yaml = serde_yaml::to_string(&spec).unwrap_or(spec_content);
             (yaml, has_clarifications)
         }
         Err(e) => {
@@ -420,7 +419,11 @@ async fn execute_generate(description: &str, name: Option<&str>, json: bool) -> 
                 eprintln!("Writing raw output - manual review recommended");
             }
             // Fallback: inject input_prompt as raw YAML at the top
-            let injected = format!("input_prompt: |\n  {}\n{}", description.replace('\n', "\n  "), spec_content);
+            let injected = format!(
+                "input_prompt: |\n  {}\n{}",
+                description.replace('\n', "\n  "),
+                spec_content
+            );
             (injected, false)
         }
     };

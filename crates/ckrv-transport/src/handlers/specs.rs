@@ -76,7 +76,8 @@ pub fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, Transpo
                         let has_plan = plan_yaml.exists();
 
                         // Check for design artifact (CLI creates design.md)
-                        let has_design = path.join("design.md").exists() || path.join("design.yaml").exists();
+                        let has_design =
+                            path.join("design.md").exists() || path.join("design.yaml").exists();
 
                         // Check implementation status
                         let impl_yaml = path.join("implementation.yaml");
@@ -543,7 +544,7 @@ pub fn generate_design_handler(
     let stdout = String::from_utf8_lossy(&output.stdout);
     if let Some(result) = extract_json_from_output(&stdout) {
         // Check for logical failure (CLI exits 0 but returns success: false)
-        if result.get("success").and_then(|v| v.as_bool()) == Some(false) {
+        if result.get("success").and_then(serde_json::Value::as_bool) == Some(false) {
             let error_msg = result
                 .get("error")
                 .and_then(|v| v.as_str())
@@ -560,8 +561,9 @@ pub fn generate_design_handler(
         if let Some(ref path) = design_path {
             let file_path = std::path::Path::new(path);
             if file_path.exists() {
-                let metadata = std::fs::metadata(file_path)
-                    .map_err(|e| TransportError::Internal(format!("Cannot read design file: {e}")))?;
+                let metadata = std::fs::metadata(file_path).map_err(|e| {
+                    TransportError::Internal(format!("Cannot read design file: {e}"))
+                })?;
                 if metadata.len() == 0 {
                     return Err(TransportError::Internal(
                         "Design generation produced an empty file. The AI agent may have failed to generate content. Try running again.".to_string()
@@ -624,7 +626,7 @@ pub fn generate_tasks_handler(
     let stdout = String::from_utf8_lossy(&output.stdout);
     if let Some(result) = extract_json_from_output(&stdout) {
         // Check for logical failure (CLI exits 0 but returns success: false)
-        if result.get("success").and_then(|v| v.as_bool()) == Some(false) {
+        if result.get("success").and_then(serde_json::Value::as_bool) == Some(false) {
             let error_msg = result
                 .get("error")
                 .and_then(|v| v.as_str())
@@ -641,8 +643,9 @@ pub fn generate_tasks_handler(
         if let Some(ref path) = tasks_path {
             let file_path = std::path::Path::new(path);
             if file_path.exists() {
-                let metadata = std::fs::metadata(file_path)
-                    .map_err(|e| TransportError::Internal(format!("Cannot read tasks file: {e}")))?;
+                let metadata = std::fs::metadata(file_path).map_err(|e| {
+                    TransportError::Internal(format!("Cannot read tasks file: {e}"))
+                })?;
                 if metadata.len() == 0 {
                     return Err(TransportError::Internal(
                         "Task generation produced an empty file. The AI agent may have failed to generate content. Try running again.".to_string()
