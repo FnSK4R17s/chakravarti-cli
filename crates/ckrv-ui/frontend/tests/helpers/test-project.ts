@@ -56,11 +56,28 @@ export const test = base.extend<TestProjectFixture>({
                 await cp(fixturesPath, tempDir, { recursive: true });
             } catch {
                 // If fixtures don't exist, create minimal structure
-                await mkdir(join(tempDir, 'specs'), { recursive: true });
+                await mkdir(join(tempDir, '.specs', 'test-feature'), { recursive: true });
                 await mkdir(join(tempDir, '.chakravarti'), { recursive: true });
                 await writeFile(
                     join(tempDir, 'package.json'),
                     JSON.stringify({ name: 'test-project', version: '1.0.0' }, null, 2)
+                );
+                // Create spec artifacts so all Code page tabs are unlocked
+                await writeFile(
+                    join(tempDir, '.specs', 'test-feature', 'spec.yaml'),
+                    'id: test-feature\noverview: Test feature\nstatus: draft\nuser_stories: []\nrequirements: { functional: [] }\nsuccess_criteria: []\n'
+                );
+                await writeFile(
+                    join(tempDir, '.specs', 'test-feature', 'design.md'),
+                    '# Test Design\nPlaceholder design.\n'
+                );
+                await writeFile(
+                    join(tempDir, '.specs', 'test-feature', 'tasks.yaml'),
+                    'tasks:\n  - id: T001\n    phase: Setup\n    title: Test task\n    description: Placeholder\n    status: pending\n'
+                );
+                await writeFile(
+                    join(tempDir, '.specs', 'test-feature', 'plan.yaml'),
+                    'batches:\n  - id: setup\n    name: Setup\n    task_ids: [T001]\n    depends_on: []\n'
                 );
             }
 
@@ -112,7 +129,7 @@ export async function seedTestData(
     specName: string,
     specContent: string
 ): Promise<void> {
-    const specDir = join(testProject, 'specs', specName);
+    const specDir = join(testProject, '.specs', specName);
     await mkdir(specDir, { recursive: true });
     await writeFile(join(specDir, 'spec.yaml'), specContent);
 

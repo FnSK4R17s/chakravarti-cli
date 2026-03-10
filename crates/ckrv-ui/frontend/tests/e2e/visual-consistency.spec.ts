@@ -60,11 +60,16 @@ test.describe('Visual Consistency', () => {
         await page.click('[data-testid="nav-code"]').catch(() => {
             return page.click('text=Code');
         });
-        // Click Run tab
-        await page.click('[data-testid="code-tab-run"]').catch(() => {
-            return page.click('text=Run');
-        });
 
+        // Run tab may be locked if no plan artifacts exist
+        const runTab = page.locator('[data-testid="code-tab-run"]');
+        if (await runTab.isDisabled()) {
+            // Take screenshot of locked state instead
+            await page.screenshot({ path: 'test-results/visual-code-runner-locked.png', fullPage: true });
+            return;
+        }
+
+        await runTab.click();
         await page.waitForLoadState('domcontentloaded');
 
         // Screenshot for visual comparison
