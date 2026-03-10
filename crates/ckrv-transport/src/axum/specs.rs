@@ -22,7 +22,8 @@
 
 use crate::error::TransportError;
 use crate::handlers::specs::{
-    create_spec_handler, get_spec_handler, list_specs_handler, update_spec_handler,
+    create_spec_handler, generate_design_handler, generate_tasks_handler, get_spec_handler,
+    list_specs_handler, update_spec_handler, validate_spec_handler,
 };
 use crate::state::AppState;
 use crate::types::{CreateSpecRequest, UpdateSpecRequest};
@@ -115,62 +116,210 @@ async fn save_spec(
     }
 }
 
-/// Validate spec - placeholder.
+/// Validate spec via CLI.
 async fn validate_spec(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> impl IntoResponse {
-    Json(serde_json::json!({
-        "valid": true,
-        "spec": name,
-        "errors": []
-    }))
+    match tokio::task::spawn_blocking(move || validate_spec_handler(&state, name)).await {
+        Ok(Ok(result)) => Json(serde_json::json!(result)).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
+    }
 }
 
-/// Generate design - placeholder.
+/// Generate design via CLI.
 async fn generate_design(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> impl IntoResponse {
-    Json(serde_json::json!({
-        "status": "ok",
-        "spec": name,
-        "message": "Design generation started"
-    }))
+    match tokio::task::spawn_blocking(move || generate_design_handler(&state, name)).await {
+        Ok(Ok(result)) => Json(serde_json::json!(result)).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
+    }
 }
 
-/// Generate tasks - placeholder.
+/// Generate tasks via CLI.
 async fn generate_tasks(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> impl IntoResponse {
-    Json(serde_json::json!({
-        "status": "ok",
-        "spec": name,
-        "message": "Task generation started"
-    }))
+    match tokio::task::spawn_blocking(move || generate_tasks_handler(&state, name)).await {
+        Ok(Ok(result)) => Json(serde_json::json!(result)).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
+    }
 }
 
-/// Get clarifications - placeholder.
+/// Get clarifications from spec YAML.
 async fn get_clarifications(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> impl IntoResponse {
-    Json(serde_json::json!({
-        "spec": name,
-        "clarifications": []
-    }))
+    let state_clone = state.clone();
+    let name_clone = name.clone();
+    match tokio::task::spawn_blocking(move || {
+        let spec_path = state_clone.project_root.join(".specs").join(&name_clone).join("spec.yaml");
+        if !spec_path.exists() {
+            return Ok::<serde_json::Value, String>(serde_json::json!({
+                "spec": name_clone,
+                "clarifications": [],
+                "unresolved_count": 0
+            }));
+        }
+        let content = std::fs::read_to_string(&spec_path).map_err(|e| e.to_string())?;
+        let yaml: serde_json::Value = serde_yaml::from_str(&content).map_err(|e| e.to_string())?;
+        let clarifications = yaml.get("clarifications").cloned().unwrap_or(serde_json::json!([]));
+        let unresolved_count = clarifications.as_array().map(|arr| {
+            arr.iter().filter(|c| c.get("resolved").map_or(true, |v| v.is_null())).count()
+        }).unwrap_or(0);
+        Ok(serde_json::json!({
+            "spec": name_clone,
+            "clarifications": clarifications,
+            "unresolved_count": unresolved_count
+        }))
+    }).await {
+        Ok(Ok(result)) => Json(result).into_response(),
+        Ok(Err(e)) => TransportError::Internal(e).into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
+    }
 }
 
-/// Answer clarifications - placeholder.
+/// Request body for POST /specs/{name}/clarify.
+#[derive(Deserialize)]
+struct ClarifyRequest {
+    answers: Vec<ClarifyAnswer>,
+}
+
+/// A single clarification answer.
+#[derive(Deserialize)]
+struct ClarifyAnswer {
+    topic: String,
+    answer: String,
+}
+
+/// Answer clarifications by writing resolved values into spec.yaml.
 async fn clarify(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    axum::extract::Path(name): axum::extract::Path<String>,
+    Json(request): Json<ClarifyRequest>,
+) -> impl IntoResponse {
+    let answers = request.answers;
+    match tokio::task::spawn_blocking(move || {
+        let spec_path = state.project_root.join(".specs").join(&name).join("spec.yaml");
+        if !spec_path.exists() {
+            return Err(format!("Spec '{}' not found", name));
+        }
+
+        let content = std::fs::read_to_string(&spec_path).map_err(|e| e.to_string())?;
+        let mut yaml: serde_yaml::Value =
+            serde_yaml::from_str(&content).map_err(|e| e.to_string())?;
+
+        // Build a lookup map from topic -> answer
+        let answer_map: std::collections::HashMap<String, String> =
+            answers.into_iter().map(|a| (a.topic, a.answer)).collect();
+
+        // Update clarifications in-place
+        if let Some(clarifications) = yaml.get_mut("clarifications") {
+            if let Some(arr) = clarifications.as_sequence_mut() {
+                for item in arr.iter_mut() {
+                    if let Some(topic) = item.get("topic").and_then(|t| t.as_str()) {
+                        if let Some(answer) = answer_map.get(topic) {
+                            item.as_mapping_mut().map(|m| {
+                                m.insert(
+                                    serde_yaml::Value::String("resolved".to_string()),
+                                    serde_yaml::Value::String(answer.clone()),
+                                )
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        let updated_yaml = serde_yaml::to_string(&yaml).map_err(|e| e.to_string())?;
+        std::fs::write(&spec_path, &updated_yaml).map_err(|e| e.to_string())?;
+
+        Ok(serde_json::json!({
+            "success": true,
+            "spec": name,
+            "answers_saved": answer_map.len()
+        }))
+    })
+    .await
+    {
+        Ok(Ok(result)) => Json(result).into_response(),
+        Ok(Err(e)) => TransportError::Internal(e).into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
+    }
+}
+
+/// Get design artifacts (design.md and research.md) for a spec.
+async fn get_design_artifacts(
+    State(state): State<AppState>,
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> impl IntoResponse {
-    Json(serde_json::json!({
-        "status": "ok",
-        "spec": name
-    }))
+    match tokio::task::spawn_blocking(move || {
+        let spec_dir = state.project_root.join(".specs").join(&name);
+        if !spec_dir.exists() {
+            return Err(format!("Spec '{}' not found", name));
+        }
+
+        let design_content = std::fs::read_to_string(spec_dir.join("design.md")).ok();
+        let research_content = std::fs::read_to_string(spec_dir.join("research.md")).ok();
+
+        Ok(serde_json::json!({
+            "spec": name,
+            "has_design": design_content.is_some(),
+            "has_research": research_content.is_some(),
+            "design": design_content,
+            "research": research_content,
+        }))
+    })
+    .await
+    {
+        Ok(Ok(result)) => Json(result).into_response(),
+        Ok(Err(e)) => TransportError::Internal(e).into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
+    }
+}
+
+/// Get tasks artifacts (tasks.yaml content) for a spec.
+async fn get_tasks_artifacts(
+    State(state): State<AppState>,
+    axum::extract::Path(name): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    match tokio::task::spawn_blocking(move || {
+        let spec_dir = state.project_root.join(".specs").join(&name);
+        if !spec_dir.exists() {
+            return Err(format!("Spec '{}' not found", name));
+        }
+
+        let tasks_path = spec_dir.join("tasks.yaml");
+        let tasks_content = std::fs::read_to_string(&tasks_path).ok();
+        let tasks: Vec<serde_json::Value> = tasks_content
+            .as_ref()
+            .and_then(|c| {
+                let yaml: serde_json::Value = serde_yaml::from_str(c).ok()?;
+                yaml.get("tasks")?.as_array().cloned()
+            })
+            .unwrap_or_default();
+
+        Ok(serde_json::json!({
+            "spec": name,
+            "has_tasks": tasks_content.is_some() && !tasks.is_empty(),
+            "tasks": tasks,
+            "task_count": tasks.len(),
+            "raw": tasks_content,
+        }))
+    })
+    .await
+    {
+        Ok(Ok(result)) => Json(result).into_response(),
+        Ok(Err(e)) => TransportError::Internal(e).into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
+    }
 }
 
 // ============================================================
@@ -188,7 +337,9 @@ pub fn routes() -> Router<AppState> {
         // Per-spec operations
         .route("/specs/{name}/validate", get(validate_spec))
         .route("/specs/{name}/design", post(generate_design))
+        .route("/specs/{name}/design/artifacts", get(get_design_artifacts))
         .route("/specs/{name}/tasks", post(generate_tasks))
+        .route("/specs/{name}/tasks/artifacts", get(get_tasks_artifacts))
         .route("/specs/{name}/clarifications", get(get_clarifications))
         .route("/specs/{name}/clarify", post(clarify))
 }

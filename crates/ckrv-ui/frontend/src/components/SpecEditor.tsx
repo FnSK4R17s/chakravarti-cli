@@ -28,18 +28,20 @@
 // === IMPORTS ===
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useAutoSelectedSpec } from '../hooks/useAutoSelectedSpec';
 import {
     ChevronDown, ChevronRight,
     FileText, Loader2, AlertCircle, CheckCircle2,
-    Circle, Lightbulb, GitBranch, Calendar, Tag, Sparkles
+    Circle, Lightbulb, GitBranch, Calendar, Tag, Sparkles, BookOpen, Search
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ClarifyModal } from './ClarifyModal';
-import { useClarifications, useSubmitClarifications, useValidateSpec, useGenerateDesign, useGenerateTasks, type Clarification } from '../hooks/useSpec';
+import { useClarifications, useSubmitClarifications, useValidateSpec, useGenerateDesign, useGenerateTasks, useDesignArtifacts, type Clarification } from '../hooks/useSpec';
 import { toast } from 'sonner';
 
 // === TYPES ===
@@ -106,6 +108,8 @@ interface SpecDetail {
     created?: string;
     /** Spec status: draft, ready, in_progress, done */
     status?: string;
+    /** Original user input prompt that created this spec */
+    input_prompt?: string;
     /** High-level spec overview (2-4 sentences) */
     overview: string;
     /** User stories describing the feature from user perspective */
@@ -225,6 +229,41 @@ const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
         </Badge>
     );
 };
+
+// Markdown Content Renderer
+/**
+ * Props for MarkdownContent component.
+ * Renders markdown strings with proper styling for dark theme.
+ */
+interface MarkdownContentProps {
+    /** Raw markdown string to render */
+    content: string;
+}
+
+const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => (
+    <div className="mt-2 p-2 text-sm text-foreground leading-relaxed
+        [&_h1]:text-lg [&_h1]:font-bold [&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:text-foreground [&_h1]:border-b [&_h1]:border-border [&_h1]:pb-1
+        [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:text-foreground
+        [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2.5 [&_h3]:mb-1 [&_h3]:text-foreground
+        [&_h4]:text-sm [&_h4]:font-medium [&_h4]:mt-2 [&_h4]:mb-1 [&_h4]:text-muted-foreground
+        [&_p]:my-1.5
+        [&_ul]:my-1.5 [&_ul]:ml-4 [&_ul]:list-disc
+        [&_ol]:my-1.5 [&_ol]:ml-4 [&_ol]:list-decimal
+        [&_li]:my-0.5
+        [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono
+        [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-md [&_pre]:my-2 [&_pre]:overflow-x-auto
+        [&_pre_code]:bg-transparent [&_pre_code]:p-0
+        [&_blockquote]:border-l-2 [&_blockquote]:border-accent/50 [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-muted-foreground
+        [&_table]:w-full [&_table]:my-2 [&_table]:text-xs
+        [&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-1 [&_th]:bg-muted/50 [&_th]:text-left [&_th]:font-medium
+        [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1
+        [&_hr]:my-3 [&_hr]:border-border
+        [&_a]:text-accent [&_a]:underline
+        [&_strong]:font-semibold [&_strong]:text-foreground
+    ">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+);
 
 // User Story Card
 /**
@@ -428,6 +467,9 @@ export const SpecEditor: React.FC = () => {
     const clarifications: Clarification[] = clarificationsData?.clarifications ?? [];
     const unresolvedCount = clarificationsData?.unresolved_count ?? 0;
 
+    // Fetch design artifacts (design.md, research.md)
+    const { data: designData } = useDesignArtifacts(selectedSpecName);
+
     // Submit clarifications mutation
     const submitClarificationsMutation = useSubmitClarifications();
 
@@ -469,6 +511,7 @@ export const SpecEditor: React.FC = () => {
             await designMutation.mutateAsync(selectedSpecName);
             toast.success('Design Generated', { description: 'design.md has been created successfully' });
             queryClient.invalidateQueries({ queryKey: ['specs'] });
+            queryClient.invalidateQueries({ queryKey: ['design-artifacts', selectedSpecName] });
         } catch (e) {
             toast.error('Design Generation Failed', { description: e instanceof Error ? e.message : 'Unknown error' });
         } finally {
@@ -483,6 +526,7 @@ export const SpecEditor: React.FC = () => {
             await tasksMutation.mutateAsync(selectedSpecName);
             toast.success('Tasks Generated', { description: 'tasks.yaml has been created successfully' });
             queryClient.invalidateQueries({ queryKey: ['specs'] });
+            queryClient.invalidateQueries({ queryKey: ['tasks-artifacts', selectedSpecName] });
         } catch (e) {
             toast.error('Tasks Generation Failed', { description: e instanceof Error ? e.message : 'Unknown error' });
         } finally {
@@ -662,6 +706,14 @@ export const SpecEditor: React.FC = () => {
 
             {/* Content */}
             <div className="flex-1 overflow-auto p-4">
+                            {/* Input Prompt */}
+                            {spec.input_prompt && (
+                                <div className="mb-3 px-3 py-2 rounded-md bg-accent/5 border border-accent/20">
+                                    <span className="text-xs font-medium text-accent uppercase tracking-wide">Original Prompt</span>
+                                    <p className="text-sm text-foreground mt-1">{spec.input_prompt}</p>
+                                </div>
+                            )}
+
                             {/* Overview Section */}
                             <Section title="Overview" color="blue" defaultOpen={true}>
                                 <p className="text-sm text-foreground whitespace-pre-wrap p-2">
@@ -764,6 +816,39 @@ export const SpecEditor: React.FC = () => {
                                     </div>
                                 </Section>
                             )}
+
+                            {/* Research */}
+                            {(designData?.has_research || designData?.research != null) && (
+                                <Section
+                                    title="Research"
+                                    color="cyan"
+                                    defaultOpen={false}
+                                    icon={<Search size={16} className="text-info" />}
+                                >
+                                    {designData.research ? (
+                                        <MarkdownContent content={designData.research} />
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground italic p-2 mt-2">No research content yet.</p>
+                                    )}
+                                </Section>
+                            )}
+
+                            {/* Design */}
+                            {(hasDesign || designData?.has_design || designData?.design != null) && (
+                                <Section
+                                    title="Design"
+                                    color="blue"
+                                    defaultOpen={false}
+                                    icon={<BookOpen size={16} className="text-primary" />}
+                                >
+                                    {designData?.design ? (
+                                        <MarkdownContent content={designData.design} />
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground italic p-2 mt-2">No design content yet.</p>
+                                    )}
+                                </Section>
+                            )}
+
             </div>
 
             {/* Clarify Modal */}

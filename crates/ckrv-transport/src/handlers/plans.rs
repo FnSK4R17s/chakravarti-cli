@@ -155,16 +155,28 @@ pub fn get_plan_handler(state: &AppState, spec_name: String) -> Result<PlanDetai
     let batches: Vec<BatchSummary> = plan
         .batches
         .into_iter()
-        .map(|b| BatchSummary {
-            id: b.id,
-            name: b.name,
-            task_count: b.task_ids.len(),
-            status: if b.status.is_empty() {
-                "pending".to_string()
-            } else {
-                b.status
-            },
-            estimated_cost: Some(b.estimated_cost),
+        .map(|b| {
+            let task_count = b.task_ids.len();
+            BatchSummary {
+                id: b.id,
+                name: b.name,
+                task_count,
+                task_ids: b.task_ids,
+                depends_on: b.depends_on,
+                model_assignment: crate::types::BatchModelAssignment {
+                    default: b.model_assignment.default,
+                    overrides: b.model_assignment.overrides,
+                },
+                execution_strategy: b.execution_strategy,
+                status: if b.status.is_empty() {
+                    "pending".to_string()
+                } else {
+                    b.status
+                },
+                estimated_cost: Some(b.estimated_cost),
+                estimated_time: b.estimated_time,
+                reasoning: b.reasoning,
+            }
         })
         .collect();
 

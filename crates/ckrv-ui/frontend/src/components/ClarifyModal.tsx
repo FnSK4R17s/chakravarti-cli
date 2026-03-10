@@ -31,7 +31,6 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogFooter,
 } from './ui/dialog';
 import { Button } from './ui/button';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -125,73 +124,76 @@ export function ClarifyModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] bg-card border-border">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-[550px] bg-card border-border flex flex-col !gap-0 p-0">
+                {/* Header - fixed */}
+                <DialogHeader className="shrink-0 px-5 pt-5 pb-3">
                     <div className="flex items-center justify-between">
-                        <DialogTitle className="flex items-center gap-2 text-foreground">
-                            <HelpCircle className="w-5 h-5 text-warning" />
+                        <DialogTitle className="flex items-center gap-2 text-foreground text-base">
+                            <HelpCircle className="w-4 h-4 text-warning" />
                             Clarification Needed
                         </DialogTitle>
-                        <Badge variant="outline" className="text-muted-foreground">
-                            {currentIndex + 1} of {unresolved.length}
+                        <Badge variant="outline" className="text-muted-foreground text-xs">
+                            {currentIndex + 1} / {unresolved.length}
                         </Badge>
                     </div>
-                    <DialogDescription className="text-muted-foreground">
+                    <DialogDescription className="text-muted-foreground text-xs">
                         Spec: <span className="text-foreground font-medium">{specName}</span>
                     </DialogDescription>
                 </DialogHeader>
 
+                {/* Scrollable content - question + options */}
                 {current && (
-                    <div className="py-4 space-y-4">
-                        {/* Topic Badge */}
-                        <Badge className="bg-accent/20 text-accent border-accent/30">
-                            {current.topic}
-                        </Badge>
-
-                        {/* Question */}
-                        <p className="text-lg font-medium text-foreground leading-relaxed">
+                    <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 space-y-3">
+                        {/* Topic + Question */}
+                        <div className="flex items-center gap-2">
+                            <Badge className="bg-accent/20 text-accent border-accent/30 text-xs">
+                                {current.topic}
+                            </Badge>
+                        </div>
+                        <p className="text-sm font-medium text-foreground leading-relaxed">
                             {current.question}
                         </p>
 
-                        {/* Options */}
+                        {/* Options - compact */}
                         <RadioGroup
                             value={answers[current.topic] || ''}
                             onValueChange={handleAnswer}
-                            className="space-y-3 pt-2"
+                            className="space-y-2"
                         >
                             {current.options.map((option, idx) => {
                                 const isSelected = answers[current.topic] === option.answer;
                                 return (
                                     <div
                                         key={idx}
-                                        className={`flex items-start space-x-3 p-4 rounded-lg border transition-colors ${isSelected
+                                        className={`flex items-start space-x-2.5 px-3 py-2.5 rounded-md border transition-colors cursor-pointer ${isSelected
                                             ? 'bg-accent/10 border-accent/50'
                                             : 'bg-muted/20 border-border/50 hover:border-border'
                                             }`}
+                                        onClick={() => handleAnswer(option.answer)}
                                     >
                                         <RadioGroupItem
                                             value={option.answer}
                                             id={`option-${idx}`}
-                                            className="mt-1"
+                                            className="mt-0.5"
                                         />
-                                        <div className="flex-1">
+                                        <div className="flex-1 min-w-0">
                                             <Label
                                                 htmlFor={`option-${idx}`}
-                                                className="text-base font-medium text-foreground cursor-pointer"
+                                                className="text-sm font-medium text-foreground cursor-pointer"
                                             >
-                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-muted text-muted-foreground text-sm mr-2">
+                                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-muted text-muted-foreground text-xs mr-1.5">
                                                     {String.fromCharCode(65 + idx)}
                                                 </span>
                                                 {option.answer}
                                             </Label>
                                             {option.implications && (
-                                                <p className="mt-1 text-sm text-muted-foreground ml-8">
+                                                <p className="mt-0.5 text-xs text-muted-foreground ml-6.5">
                                                     → {option.implications}
                                                 </p>
                                             )}
                                         </div>
                                         {isSelected && (
-                                            <CheckCircle2 className="w-5 h-5 text-accent mt-1" />
+                                            <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 shrink-0" />
                                         )}
                                     </div>
                                 );
@@ -200,39 +202,14 @@ export function ClarifyModal({
                     </div>
                 )}
 
-                <DialogFooter className="flex items-center justify-between sm:justify-between">
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handlePrev}
-                            disabled={isFirst}
-                        >
-                            <ChevronLeft className="w-4 h-4 mr-1" />
-                            Previous
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleNext}
-                            disabled={isLast || !hasAnswer}
-                        >
-                            Next
-                            <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
-                    </div>
-
-                    <div className="flex gap-2">
-                        <Button
-                            variant="ghost"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            Cancel
-                        </Button>
+                {/* Footer - fixed, always visible */}
+                <div className="shrink-0 px-5 pb-4 pt-3 border-t border-border space-y-2">
+                    {/* Primary action */}
+                    {isLast ? (
                         <Button
                             onClick={handleSubmit}
                             disabled={!allAnswered || isSubmitting}
-                            className="bg-accent text-accent-foreground hover:bg-accent/90"
+                            className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
                         >
                             {isSubmitting ? (
                                 <>
@@ -242,26 +219,56 @@ export function ClarifyModal({
                             ) : (
                                 <>
                                     <CheckCircle2 className="w-4 h-4 mr-2" />
-                                    Save Answers ({Object.keys(answers).length})
+                                    Save All Answers
                                 </>
                             )}
                         </Button>
-                    </div>
-                </DialogFooter>
+                    ) : (
+                        <Button
+                            onClick={handleNext}
+                            disabled={!hasAnswer}
+                            className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                        >
+                            Next Question
+                            <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                    )}
 
-                {/* Progress dots */}
-                <div className="flex justify-center gap-1 mt-2">
-                    {unresolved.map((_, idx) => (
-                        <div
-                            key={idx}
-                            className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex
-                                ? 'bg-accent'
-                                : answers[unresolved[idx].topic]
-                                    ? 'bg-success'
-                                    : 'bg-muted'
-                                }`}
-                        />
-                    ))}
+                    {/* Secondary actions + progress dots */}
+                    <div className="flex items-center justify-between w-full">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handlePrev}
+                            disabled={isFirst}
+                        >
+                            <ChevronLeft className="w-4 h-4 mr-1" />
+                            Prev
+                        </Button>
+
+                        {/* Progress dots - inline */}
+                        <div className="flex gap-1">
+                            {unresolved.map((_, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`w-1.5 h-1.5 rounded-full transition-colors ${idx === currentIndex
+                                        ? 'bg-accent'
+                                        : answers[unresolved[idx].topic]
+                                            ? 'bg-success'
+                                            : 'bg-muted'
+                                        }`}
+                                />
+                            ))}
+                        </div>
+
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onOpenChange(false)}
+                        >
+                            Cancel
+                        </Button>
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>

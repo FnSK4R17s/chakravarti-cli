@@ -194,11 +194,47 @@ pub struct BatchSummary {
     /// Number of tasks
     pub task_count: usize,
 
+    /// Task IDs in this batch
+    #[serde(default)]
+    pub task_ids: Vec<String>,
+
+    /// Batch IDs this depends on
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+
+    /// Model assignment configuration
+    pub model_assignment: BatchModelAssignment,
+
+    /// Execution strategy (parallel or sequential)
+    #[serde(default)]
+    pub execution_strategy: String,
+
     /// Batch status
     pub status: String,
 
     /// Estimated cost
     pub estimated_cost: Option<f64>,
+
+    /// Estimated time
+    #[serde(default)]
+    pub estimated_time: String,
+
+    /// Reasoning for this batch grouping
+    #[serde(default)]
+    pub reasoning: String,
+}
+
+/// Model assignment for a batch.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "typescript", derive(TS))]
+#[cfg_attr(feature = "typescript", ts(export))]
+pub struct BatchModelAssignment {
+    /// Default model for this batch
+    pub default: String,
+
+    /// Per-task model overrides
+    #[serde(default)]
+    pub overrides: std::collections::HashMap<String, String>,
 }
 
 /// Response with a list of plans.

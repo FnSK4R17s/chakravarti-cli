@@ -138,10 +138,21 @@ pub async fn execute(args: PlanArgs, json: bool, ui: &UiContext) -> anyhow::Resu
     // Execute planning in Docker (mounts ~/.claude for auth)
     execute_planning_docker(&spec_dir, &prompt, json).await?;
 
-    if !json && plan_path.exists() {
-        println!("\n✅ Plan generated successfully!");
-        println!("   📄 {}", plan_path.display());
-        println!("\nNext step: Run `ckrv run` to execute the plan.");
+    if plan_path.exists() {
+        if json {
+            let output = serde_json::json!({
+                "success": true,
+                "message": "Plan generated successfully",
+                "plan_path": plan_path.display().to_string(),
+            });
+            println!("{}", serde_json::to_string(&output)?);
+        } else {
+            println!("\n✅ Plan generated successfully!");
+            println!("   📄 {}", plan_path.display());
+            println!("\nNext step: Run `ckrv run` to execute the plan.");
+        }
+    } else {
+        anyhow::bail!("Planning completed but plan.yaml was not created. The AI agent may have failed to produce the expected output.");
     }
 
     Ok(())
@@ -251,11 +262,33 @@ async fn execute_planning_docker(
         escaped_prompt
     );
 
-    // Configure execution - Docker sandbox will mount ~/.claude automatically
+    // Build credential mounts for Claude Code
+    use ckrv_sandbox::BindMount;
+    let container_home = "/home/claude";
+    let mut credential_mounts = Vec::new();
+
+    let claude_config = format!("{}/.claude.json", home);
+    if std::path::Path::new(&claude_config).exists() {
+        credential_mounts.push(BindMount::new(
+            &claude_config,
+            &format!("{}/.claude.json", container_home),
+        ));
+    }
+    let claude_dir_path = format!("{}/.claude", home);
+    if std::path::Path::new(&claude_dir_path).exists() {
+        credential_mounts.push(BindMount::new(
+            &claude_dir_path,
+            &format!("{}/.claude", container_home),
+        ));
+    }
+
+    // Configure execution with credential mounts
     let config = ExecuteConfig::new("claude", spec_dir.clone())
         .shell(&claude_cmd)
         .with_timeout(std::time::Duration::from_secs(300))
-        .env("NO_COLOR", "1");
+        .with_extra_mounts(credential_mounts)
+        .env("NO_COLOR", "1")
+        .env("HOME", container_home);
 
     if !json {
         println!("   Executing Claude Code in sandbox...");

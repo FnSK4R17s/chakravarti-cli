@@ -6,6 +6,9 @@ branch: "{branch_name}"
 created: "{date}"
 status: draft
 
+input_prompt: |
+  [COPY THE EXACT FEATURE DESCRIPTION TEXT HERE VERBATIM — do not paraphrase or summarize]
+
 overview: |
   [Brief description of what this feature achieves - 2-3 sentences]
 

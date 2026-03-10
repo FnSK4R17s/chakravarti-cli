@@ -66,3 +66,6 @@ build_error.log
 
 # Coverage reports
 coverage/
+
+# Chakravarti secrets (API keys)
+.chakravarti/secrets/.env

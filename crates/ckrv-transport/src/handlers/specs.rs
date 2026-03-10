@@ -75,9 +75,8 @@ pub fn list_specs_handler(state: &AppState) -> Result<ListSpecsResponse, Transpo
                         let plan_yaml = path.join("plan.yaml");
                         let has_plan = plan_yaml.exists();
 
-                        // Check for design artifact
-                        let design_yaml = path.join("design.yaml");
-                        let has_design = design_yaml.exists();
+                        // Check for design artifact (CLI creates design.md)
+                        let has_design = path.join("design.md").exists() || path.join("design.yaml").exists();
 
                         // Check implementation status
                         let impl_yaml = path.join("implementation.yaml");
@@ -465,6 +464,55 @@ pub struct DesignResponse {
     pub research_path: Option<String>,
 }
 
+/// Extract the last JSON object from mixed stdout output.
+///
+/// The Docker sandbox streams container stdout (AI agent response text) to the
+/// parent process stdout, so the captured stdout may contain non-JSON text before
+/// the CLI's final JSON output. This finds and parses the last `{...}` block.
+fn extract_json_from_output(raw: &str) -> Option<serde_json::Value> {
+    // First try the entire string as JSON (fast path)
+    if let Ok(val) = serde_json::from_str::<serde_json::Value>(raw) {
+        return Some(val);
+    }
+
+    // Find the last top-level JSON object by scanning backwards for '}'
+    // then matching its opening '{'
+    let bytes = raw.as_bytes();
+    let mut end = bytes.len();
+    while end > 0 {
+        // Find the last '}' before current end
+        if let Some(pos) = raw[..end].rfind('}') {
+            let candidate_end = pos + 1;
+            // Now walk backwards from pos to find the matching '{'
+            let mut depth = 0i32;
+            let mut start = None;
+            for i in (0..candidate_end).rev() {
+                match bytes[i] {
+                    b'}' => depth += 1,
+                    b'{' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            start = Some(i);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if let Some(start) = start {
+                let slice = &raw[start..candidate_end];
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(slice) {
+                    return Some(val);
+                }
+            }
+            end = pos; // Try further back
+        } else {
+            break;
+        }
+    }
+    None
+}
+
 /// Generate design for a spec.
 pub fn generate_design_handler(
     state: &AppState,
@@ -473,28 +521,62 @@ pub fn generate_design_handler(
     let project_root = &state.project_root;
     let spec_path = project_root.join(".specs").join(&name).join("spec.yaml");
 
+    // Use --force if design.md exists but is empty (previous failed generation)
+    let design_file = project_root.join(".specs").join(&name).join("design.md");
+    let needs_force = design_file.exists()
+        && std::fs::metadata(&design_file)
+            .map(|m| m.len() == 0)
+            .unwrap_or(false);
+
+    let mut args = vec!["spec", "design", "--json"];
+    if needs_force {
+        args.push("--force");
+    }
+
     let output = Command::new("ckrv")
-        .args(["spec", "design", "--json"])
+        .args(&args)
         .arg(&spec_path)
         .current_dir(project_root)
         .output()
         .map_err(|e| TransportError::Internal(format!("Failed to run design: {e}")))?;
 
-    if output.status.success() {
-        if let Ok(json_str) = String::from_utf8(output.stdout) {
-            if let Ok(result) = serde_json::from_str::<serde_json::Value>(&json_str) {
-                return Ok(DesignResponse {
-                    design_path: result
-                        .get("design_path")
-                        .and_then(|v| v.as_str())
-                        .map(String::from),
-                    research_path: result
-                        .get("research_path")
-                        .and_then(|v| v.as_str())
-                        .map(String::from),
-                });
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if let Some(result) = extract_json_from_output(&stdout) {
+        // Check for logical failure (CLI exits 0 but returns success: false)
+        if result.get("success").and_then(|v| v.as_bool()) == Some(false) {
+            let error_msg = result
+                .get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Design generation failed");
+            return Err(TransportError::Internal(error_msg.to_string()));
+        }
+
+        let design_path = result
+            .get("design_path")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+
+        // Verify the design file has actual content
+        if let Some(ref path) = design_path {
+            let file_path = std::path::Path::new(path);
+            if file_path.exists() {
+                let metadata = std::fs::metadata(file_path)
+                    .map_err(|e| TransportError::Internal(format!("Cannot read design file: {e}")))?;
+                if metadata.len() == 0 {
+                    return Err(TransportError::Internal(
+                        "Design generation produced an empty file. The AI agent may have failed to generate content. Try running again.".to_string()
+                    ));
+                }
             }
         }
+
+        return Ok(DesignResponse {
+            design_path,
+            research_path: result
+                .get("research_path")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+        });
     }
 
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -520,29 +602,63 @@ pub fn generate_tasks_handler(
     let project_root = &state.project_root;
     let spec_path = project_root.join(".specs").join(&name).join("spec.yaml");
 
+    // Use --force if tasks.yaml exists but is empty (previous failed generation)
+    let tasks_file = project_root.join(".specs").join(&name).join("tasks.yaml");
+    let needs_force = tasks_file.exists()
+        && std::fs::metadata(&tasks_file)
+            .map(|m| m.len() == 0)
+            .unwrap_or(false);
+
+    let mut args = vec!["spec", "tasks", "--json"];
+    if needs_force {
+        args.push("--force");
+    }
+
     let output = Command::new("ckrv")
-        .args(["spec", "tasks", "--json"])
+        .args(&args)
         .arg(&spec_path)
         .current_dir(project_root)
         .output()
         .map_err(|e| TransportError::Internal(format!("Failed to run tasks: {e}")))?;
 
-    if output.status.success() {
-        if let Ok(json_str) = String::from_utf8(output.stdout) {
-            if let Ok(result) = serde_json::from_str::<serde_json::Value>(&json_str) {
-                return Ok(GenerateTasksResponse {
-                    tasks_path: result
-                        .get("tasks_path")
-                        .and_then(|v| v.as_str())
-                        .map(String::from),
-                    task_count: result
-                        .get("task_count")
-                        .and_then(serde_json::Value::as_u64)
-                        .map(|v| v as usize)
-                        .unwrap_or(0),
-                });
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if let Some(result) = extract_json_from_output(&stdout) {
+        // Check for logical failure (CLI exits 0 but returns success: false)
+        if result.get("success").and_then(|v| v.as_bool()) == Some(false) {
+            let error_msg = result
+                .get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Task generation failed");
+            return Err(TransportError::Internal(error_msg.to_string()));
+        }
+
+        let tasks_path = result
+            .get("tasks_path")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+
+        // Verify the tasks file has actual content
+        if let Some(ref path) = tasks_path {
+            let file_path = std::path::Path::new(path);
+            if file_path.exists() {
+                let metadata = std::fs::metadata(file_path)
+                    .map_err(|e| TransportError::Internal(format!("Cannot read tasks file: {e}")))?;
+                if metadata.len() == 0 {
+                    return Err(TransportError::Internal(
+                        "Task generation produced an empty file. The AI agent may have failed to generate content. Try running again.".to_string()
+                    ));
+                }
             }
         }
+
+        return Ok(GenerateTasksResponse {
+            tasks_path,
+            task_count: result
+                .get("task_count")
+                .and_then(serde_json::Value::as_u64)
+                .map(|v| v as usize)
+                .unwrap_or(0),
+        });
     }
 
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -604,5 +720,41 @@ status: draft
 "#;
         let title = extract_title_from_yaml(yaml);
         assert_eq!(title, Some("A REST API with authentication".to_string()));
+    }
+
+    #[test]
+    fn test_extract_json_clean() {
+        let input = r#"{"success": true, "message": "done"}"#;
+        let result = extract_json_from_output(input).unwrap();
+        assert_eq!(result["success"], true);
+    }
+
+    #[test]
+    fn test_extract_json_with_leading_text() {
+        let input = "Generating tasks with AI...\nSome agent output here\n{\"success\": true, \"tasks_path\": \"/tmp/tasks.yaml\"}";
+        let result = extract_json_from_output(input).unwrap();
+        assert_eq!(result["success"], true);
+        assert_eq!(result["tasks_path"], "/tmp/tasks.yaml");
+    }
+
+    #[test]
+    fn test_extract_json_with_lots_of_text() {
+        let input = "# Design Document\n\nThis is a long AI response with {inline braces} and more text.\n\nFinal answer:\n{\"success\": true, \"design_path\": \"/tmp/design.md\", \"research_path\": \"/tmp/research.md\", \"message\": \"Design generated successfully\"}";
+        let result = extract_json_from_output(input).unwrap();
+        assert_eq!(result["success"], true);
+        assert_eq!(result["design_path"], "/tmp/design.md");
+    }
+
+    #[test]
+    fn test_extract_json_no_json() {
+        let input = "Just some plain text with no JSON";
+        assert!(extract_json_from_output(input).is_none());
+    }
+
+    #[test]
+    fn test_extract_json_pretty_printed() {
+        let input = "Agent output...\n{\n  \"success\": true,\n  \"message\": \"done\"\n}";
+        let result = extract_json_from_output(input).unwrap();
+        assert_eq!(result["success"], true);
     }
 }

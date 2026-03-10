@@ -73,18 +73,22 @@ const CodePage: React.FC<CodePageProps> = ({
     const { selectedSpec: autoSpec } = useAutoSelectedSpec();
     const specName = selectedSpec ?? autoSpec;
 
-    // Fetch spec detail to check status (shares cache with SpecEditor)
-    const { data: specDetail } = useQuery({
-        queryKey: ['spec', specName],
+    // Fetch specs list to check artifact existence for tab locking
+    const { data: specsData } = useQuery({
+        queryKey: ['specs'],
         queryFn: async () => {
-            const res = await fetch(`/api/specs/detail?name=${encodeURIComponent(specName!)}`);
+            const res = await fetch('/api/specs');
             return res.json();
         },
-        enabled: !!specName,
+        staleTime: 5000,
     });
 
-    const isDraft = specDetail?.spec?.status === 'draft';
-    const lockedTabs = new Set<string>(isDraft ? ['tasks', 'plan', 'run'] : []);
+    // Lock tabs based on artifact existence (progressive unlocking)
+    const currentSpec = specsData?.specs?.find((s: { name: string }) => s.name === specName);
+    const lockedTabs = new Set<string>();
+    if (!currentSpec?.has_design && !currentSpec?.has_tasks) lockedTabs.add('tasks');
+    if (!currentSpec?.has_tasks) lockedTabs.add('plan');
+    if (!currentSpec?.has_plan) lockedTabs.add('run');
 
     // Get completion status for a tab
     const getTabStatus = (tabId: CodeTabType): 'pending' | 'complete' => {
