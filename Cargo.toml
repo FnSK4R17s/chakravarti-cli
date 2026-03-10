@@ -17,7 +17,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.2" # x-release-please-version
+version = "0.3.3" # x-release-please-version
 edition = "2021"
 authors = ["Chakravarti CLI Contributors"]
 license = "MIT"
