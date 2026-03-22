@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "beary": {
+      "source": "openclaw-sk4r/BEARY",
+      "sourceType": "github",
+      "computedHash": "4e08cc7a3ffa369dba446faf0f08490d5456d0f06112285b994fc36bd2d551a1"
+    }
+  }
+}

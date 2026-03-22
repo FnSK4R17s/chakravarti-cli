@@ -40,7 +40,7 @@ async fn start_execution(
     State(state): State<AppState>,
     Json(request): Json<ExecuteRequest>,
 ) -> impl IntoResponse {
-    match start_execution_handler(&state, request) {
+    match start_execution_handler(&state, request).await {
         Ok(result) => Json(result).into_response(),
         Err(e) => e.into_response(),
     }
@@ -137,7 +137,7 @@ async fn stop_execution(
     State(state): State<AppState>,
     Json(request): Json<StopRequest>,
 ) -> impl IntoResponse {
-    match stop_execution_handler(&state, request) {
+    match stop_execution_handler(&state, request).await {
         Ok(()) => Json(serde_json::json!({"status": "stopped"})).into_response(),
         Err(e) => e.into_response(),
     }
@@ -238,7 +238,7 @@ async fn tail_logs(
 
 /// Get execution status.
 async fn get_status(State(state): State<AppState>) -> impl IntoResponse {
-    match get_execution_status_handler(&state) {
+    match get_execution_status_handler(&state).await {
         Ok(status) => Json(status).into_response(),
         Err(e) => e.into_response(),
     }

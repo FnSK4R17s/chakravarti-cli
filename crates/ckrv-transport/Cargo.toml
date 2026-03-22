@@ -29,6 +29,7 @@ anyhow.workspace = true
 
 # Async runtime
 tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true }
 
 # Time utilities
 chrono.workspace = true
