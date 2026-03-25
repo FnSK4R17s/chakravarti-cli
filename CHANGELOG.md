@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/FnSK4R17s/chakravarti-cli/compare/v0.3.3...v0.3.4) (2026-03-25)
+
+
+### Bug Fixes
+
+* end-to-end execution pipeline — Docker, streaming, merge ([#90](https://github.com/FnSK4R17s/chakravarti-cli/issues/90)) ([aeeab7b](https://github.com/FnSK4R17s/chakravarti-cli/commit/aeeab7b113a532647f8d3610f6d1f9b6b4bd7a81))
+
 ## [0.3.3](https://github.com/FnSK4R17s/chakravarti-cli/compare/v0.3.2...v0.3.3) (2026-03-10)
 
 
