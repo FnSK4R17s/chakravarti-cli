@@ -65,13 +65,14 @@ interface LogLine {
 
 // === API FUNCTIONS ===
 
-const fetchPlan = async (spec: string): Promise<{ success: boolean; batches: { id: string; name: string; status?: string }[] }> => {
+const fetchPlan = async (spec: string): Promise<{ spec_name: string; batches: { id: string; name: string; status?: string }[] } | null> => {
     const res = await fetch(`/api/plans/detail?spec=${spec}`);
+    if (!res.ok) return null;
     return res.json();
 };
 
-const generatePlan = async (spec: string): Promise<{ success: boolean }> => {
-    const res = await fetch('/api/command/plan-generate', {
+const generatePlan = async (spec: string): Promise<{ success: boolean; output?: string }> => {
+    const res = await fetch('/api/command/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ spec }),
@@ -143,7 +144,7 @@ export default function BarebonesExecutor() {
         enabled: !!selectedSpec,
     });
 
-    const hasPlan = planData?.success && planData?.batches?.length > 0;
+    const hasPlan = planData != null && planData.batches?.length > 0;
 
     // === EFFECTS ===
 
@@ -162,7 +163,7 @@ export default function BarebonesExecutor() {
 
     // Initialize batches from plan
     useEffect(() => {
-        if (planData?.success && planData.batches) {
+        if (planData != null && planData.batches) {
             setBatches(planData.batches.map(b => {
                 let uiStatus: SimpleBatch['status'] = 'pending';
                 if (b.status === 'completed') uiStatus = 'done';

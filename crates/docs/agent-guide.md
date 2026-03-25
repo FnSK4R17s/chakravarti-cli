@@ -1,6 +1,6 @@
 ---
-last_commit: 2a2da7f
-last_updated: 2026-03-02
+last_commit: b41880d
+last_updated: 2026-03-25
 related_files:
   - crates/ckrv-sandbox/src/agent/mod.rs
   - crates/ckrv-sandbox/src/agent/claude.rs
@@ -285,7 +285,7 @@ pub fn create_agent(agent_type: AgentType) -> Box<dyn AgentProvider> {
 
 ### Step 4: Add to Docker Image
 
-If your agent requires a CLI, create a Dockerfile in `docker/`. Use the GHCR naming convention `ghcr.io/fnsk4r17s/ckrv-<agent>:latest` (e.g., `ckrv-claude`, `ckrv-codex`, `ckrv-kilo`). The `docker.rs` module defines `GHCR_PREFIX` (`ghcr.io/fnsk4r17s`) and a `DEFAULT_IMAGE` (`ghcr.io/fnsk4r17s/ckrv-agent:latest`). Use `DockerClient::set_image()` to override the image per agent type.
+If your agent requires a CLI, create a Dockerfile in `docker/`. Use the GHCR naming convention `ghcr.io/fnsk4r17s/ckrv-<agent>:latest` (e.g., `ckrv-claude`, `ckrv-codex`, `ckrv-kilo`). The `docker.rs` module defines `GHCR_PREFIX` (`ghcr.io/fnsk4r17s`) and a `DEFAULT_IMAGE` (`ghcr.io/fnsk4r17s/ckrv-agent:latest`). Use `DockerClient::set_image(&str)` to override the image per agent type.
 
 ```dockerfile
 FROM node:22-slim
@@ -298,32 +298,34 @@ RUN apt-get update && apt-get install -y \
 # Install your agent CLI (as root)
 RUN npm install -g your-agent-cli
 
-# Create non-root user — REQUIRED
-# Many agent CLIs (e.g., Claude Code) refuse to run certain flags as root.
-# Always create a dedicated user and switch to it.
-RUN useradd -m -s /bin/bash -d /home/youragent youragent && \
-    mkdir -p /home/youragent/.youragent && \
-    chown -R youragent:youragent /home/youragent
+# Create non-root "agent" user — REQUIRED (uid 1001 by convention)
+# The sandbox runs as root initially to chown the workspace mount,
+# then drops to this user via `su` before executing the agent command.
+RUN useradd -m -s /bin/bash -u 1001 -d /home/agent agent && \
+    mkdir -p /home/agent/.youragent && \
+    chown -R agent:agent /home/agent
 
 # Create workspace with correct ownership
-RUN mkdir -p /workspace && chown youragent:youragent /workspace
+RUN mkdir -p /workspace && chown agent:agent /workspace
 
 WORKDIR /workspace
-ENV HOME=/home/youragent
+ENV HOME=/home/agent
 
-# Verify install (before USER switch, still root)
+# Verify install
 RUN your-agent-cli --version || true
 
-# Switch to non-root user
-USER youragent
+# Default to agent user (sandbox overrides to root for chown, then su's back)
+USER agent
 
 CMD ["/bin/bash"]
 ```
 
-> **Warning**: Always include a `USER` directive in your Dockerfile.
-> Running as root causes agent CLIs to reject security-sensitive flags.
-> For example, Claude Code blocks `--dangerously-skip-permissions` when
-> running as root/sudo for security reasons.
+> **Note on container user model**: The sandbox starts the container as root
+> to `chown` the workspace mount to the `agent` user, then drops privileges
+> via `su -s /bin/sh agent -c '...'`. After container exit, the sandbox runs
+> a lightweight Alpine container to restore host user ownership of workspace files.
+> Agent CLIs like Claude Code block `--dangerously-skip-permissions` when
+> running as root, so the drop to the `agent` user is required.
 
 ### Step 5: Add Tests
 

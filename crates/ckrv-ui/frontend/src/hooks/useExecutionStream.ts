@@ -64,6 +64,8 @@ export interface UseExecutionStreamReturn {
     status: ExecutionStatus;
     /** Current run ID if executing */
     runId: string | null;
+    /** Active spec name if executing */
+    activeSpec: string | null;
     /** Start a new execution run */
     startRun: (spec: string) => Promise<string>;
     /** Stop the current execution */
@@ -100,6 +102,8 @@ export function useExecutionStream(): UseExecutionStreamReturn {
     const [batches, setBatches] = useState<BatchStatus[]>([]);
     const [status, setStatus] = useState<ExecutionStatus>('idle');
     const [runId, setRunId] = useState<string | null>(null);
+    /** Active spec name for the current execution */
+    const [activeSpec, setActiveSpec] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     // Refs for cleanup
@@ -128,28 +132,32 @@ export function useExecutionStream(): UseExecutionStreamReturn {
 
     // Start execution - Web mode (WebSocket)
     const startRunWeb = useCallback(async (spec: string): Promise<string> => {
-        const newRunId = generateRunId();
-        setRunId(newRunId);
         setStatus('running');
+        setActiveSpec(spec);
         clearLogs();
 
-        // Call the start endpoint
+        // Call the start endpoint -- backend generates the run_id
         const response = await fetch('/api/execution/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ spec_name: spec }),
+            body: JSON.stringify({ spec }),
         });
 
         if (!response.ok) {
             const errorText = await response.text();
             setError(errorText);
             setStatus('error');
+            setActiveSpec(null);
             throw new Error(errorText);
         }
 
-        // Connect to WebSocket for log streaming
+        const result = await response.json();
+        const backendRunId = result.run_id as string;
+        setRunId(backendRunId);
+
+        // Connect to WebSocket for log streaming using the backend-issued run_id
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(`${protocol}//${window.location.host}/api/execution/ws?run_id=${newRunId}`);
+        const ws = new WebSocket(`${protocol}//${window.location.host}/api/execution/ws?run_id=${backendRunId}`);
 
         ws.onmessage = (event) => {
             try {
@@ -173,13 +181,14 @@ export function useExecutionStream(): UseExecutionStreamReturn {
 
         wsRef.current = ws;
 
-        return newRunId;
+        return backendRunId;
     }, [clearLogs, handleLogEvent, status]);
 
     // Start execution - Tauri mode (events)
     const startRunTauri = useCallback(async (spec: string): Promise<string> => {
         const newRunId = generateRunId();
         setRunId(newRunId);
+        setActiveSpec(spec);
         setStatus('running');
         clearLogs();
 
@@ -226,17 +235,18 @@ export function useExecutionStream(): UseExecutionStreamReturn {
             wsRef.current = null;
         }
 
-        if (runId) {
+        if (activeSpec) {
             await fetch('/api/execution/stop', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ run_id: runId }),
+                body: JSON.stringify({ spec: activeSpec, run_id: runId }),
             });
         }
 
         setStatus('idle');
         setRunId(null);
-    }, [runId]);
+        setActiveSpec(null);
+    }, [activeSpec, runId]);
 
     // Stop execution - Tauri mode
     const stopRunTauri = useCallback(async (): Promise<void> => {
@@ -257,6 +267,7 @@ export function useExecutionStream(): UseExecutionStreamReturn {
 
         setStatus('idle');
         setRunId(null);
+        setActiveSpec(null);
     }, [runId]);
 
     // Unified stop function
@@ -288,6 +299,7 @@ export function useExecutionStream(): UseExecutionStreamReturn {
         batches,
         status,
         runId,
+        activeSpec,
         startRun,
         stopRun,
         error,

@@ -89,7 +89,9 @@ pub mod tauri;
 
 pub use error::TransportError;
 pub use hub::{Hub, OrchestrationEvent, SharedHub};
-pub use state::{AppState, SystemMode, SystemStatus};
+pub use state::{
+    AppState, RunEntry, RunRegistry, RunStatus, SharedRunRegistry, SystemMode, SystemStatus,
+};
 
 // Re-export types for convenience
 pub use types::*;

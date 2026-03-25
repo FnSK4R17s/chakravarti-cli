@@ -318,7 +318,7 @@ pub fn get_test_writer_agent_handler(
 /// Generate tests for a file.
 pub async fn generate_tests_handler(
     state: &AppState,
-    request: GenerateTestsRequest,
+    _request: GenerateTestsRequest,
 ) -> Result<GenerateTestsResponse, TransportError> {
     // Check for test writer agent
     let agents = load_agents(state);
@@ -331,9 +331,9 @@ pub async fn generate_tests_handler(
         ));
     }
 
-    // Run ckrv test-gen command
+    // Run ckrv test write command
     let output = tokio::process::Command::new("ckrv")
-        .args(["test-gen", "--file", &request.file, "--json"])
+        .args(["test", "write", "--json"])
         .current_dir(&state.project_root)
         .output()
         .await
@@ -564,9 +564,9 @@ pub async fn fix_tests_handler(
     }
 
     // Run ckrv fix command
-    let mut args = vec!["fix", "--base", &request.base];
+    let mut args = vec!["fix", "--test", "--json"];
     if let Some(ref file) = request.file {
-        args.push("--file");
+        args.push("--error");
         args.push(file);
     }
 

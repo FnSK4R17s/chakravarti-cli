@@ -1,12 +1,13 @@
 ---
-last_commit: 2a2da7f
-last_updated: 2026-03-02
+last_commit: b41880d
+last_updated: 2026-03-25
 related_files:
   - Cargo.toml
   - crates/ckrv-core/src/lib.rs
   - crates/ckrv-sandbox/src/lib.rs
   - crates/ckrv-mcp/src/lib.rs
   - crates/ckrv-transport/src/lib.rs
+  - crates/ckrv-transport/src/state.rs
 ---
 
 # Chakravarti CLI Architecture
@@ -59,7 +60,7 @@ graph TD
 | `ckrv-verify` | Test execution, output parsing, acceptance checking | ⚠️ **Unused** |
 | `ckrv-integrations` | External service integrations (GitHub, etc.) | ⚠️ **Stub** |
 | `ckrv-ui` | Web dashboard server, static file serving, execution engine | ✅ Used |
-| `ckrv-transport` | Shared HTTP API types, handlers, and routes for web/desktop | ✅ Used |
+| `ckrv-transport` | Shared HTTP API types, handlers, routes, run registry for web/desktop | ✅ Used |
 | `ckrv-tauri` | Tauri desktop application (wraps ckrv-transport) | ✅ Used |
 | `ckrv-mcp` | MCP server exposing CLI commands as tools for AI agents | ✅ Used |
 
@@ -164,9 +165,20 @@ pub trait AgentProvider: Send + Sync {
 6. **Integration**: Successful changes merge back to main branch
 7. **Output**: Clean, tested, documented code
 
+## In-Process Orchestration (Web UI)
+
+The transport layer's execution handlers now run orchestration **in-process** rather than shelling out to the CLI. The flow is:
+
+1. `POST /start` validates the spec, registers a `RunEntry` in the `RunRegistry`, and spawns a `tokio::task`
+2. The orchestrator receives a `HubEventHandler` that bridges `ckrv_core::JobEvent` into `OrchestrationEvent`
+3. Events are broadcast via the `Hub` to connected WebSocket clients for real-time UI updates
+4. `RunRegistry` provides lookup by run ID or spec name, active-run queries, and cancellation via `CancellationToken`
+
 ## Security Model
 
 - All execution isolated via Docker containers
+- Containers start as root for workspace `chown`, then drop to `agent` user via `su`
+- After container exit, workspace ownership is restored to host user
 - Command allow-list prevents dangerous operations
 - No network access unless explicitly configured
 - Secrets injected via environment variables only

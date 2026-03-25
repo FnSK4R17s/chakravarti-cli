@@ -44,11 +44,8 @@ use axum::{
     routing::get,
     Router,
 };
-use ckrv_transport::Hub;
 use rust_embed::RustEmbed;
 use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 // Re-export AppState from transport for backward compatibility
 pub use ckrv_transport::{AppState, SystemMode, SystemStatus};
@@ -120,11 +117,7 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
     }
 
     // Create AppState using the transport crate's type
-    let state = AppState {
-        status: Arc::new(RwLock::new(SystemStatus::default())),
-        hub: Arc::new(Hub::new()),
-        project_root,
-    };
+    let state = AppState::new(project_root);
 
     // Create the app with transport router and static file handler
     let app = Router::new()

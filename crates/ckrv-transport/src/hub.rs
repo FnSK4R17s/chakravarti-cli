@@ -107,10 +107,10 @@ pub struct Hub {
 }
 
 impl Hub {
-    /// Create a new Hub with default capacity (100 events).
+    /// Create a new Hub with default capacity (1000 events).
     #[must_use]
     pub fn new() -> Self {
-        Self::with_capacity(100)
+        Self::with_capacity(1000)
     }
 
     /// Create a new Hub with specified capacity.

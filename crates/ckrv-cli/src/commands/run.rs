@@ -1,7 +1,12 @@
-//! Run command - execute a job based on a specification.
+//! # Run Command
 //!
-//! This command generates an execution plan and orchestrates
-//! multiple agent tasks to implement a feature.
+//! Execute a job based on a specification.
+//!
+//! ## Overview
+//!
+//! This command generates an execution plan from a spec and orchestrates
+//! multiple agent tasks to implement a feature. Supports local execution
+//! with worktrees, Docker sandboxing, and cloud dispatch.
 #![allow(clippy::format_push_string)]
 #![allow(clippy::option_if_let_else)]
 #![allow(clippy::manual_let_else)]
@@ -1241,6 +1246,69 @@ batches:
                                 "[Orchestrator] Merging batch '{}' ({}) into main branch...",
                                 name, branch
                             );
+
+                            // Clean up untracked files/dirs that would block the merge.
+                            // Git refuses to merge if untracked entries in the working tree
+                            // would be overwritten by the incoming branch.
+                            if let Ok(diff_out) = std::process::Command::new("git")
+                                .args(["diff", "--name-only", "HEAD", &branch])
+                                .current_dir(&cwd)
+                                .output()
+                            {
+                                let incoming_files = String::from_utf8_lossy(&diff_out.stdout);
+                                for file in incoming_files.lines() {
+                                    let file_path = cwd.join(file);
+                                    if !file_path.exists() {
+                                        continue;
+                                    }
+                                    // Check if it's untracked
+                                    let is_tracked = std::process::Command::new("git")
+                                        .args(["ls-files", "--error-unmatch", file])
+                                        .current_dir(&cwd)
+                                        .output()
+                                        .map(|o| o.status.success())
+                                        .unwrap_or(false);
+                                    if !is_tracked {
+                                        // Remove untracked file or dir that would conflict
+                                        if file_path.is_dir() {
+                                            let _ = std::fs::remove_dir_all(&file_path);
+                                        } else {
+                                            let _ = std::fs::remove_file(&file_path);
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Also fix permissions — previous container runs may leave
+                            // files owned by root/agent that block git merge writes
+                            let uid = std::process::Command::new("id")
+                                .arg("-u")
+                                .output()
+                                .ok()
+                                .and_then(|o| String::from_utf8(o.stdout).ok())
+                                .map(|s| s.trim().to_string())
+                                .unwrap_or_else(|| "1000".to_string());
+                            let gid = std::process::Command::new("id")
+                                .arg("-g")
+                                .output()
+                                .ok()
+                                .and_then(|o| String::from_utf8(o.stdout).ok())
+                                .map(|s| s.trim().to_string())
+                                .unwrap_or_else(|| "1000".to_string());
+                            let _ = std::process::Command::new("docker")
+                                .args([
+                                    "run",
+                                    "--rm",
+                                    "-v",
+                                    &format!("{}:/fix", cwd.display()),
+                                    "alpine",
+                                    "chown",
+                                    "-R",
+                                    &format!("{}:{}", uid, gid),
+                                    "/fix",
+                                ])
+                                .status();
+
                             // Using --no-ff to preserve batch history context
                             let merge_status = std::process::Command::new("git")
                                 .arg("merge")

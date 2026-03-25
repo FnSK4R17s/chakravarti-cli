@@ -1436,7 +1436,7 @@ impl CommandService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ckrv_transport::{AppState, Hub, SystemStatus};
+    use ckrv_transport::{AppState, Hub, RunRegistry, SystemStatus};
     use std::path::PathBuf;
     use std::sync::Arc;
     use tokio::sync::RwLock;
@@ -1447,6 +1447,7 @@ mod tests {
             status: Arc::new(RwLock::new(SystemStatus::default())),
             hub: Arc::new(Hub::new()),
             project_root: PathBuf::from("/tmp"),
+            run_registry: Arc::new(RwLock::new(RunRegistry::new())),
         };
 
         // This test may fail if not in a git repo, but that's expected

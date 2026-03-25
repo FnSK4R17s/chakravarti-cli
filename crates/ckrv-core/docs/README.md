@@ -1,6 +1,6 @@
 ---
-last_commit: 2a2da7f
-last_updated: 2026-03-02
+last_commit: b41880d
+last_updated: 2026-03-25
 related_files:
   - src/lib.rs
   - src/orchestrator.rs
@@ -97,6 +97,10 @@ pub use error::CoreError;
 
 ## Usage
 
+## API Style
+
+Builder methods and constructors across `AgentTask`, `Step`, `StepExecutionResult`, `RenderContext`, `StepOutputs`, `AttemptResult`, and `Job` accept `&str` parameters (not `impl Into<String>`). This keeps the API surface concrete and avoids monomorphization bloat.
+
 ### Creating Tasks
 
 ```rust
@@ -104,7 +108,7 @@ use ckrv_core::{AgentTask, AgentTaskStatus};
 use std::path::PathBuf;
 
 let mut task = AgentTask::new(
-    AgentTask::generate_id(),  // e.g., "task-a1b2c3"
+    "task-a1b2c3",                    // &str, not impl Into<String>
     "Create a new REST API endpoint",
     "swe",
     PathBuf::from("/path/to/worktree"),

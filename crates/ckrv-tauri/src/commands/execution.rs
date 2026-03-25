@@ -41,7 +41,9 @@ pub async fn start_execution(
         dry_run: false,
     };
 
-    let result = start_execution_handler(&app_state, request).map_err(|e| e.to_string())?;
+    let result = start_execution_handler(&app_state, request)
+        .await
+        .map_err(|e| e.to_string())?;
 
     drop(app_state);
 
@@ -97,7 +99,9 @@ pub async fn stop_execution(
 ) -> Result<(), String> {
     let app_state = state.read().await;
     let request = StopRequest { spec, run_id };
-    stop_execution_handler(&app_state, request).map_err(|e| e.to_string())
+    stop_execution_handler(&app_state, request)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ============================================================
@@ -123,7 +127,9 @@ pub async fn get_execution_status(
     state: State<'_, SharedState>,
 ) -> Result<ExecutionStatusResponse, String> {
     let app_state = state.read().await;
-    let status = get_execution_status_handler(&app_state).map_err(|e| e.to_string())?;
+    let status = get_execution_status_handler(&app_state)
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(ExecutionStatusResponse {
         is_running: status.running,

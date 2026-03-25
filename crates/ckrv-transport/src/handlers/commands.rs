@@ -161,9 +161,9 @@ pub fn run_plan_handler(
     run_ckrv_command(state, &args)
 }
 
-/// Run ckrv execute command.
+/// Run ckrv code run command.
 pub fn run_execute_handler(state: &AppState) -> Result<CommandResponse, TransportError> {
-    run_ckrv_command(state, &["execute"])
+    run_ckrv_command(state, &["code", "run"])
 }
 
 /// Run ckrv diff command.
