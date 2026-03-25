@@ -1,11 +1,12 @@
 ---
-last_commit: 2a2da7f
-last_updated: 2026-03-02
+last_commit: b41880d
+last_updated: 2026-03-25
 related_files:
   - src/lib.rs
   - src/handlers/mod.rs
   - src/axum/mod.rs
   - src/types/agents.rs
+  - src/state.rs
 ---
 
 # ckrv-transport
@@ -86,25 +87,38 @@ tauri::Builder::default()
 
 ```
 src/
-├── lib.rs              # Crate entry point
+├── lib.rs              # Crate entry point, re-exports
 ├── error.rs            # TransportError enum
-├── state.rs            # AppState shared state
-├── hub.rs              # Event broadcasting
+├── state.rs            # AppState, SystemStatus, RunRegistry
+├── hub.rs              # Event broadcasting (OrchestrationEvent)
 ├── handlers/           # Transport-agnostic handlers
 │   ├── mod.rs
-│   ├── agents.rs
-│   ├── specs.rs
-│   ├── tasks.rs
-│   ├── plans.rs
-│   ├── history.rs
-│   ├── status.rs
-│   ├── execution.rs
-│   └── ...
+│   ├── agents.rs       # Agent CRUD, model listing
+│   ├── specs.rs        # Spec listing, detail, creation
+│   ├── tasks.rs        # Task listing, detail
+│   ├── plans.rs        # Plan generation
+│   ├── history.rs      # Execution history
+│   ├── status.rs       # System status
+│   ├── execution.rs    # Run lifecycle (start/stop/status) with in-process orchestration
+│   ├── commands.rs     # CLI command dispatch
+│   ├── cloud.rs        # Cloud status
+│   ├── console.rs      # Console output
+│   ├── diff.rs         # Diff viewing
+│   ├── docker.rs       # Docker status
+│   ├── events.rs       # Event stream
+│   ├── example.rs      # Example handler
+│   ├── qa.rs           # QA review
+│   ├── session.rs      # Session management
+│   ├── terminal.rs     # Terminal access
+│   └── test.rs         # Test management
 ├── types/              # Request/Response types
 │   ├── mod.rs
-│   ├── agents.rs
-│   ├── specs.rs
-│   └── ...
+│   ├── agents.rs       # AgentType, AgentConfig, provider configs
+│   ├── common.rs       # Common response wrappers
+│   ├── execution.rs    # Execution types
+│   ├── history.rs      # History types
+│   ├── specs.rs        # ListSpecsResponse, BatchModelAssignment
+│   └── test_qa.rs      # Test/QA types
 ├── axum/               # Axum HTTP wrappers
 │   ├── mod.rs          # create_router()
 │   ├── agents.rs
@@ -179,6 +193,51 @@ pub struct GeminiConfig {
 }
 ```
 
+### Run Registry (`state.rs`)
+
+Tracks active and recent execution runs. Added to `AppState` as `run_registry: SharedRunRegistry`.
+
+| Type | Purpose |
+|------|---------|
+| `RunStatus` | Enum: `Pending`, `Running`, `Done`, `Error` |
+| `RunEntry` | Single run with `run_id`, `spec_name`, `started_at`, `status`, `cancel_token`, `error_message` |
+| `RunRegistry` | HashMap-backed registry with lookup by ID or spec name |
+| `SharedRunRegistry` | `Arc<RwLock<RunRegistry>>` type alias |
+
+```rust
+pub struct AppState {
+    pub status: Arc<RwLock<SystemStatus>>,
+    pub hub: SharedHub,
+    pub run_registry: SharedRunRegistry,   // NEW
+    pub project_root: PathBuf,
+}
+```
+
+### Execution Handlers
+
+The execution handlers (`handlers/execution.rs`) now run orchestration **in-process** via `tokio::spawn` rather than shelling out. A `HubEventHandler` bridges `ckrv_core::JobEvent` into `OrchestrationEvent` for real-time WebSocket updates, with optional JSONL log persistence.
+
+### ListSpecsResponse
+
+Changed from a type alias (`Vec<SpecSummary>`) to a struct:
+
+```rust
+pub struct ListSpecsResponse {
+    pub specs: Vec<SpecSummary>,
+}
+```
+
+### BatchModelAssignment
+
+New type for assigning models to spec batches:
+
+```rust
+pub struct BatchModelAssignment {
+    pub batch_name: String,
+    pub agent_id: String,
+}
+```
+
 ## Documentation
 
 - [Adding Endpoints](./adding-endpoints.md) - How to add new API endpoints
@@ -187,5 +246,5 @@ pub struct GeminiConfig {
 ## Related Crates
 
 - `ckrv-ui` - Web UI server (uses ckrv-transport with axum feature)
-- `ckrv-core` - Core orchestration logic
+- `ckrv-core` - Core orchestration logic (now used in-process by execution handlers)
 - `ckrv-sandbox` - Docker sandbox execution

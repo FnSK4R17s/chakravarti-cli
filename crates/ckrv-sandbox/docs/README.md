@@ -1,6 +1,6 @@
 ---
-last_commit: 2a2da7f
-last_updated: 2026-03-02
+last_commit: b41880d
+last_updated: 2026-03-25
 related_files:
   - src/lib.rs
   - src/executor.rs
@@ -34,12 +34,15 @@ All agent execution runs inside Docker containers:
 - No network by default
 - Command allow-list enforced
 - Secrets via env vars only
-- **Non-root user** — containers run as a dedicated user, not root
+- **Non-root execution** — containers start as root for workspace ownership fixup (`chown`), then drop to the `agent` user (uid 1001) via `su` before running the agent command
+- **TTY emulation** — containers run with `tty: true` and terminal env vars (`TERM=xterm-256color`, `COLORTERM=truecolor`, `COLUMNS=120`, `LINES=30`) so agent CLIs detect full terminal capabilities
+- **Workspace ownership restoration** — after container exit, a lightweight Alpine container runs `chown -R` to restore host user ownership of workspace files modified by the agent user
 
-> **Warning**: All agent Docker containers must run as a non-root user.
+> **Warning**: Containers run the agent as a non-root user (`agent`, uid 1001).
 > Agent CLIs like Claude Code enforce security restrictions when running as
-> root (e.g., blocking `--dangerously-skip-permissions`). Each Dockerfile
-> creates a dedicated user and switches to it via the `USER` directive.
+> root (e.g., blocking `--dangerously-skip-permissions`). The container starts
+> as root only to `chown` the mounted workspace, then drops to the `agent` user
+> for the actual command.
 
 ## Credential Mounting
 
@@ -81,6 +84,10 @@ src/
     └── tests.rs    # Agent unit tests
 ```
 
+## API Style
+
+Builder methods on `ExecuteConfig`, `BindMount`, `EnvConfig`, `DefaultAllowList`, `AgentConfig`, and `DockerClient` accept `&str` parameters (not `impl Into<String>`). This keeps the API surface concrete and avoids monomorphization bloat.
+
 ## Usage
 
 ### Basic Execution
@@ -92,7 +99,7 @@ let sandbox = DockerSandbox::with_defaults()?;
 
 let result = sandbox.execute(ExecuteConfig::new("claude", workdir)
     .shell("claude --help")
-    .env("HOME", "/home/claude")
+    .env("HOME", "/home/agent")
 ).await?;
 
 if result.success() {
@@ -193,13 +200,21 @@ The low-level Docker client provides:
 | Method | Purpose |
 |--------|---------|
 | `new()` | Create client, connect to Docker daemon |
+| `set_image(&str)` | Override the default Docker image |
 | `health_check()` | Verify Docker is available |
 | `ensure_image()` | Pull image if not present |
-| `execute()` | One-shot container execution |
+| `execute()` | One-shot container execution (runs as root, drops to agent user) |
 | `execute_streaming()` | Execution with real-time log callback |
 | `create_session()` | Start persistent container for multi-command sessions |
 | `exec_in_session()` | Run command in existing session |
 | `stop_session()` | Cleanup session container |
+
+### Container Lifecycle
+
+1. Container starts as **root** with workspace bind-mounted
+2. Runs `chown -R agent:agent /workspace` to fix ownership
+3. Drops to `agent` user via `su -s /bin/sh agent -c '...'`
+4. After exit, `restore_workspace_ownership()` runs a lightweight Alpine container to `chown` files back to the host user
 
 ## Dependencies
 

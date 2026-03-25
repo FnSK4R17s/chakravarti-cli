@@ -1,6 +1,6 @@
 ---
-last_commit: 2a2da7f
-last_updated: 2026-03-02
+last_commit: b41880d
+last_updated: 2026-03-25
 related_files:
   - src/main.rs
   - src/lib.rs
@@ -12,6 +12,9 @@ related_files:
   - src/commands/test.rs
   - src/commands/qa.rs
   - src/commands/task.rs
+  - src/commands/plan.rs
+  - src/commands/run.rs
+  - src/commands/spec.rs
   - src/services/mod.rs
   - src/ui/mod.rs
 ---
@@ -185,6 +188,16 @@ This creates structured documentation files with frontmatter, descriptions, argu
 | `ckrv ui` | `ui.rs` | Launch web dashboard |
 | `ckrv term` | `term.rs` | Interactive AI agent terminal with session management, worktree/sandbox isolation |
 | `ckrv cloud` | `cloud/` | Cloud execution commands |
+
+### Docker Credential Mounting
+
+The `plan`, `spec new`, and `run` commands now explicitly mount Claude credentials (`~/.claude.json`, `~/.claude/`) into the Docker sandbox so the agent can authenticate. Previously this relied on implicit sandbox behavior; now the CLI builds `BindMount` entries and passes them via `ExecuteConfig::with_extra_mounts()`.
+
+### Error Handling Improvements
+
+- **`ckrv spec new`**: Cleans up the empty spec folder on failure or empty AI output. Reports structured JSON errors with codes (`EMPTY_OUTPUT`, `GENERATION_FAILED`).
+- **`ckrv plan`**: Fails with a clear error if `plan.yaml` is not created after planning completes. Returns JSON success with `plan_path`.
+- **`ckrv run`**: Pre-merge cleanup of untracked files that would block `git merge`. Removes untracked files/directories in the working tree that conflict with incoming branch changes.
 
 ### `ckrv code` - Code Workflow Namespace
 
