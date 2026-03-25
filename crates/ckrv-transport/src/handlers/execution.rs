@@ -34,7 +34,8 @@
 // ============================================================
 
 use std::collections::HashSet;
-use std::process::Command;
+use std::io::BufRead;
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -342,7 +343,10 @@ pub async fn start_execution_handler(
         match result {
             Ok(()) => {
                 info!(run_id = %run_id_clone, "Execution completed successfully");
-                registry.write().await.set_status(&run_id_clone, RunStatus::Done, None);
+                registry
+                    .write()
+                    .await
+                    .set_status(&run_id_clone, RunStatus::Done, None);
                 hub.broadcast(OrchestrationEvent::Success {
                     message: format!("Execution of {spec_name} completed successfully"),
                     timestamp: chrono::Utc::now().to_rfc3339(),
@@ -388,11 +392,12 @@ fn run_orchestration(
         .join("runs")
         .join(run_id)
         .join("logs.jsonl");
-    let handler = Arc::new(HubEventHandler::with_log_file(hub.clone(), log_path)
-        .unwrap_or_else(|e| {
+    let handler = Arc::new(
+        HubEventHandler::with_log_file(hub.clone(), log_path).unwrap_or_else(|e| {
             warn!("Failed to create log file, running without persistence: {e}");
             HubEventHandler::new(hub.clone())
-        }));
+        }),
+    );
 
     // Load the plan to get steps
     let plan_path = project_root
@@ -404,8 +409,8 @@ fn run_orchestration(
         return Err(format!("No plan found for spec: {spec_name}"));
     }
 
-    let plan_content = std::fs::read_to_string(&plan_path)
-        .map_err(|e| format!("Failed to read plan: {e}"))?;
+    let plan_content =
+        std::fs::read_to_string(&plan_path).map_err(|e| format!("Failed to read plan: {e}"))?;
 
     // Parse batches from the plan YAML
     let plan_yaml: serde_yaml::Value = serde_yaml::from_str(&plan_content)
@@ -422,7 +427,10 @@ fn run_orchestration(
         });
         info!(spec = %spec_name, batch_count = batches.len(), "Dry run - skipping execution");
         let event = OrchestrationEvent::Log {
-            message: format!("Dry run: found {} batches, skipping execution", batches.len()),
+            message: format!(
+                "Dry run: found {} batches, skipping execution",
+                batches.len()
+            ),
             timestamp: chrono::Utc::now().to_rfc3339(),
             metadata: None,
         };
@@ -438,93 +446,139 @@ fn run_orchestration(
         },
     });
 
-    // Execute each batch as a step
-    for batch in batches {
-        let batch_name = batch
-            .get("name")
-            .and_then(|n| n.as_str())
-            .unwrap_or("unnamed");
-        let batch_id = batch
-            .get("id")
-            .and_then(|n| n.as_str())
-            .unwrap_or(batch_name);
+    // Collect batch ID → name mapping for matching stdout patterns
+    let batch_names: std::collections::HashMap<String, String> = batches
+        .iter()
+        .filter_map(|b| {
+            let id = b.get("id").and_then(|n| n.as_str())?;
+            let name = b.get("name").and_then(|n| n.as_str())?;
+            Some((name.to_string(), id.to_string()))
+        })
+        .collect();
 
-        handler.handle(JobEvent::StepStarted {
-            step_id: batch_id.to_string(),
-        });
+    // Execute via `ckrv code run <spec_path>/spec.yaml`
+    let spec_path = format!(".specs/{spec_name}/spec.yaml");
+    let mut args = vec!["code", "run", &spec_path];
+    if dry_run {
+        args.push("--json");
+    }
 
-        // Execute the batch via ckrv execute command
-        let mut args = vec!["execute", "--batch", batch_id];
-        let spec_path = format!(".specs/{spec_name}");
-        args.push(&spec_path);
+    info!(spec = %spec_name, "Executing: ckrv {}", args.join(" "));
 
-        info!(batch_id = %batch_id, "Executing batch");
+    let start = Instant::now();
+    let mut child = Command::new("ckrv")
+        .args(&args)
+        .current_dir(project_root)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn ckrv code run: {e}"))?;
 
-        let start = Instant::now();
-        let output = Command::new("ckrv")
-            .args(&args)
-            .current_dir(project_root)
-            .output();
+    // Stream stdout lines in real-time
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
 
-        match output {
-            Ok(out) if out.status.success() => {
-                let duration_ms = start.elapsed().as_millis() as u64;
-
-                // Forward stdout as log events
-                let stdout = String::from_utf8_lossy(&out.stdout);
-                for line in stdout.lines().filter(|l| !l.is_empty()) {
-                    let event = OrchestrationEvent::Log {
-                        message: line.to_string(),
-                        timestamp: chrono::Utc::now().to_rfc3339(),
-                        metadata: None,
-                    };
-                    handler.persist_event(&event);
-                    hub.broadcast(event);
+    // Read stdout in a separate thread so we can also read stderr.
+    // Parse batch lifecycle messages to fire individual StepStart/StepEnd events.
+    let hub_stdout = hub.clone();
+    let handler_stdout = handler.clone();
+    let batch_names_clone = batch_names.clone();
+    let stdout_thread = std::thread::spawn(move || {
+        if let Some(stdout) = stdout {
+            let reader = std::io::BufReader::new(stdout);
+            for line in reader.lines().map_while(Result::ok) {
+                let clean = strip_ansi_codes(&line);
+                if clean.is_empty() {
+                    continue;
                 }
 
-                // Forward stderr as log events (warnings, diagnostics)
-                let stderr = String::from_utf8_lossy(&out.stderr);
-                for line in stderr.lines().filter(|l| !l.is_empty()) {
-                    let event = OrchestrationEvent::Log {
-                        message: line.to_string(),
-                        timestamp: chrono::Utc::now().to_rfc3339(),
-                        metadata: Some(serde_json::json!({ "level": "error" })),
-                    };
-                    handler.persist_event(&event);
-                    hub.broadcast(event);
+                // Detect batch lifecycle events from CLI output
+                if clean.contains("[Orchestrator] Spawning batch:") {
+                    // Extract batch name after "Spawning batch: "
+                    if let Some(name) = clean.split("Spawning batch: ").nth(1) {
+                        let name = name.trim();
+                        if let Some(batch_id) = batch_names_clone.get(name) {
+                            handler_stdout.handle(JobEvent::StepStarted {
+                                step_id: batch_id.clone(),
+                            });
+                        }
+                    }
+                } else if clean.contains("[Orchestrator] Successfully merged batch") {
+                    // Extract batch name from "Successfully merged batch 'Name'."
+                    if let Some(start) = clean.find('\'') {
+                        if let Some(end) = clean[start + 1..].find('\'') {
+                            let name = &clean[start + 1..start + 1 + end];
+                            if let Some(batch_id) = batch_names_clone.get(name) {
+                                handler_stdout.handle(JobEvent::StepCompleted {
+                                    step_id: batch_id.clone(),
+                                    duration_ms: 0,
+                                });
+                            }
+                        }
+                    }
+                } else if clean.contains("Step") && clean.contains("failed:") {
+                    // "Step <id> failed: <error>"
+                    if let Some(rest) = clean.strip_prefix("Step ") {
+                        if let Some(idx) = rest.find(" failed:") {
+                            let step_id = &rest[..idx];
+                            let error = rest[idx + 8..].trim().to_string();
+                            handler_stdout.handle(JobEvent::StepFailed {
+                                step_id: step_id.to_string(),
+                                error,
+                            });
+                        }
+                    }
                 }
 
-                handler.handle(JobEvent::StepCompleted {
-                    step_id: batch_id.to_string(),
-                    duration_ms,
-                });
-            }
-            Ok(out) => {
-                // Forward stderr lines as individual log events before failing
-                let stderr = String::from_utf8_lossy(&out.stderr);
-                for line in stderr.lines().filter(|l| !l.is_empty()) {
-                    let event = OrchestrationEvent::Log {
-                        message: line.to_string(),
-                        timestamp: chrono::Utc::now().to_rfc3339(),
-                        metadata: Some(serde_json::json!({ "level": "error" })),
-                    };
-                    handler.persist_event(&event);
-                    hub.broadcast(event);
-                }
-                handler.handle(JobEvent::StepFailed {
-                    step_id: batch_id.to_string(),
-                    error: stderr.to_string(),
-                });
-                return Err(format!("Batch {batch_id} failed: {stderr}"));
-            }
-            Err(e) => {
-                handler.handle(JobEvent::StepFailed {
-                    step_id: batch_id.to_string(),
-                    error: e.to_string(),
-                });
-                return Err(format!("Failed to execute batch {batch_id}: {e}"));
+                let event = OrchestrationEvent::Log {
+                    message: clean,
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                    metadata: None,
+                };
+                handler_stdout.persist_event(&event);
+                hub_stdout.broadcast(event);
             }
         }
+    });
+
+    // Read stderr on this thread
+    let mut last_error = String::new();
+    if let Some(stderr) = stderr {
+        let reader = std::io::BufReader::new(stderr);
+        for line in reader.lines().map_while(Result::ok) {
+            let clean = strip_ansi_codes(&line);
+            if clean.is_empty() {
+                continue;
+            }
+            last_error.clone_from(&clean);
+            let event = OrchestrationEvent::Log {
+                message: clean,
+                timestamp: chrono::Utc::now().to_rfc3339(),
+                metadata: Some(serde_json::json!({ "level": "error" })),
+            };
+            handler.persist_event(&event);
+            hub.broadcast(event);
+        }
+    }
+
+    // Wait for stdout thread and process exit
+    let _ = stdout_thread.join();
+    let status = child
+        .wait()
+        .map_err(|e| format!("Failed to wait for ckrv: {e}"))?;
+
+    let _duration_ms = start.elapsed().as_millis() as u64;
+
+    if !status.success() {
+        // Mark any batches that weren't individually marked as failed
+        let batch_ids: Vec<String> = batch_names.values().cloned().collect();
+        for batch_id in &batch_ids {
+            handler.handle(JobEvent::StepFailed {
+                step_id: batch_id.clone(),
+                error: last_error.clone(),
+            });
+        }
+        return Err(format!("Execution failed: {last_error}"));
     }
 
     handler.handle(JobEvent::StateChanged {
@@ -604,9 +658,7 @@ pub async fn stop_execution_handler(
             entry.cancel_token.cancel();
             Ok(())
         }
-        Some(_) => Err(TransportError::BadRequest(
-            "Run is not active".to_string(),
-        )),
+        Some(_) => Err(TransportError::BadRequest("Run is not active".to_string())),
         None => Err(TransportError::NotFound(
             "No matching run found".to_string(),
         )),
@@ -1050,11 +1102,7 @@ pub fn get_logs_handler(
     let offset = params.offset.unwrap_or(0);
     let limit = params.limit.unwrap_or(100);
 
-    let page: Vec<LogEntry> = entries
-        .into_iter()
-        .skip(offset)
-        .take(limit)
-        .collect();
+    let page: Vec<LogEntry> = entries.into_iter().skip(offset).take(limit).collect();
 
     let has_more = offset + page.len() < total_count;
 
@@ -1101,6 +1149,34 @@ pub fn tail_logs_handler(
 }
 
 // ============================================================
+// Text Helpers
+// ============================================================
+
+/// Strip ANSI escape codes from a string.
+fn strip_ansi_codes(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // Skip ESC [ ... (single letter terminator)
+            if chars.peek() == Some(&'[') {
+                chars.next(); // consume '['
+                              // Consume until we hit a letter (the terminator)
+                while let Some(&next) = chars.peek() {
+                    chars.next();
+                    if next.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
+// ============================================================
 // Docker Cleanup
 // ============================================================
 
@@ -1112,8 +1188,10 @@ fn cleanup_docker_containers(spec_name: &str) {
     // Find containers with the ckrv label for this spec
     let containers = Command::new("docker")
         .args([
-            "ps", "-q",
-            "--filter", &format!("label=ckrv.spec={spec_name}"),
+            "ps",
+            "-q",
+            "--filter",
+            &format!("label=ckrv.spec={spec_name}"),
         ])
         .output();
 
@@ -1147,10 +1225,7 @@ fn cleanup_docker_containers(spec_name: &str) {
 /// Find the JSONL log file for an execution run.
 ///
 /// Searches for `.specs/*/runs/{execution_id}/logs.jsonl`.
-fn find_log_file(
-    project_root: &std::path::Path,
-    execution_id: &str,
-) -> Option<std::path::PathBuf> {
+fn find_log_file(project_root: &std::path::Path, execution_id: &str) -> Option<std::path::PathBuf> {
     let specs_dir = project_root.join(".specs");
     if !specs_dir.exists() {
         return None;

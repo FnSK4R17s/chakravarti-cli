@@ -310,13 +310,7 @@ impl WorkflowRunner {
         // Build the claude command with tools enabled for actual file operations
         // Using --dangerously-skip-permissions because we're running in a controlled task workspace
         let mut cmd = Command::new(&agent_path);
-        cmd.args([
-            "-p",
-            prompt,
-            "--output-format",
-            "text",
-            "--dangerously-skip-permissions",
-        ]);
+        cmd.args(["-p", prompt, "--dangerously-skip-permissions"]);
         cmd.current_dir(workdir);
 
         // Set OpenRouter environment variables if configured
@@ -407,10 +401,10 @@ impl WorkflowRunner {
             RunnerError::AgentError(format!("Failed to create Docker sandbox: {}", e))
         })?;
 
-        // Build command: claude -p "prompt" --dangerously-skip-permissions --output-format text
-        // We use --dangerously-skip-permissions because we're in a controlled sandbox
+        // Print mode (-p) for non-interactive execution — processes prompt and exits
+        // --dangerously-skip-permissions allows autonomous tool use in the sandbox
         let command = format!(
-            "{} -p {} --dangerously-skip-permissions --output-format text",
+            "{} -p {} --dangerously-skip-permissions",
             self.config.agent_binary,
             shell_escape::escape(prompt.into())
         );

@@ -31,7 +31,7 @@ default:
 # ==============================================================================
 
 # Build the Rust binary in release mode
-build: ui-setup
+build: ui-build
     @echo "Building Rust binary in release mode..."
     cargo build --release -p ckrv-cli
 
@@ -100,7 +100,7 @@ install *args:
     echo "Run 'ckrv --version' to verify."
 
 # Install without Docker (shorthand)
-install-quick:
+install-quick: ui-build
     CKRV_SKIP_DOCKER=true just install
 
 # Remove build artifacts

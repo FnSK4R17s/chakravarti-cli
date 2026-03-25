@@ -118,11 +118,17 @@ impl DockerClient {
         // Convert env to Docker format
         let mut env_vec: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
 
+        // Terminal environment — Claude Code needs these to detect capabilities and enable tool use
+        env_vec.push("TERM=xterm-256color".to_string());
+        env_vec.push("COLORTERM=truecolor".to_string());
+        env_vec.push("COLUMNS=120".to_string());
+        env_vec.push("LINES=30".to_string());
+
         // Mount Claude credentials if they exist
         let _host_home = std::env::var("HOME").unwrap_or_default();
 
-        // Use /home/claude as the container home directory (writable by any user)
-        let container_home = "/home/claude".to_string();
+        // Use the agent user's home directory where .claude config lives
+        let container_home = "/home/agent".to_string();
         env_vec.push(format!("HOME={}", container_home));
 
         // Create mounts: workspace + agent-specific credential mounts
@@ -148,31 +154,35 @@ impl DockerClient {
             });
         }
 
-        // Get current user UID:GID for proper permission handling
-        // Use `id` command since libc is unsafe
-        let uid_gid = std::process::Command::new("id")
-            .args(["-u"])
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.trim().to_string())
-            .unwrap_or_else(|| "1000".to_string());
-
-        let gid = std::process::Command::new("id")
-            .args(["-g"])
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.trim().to_string())
-            .unwrap_or_else(|| "1000".to_string());
-
-        let user_spec = format!("{}:{}", uid_gid, gid);
+        // Run as root so we can chown the workspace to the agent user,
+        // then drop to the agent user via the entrypoint/command wrapper.
+        // The image's default user is "agent" (uid 1001) but the workspace
+        // mount is owned by the host user (typically uid 1000 = "node" in container).
+        // We prepend a chown to fix permissions before running the actual command.
+        //
+        // The incoming `command` is typically ["sh", "-c", "claude -p '...' --flags"].
+        // Extract the inner shell command (3rd element) to avoid double sh -c wrapping.
+        let inner_cmd = if command.len() == 3 && command[0] == "sh" && command[1] == "-c" {
+            command[2].clone()
+        } else {
+            command.join(" ")
+        };
+        let wrapped_command = vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            format!(
+                "chown -R agent:agent {} 2>/dev/null; exec su -s /bin/sh agent -c '{}'",
+                mount_target,
+                inner_cmd.replace('\'', "'\\''"),
+            ),
+        ];
 
         let config = Config {
             image: Some(image.clone()),
-            cmd: Some(command),
+            cmd: Some(wrapped_command),
             working_dir: Some(workdir.to_string()),
-            user: Some(user_spec),
+            user: Some("root".to_string()), // Root for chown, then su to agent
+            tty: Some(true),
             env: Some(env_vec),
             host_config: Some(HostConfig {
                 mounts: Some(mounts),
@@ -287,6 +297,9 @@ impl DockerClient {
 
         let duration = start_time.elapsed();
 
+        // Restore workspace ownership to host user after container exits.
+        restore_workspace_ownership(mount_source);
+
         // Cleanup container (unless keep_container is set)
         if keep_container {
             tracing::info!(
@@ -347,6 +360,12 @@ impl DockerClient {
         // Convert env to Docker format
         let mut env_vec: Vec<String> = env.iter().map(|(k, v)| format!("{k}={v}")).collect();
 
+        // Terminal environment — Claude Code needs these to detect capabilities and enable tool use
+        env_vec.push("TERM=xterm-256color".to_string());
+        env_vec.push("COLORTERM=truecolor".to_string());
+        env_vec.push("COLUMNS=120".to_string());
+        env_vec.push("LINES=30".to_string());
+
         // Mount credentials if they exist
         let _host_home = std::env::var("HOME").unwrap_or_default();
 
@@ -404,6 +423,7 @@ impl DockerClient {
             cmd: Some(command),
             working_dir: Some(workdir.to_string()),
             user: Some(user_spec),
+            tty: Some(true), // Claude Code needs a TTY for tool execution
             env: Some(env_vec),
             host_config: Some(HostConfig {
                 mounts: Some(mounts),
@@ -500,6 +520,9 @@ impl DockerClient {
             };
 
         let duration = start_time.elapsed();
+
+        // Restore workspace ownership to host user after container exits
+        restore_workspace_ownership(mount_source);
 
         if keep_container {
             tracing::info!(container_id = %container.id, "Keeping container for debugging");
@@ -742,4 +765,40 @@ mod tests {
         assert_eq!(output.exit_code, 0);
         assert_eq!(output.stdout, "success");
     }
+}
+
+/// Restore workspace ownership to the host user after a container exits.
+///
+/// Container processes run as "agent" (uid 1001), so files they create are
+/// owned by that uid. The host user needs ownership for git operations.
+/// Uses a Docker alpine container since the host user can't chown files
+/// owned by a different uid without root.
+fn restore_workspace_ownership(mount_source: &str) {
+    let owner = std::process::Command::new("id")
+        .arg("-u")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "1000".to_string());
+    let group = std::process::Command::new("id")
+        .arg("-g")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "1000".to_string());
+    let _ = std::process::Command::new("docker")
+        .args([
+            "run",
+            "--rm",
+            "-v",
+            &format!("{mount_source}:/fix"),
+            "alpine",
+            "chown",
+            "-R",
+            &format!("{owner}:{group}"),
+            "/fix",
+        ])
+        .status();
 }
