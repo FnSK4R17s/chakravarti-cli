@@ -1,4 +1,12 @@
-//! Docker/Podman client wrapper.
+//! # Docker Client
+//!
+//! Docker/Podman client wrapper for container-based sandbox execution.
+//!
+//! ## Overview
+//!
+//! Provides [`DockerClient`], a high-level wrapper around the Bollard Docker API
+//! for creating, executing, and managing containers. Supports both one-shot
+//! execution and long-lived session containers with real-time log streaming.
 
 // ============================================================
 // IMPORTS

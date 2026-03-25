@@ -1,7 +1,12 @@
-//! Run command - execute a job based on a specification.
+//! # Run Command
 //!
-//! This command generates an execution plan and orchestrates
-//! multiple agent tasks to implement a feature.
+//! Execute a job based on a specification.
+//!
+//! ## Overview
+//!
+//! This command generates an execution plan from a spec and orchestrates
+//! multiple agent tasks to implement a feature. Supports local execution
+//! with worktrees, Docker sandboxing, and cloud dispatch.
 #![allow(clippy::format_push_string)]
 #![allow(clippy::option_if_let_else)]
 #![allow(clippy::manual_let_else)]

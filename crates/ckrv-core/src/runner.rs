@@ -1,7 +1,13 @@
-//! Workflow runner for executing multi-step agent workflows.
+//! # Workflow Runner
 //!
-//! The Runner iterates through workflow steps, renders prompts,
-//! invokes the agent, and collects outputs.
+//! Executes multi-step agent workflows sequentially.
+//!
+//! ## Overview
+//!
+//! The [`WorkflowRunner`] iterates through workflow steps, renders prompts
+//! via the template engine, invokes the agent (locally or in a Docker sandbox),
+//! and collects outputs. Step outputs are piped into subsequent steps as
+//! template variables, enabling multi-step reasoning chains.
 
 // ============================================================
 // IMPORTS
