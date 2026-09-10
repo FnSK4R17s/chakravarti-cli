@@ -2,11 +2,15 @@
 //!
 //! Axum route wrappers for plan handlers.
 //!
+//! Sync `get_plan` uses `tokio::task::spawn_blocking` for filesystem I/O.
+//! Placeholder save/models routes have no blocking work and are left as-is.
+//!
 //! Routes match frontend expectations:
 //! - GET /plans/detail?spec=X - Get plan for spec
 //! - POST /plans/save - Save plan
 //! - GET /plans/models - Get available models
 
+use crate::error::TransportError;
 use crate::handlers::plans::get_plan_handler;
 use crate::state::AppState;
 use axum::extract::{Query, State};
@@ -26,9 +30,10 @@ async fn get_plan(
     State(state): State<AppState>,
     Query(query): Query<PlanDetailQuery>,
 ) -> impl IntoResponse {
-    match get_plan_handler(&state, query.spec) {
-        Ok(plan) => Json(plan).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || get_plan_handler(&state, query.spec)).await {
+        Ok(Ok(plan)) => Json(plan).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 

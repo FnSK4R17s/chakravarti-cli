@@ -3,7 +3,10 @@
 //! Reference implementation showing the Axum wrapper pattern.
 //!
 //! This module demonstrates how to create Axum route wrappers for handlers.
+//! Sync handlers are wrapped with `tokio::task::spawn_blocking` to match the
+//! production route pattern.
 
+use crate::error::TransportError;
 use crate::handlers::example::{example_handler, get_example_info_handler, ExampleRequest};
 use crate::state::AppState;
 use axum::extract::State;
@@ -16,15 +19,16 @@ use axum::{Json, Router};
 /// This wrapper:
 /// 1. Extracts `AppState` from Axum's `State`
 /// 2. Extracts JSON body into `ExampleRequest`
-/// 3. Calls the transport-agnostic handler
+/// 3. Calls the transport-agnostic handler via `spawn_blocking`
 /// 4. Converts the result to an Axum response
 async fn example(
     State(state): State<AppState>,
     Json(request): Json<ExampleRequest>,
 ) -> impl IntoResponse {
-    match example_handler(&state, request) {
-        Ok(result) => Json(result).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || example_handler(&state, request)).await {
+        Ok(Ok(result)) => Json(result).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -32,9 +36,10 @@ async fn example(
 ///
 /// This shows a handler that takes no request body.
 async fn get_example_info(State(state): State<AppState>) -> impl IntoResponse {
-    match get_example_info_handler(&state) {
-        Ok(result) => Json(result).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || get_example_info_handler(&state)).await {
+        Ok(Ok(result)) => Json(result).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 

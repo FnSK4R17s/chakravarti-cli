@@ -2,6 +2,10 @@
 //!
 //! Axum route wrappers for task handlers.
 //!
+//! Sync handlers that perform filesystem / Git I/O are wrapped with
+//! `tokio::task::spawn_blocking`. Placeholder save/status routes have no
+//! blocking work and are left as-is.
+//!
 //! Routes match frontend expectations:
 //! - GET /tasks?spec=X - List tasks for spec
 //! - GET /tasks/detail?spec=X&task=Y - Get task details
@@ -12,6 +16,7 @@
 // IMPORTS
 // ============================================================
 
+use crate::error::TransportError;
 use crate::handlers::tasks::{get_task_handler, list_tasks_handler};
 use crate::state::AppState;
 use axum::extract::{Query, State};
@@ -46,9 +51,10 @@ async fn list_tasks(
     State(state): State<AppState>,
     Query(query): Query<TasksQuery>,
 ) -> impl IntoResponse {
-    match list_tasks_handler(&state, query.spec) {
-        Ok(tasks) => Json(tasks).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || list_tasks_handler(&state, query.spec)).await {
+        Ok(Ok(tasks)) => Json(tasks).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -57,9 +63,11 @@ async fn get_task_detail(
     State(state): State<AppState>,
     Query(query): Query<TaskDetailQuery>,
 ) -> impl IntoResponse {
-    match get_task_handler(&state, query.spec, query.task.unwrap_or_default()) {
-        Ok(task) => Json(task).into_response(),
-        Err(e) => e.into_response(),
+    let task = query.task.unwrap_or_default();
+    match tokio::task::spawn_blocking(move || get_task_handler(&state, query.spec, task)).await {
+        Ok(Ok(task)) => Json(task).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 

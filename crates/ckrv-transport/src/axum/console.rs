@@ -1,6 +1,11 @@
 //! # Console Axum Routes
 //!
 //! Axum route wrappers for console handlers.
+//!
+//! Local command execution uses `spawn_blocking` inside
+//! [`execute_command_handler`](crate::handlers::console::execute_command_handler)
+//! so blocking `std::process::Command` does not starve the async runtime.
+//! The sandbox path stays async.
 
 use crate::handlers::console::{execute_command_handler, ExecuteCommandRequest};
 use crate::state::AppState;

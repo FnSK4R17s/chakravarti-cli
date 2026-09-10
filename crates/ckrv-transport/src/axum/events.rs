@@ -2,10 +2,14 @@
 //!
 //! Axum SSE route for real-time events.
 //!
+//! `get_default_branch` uses `tokio::task::spawn_blocking` for the synchronous
+//! Git CLI call. The SSE heartbeat stream is already async.
+//!
 //! Routes match frontend expectations:
 //! - GET /events - SSE stream for real-time events
 //! - GET /git/default-branch - Get default git branch
 
+use crate::error::TransportError;
 use crate::state::AppState;
 use axum::extract::State;
 use axum::response::sse::{Event, Sse};
@@ -33,25 +37,30 @@ async fn sse_handler(
 
 /// Get default git branch.
 async fn get_default_branch(State(state): State<AppState>) -> impl IntoResponse {
-    // Try to get default branch from git
-    let default_branch = std::process::Command::new("git")
-        .args(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
-        .current_dir(&state.project_root)
-        .output()
-        .ok()
-        .and_then(|o| {
-            if o.status.success() {
-                String::from_utf8(o.stdout).ok()
-            } else {
-                None
-            }
-        })
-        .map(|s| s.trim().replace("origin/", ""))
-        .unwrap_or_else(|| "main".to_string());
-
-    Json(serde_json::json!({
-        "branch": default_branch
-    }))
+    match tokio::task::spawn_blocking(move || {
+        std::process::Command::new("git")
+            .args(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
+            .current_dir(&state.project_root)
+            .output()
+            .ok()
+            .and_then(|o| {
+                if o.status.success() {
+                    String::from_utf8(o.stdout).ok()
+                } else {
+                    None
+                }
+            })
+            .map(|s| s.trim().replace("origin/", ""))
+            .unwrap_or_else(|| "main".to_string())
+    })
+    .await
+    {
+        Ok(default_branch) => Json(serde_json::json!({
+            "branch": default_branch
+        }))
+        .into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
+    }
 }
 
 /// Create events routes.

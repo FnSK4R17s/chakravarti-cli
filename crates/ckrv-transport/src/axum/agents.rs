@@ -1,11 +1,16 @@
 //! # Agents Axum Routes
 //!
 //! Axum route wrappers for agent handlers.
+//!
+//! Sync handlers that perform filesystem I/O or CLI version checks are wrapped
+//! with `tokio::task::spawn_blocking`. Async HTTP model-list handlers are left
+//! as `.await`.
 
 // ============================================================
 // IMPORTS
 // ============================================================
 
+use crate::error::TransportError;
 use crate::handlers::agents::{
     delete_agent_handler, get_glm_models_handler, get_kilo_models_handler,
     get_openrouter_models_handler, list_agents_handler, set_default_agent_handler,
@@ -28,9 +33,10 @@ use serde::Deserialize;
 
 /// List all agents.
 async fn list_agents(State(state): State<AppState>) -> impl IntoResponse {
-    match list_agents_handler(&state) {
-        Ok(agents) => Json(serde_json::json!({ "agents": agents })).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || list_agents_handler(&state)).await {
+        Ok(Ok(agents)) => Json(serde_json::json!({ "agents": agents })).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -39,9 +45,10 @@ async fn upsert_agent(
     State(state): State<AppState>,
     Json(request): Json<UpsertAgentRequest>,
 ) -> impl IntoResponse {
-    match upsert_agent_handler(&state, request) {
-        Ok(agent) => Json(agent).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || upsert_agent_handler(&state, request)).await {
+        Ok(Ok(agent)) => Json(agent).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -57,9 +64,10 @@ async fn delete_agent(
     Json(body): Json<DeleteAgentBody>,
 ) -> impl IntoResponse {
     let request = DeleteAgentRequest { name: body.name };
-    match delete_agent_handler(&state, request) {
-        Ok(()) => axum::http::StatusCode::NO_CONTENT.into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || delete_agent_handler(&state, request)).await {
+        Ok(Ok(())) => axum::http::StatusCode::NO_CONTENT.into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -75,9 +83,10 @@ async fn set_default_agent(
     Json(body): Json<SetDefaultBody>,
 ) -> impl IntoResponse {
     let request = SetDefaultAgentRequest { name: body.name };
-    match set_default_agent_handler(&state, request) {
-        Ok(agent) => Json(agent).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || set_default_agent_handler(&state, request)).await {
+        Ok(Ok(agent)) => Json(agent).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -93,9 +102,12 @@ async fn set_qa_agent(
     Json(body): Json<SetQaBody>,
 ) -> impl IntoResponse {
     let request = SetQaAgentRequest { name: body.name };
-    match set_qa_agent_handler(&state, request) {
-        Ok(agent) => Json(serde_json::json!({ "success": true, "agent": agent })).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || set_qa_agent_handler(&state, request)).await {
+        Ok(Ok(agent)) => {
+            Json(serde_json::json!({ "success": true, "agent": agent })).into_response()
+        }
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -111,9 +123,13 @@ async fn set_test_writer_agent(
     Json(body): Json<SetTestWriterBody>,
 ) -> impl IntoResponse {
     let request = SetTestWriterAgentRequest { name: body.name };
-    match set_test_writer_agent_handler(&state, request) {
-        Ok(agent) => Json(serde_json::json!({ "success": true, "agent": agent })).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || set_test_writer_agent_handler(&state, request)).await
+    {
+        Ok(Ok(agent)) => {
+            Json(serde_json::json!({ "success": true, "agent": agent })).into_response()
+        }
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -122,9 +138,10 @@ async fn test_agent(
     State(_state): State<AppState>,
     Json(request): Json<TestAgentRequest>,
 ) -> impl IntoResponse {
-    match test_agent_handler(request) {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || test_agent_handler(request)).await {
+        Ok(Ok(response)) => Json(response).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 

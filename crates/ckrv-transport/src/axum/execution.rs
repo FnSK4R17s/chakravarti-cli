@@ -2,6 +2,10 @@
 //!
 //! Axum route wrappers for execution handlers.
 //!
+//! Sync handlers that perform Git CLI / filesystem I/O are wrapped with
+//! `tokio::task::spawn_blocking`. Already-async handlers (start/stop/status)
+//! and the WebSocket stream are left as-is.
+//!
 //! Routes match frontend expectations:
 //! - POST /execution/start - Start execution
 //! - GET /execution/ws - WebSocket for execution logs
@@ -17,6 +21,7 @@
 // IMPORTS
 // ============================================================
 
+use crate::error::TransportError;
 use crate::handlers::execution::{
     get_execution_status_handler, get_logs_handler, list_branches_handler,
     merge_all_branches_handler, merge_branch_handler, start_execution_handler,
@@ -155,9 +160,10 @@ async fn get_branches(
     Query(query): Query<BranchesQuery>,
 ) -> impl IntoResponse {
     let request = ListBranchesRequest { spec: query.spec };
-    match list_branches_handler(&state, request) {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || list_branches_handler(&state, request)).await {
+        Ok(Ok(response)) => Json(response).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -166,9 +172,10 @@ async fn merge_branch(
     State(state): State<AppState>,
     Json(request): Json<MergeBranchRequest>,
 ) -> impl IntoResponse {
-    match merge_branch_handler(&state, request) {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || merge_branch_handler(&state, request)).await {
+        Ok(Ok(response)) => Json(response).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -186,9 +193,10 @@ async fn merge_all(
     let request = MergeAllRequest {
         spec: body.and_then(|b| b.spec.clone()),
     };
-    match merge_all_branches_handler(&state, request) {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || merge_all_branches_handler(&state, request)).await {
+        Ok(Ok(response)) => Json(response).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -211,9 +219,10 @@ async fn get_logs(
         limit: query.limit,
         since: query.since,
     };
-    match get_logs_handler(&state, id, params) {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || get_logs_handler(&state, id, params)).await {
+        Ok(Ok(response)) => Json(response).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -230,9 +239,10 @@ async fn tail_logs(
     Query(query): Query<TailQuery>,
 ) -> impl IntoResponse {
     let params = LogTailParams { count: query.count };
-    match tail_logs_handler(&state, id, params) {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || tail_logs_handler(&state, id, params)).await {
+        Ok(Ok(response)) => Json(response).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 

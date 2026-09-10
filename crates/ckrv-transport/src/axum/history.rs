@@ -2,6 +2,9 @@
 //!
 //! Axum route wrappers for history handlers.
 //!
+//! Uses `tokio::task::spawn_blocking` since handlers perform synchronous
+//! filesystem I/O.
+//!
 //! Routes match frontend expectations:
 //! - GET /history/{spec} - List runs for spec
 //! - POST /history/{spec} - Create new run
@@ -9,6 +12,7 @@
 //! - PATCH /history/{spec}/{run_id} - Update run
 //! - DELETE /history/{spec}/{run_id} - Delete run
 
+use crate::error::TransportError;
 use crate::handlers::history::{
     create_run_handler, delete_run_handler, get_run_handler, list_history_handler,
     update_run_handler,
@@ -25,9 +29,10 @@ async fn list_history(
     State(state): State<AppState>,
     Path(spec): Path<String>,
 ) -> impl IntoResponse {
-    match list_history_handler(&state, spec) {
-        Ok(runs) => Json(runs).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || list_history_handler(&state, spec)).await {
+        Ok(Ok(runs)) => Json(runs).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -36,9 +41,10 @@ async fn get_run(
     State(state): State<AppState>,
     Path((spec, run_id)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    match get_run_handler(&state, spec, run_id) {
-        Ok(run) => Json(run).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || get_run_handler(&state, spec, run_id)).await {
+        Ok(Ok(run)) => Json(run).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -48,9 +54,10 @@ async fn create_run(
     Path(spec): Path<String>,
     Json(request): Json<CreateRunRequest>,
 ) -> impl IntoResponse {
-    match create_run_handler(&state, spec, request) {
-        Ok(run) => Json(run).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || create_run_handler(&state, spec, request)).await {
+        Ok(Ok(run)) => Json(run).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -60,9 +67,12 @@ async fn update_run(
     Path((spec, run_id)): Path<(String, String)>,
     Json(request): Json<UpdateRunRequest>,
 ) -> impl IntoResponse {
-    match update_run_handler(&state, spec, run_id, request) {
-        Ok(run) => Json(run).into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || update_run_handler(&state, spec, run_id, request))
+        .await
+    {
+        Ok(Ok(run)) => Json(run).into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 
@@ -71,9 +81,10 @@ async fn delete_run_route(
     State(state): State<AppState>,
     Path((spec, run_id)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    match delete_run_handler(&state, spec, run_id) {
-        Ok(()) => axum::http::StatusCode::NO_CONTENT.into_response(),
-        Err(e) => e.into_response(),
+    match tokio::task::spawn_blocking(move || delete_run_handler(&state, spec, run_id)).await {
+        Ok(Ok(())) => axum::http::StatusCode::NO_CONTENT.into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => TransportError::Internal(format!("Task panicked: {e}")).into_response(),
     }
 }
 

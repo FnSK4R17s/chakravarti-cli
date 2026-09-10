@@ -1,6 +1,10 @@
 //! # Console Handler
 //!
 //! Handlers for interactive command execution.
+//!
+//! The local execution path uses `tokio::task::spawn_blocking` so that
+//! synchronous `std::process::Command` does not block the async runtime.
+//! The Docker sandbox path remains fully async.
 
 use crate::error::TransportError;
 use crate::state::AppState;
@@ -74,8 +78,12 @@ pub async fn execute_command_handler(
         )
         .await
     } else {
-        // Execute locally
-        execute_locally(&request.command, &cwd, env)
+        // Execute locally — offload blocking Command off the async runtime
+        let command = request.command;
+        match tokio::task::spawn_blocking(move || execute_locally(&command, &cwd, env)).await {
+            Ok(result) => result,
+            Err(e) => Err(TransportError::Internal(format!("Task panicked: {e}"))),
+        }
     }
 }
 
